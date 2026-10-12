@@ -23,7 +23,7 @@ Actualizado: 2026-10-11
 
 ## Siguiente paso literal
 
-Regenerar `Docs_BD` con las 43 rutinas nuevas. Después, la Fase 2 en adelante (solución .NET) para los Hitos 0 y 1.
+Ejecutar `Docs_BD/_tools/generar_docs_bd.ps1` sobre la base del usuario y confirmar con `git diff` (esperado: `CAF_GOVERNANCE_*` cambia solo la línea 1; `TRIANONSATELITAL_CAF_PRODD_03` pasa de 3 a unas 1650 líneas; el inventario muestra 8 tablas, 21 funciones y 22 procedimientos en el módulo). Después, la Fase 2 en adelante (solución .NET) para los Hitos 0 y 1.
 
 ## Decisiones vigentes que más condicionan
 
@@ -44,6 +44,7 @@ Regenerar `Docs_BD` con las 43 rutinas nuevas. Después, la Fase 2 en adelante (
 
 - Confirmar D-32 (reglas del tratamiento de desviación, con Vigilancia) y D-34 (checklist de tipos de acceso inactivos).
 - Documentos con letras (CE, pasaporte): ¿se normalizan a mayúsculas en `Personal` y `CAF_Persona_Externa`?
+- T-03 (decisión técnica): los archivos `*_01_TABLAS_CONSOLIDADO.sql` incluyen también las rutinas, porque `pg_dump -n` vuelca todo el schema (CAF_GOVERNANCE_01 trae las 54 y, tras regenerar, PRODD_01 traerá las 43). Cada rutina queda en dos archivos. Está en los dos scripts de exportación desde el Hito 0. Corregirlo cambia el contenido de `Docs_BD`: decidir con el usuario.
 - D-35: cada Fase 1 de los Hitos 2 a 4 agrega su revisión en el `_ELIMINAR` de los catálogos que referencia.
 
 - Traducir los `(VALUES ...)` del script 05 antes de ejecutar en HANA.
@@ -61,5 +62,5 @@ Regenerar `Docs_BD` con las 43 rutinas nuevas. Después, la Fase 2 en adelante (
 
 ## Herramientas
 
-- `Docs_BD/_tools/generar_docs_bd.sh`: regenera Docs_BD desde la base (bash; el usuario está en Windows: pendiente una versión PowerShell).
+- `Docs_BD/_tools/generar_docs_bd.ps1` (2026-10-12): versión PowerShell de `generar_docs_bd.sh`. Probada por Claude en PowerShell 7.4 sobre Linux: salida idéntica byte a byte a la de bash, y ante base inexistente, base equivocada o psql ausente no escribe ningún archivo. **No probada en Windows PowerShell 5.1 ni en el equipo del usuario.** Uso: `powershell -ExecutionPolicy Bypass -File .\generar_docs_bd.ps1 -Base <base> -Usuario postgres -RutaBin "C:\Program Files\PostgreSQL\18\bin"`.
 - `Docs_BD/_tools/gen_catalogos.py` V1.1: genera los SPs de catálogos de los dos schemas con la plantilla única (`python gen_catalogos.py caf <carpeta>`).

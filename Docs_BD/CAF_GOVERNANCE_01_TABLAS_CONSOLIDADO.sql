@@ -1,4 +1,4 @@
--- Docs_BD · CAF_GOVERNANCE · TABLAS · export 2026-10-11 06:07
+-- Docs_BD · CAF_GOVERNANCE · TABLAS · export 2026-10-12 11:36
 -- ÍNDICE
 --  1. Catalogo_Area
 --  2. Catalogo_Cargo
@@ -12,16 +12,12 @@
 
 -- PostgreSQL database dump
 
--- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
--- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+-- Dumped from database version 18.6
+-- Dumped by pg_dump version 18.6
 
 -- Name: CAF_GOVERNANCE; Type: SCHEMA; Schema: -; Owner: -
 
 CREATE SCHEMA "CAF_GOVERNANCE";
-
--- Name: SCHEMA "CAF_GOVERNANCE"; Type: COMMENT; Schema: -; Owner: -
-
-COMMENT ON SCHEMA "CAF_GOVERNANCE" IS 'Transversal local del piloto: identidad, licencias y catálogos compartidos. Se reemplaza por TRIANONSATELITAL_GOVERNANCE al integrar.';
 
 -- Name: ERP_CATALOGO_AREA_ACTUALIZAR(bigint, character varying, character varying, bigint, character, bigint, integer, character varying); Type: PROCEDURE; Schema: CAF_GOVERNANCE; Owner: -
 

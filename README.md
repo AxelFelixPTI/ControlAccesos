@@ -10,7 +10,7 @@ Sistema de control de ingreso y salida de visitantes externos en la sede VES (et
 
 | Carpeta | Para qué sirve |
 | --- | --- |
-| `Docs_BD/` | Export de la base de datos por schema. **Fuente de verdad.** Se regenera con `_tools/generar_docs_bd.sh` tras cada despliegue; nunca se edita a mano. Incluye la tabla de equivalencias PostgreSQL → HANA. |
+| `Docs_BD/` | Export de la base de datos por schema. **Fuente de verdad.** Se regenera tras cada despliegue con `_tools/generar_docs_bd.ps1` (Windows, PowerShell) o `_tools/generar_docs_bd.sh` (bash); nunca se edita a mano. Incluye la tabla de equivalencias PostgreSQL → HANA. |
 | `Docs_Modulos/` | Una carpeta por hito (`HITO_<NN>_<Nombre>_<fecha>`), con su paquete de diseño, scripts SQL en `00_BD/` y el handoff al cerrarlo. |
 | `Docs_Cerebro/` | Contexto vivo del proyecto para retomar entre sesiones. |
 | `src/` | Código de la solución (se crea en la Fase 2 del Hito 0). |

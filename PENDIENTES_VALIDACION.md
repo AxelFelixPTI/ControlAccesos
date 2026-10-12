@@ -121,6 +121,7 @@ Cuando la persona no figura en los documentos del proyecto, dice **por definir**
 | --- | --- | --- |
 | T-01 | **D-35.** Cuando existan las tablas de solicitudes, portería e incidencias, los procedimientos que **eliminan** zonas, motivos, tratamientos, tipos de incidencia, tipos de acceso e ítems deben revisar también esas tablas, para que no se borre algo que está en uso. El lugar está marcado en el código. | Fase 1 de los Hitos 2, 3 y 4 |
 | T-02 | Traducir a la forma de HANA la carga inicial de zonas (script 05), que hoy usa una construcción que HANA no tiene. | Antes de instalar en HANA |
+| T-03 | **Decisión técnica del usuario.** Los archivos de `Docs_BD` que dicen "TABLAS" traen también las rutinas, y cada rutina aparece en dos archivos. No rompe nada, pero un buscador encuentra cada rutina duplicada y el archivo de tablas del módulo pasará de 21 KB a unos 120 KB. Se puede separar para que "TABLAS" tenga solo tablas. | Cuando quiera; conviene antes de la Fase 2 |
 
 ---
 
