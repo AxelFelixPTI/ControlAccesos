@@ -1,48 +1,52 @@
--- Docs_BD · TRIANONSATELITAL_CAF_PRODD · FUNCIONES Y PROCEDIMIENTOS · export 2026-10-12 11:36
+-- Docs_BD · TRIANONSATELITAL_CAF_PRODD · FUNCIONES Y PROCEDIMIENTOS · export 2026-10-16 17:24
 -- ÍNDICE
 --  1. ERP_CAF_PERSONA_EXTERNA_ACTUALIZAR (procedimiento)
 --  2. ERP_CAF_PERSONA_EXTERNA_CREAR (procedimiento)
 --  3. ERP_CAF_PERSONA_EXTERNA_DETALLE_POR_DOCUMENTO (función)
 --  4. ERP_CAF_PERSONA_EXTERNA_LISTAR (función)
---  5. ERP_CATALOGO_ITEM_CHECKLIST_ACTUALIZAR (procedimiento)
---  6. ERP_CATALOGO_ITEM_CHECKLIST_CREAR (procedimiento)
---  7. ERP_CATALOGO_ITEM_CHECKLIST_DETALLE (función)
---  8. ERP_CATALOGO_ITEM_CHECKLIST_DROPDOWN (función)
---  9. ERP_CATALOGO_ITEM_CHECKLIST_ELIMINAR (procedimiento)
---  10. ERP_CATALOGO_ITEM_CHECKLIST_LISTAR (función)
---  11. ERP_CATALOGO_MOTIVO_VISITA_ACTUALIZAR (procedimiento)
---  12. ERP_CATALOGO_MOTIVO_VISITA_CREAR (procedimiento)
---  13. ERP_CATALOGO_MOTIVO_VISITA_DETALLE (función)
---  14. ERP_CATALOGO_MOTIVO_VISITA_DROPDOWN (función)
---  15. ERP_CATALOGO_MOTIVO_VISITA_ELIMINAR (procedimiento)
---  16. ERP_CATALOGO_MOTIVO_VISITA_LISTAR (función)
---  17. ERP_CATALOGO_TIPO_ACCESO_ACTUALIZAR (procedimiento)
---  18. ERP_CATALOGO_TIPO_ACCESO_CREAR (procedimiento)
---  19. ERP_CATALOGO_TIPO_ACCESO_DETALLE (función)
---  20. ERP_CATALOGO_TIPO_ACCESO_DROPDOWN (función)
---  21. ERP_CATALOGO_TIPO_ACCESO_ELIMINAR (procedimiento)
---  22. ERP_CATALOGO_TIPO_ACCESO_LISTAR (función)
---  23. ERP_CATALOGO_TIPO_INCIDENCIA_ACTUALIZAR (procedimiento)
---  24. ERP_CATALOGO_TIPO_INCIDENCIA_CREAR (procedimiento)
---  25. ERP_CATALOGO_TIPO_INCIDENCIA_DETALLE (función)
---  26. ERP_CATALOGO_TIPO_INCIDENCIA_DROPDOWN (función)
---  27. ERP_CATALOGO_TIPO_INCIDENCIA_ELIMINAR (procedimiento)
---  28. ERP_CATALOGO_TIPO_INCIDENCIA_LISTAR (función)
---  29. ERP_CATALOGO_TRATAMIENTO_DESVIACION_ACTUALIZAR (procedimiento)
---  30. ERP_CATALOGO_TRATAMIENTO_DESVIACION_CREAR (procedimiento)
---  31. ERP_CATALOGO_TRATAMIENTO_DESVIACION_DETALLE (función)
---  32. ERP_CATALOGO_TRATAMIENTO_DESVIACION_DROPDOWN (función)
---  33. ERP_CATALOGO_TRATAMIENTO_DESVIACION_ELIMINAR (procedimiento)
---  34. ERP_CATALOGO_TRATAMIENTO_DESVIACION_LISTAR (función)
---  35. ERP_CATALOGO_ZONA_ACCESO_ACTUALIZAR (procedimiento)
---  36. ERP_CATALOGO_ZONA_ACCESO_CREAR (procedimiento)
---  37. ERP_CATALOGO_ZONA_ACCESO_DETALLE (función)
---  38. ERP_CATALOGO_ZONA_ACCESO_DROPDOWN (función)
---  39. ERP_CATALOGO_ZONA_ACCESO_ELIMINAR (procedimiento)
---  40. ERP_CATALOGO_ZONA_ACCESO_LISTAR (función)
---  41. ERP_TIPO_ACCESO_ITEM_CHECKLIST_AGREGAR (procedimiento)
---  42. ERP_TIPO_ACCESO_ITEM_CHECKLIST_LISTAR_POR_PADRE (función)
---  43. ERP_TIPO_ACCESO_ITEM_CHECKLIST_QUITAR (procedimiento)
+--  5. ERP_CAF_TIPO_ACCESO_PASO_ACTUALIZAR (procedimiento)
+--  6. ERP_CAF_TIPO_ACCESO_PASO_AGREGAR (procedimiento)
+--  7. ERP_CAF_TIPO_ACCESO_PASO_LISTAR_POR_PADRE (función)
+--  8. ERP_CAF_TIPO_ACCESO_PASO_QUITAR (procedimiento)
+--  9. ERP_CATALOGO_ITEM_CHECKLIST_ACTUALIZAR (procedimiento)
+--  10. ERP_CATALOGO_ITEM_CHECKLIST_CREAR (procedimiento)
+--  11. ERP_CATALOGO_ITEM_CHECKLIST_DETALLE (función)
+--  12. ERP_CATALOGO_ITEM_CHECKLIST_DROPDOWN (función)
+--  13. ERP_CATALOGO_ITEM_CHECKLIST_ELIMINAR (procedimiento)
+--  14. ERP_CATALOGO_ITEM_CHECKLIST_LISTAR (función)
+--  15. ERP_CATALOGO_MOTIVO_VISITA_ACTUALIZAR (procedimiento)
+--  16. ERP_CATALOGO_MOTIVO_VISITA_CREAR (procedimiento)
+--  17. ERP_CATALOGO_MOTIVO_VISITA_DETALLE (función)
+--  18. ERP_CATALOGO_MOTIVO_VISITA_DROPDOWN (función)
+--  19. ERP_CATALOGO_MOTIVO_VISITA_ELIMINAR (procedimiento)
+--  20. ERP_CATALOGO_MOTIVO_VISITA_LISTAR (función)
+--  21. ERP_CATALOGO_TIPO_ACCESO_ACTUALIZAR (procedimiento)
+--  22. ERP_CATALOGO_TIPO_ACCESO_CREAR (procedimiento)
+--  23. ERP_CATALOGO_TIPO_ACCESO_DETALLE (función)
+--  24. ERP_CATALOGO_TIPO_ACCESO_DROPDOWN (función)
+--  25. ERP_CATALOGO_TIPO_ACCESO_ELIMINAR (procedimiento)
+--  26. ERP_CATALOGO_TIPO_ACCESO_LISTAR (función)
+--  27. ERP_CATALOGO_TIPO_INCIDENCIA_ACTUALIZAR (procedimiento)
+--  28. ERP_CATALOGO_TIPO_INCIDENCIA_CREAR (procedimiento)
+--  29. ERP_CATALOGO_TIPO_INCIDENCIA_DETALLE (función)
+--  30. ERP_CATALOGO_TIPO_INCIDENCIA_DROPDOWN (función)
+--  31. ERP_CATALOGO_TIPO_INCIDENCIA_ELIMINAR (procedimiento)
+--  32. ERP_CATALOGO_TIPO_INCIDENCIA_LISTAR (función)
+--  33. ERP_CATALOGO_TRATAMIENTO_DESVIACION_ACTUALIZAR (procedimiento)
+--  34. ERP_CATALOGO_TRATAMIENTO_DESVIACION_CREAR (procedimiento)
+--  35. ERP_CATALOGO_TRATAMIENTO_DESVIACION_DETALLE (función)
+--  36. ERP_CATALOGO_TRATAMIENTO_DESVIACION_DROPDOWN (función)
+--  37. ERP_CATALOGO_TRATAMIENTO_DESVIACION_ELIMINAR (procedimiento)
+--  38. ERP_CATALOGO_TRATAMIENTO_DESVIACION_LISTAR (función)
+--  39. ERP_CATALOGO_ZONA_ACCESO_ACTUALIZAR (procedimiento)
+--  40. ERP_CATALOGO_ZONA_ACCESO_CREAR (procedimiento)
+--  41. ERP_CATALOGO_ZONA_ACCESO_DETALLE (función)
+--  42. ERP_CATALOGO_ZONA_ACCESO_DROPDOWN (función)
+--  43. ERP_CATALOGO_ZONA_ACCESO_ELIMINAR (procedimiento)
+--  44. ERP_CATALOGO_ZONA_ACCESO_LISTAR (función)
+--  45. ERP_TIPO_ACCESO_ITEM_CHECKLIST_AGREGAR (procedimiento)
+--  46. ERP_TIPO_ACCESO_ITEM_CHECKLIST_LISTAR_POR_PADRE (función)
+--  47. ERP_TIPO_ACCESO_ITEM_CHECKLIST_QUITAR (procedimiento)
 
 CREATE OR REPLACE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_PERSONA_EXTERNA_ACTUALIZAR"(IN "HV_ID_Persona_Externa" bigint, IN "HV_ID_Catalogo_Tipo_Documento" bigint, IN "HV_Numero_Documento" character varying, IN "HV_Apellido_Paterno" character varying, IN "HV_Apellido_Materno" character varying, IN "HV_Nombres" character varying, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
  LANGUAGE plpgsql
@@ -216,6 +220,226 @@ BEGIN
      ORDER BY T0."Apellido_Paterno", T0."Apellido_Materno", T0."Nombres";
 END;
 $function$
+;
+
+CREATE OR REPLACE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_ACTUALIZAR"(IN "HV_ID_Tipo_Acceso_Paso_Aprobacion" bigint, IN "HV_Orden" bigint, IN "HV_Descripcion" character varying, IN "HV_Alcance" character varying, IN "HV_ID_Catalogo_Licencia" bigint, IN "HV_Obligatorio" character, IN "HV_Activo" character, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+ LANGUAGE plpgsql
+ SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+AS $procedure$
+DECLARE
+    lv_n          INT := 0;
+    lv_decisiones INT := 0;
+    lv_alcance    VARCHAR(20);
+BEGIN
+    -- V1.0 2026-10-16
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_TIPO_ACCESO_PASO_ACTUALIZAR';
+    BEGIN
+        IF "HV_Descripcion" IS NULL OR LENGTH(TRIM("HV_Descripcion")) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La descripción es obligatoria.'; RETURN;
+        END IF;
+        IF "HV_Orden" IS NULL OR "HV_Orden" < 1 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El orden debe ser 1 o más.'; RETURN;
+        END IF;
+        IF COALESCE("HV_Alcance",'PERSONA') NOT IN ('PERSONA','SOLICITUD') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El alcance debe ser PERSONA o SOLICITUD.'; RETURN;
+        END IF;
+        IF COALESCE("HV_Obligatorio",'Y') NOT IN ('Y','N') OR COALESCE("HV_Activo",'Y') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Obligatorio y Activo deben ser Y o N.'; RETURN;
+        END IF;
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+
+        SELECT COUNT(*), MAX("Alcance") INTO lv_n, lv_alcance FROM "Tipo_Acceso_Paso_Aprobacion"
+         WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = "HV_ID_Tipo_Acceso_Paso_Aprobacion" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El paso no existe o ya fue quitado.'; RETURN;
+        END IF;
+
+        SELECT COUNT(*) INTO lv_decisiones FROM "CAF_Solicitud_Decision"
+         WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = "HV_ID_Tipo_Acceso_Paso_Aprobacion" AND "Eliminado" = 'N';
+        IF lv_decisiones > 0 AND lv_alcance <> COALESCE("HV_Alcance", lv_alcance) THEN
+            "HV_Codigo_Resp" := 101;
+            "HV_Mensaje" := 'Ya tiene ' || lv_decisiones || ' decisiones: no se puede cambiar su alcance.'; RETURN;
+        END IF;
+
+        SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Catalogo_Licencia"
+         WHERE "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El rol que aprueba no existe.'; RETURN;
+        END IF;
+
+        UPDATE "Tipo_Acceso_Paso_Aprobacion"
+           SET "Orden" = "HV_Orden", "Descripcion" = TRIM("HV_Descripcion"),
+               "Alcance" = COALESCE("HV_Alcance", "Alcance"), "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia",
+               "Obligatorio" = COALESCE("HV_Obligatorio",'Y'), "Activo" = COALESCE("HV_Activo",'Y'),
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = "HV_ID_Tipo_Acceso_Paso_Aprobacion";
+
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Paso de aprobación actualizado correctamente.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_TIPO_ACCESO_PASO_ACTUALIZAR';
+    END;
+END;
+$procedure$
+;
+
+CREATE OR REPLACE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_AGREGAR"(IN "HV_ID_Catalogo_Tipo_Acceso" bigint, IN "HV_Orden" bigint, IN "HV_Codigo" character varying, IN "HV_Descripcion" character varying, IN "HV_Alcance" character varying, IN "HV_Tipo_Aprobador" character varying, IN "HV_ID_Catalogo_Licencia" bigint, IN "HV_Condicion" character varying, IN "HV_Obligatorio" character, IN "HV_UsuarioID_Create" bigint, INOUT "HV_ID_Tipo_Acceso_Paso_Aprobacion_Result" bigint DEFAULT NULL::bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+ LANGUAGE plpgsql
+ SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+AS $procedure$
+DECLARE
+    lv_n INT := 0;
+BEGIN
+    -- V1.0 2026-10-16
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_TIPO_ACCESO_PASO_AGREGAR';
+    "HV_ID_Tipo_Acceso_Paso_Aprobacion_Result" := 0;
+    BEGIN
+        IF "HV_Codigo" IS NULL OR LENGTH(TRIM("HV_Codigo")) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El código del paso es obligatorio.'; RETURN;
+        END IF;
+        IF "HV_Descripcion" IS NULL OR LENGTH(TRIM("HV_Descripcion")) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La descripción es obligatoria.'; RETURN;
+        END IF;
+        IF "HV_Orden" IS NULL OR "HV_Orden" < 1 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El orden debe ser 1 o más.'; RETURN;
+        END IF;
+        IF COALESCE("HV_Alcance",'PERSONA') NOT IN ('PERSONA','SOLICITUD') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El alcance debe ser PERSONA o SOLICITUD.'; RETURN;
+        END IF;
+        IF COALESCE("HV_Tipo_Aprobador",'ROL') NOT IN ('ROL') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Tipo de aprobador no admitido todavía.'; RETURN;
+        END IF;
+        IF COALESCE("HV_Condicion",'SIEMPRE') NOT IN ('SIEMPRE') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Condición no admitida todavía.'; RETURN;
+        END IF;
+        IF COALESCE("HV_Obligatorio",'Y') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Obligatorio debe ser Y o N.'; RETURN;
+        END IF;
+        IF "HV_UsuarioID_Create" IS NULL OR "HV_UsuarioID_Create" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+
+        SELECT COUNT(*) INTO lv_n FROM "Catalogo_Tipo_Acceso"
+         WHERE "ID_Catalogo_Tipo_Acceso" = "HV_ID_Catalogo_Tipo_Acceso" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El tipo de acceso no existe.'; RETURN;
+        END IF;
+
+        IF COALESCE("HV_Tipo_Aprobador",'ROL') = 'ROL' THEN
+            SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Catalogo_Licencia"
+             WHERE "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND "Eliminado" = 'N' AND "Activo" = 'Y';
+            IF lv_n = 0 THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El rol que aprueba no existe o está inactivo.'; RETURN;
+            END IF;
+        END IF;
+
+        SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Paso_Aprobacion"
+         WHERE "ID_Catalogo_Tipo_Acceso" = "HV_ID_Catalogo_Tipo_Acceso"
+           AND UPPER(TRIM("Codigo")) = UPPER(TRIM("HV_Codigo"));
+        IF lv_n > 0 THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Ese tipo de acceso ya tiene un paso con ese código.'; RETURN;
+        END IF;
+
+        INSERT INTO "Tipo_Acceso_Paso_Aprobacion"
+          ("ID_Catalogo_Tipo_Acceso","Orden","Codigo","Descripcion","Alcance","Tipo_Aprobador","ID_Catalogo_Licencia","Condicion","Obligatorio","UsuarioID_Create")
+        VALUES ("HV_ID_Catalogo_Tipo_Acceso", "HV_Orden", UPPER(TRIM("HV_Codigo")), TRIM("HV_Descripcion"),
+                COALESCE("HV_Alcance",'PERSONA'), COALESCE("HV_Tipo_Aprobador",'ROL'), "HV_ID_Catalogo_Licencia",
+                COALESCE("HV_Condicion",'SIEMPRE'), COALESCE("HV_Obligatorio",'Y'), "HV_UsuarioID_Create")
+        RETURNING "ID_Tipo_Acceso_Paso_Aprobacion" INTO "HV_ID_Tipo_Acceso_Paso_Aprobacion_Result";
+
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Paso de aprobación agregado correctamente.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_TIPO_ACCESO_PASO_AGREGAR';
+        "HV_ID_Tipo_Acceso_Paso_Aprobacion_Result" := 0;
+    END;
+END;
+$procedure$
+;
+
+CREATE OR REPLACE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_LISTAR_POR_PADRE"("HV_ID_Catalogo_Tipo_Acceso" bigint, "HV_Incluir_Inactivos" character DEFAULT 'N'::bpchar)
+ RETURNS TABLE("ID_Tipo_Acceso_Paso_Aprobacion" bigint, "ID_Catalogo_Tipo_Acceso" bigint, "Orden" bigint, "Codigo" character varying, "Descripcion" character varying, "Alcance" character varying, "Tipo_Aprobador" character varying, "ID_Catalogo_Licencia" bigint, "Codigo_Licencia" character varying, "Rol" character varying, "Condicion" character varying, "Obligatorio" character, "Activo" character, "CreateDate" timestamp without time zone)
+ LANGUAGE plpgsql
+ SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+AS $function$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT T0."ID_Tipo_Acceso_Paso_Aprobacion", T0."ID_Catalogo_Tipo_Acceso", T0."Orden",
+           T0."Codigo", T0."Descripcion", T0."Alcance", T0."Tipo_Aprobador",
+           T0."ID_Catalogo_Licencia", L."Codigo", L."Descripcion",
+           T0."Condicion", T0."Obligatorio", T0."Activo", T0."CreateDate"
+      FROM "Tipo_Acceso_Paso_Aprobacion" T0
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Licencia" L ON L."ID_Catalogo_Licencia" = T0."ID_Catalogo_Licencia"
+     WHERE T0."ID_Catalogo_Tipo_Acceso" = "HV_ID_Catalogo_Tipo_Acceso"
+       AND T0."Eliminado" = 'N'
+       AND ("HV_Incluir_Inactivos" = 'Y' OR T0."Activo" = 'Y')
+     ORDER BY T0."Orden", T0."Codigo";
+END;
+$function$
+;
+
+CREATE OR REPLACE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_QUITAR"(IN "HV_ID_Tipo_Acceso_Paso_Aprobacion" bigint, IN "HV_UsuarioID_Update" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+ LANGUAGE plpgsql
+ SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+AS $procedure$
+DECLARE
+    lv_n          INT := 0;
+    lv_tipo       BIGINT;
+    lv_decisiones INT := 0;
+    lv_quedan     INT := 0;
+    lv_disponible CHAR(1);
+BEGIN
+    -- V1.0 2026-10-16
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_TIPO_ACCESO_PASO_QUITAR';
+    BEGIN
+        IF "HV_UsuarioID_Update" IS NULL OR "HV_UsuarioID_Update" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        SELECT COUNT(*), MAX("ID_Catalogo_Tipo_Acceso") INTO lv_n, lv_tipo
+          FROM "Tipo_Acceso_Paso_Aprobacion"
+         WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = "HV_ID_Tipo_Acceso_Paso_Aprobacion" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El paso no existe o ya fue quitado.'; RETURN;
+        END IF;
+
+        SELECT COUNT(*) INTO lv_decisiones FROM "CAF_Solicitud_Decision"
+         WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = "HV_ID_Tipo_Acceso_Paso_Aprobacion" AND "Eliminado" = 'N';
+        IF lv_decisiones > 0 THEN
+            "HV_Codigo_Resp" := 101;
+            "HV_Mensaje" := 'Tiene ' || lv_decisiones || ' decisiones registradas. Desactívelo en vez de quitarlo.'; RETURN;
+        END IF;
+
+        SELECT MAX("Disponible") INTO lv_disponible FROM "Catalogo_Tipo_Acceso"
+         WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo;
+        SELECT COUNT(*) INTO lv_quedan FROM "Tipo_Acceso_Paso_Aprobacion"
+         WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "Eliminado" = 'N' AND "Activo" = 'Y' AND "Obligatorio" = 'Y'
+           AND "ID_Tipo_Acceso_Paso_Aprobacion" <> "HV_ID_Tipo_Acceso_Paso_Aprobacion";
+        IF lv_disponible = 'Y' AND lv_quedan = 0 THEN
+            "HV_Codigo_Resp" := 101;
+            "HV_Mensaje" := 'Es el único paso obligatorio de un tipo de acceso disponible; no se puede quitar.'; RETURN;
+        END IF;
+
+        UPDATE "Tipo_Acceso_Paso_Aprobacion"
+           SET "Eliminado" = 'Y', "UsuarioID_Update" = "HV_UsuarioID_Update", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = "HV_ID_Tipo_Acceso_Paso_Aprobacion";
+
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Paso de aprobación quitado correctamente.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_TIPO_ACCESO_PASO_QUITAR';
+    END;
+END;
+$procedure$
 ;
 
 CREATE OR REPLACE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CATALOGO_ITEM_CHECKLIST_ACTUALIZAR"(IN "HV_ID_Catalogo_Item_Checklist" bigint, IN "HV_Codigo" character varying, IN "HV_Descripcion" character varying, IN "HV_Ayuda" character varying, IN "HV_Etapa" character varying, IN "HV_Condicion" character varying, IN "HV_Es_Critico" character, IN "HV_Orden" bigint, IN "HV_Activo" character, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)

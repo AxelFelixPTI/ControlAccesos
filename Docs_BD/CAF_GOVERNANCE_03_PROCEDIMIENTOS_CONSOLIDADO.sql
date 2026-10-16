@@ -1,4 +1,4 @@
--- Docs_BD · CAF_GOVERNANCE · FUNCIONES Y PROCEDIMIENTOS · export 2026-10-12 11:36
+-- Docs_BD · CAF_GOVERNANCE · FUNCIONES Y PROCEDIMIENTOS · export 2026-10-16 17:24
 -- ÍNDICE
 --  1. ERP_CATALOGO_AREA_ACTUALIZAR (procedimiento)
 --  2. ERP_CATALOGO_AREA_CREAR (procedimiento)
@@ -20,40 +20,45 @@
 --  18. ERP_CATALOGO_EMPRESA_GRUPO_LISTAR (función)
 --  19. ERP_CATALOGO_LICENCIA_DROPDOWN (función)
 --  20. ERP_CATALOGO_LICENCIA_LISTAR (función)
---  21. ERP_CATALOGO_SEDE_ACTUALIZAR (procedimiento)
---  22. ERP_CATALOGO_SEDE_CREAR (procedimiento)
---  23. ERP_CATALOGO_SEDE_DETALLE (función)
---  24. ERP_CATALOGO_SEDE_DROPDOWN (función)
---  25. ERP_CATALOGO_SEDE_ELIMINAR (procedimiento)
---  26. ERP_CATALOGO_SEDE_LISTAR (función)
---  27. ERP_CATALOGO_TIPO_DOCUMENTO_ACTUALIZAR (procedimiento)
---  28. ERP_CATALOGO_TIPO_DOCUMENTO_CREAR (procedimiento)
---  29. ERP_CATALOGO_TIPO_DOCUMENTO_DETALLE (función)
---  30. ERP_CATALOGO_TIPO_DOCUMENTO_DROPDOWN (función)
---  31. ERP_CATALOGO_TIPO_DOCUMENTO_ELIMINAR (procedimiento)
---  32. ERP_CATALOGO_TIPO_DOCUMENTO_LISTAR (función)
---  33. ERP_PERSONAL_ACTUALIZAR (procedimiento)
---  34. ERP_PERSONAL_BUSCAR (función)
---  35. ERP_PERSONAL_CREAR (procedimiento)
---  36. ERP_PERSONAL_DETALLE (función)
---  37. ERP_PERSONAL_DETALLE_POR_DOCUMENTO (función)
---  38. ERP_PERSONAL_ELIMINAR (procedimiento)
---  39. ERP_PERSONAL_LISTAR (función)
---  40. ERP_USUARIO_ACTUALIZAR (procedimiento)
---  41. ERP_USUARIO_AUTENTICACION_POR_CORREO (función)
---  42. ERP_USUARIO_AUTENTICACION_POR_DOCUMENTO (función)
---  43. ERP_USUARIO_AUTENTICACION_POR_TOKEN (función)
---  44. ERP_USUARIO_CREAR (procedimiento)
---  45. ERP_USUARIO_DETALLE (función)
---  46. ERP_USUARIO_ELIMINAR (procedimiento)
---  47. ERP_USUARIO_LICENCIA_AGREGAR (procedimiento)
---  48. ERP_USUARIO_LICENCIA_LISTAR_POR_PADRE (función)
---  49. ERP_USUARIO_LICENCIA_QUITAR (procedimiento)
---  50. ERP_USUARIO_LICENCIA_VERIFICAR (función)
---  51. ERP_USUARIO_LISTAR (función)
---  52. ERP_USUARIO_LOGIN_REGISTRAR (procedimiento)
---  53. ERP_USUARIO_PASSWORD_ACTUALIZAR (procedimiento)
---  54. ERP_USUARIO_TOKEN_REGISTRAR (procedimiento)
+--  21. ERP_CATALOGO_PERMISO_LISTAR (función)
+--  22. ERP_CATALOGO_SEDE_ACTUALIZAR (procedimiento)
+--  23. ERP_CATALOGO_SEDE_CREAR (procedimiento)
+--  24. ERP_CATALOGO_SEDE_DETALLE (función)
+--  25. ERP_CATALOGO_SEDE_DROPDOWN (función)
+--  26. ERP_CATALOGO_SEDE_ELIMINAR (procedimiento)
+--  27. ERP_CATALOGO_SEDE_LISTAR (función)
+--  28. ERP_CATALOGO_TIPO_DOCUMENTO_ACTUALIZAR (procedimiento)
+--  29. ERP_CATALOGO_TIPO_DOCUMENTO_CREAR (procedimiento)
+--  30. ERP_CATALOGO_TIPO_DOCUMENTO_DETALLE (función)
+--  31. ERP_CATALOGO_TIPO_DOCUMENTO_DROPDOWN (función)
+--  32. ERP_CATALOGO_TIPO_DOCUMENTO_ELIMINAR (procedimiento)
+--  33. ERP_CATALOGO_TIPO_DOCUMENTO_LISTAR (función)
+--  34. ERP_LICENCIA_PERMISO_ASIGNAR (procedimiento)
+--  35. ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE (función)
+--  36. ERP_PERSONAL_ACTUALIZAR (procedimiento)
+--  37. ERP_PERSONAL_BUSCAR (función)
+--  38. ERP_PERSONAL_CREAR (procedimiento)
+--  39. ERP_PERSONAL_DETALLE (función)
+--  40. ERP_PERSONAL_DETALLE_POR_DOCUMENTO (función)
+--  41. ERP_PERSONAL_ELIMINAR (procedimiento)
+--  42. ERP_PERSONAL_LISTAR (función)
+--  43. ERP_USUARIO_ACTUALIZAR (procedimiento)
+--  44. ERP_USUARIO_AUTENTICACION_POR_CORREO (función)
+--  45. ERP_USUARIO_AUTENTICACION_POR_DOCUMENTO (función)
+--  46. ERP_USUARIO_AUTENTICACION_POR_TOKEN (función)
+--  47. ERP_USUARIO_CREAR (procedimiento)
+--  48. ERP_USUARIO_DETALLE (función)
+--  49. ERP_USUARIO_ELIMINAR (procedimiento)
+--  50. ERP_USUARIO_LICENCIA_AGREGAR (procedimiento)
+--  51. ERP_USUARIO_LICENCIA_LISTAR_POR_PADRE (función)
+--  52. ERP_USUARIO_LICENCIA_QUITAR (procedimiento)
+--  53. ERP_USUARIO_LICENCIA_VERIFICAR (función)
+--  54. ERP_USUARIO_LISTAR (función)
+--  55. ERP_USUARIO_LOGIN_REGISTRAR (procedimiento)
+--  56. ERP_USUARIO_PASSWORD_ACTUALIZAR (procedimiento)
+--  57. ERP_USUARIO_PERMISO_LISTAR (función)
+--  58. ERP_USUARIO_PERMISO_VERIFICAR (función)
+--  59. ERP_USUARIO_TOKEN_REGISTRAR (procedimiento)
 
 CREATE OR REPLACE PROCEDURE "CAF_GOVERNANCE"."ERP_CATALOGO_AREA_ACTUALIZAR"(IN "HV_ID_Catalogo_Area" bigint, IN "HV_Codigo" character varying, IN "HV_Descripcion" character varying, IN "HV_Orden" bigint, IN "HV_Activo" character, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
  LANGUAGE plpgsql
@@ -692,6 +697,27 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION "CAF_GOVERNANCE"."ERP_CATALOGO_PERMISO_LISTAR"("HV_Incluir_Eliminados" character DEFAULT 'N'::bpchar)
+ RETURNS TABLE("ID_Catalogo" bigint, "Codigo" character varying, "Descripcion" character varying, "Tipo_Entidad" character varying, "Orden" bigint, "Activo" character, "Eliminado" character, "UsuarioID_Create" bigint, "Nombre_Usuario" character varying, "UsuarioID_Update" bigint, "CreateDate" timestamp without time zone, "UpdateDate" timestamp without time zone)
+ LANGUAGE plpgsql
+ SET search_path TO 'CAF_GOVERNANCE'
+AS $function$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT T0."ID_Catalogo_Permiso", T0."Codigo", T0."Descripcion", T0."Modulo",
+           T0."Orden", T0."Activo", T0."Eliminado", T0."UsuarioID_Create",
+           CAST(CASE WHEN T0."UsuarioID_Create" = 0 THEN 'Sistema' ELSE T1."Nombres" || ' ' || T1."Apellido_Paterno" END AS VARCHAR),
+           T0."UsuarioID_Update", T0."CreateDate", T0."UpdateDate"
+      FROM "Catalogo_Permiso" T0
+      LEFT JOIN "Usuario" T1 ON T1."ID_Usuario" = T0."UsuarioID_Create"
+     WHERE ("HV_Incluir_Eliminados" = 'Y' OR T0."Eliminado" = 'N')
+     ORDER BY T0."Orden", T0."Codigo";
+END;
+$function$
+;
+
 CREATE OR REPLACE PROCEDURE "CAF_GOVERNANCE"."ERP_CATALOGO_SEDE_ACTUALIZAR"(IN "HV_ID_Catalogo_Sede" bigint, IN "HV_Codigo" character varying, IN "HV_Descripcion" character varying, IN "HV_Direccion" character varying, IN "HV_Orden" bigint, IN "HV_Activo" character, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
  LANGUAGE plpgsql
  SET search_path TO 'CAF_GOVERNANCE'
@@ -1109,6 +1135,123 @@ BEGIN
       FROM "Catalogo_Tipo_Documento" T0
       LEFT JOIN "Usuario" T1 ON T1."ID_Usuario" = T0."UsuarioID_Create"
      WHERE ("HV_Incluir_Eliminados" = 'Y' OR T0."Eliminado" = 'N')
+     ORDER BY T0."Orden", T0."Codigo";
+END;
+$function$
+;
+
+CREATE OR REPLACE PROCEDURE "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_ASIGNAR"(IN "HV_ID_Catalogo_Licencia" bigint, IN "HV_Codigos_Permiso" character varying, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+ LANGUAGE plpgsql
+ SET search_path TO 'CAF_GOVERNANCE'
+AS $procedure$
+DECLARE
+    lv_n            INT := 0;
+    lv_lista        VARCHAR(2100);
+    lv_desconocidos VARCHAR(2000);
+    lv_admins       INT := 0;
+    lv_tiene_admin  INT := 0;
+BEGIN
+    -- V1.0 2026-10-16
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_LICENCIA_PERMISO_ASIGNAR';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        SELECT COUNT(*) INTO lv_n FROM "Catalogo_Licencia"
+         WHERE "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El rol no existe o ya fue eliminado.'; RETURN;
+        END IF;
+
+        -- Lista normalizada: ",COD1,COD2," para comparar con LIKE.
+        -- Sin tablas temporales ni UNNEST: se traduce a HANA tal cual.
+        lv_lista := ',' || UPPER(REPLACE(REPLACE(REPLACE(COALESCE("HV_Codigos_Permiso", ''), ' ', ''), CHR(9), ''), CHR(10), '')) || ',';
+
+        SELECT STRING_AGG(x, ', ') INTO lv_desconocidos
+          FROM (SELECT DISTINCT UPPER(TRIM(c)) AS x
+                  FROM REGEXP_SPLIT_TO_TABLE(COALESCE("HV_Codigos_Permiso", ''), ',') AS c
+                 WHERE LENGTH(TRIM(c)) > 0) AS pedidos
+         WHERE NOT EXISTS (SELECT 1 FROM "Catalogo_Permiso" p
+                            WHERE p."Codigo" = pedidos.x AND p."Eliminado" = 'N' AND p."Activo" = 'Y');
+        IF lv_desconocidos IS NOT NULL THEN
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := 'Permisos no reconocidos: ' || LEFT(lv_desconocidos, 180); RETURN;
+        END IF;
+
+        -- Nunca dejar el sistema sin quien administre usuarios (D-29)
+        SELECT COUNT(*) INTO lv_tiene_admin FROM "Licencia_Permiso" LP
+          JOIN "Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+         WHERE LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+           AND P."Codigo" = 'PER_CAF_ADMIN_USUARIOS';
+        IF lv_tiene_admin > 0 AND lv_lista NOT LIKE '%,PER_CAF_ADMIN_USUARIOS,%' THEN
+            SELECT COUNT(DISTINCT UL."ID_Usuario") INTO lv_admins
+              FROM "Usuario_Licencia" UL
+              JOIN "Usuario" U ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+              JOIN "Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+              JOIN "Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Codigo" = 'PER_CAF_ADMIN_USUARIOS'
+             WHERE UL."Eliminado" = 'N' AND UL."ID_Catalogo_Licencia" <> "HV_ID_Catalogo_Licencia";
+            IF lv_admins = 0 THEN
+                "HV_Codigo_Resp" := 101;
+                "HV_Mensaje" := 'Es el único rol que administra usuarios; no se puede quitar ese permiso.'; RETURN;
+            END IF;
+        END IF;
+
+        -- Retirar los que ya no vienen
+        UPDATE "Licencia_Permiso" LP
+           SET "Eliminado" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+          FROM "Catalogo_Permiso" P
+         WHERE P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+           AND LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+           AND lv_lista NOT LIKE '%,' || P."Codigo" || ',%';
+
+        -- Reactivar los que estaban quitados
+        UPDATE "Licencia_Permiso" LP
+           SET "Eliminado" = 'N', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+          FROM "Catalogo_Permiso" P
+         WHERE P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+           AND LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND LP."Eliminado" = 'Y'
+           AND lv_lista LIKE '%,' || P."Codigo" || ',%';
+
+        -- Agregar los nuevos
+        INSERT INTO "Licencia_Permiso" ("ID_Catalogo_Licencia","ID_Catalogo_Permiso","UsuarioID_Create")
+        SELECT "HV_ID_Catalogo_Licencia", P."ID_Catalogo_Permiso", "HV_UsuarioID"
+          FROM "Catalogo_Permiso" P
+         WHERE lv_lista LIKE '%,' || P."Codigo" || ',%'
+           AND P."Eliminado" = 'N' AND P."Activo" = 'Y'
+           AND NOT EXISTS (SELECT 1 FROM "Licencia_Permiso" LP
+                            WHERE LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia"
+                              AND LP."ID_Catalogo_Permiso" = P."ID_Catalogo_Permiso");
+
+        SELECT COUNT(*) INTO lv_n FROM "Licencia_Permiso"
+         WHERE "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND "Eliminado" = 'N';
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'El rol quedó con ' || lv_n || ' permisos.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_LICENCIA_PERMISO_ASIGNAR';
+    END;
+END;
+$procedure$
+;
+
+CREATE OR REPLACE FUNCTION "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"("HV_ID_Catalogo_Licencia" bigint)
+ RETURNS TABLE("ID_Catalogo_Permiso" bigint, "Codigo" character varying, "Descripcion" character varying, "Modulo" character varying, "Orden" bigint, "Asignado" character)
+ LANGUAGE plpgsql
+ SET search_path TO 'CAF_GOVERNANCE'
+AS $function$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT T0."ID_Catalogo_Permiso", T0."Codigo", T0."Descripcion", T0."Modulo", T0."Orden",
+           CAST(CASE WHEN LP."ID_Licencia_Permiso" IS NULL THEN 'N' ELSE 'Y' END AS CHAR(1))
+      FROM "Catalogo_Permiso" T0
+      LEFT JOIN "Licencia_Permiso" LP
+             ON LP."ID_Catalogo_Permiso" = T0."ID_Catalogo_Permiso"
+            AND LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia"
+            AND LP."Eliminado" = 'N'
+     WHERE T0."Eliminado" = 'N' AND T0."Activo" = 'Y'
      ORDER BY T0."Orden", T0."Codigo";
 END;
 $function$
@@ -2051,6 +2194,54 @@ BEGIN
     END;
 END;
 $procedure$
+;
+
+CREATE OR REPLACE FUNCTION "CAF_GOVERNANCE"."ERP_USUARIO_PERMISO_LISTAR"("HV_ID_Usuario" bigint)
+ RETURNS TABLE("Codigo_Permiso" character varying, "Descripcion" character varying, "Modulo" character varying, "Sedes" character varying, "Roles" character varying)
+ LANGUAGE plpgsql
+ SET search_path TO 'CAF_GOVERNANCE'
+AS $function$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT P."Codigo", P."Descripcion", P."Modulo",
+           CAST(STRING_AGG(DISTINCT S."Codigo", ', ') AS VARCHAR),
+           CAST(STRING_AGG(DISTINCT L."Descripcion", ', ') AS VARCHAR)
+      FROM "Usuario_Licencia" UL
+      JOIN "Usuario" U            ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+      JOIN "Catalogo_Licencia" L  ON L."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND L."Eliminado" = 'N' AND L."Activo" = 'Y'
+      JOIN "Catalogo_Sede" S      ON S."ID_Catalogo_Sede" = UL."ID_Catalogo_Sede" AND S."Eliminado" = 'N'
+      JOIN "Licencia_Permiso" LP  ON LP."ID_Catalogo_Licencia" = L."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+      JOIN "Catalogo_Permiso" P   ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Eliminado" = 'N' AND P."Activo" = 'Y'
+     WHERE UL."ID_Usuario" = "HV_ID_Usuario" AND UL."Eliminado" = 'N'
+     GROUP BY P."Codigo", P."Descripcion", P."Modulo", P."Orden"
+     ORDER BY P."Orden", P."Codigo";
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION "CAF_GOVERNANCE"."ERP_USUARIO_PERMISO_VERIFICAR"("HV_ID_Usuario" bigint, "HV_Codigo_Permiso" character varying, "HV_ID_Catalogo_Sede" bigint)
+ RETURNS TABLE("Tiene" character)
+ LANGUAGE plpgsql
+ SET search_path TO 'CAF_GOVERNANCE'
+AS $function$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT CAST(CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END AS CHAR(1))
+      FROM "Usuario_Licencia" UL
+      JOIN "Usuario" U           ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+      JOIN "Catalogo_Licencia" L ON L."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND L."Eliminado" = 'N' AND L."Activo" = 'Y'
+      JOIN "Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = L."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+      JOIN "Catalogo_Permiso" P  ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Eliminado" = 'N' AND P."Activo" = 'Y'
+     WHERE UL."ID_Usuario" = "HV_ID_Usuario"
+       AND P."Codigo" = "HV_Codigo_Permiso"
+       AND UL."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+       AND UL."Eliminado" = 'N';
+END;
+$function$
 ;
 
 CREATE OR REPLACE PROCEDURE "CAF_GOVERNANCE"."ERP_USUARIO_TOKEN_REGISTRAR"(IN "HV_ID_Usuario" bigint, IN "HV_Token_Hash" character varying, IN "HV_Minutos_Vigencia" bigint, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)

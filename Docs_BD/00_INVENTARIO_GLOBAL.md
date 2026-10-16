@@ -1,8 +1,8 @@
 # Inventario global de Docs_BD
 
-Export del **2026-10-12 11:36** · base `accesos_piloto` · motor PostgreSQL 18.6
+Export del **2026-10-16 17:24** · base `caf2` · motor PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 
 | Schema | Tablas | Funciones (lectura) | Procedimientos (escritura) |
 | --- | --: | --: | --: |
-| `CAF_GOVERNANCE` | 9 | 28 | 26 |
-| `TRIANONSATELITAL_CAF_PRODD` | 8 | 21 | 22 |
+| `CAF_GOVERNANCE` | 11 | 32 | 27 |
+| `TRIANONSATELITAL_CAF_PRODD` | 24 | 22 | 25 |

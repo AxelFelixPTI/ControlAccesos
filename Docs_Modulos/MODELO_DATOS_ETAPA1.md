@@ -1,6 +1,6 @@
 # Modelo de datos completo · Etapa 1 (visitante externo, VES)
 
-Proyecto **Control de Accesos** · V1.0 · 2026-10-09
+Proyecto **Control de Accesos** · V2.0 · 2026-10-16
 Estado: **BORRADOR para revisión**. Todos los scripts (01 a 08) están probados en PostgreSQL 16 y los scripts 01 a 05 también en PostgreSQL 18. Se aprueba el modelo entero, pero se construye hito por hito.
 
 ## 1. Las 31 tablas en una vista
@@ -61,6 +61,35 @@ Respuestas obtenidas:
 - **Desviaciones por revisar:** DES con el ítem incumplido (SCTR vigente), la decisión y el resultado.
 - **Estado por persona:** Luis DENTRO con INC (REGISTRADA); Ana SALIÓ, con herramientas.
 
+## 3-bis. Ampliación del script 09: permisos y pasos de aprobación
+
+El 16/10/2026 se agregaron 4 tablas para que el sistema admita los flujos que vienen (contratista, proveedor, personal interno visitante) sin rehacer nada. **El visitante externo no cambia**: es el caso de un solo paso de aprobación.
+
+| Schema | Tabla | Para qué |
+| --- | --- | --- |
+| `CAF_GOVERNANCE` | `Catalogo_Permiso` | Los 13 permisos del sistema. Se cargan por script; el código pregunta por permiso, nunca por el nombre del rol |
+| `CAF_GOVERNANCE` | `Licencia_Permiso` | Qué permisos tiene cada rol. Se edita desde la pantalla de administración |
+| `TRIANONSATELITAL_CAF_PRODD` | `Tipo_Acceso_Paso_Aprobacion` | Los pasos de aprobación de cada tipo de acceso: orden, rol que decide, si es por persona o por solicitud |
+| `TRIANONSATELITAL_CAF_PRODD` | `CAF_Solicitud_Decision` | Una fila por persona y paso: la decisión, quién y cuándo |
+
+Columnas agregadas a tablas que ya existían:
+
+| Tabla | Columnas | Para qué |
+| --- | --- | --- |
+| `CAF_Solicitud_Persona` | `Aprobacion`, `Aprobacion_Mensaje`, `ID_Usuario_Aprobacion`, `Fecha_Aprobacion`, `Origen` | Resumen de las decisiones de esa persona, que es lo que leen Vigilancia y las pantallas |
+| `CAF_Solicitud` | `ID_Solicitud_Origen` y dos estados más (`APROBADA_PARCIAL`, `RECHAZADA`) | Trazabilidad de «Reutilizar» y el estado calculado desde las personas |
+| `Catalogo_Licencia` | `Es_Sistema` | Marca el rol Administrador, que el código da por supuesto |
+| `CAF_Evento` | Entidad `SOLICITUD_DECISION` | Registrar en la bitácora cada decisión |
+
+Reglas que la base hace cumplir sola, probadas el 16/10/2026:
+
+- Una persona **observada o rechazada** debe decir por qué: el solicitante siempre ve el motivo.
+- **Nadie entra sin estar aprobado**: el estado de portería solo cambia si la aprobación es `APROBADA`.
+- Un tipo de acceso **disponible** no puede quedarse sin ningún paso de aprobación obligatorio.
+- El sistema nunca queda **sin un rol que administre usuarios**.
+
+Cómo se calcula la aprobación de una persona, en un único procedimiento: aprobada si todos los pasos obligatorios que le aplican están aprobados; rechazada si alguno lo rechazó; observada si alguno la observó; pendiente en los demás casos. Con un solo paso, el resultado es idéntico al modelo anterior.
+
 ## 4. Decisiones nuevas del modelo completo
 
 Continúan la numeración del paquete de los Hitos 0 y 1.
@@ -77,6 +106,12 @@ Continúan la numeración del paquete de los Hitos 0 y 1.
 | D-20 | Los ítems incumplidos no se repiten en `CAF_Desviacion`: son las filas `Cumple = 'N'` de su checklist. Se guardan todos los ítems mostrados, cumplan o no. | Un solo lugar para cada dato; además se sabe qué se verificó, no solo qué falló. |
 | D-21 | Un ingreso denegado también es un `CAF_Registro_Acceso` (`Resultado = NO_INGRESA`). | La persona sí llegó a la puerta; ese hecho debe quedar registrado. |
 | D-22 | Las incidencias apuntan a la persona **en esa visita** (`CAF_Solicitud_Persona`), no a la persona en general. | Se sabe en qué visita ocurrió la falta. |
+| D-31 | Los permisos son atómicos y fijos (se cargan por script); un rol es un conjunto de permisos y se edita como dato. El código pregunta por permiso, nunca por el nombre del rol. | Un aprobador de almacén no debe heredar las pantallas del Coordinador. Un rol nuevo deja de requerir programación. |
+| D-32 | Cada tipo de acceso define sus **pasos de aprobación** como datos: orden (los del mismo orden corren en paralelo), rol que decide, si es obligatorio y si el alcance es por persona o por solicitud. | Contratistas y proveedores necesitan más de un aprobador. El visitante externo es el caso de un paso, así que nada cambia hoy. |
+| D-33 | La decisión vive en `CAF_Solicitud_Decision` (una por persona y paso). Las decisiones anteriores quedan con `Vigente = 'N'`, nunca se borran. | Reconstruir qué se aprobó y cuándo, aunque la solicitud se reabra. |
+| D-34 | El estado de la solicitud y la aprobación de cada persona se **calculan** en un único procedimiento; las columnas resumen solo se escriben allí. | Dos lugares que calculan lo mismo terminan contradiciéndose. |
+| D-35 | Las columnas de decisión de `CAF_Solicitud` quedan como resumen de la **última** decisión, no como la aprobación en sí. | Evita renombrar columnas en una tabla ya creada. |
+| D-36 | `Tipo_Aprobador` y `Condicion` tienen hoy un solo valor permitido (`ROL`, `SIEMPRE`). Ampliarlos es un cambio pequeño y localizado. | Deja la puerta abierta a «el jefe del solicitante» (P-16) y a condiciones nuevas, sin construirlo ahora. |
 | D-23 | La combinación válida de `Entidad` + `Accion` en `CAF_Evento` se valida en un único procedimiento, `ERP_CAF_EVENTO_REGISTRAR`, que todos los demás llaman para escribir en la bitácora. La tabla solo controla `Entidad` con su `CHECK`. La matriz de combinaciones está documentada en el script 06. | Decisión del usuario: no agregar una tabla de catálogo para esto. Al vivir la regla en un solo procedimiento, no se repite ni se desincroniza. |
 
 ## 5. Cómo probarlo

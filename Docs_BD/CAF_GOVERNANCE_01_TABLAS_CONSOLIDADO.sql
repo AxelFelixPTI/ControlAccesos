@@ -1,23 +1,29 @@
--- Docs_BD · CAF_GOVERNANCE · TABLAS · export 2026-10-12 11:36
+-- Docs_BD · CAF_GOVERNANCE · TABLAS · export 2026-10-16 17:24
 -- ÍNDICE
 --  1. Catalogo_Area
 --  2. Catalogo_Cargo
 --  3. Catalogo_Empresa_Grupo
 --  4. Catalogo_Licencia
---  5. Catalogo_Sede
---  6. Catalogo_Tipo_Documento
---  7. Personal
---  8. Usuario
---  9. Usuario_Licencia
+--  5. Catalogo_Permiso
+--  6. Catalogo_Sede
+--  7. Catalogo_Tipo_Documento
+--  8. Licencia_Permiso
+--  9. Personal
+--  10. Usuario
+--  11. Usuario_Licencia
 
 -- PostgreSQL database dump
 
--- Dumped from database version 18.6
--- Dumped by pg_dump version 18.6
+-- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+-- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 
 -- Name: CAF_GOVERNANCE; Type: SCHEMA; Schema: -; Owner: -
 
 CREATE SCHEMA "CAF_GOVERNANCE";
+
+-- Name: SCHEMA "CAF_GOVERNANCE"; Type: COMMENT; Schema: -; Owner: -
+
+COMMENT ON SCHEMA "CAF_GOVERNANCE" IS 'Transversal local del piloto: identidad, licencias y catálogos compartidos. Se reemplaza por TRIANONSATELITAL_GOVERNANCE al integrar.';
 
 -- Name: ERP_CATALOGO_AREA_ACTUALIZAR(bigint, character varying, character varying, bigint, character, bigint, integer, character varying); Type: PROCEDURE; Schema: CAF_GOVERNANCE; Owner: -
 
@@ -665,6 +671,27 @@ BEGIN
 END;
 $$;
 
+-- Name: ERP_CATALOGO_PERMISO_LISTAR(character); Type: FUNCTION; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE FUNCTION "CAF_GOVERNANCE"."ERP_CATALOGO_PERMISO_LISTAR"("HV_Incluir_Eliminados" character DEFAULT 'N'::bpchar) RETURNS TABLE("ID_Catalogo" bigint, "Codigo" character varying, "Descripcion" character varying, "Tipo_Entidad" character varying, "Orden" bigint, "Activo" character, "Eliminado" character, "UsuarioID_Create" bigint, "Nombre_Usuario" character varying, "UsuarioID_Update" bigint, "CreateDate" timestamp without time zone, "UpdateDate" timestamp without time zone)
+    LANGUAGE plpgsql
+    SET search_path TO 'CAF_GOVERNANCE'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT T0."ID_Catalogo_Permiso", T0."Codigo", T0."Descripcion", T0."Modulo",
+           T0."Orden", T0."Activo", T0."Eliminado", T0."UsuarioID_Create",
+           CAST(CASE WHEN T0."UsuarioID_Create" = 0 THEN 'Sistema' ELSE T1."Nombres" || ' ' || T1."Apellido_Paterno" END AS VARCHAR),
+           T0."UsuarioID_Update", T0."CreateDate", T0."UpdateDate"
+      FROM "Catalogo_Permiso" T0
+      LEFT JOIN "Usuario" T1 ON T1."ID_Usuario" = T0."UsuarioID_Create"
+     WHERE ("HV_Incluir_Eliminados" = 'Y' OR T0."Eliminado" = 'N')
+     ORDER BY T0."Orden", T0."Codigo";
+END;
+$$;
+
 -- Name: ERP_CATALOGO_SEDE_ACTUALIZAR(bigint, character varying, character varying, character varying, bigint, character, bigint, integer, character varying); Type: PROCEDURE; Schema: CAF_GOVERNANCE; Owner: -
 
 CREATE PROCEDURE "CAF_GOVERNANCE"."ERP_CATALOGO_SEDE_ACTUALIZAR"(IN "HV_ID_Catalogo_Sede" bigint, IN "HV_Codigo" character varying, IN "HV_Descripcion" character varying, IN "HV_Direccion" character varying, IN "HV_Orden" bigint, IN "HV_Activo" character, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
@@ -1089,6 +1116,124 @@ BEGIN
       FROM "Catalogo_Tipo_Documento" T0
       LEFT JOIN "Usuario" T1 ON T1."ID_Usuario" = T0."UsuarioID_Create"
      WHERE ("HV_Incluir_Eliminados" = 'Y' OR T0."Eliminado" = 'N')
+     ORDER BY T0."Orden", T0."Codigo";
+END;
+$$;
+
+-- Name: ERP_LICENCIA_PERMISO_ASIGNAR(bigint, character varying, bigint, integer, character varying); Type: PROCEDURE; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE PROCEDURE "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_ASIGNAR"(IN "HV_ID_Catalogo_Licencia" bigint, IN "HV_Codigos_Permiso" character varying, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'CAF_GOVERNANCE'
+    AS $$
+DECLARE
+    lv_n            INT := 0;
+    lv_lista        VARCHAR(2100);
+    lv_desconocidos VARCHAR(2000);
+    lv_admins       INT := 0;
+    lv_tiene_admin  INT := 0;
+BEGIN
+    -- V1.0 2026-10-16
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_LICENCIA_PERMISO_ASIGNAR';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        SELECT COUNT(*) INTO lv_n FROM "Catalogo_Licencia"
+         WHERE "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El rol no existe o ya fue eliminado.'; RETURN;
+        END IF;
+
+        -- Lista normalizada: ",COD1,COD2," para comparar con LIKE.
+        -- Sin tablas temporales ni UNNEST: se traduce a HANA tal cual.
+        lv_lista := ',' || UPPER(REPLACE(REPLACE(REPLACE(COALESCE("HV_Codigos_Permiso", ''), ' ', ''), CHR(9), ''), CHR(10), '')) || ',';
+
+        SELECT STRING_AGG(x, ', ') INTO lv_desconocidos
+          FROM (SELECT DISTINCT UPPER(TRIM(c)) AS x
+                  FROM REGEXP_SPLIT_TO_TABLE(COALESCE("HV_Codigos_Permiso", ''), ',') AS c
+                 WHERE LENGTH(TRIM(c)) > 0) AS pedidos
+         WHERE NOT EXISTS (SELECT 1 FROM "Catalogo_Permiso" p
+                            WHERE p."Codigo" = pedidos.x AND p."Eliminado" = 'N' AND p."Activo" = 'Y');
+        IF lv_desconocidos IS NOT NULL THEN
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := 'Permisos no reconocidos: ' || LEFT(lv_desconocidos, 180); RETURN;
+        END IF;
+
+        -- Nunca dejar el sistema sin quien administre usuarios (D-29)
+        SELECT COUNT(*) INTO lv_tiene_admin FROM "Licencia_Permiso" LP
+          JOIN "Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+         WHERE LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+           AND P."Codigo" = 'PER_CAF_ADMIN_USUARIOS';
+        IF lv_tiene_admin > 0 AND lv_lista NOT LIKE '%,PER_CAF_ADMIN_USUARIOS,%' THEN
+            SELECT COUNT(DISTINCT UL."ID_Usuario") INTO lv_admins
+              FROM "Usuario_Licencia" UL
+              JOIN "Usuario" U ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+              JOIN "Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+              JOIN "Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Codigo" = 'PER_CAF_ADMIN_USUARIOS'
+             WHERE UL."Eliminado" = 'N' AND UL."ID_Catalogo_Licencia" <> "HV_ID_Catalogo_Licencia";
+            IF lv_admins = 0 THEN
+                "HV_Codigo_Resp" := 101;
+                "HV_Mensaje" := 'Es el único rol que administra usuarios; no se puede quitar ese permiso.'; RETURN;
+            END IF;
+        END IF;
+
+        -- Retirar los que ya no vienen
+        UPDATE "Licencia_Permiso" LP
+           SET "Eliminado" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+          FROM "Catalogo_Permiso" P
+         WHERE P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+           AND LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+           AND lv_lista NOT LIKE '%,' || P."Codigo" || ',%';
+
+        -- Reactivar los que estaban quitados
+        UPDATE "Licencia_Permiso" LP
+           SET "Eliminado" = 'N', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+          FROM "Catalogo_Permiso" P
+         WHERE P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+           AND LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND LP."Eliminado" = 'Y'
+           AND lv_lista LIKE '%,' || P."Codigo" || ',%';
+
+        -- Agregar los nuevos
+        INSERT INTO "Licencia_Permiso" ("ID_Catalogo_Licencia","ID_Catalogo_Permiso","UsuarioID_Create")
+        SELECT "HV_ID_Catalogo_Licencia", P."ID_Catalogo_Permiso", "HV_UsuarioID"
+          FROM "Catalogo_Permiso" P
+         WHERE lv_lista LIKE '%,' || P."Codigo" || ',%'
+           AND P."Eliminado" = 'N' AND P."Activo" = 'Y'
+           AND NOT EXISTS (SELECT 1 FROM "Licencia_Permiso" LP
+                            WHERE LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia"
+                              AND LP."ID_Catalogo_Permiso" = P."ID_Catalogo_Permiso");
+
+        SELECT COUNT(*) INTO lv_n FROM "Licencia_Permiso"
+         WHERE "ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia" AND "Eliminado" = 'N';
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'El rol quedó con ' || lv_n || ' permisos.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_LICENCIA_PERMISO_ASIGNAR';
+    END;
+END;
+$$;
+
+-- Name: ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE(bigint); Type: FUNCTION; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE FUNCTION "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"("HV_ID_Catalogo_Licencia" bigint) RETURNS TABLE("ID_Catalogo_Permiso" bigint, "Codigo" character varying, "Descripcion" character varying, "Modulo" character varying, "Orden" bigint, "Asignado" character)
+    LANGUAGE plpgsql
+    SET search_path TO 'CAF_GOVERNANCE'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT T0."ID_Catalogo_Permiso", T0."Codigo", T0."Descripcion", T0."Modulo", T0."Orden",
+           CAST(CASE WHEN LP."ID_Licencia_Permiso" IS NULL THEN 'N' ELSE 'Y' END AS CHAR(1))
+      FROM "Catalogo_Permiso" T0
+      LEFT JOIN "Licencia_Permiso" LP
+             ON LP."ID_Catalogo_Permiso" = T0."ID_Catalogo_Permiso"
+            AND LP."ID_Catalogo_Licencia" = "HV_ID_Catalogo_Licencia"
+            AND LP."Eliminado" = 'N'
+     WHERE T0."Eliminado" = 'N' AND T0."Activo" = 'Y'
      ORDER BY T0."Orden", T0."Codigo";
 END;
 $$;
@@ -2042,6 +2187,54 @@ BEGIN
 END;
 $$;
 
+-- Name: ERP_USUARIO_PERMISO_LISTAR(bigint); Type: FUNCTION; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE FUNCTION "CAF_GOVERNANCE"."ERP_USUARIO_PERMISO_LISTAR"("HV_ID_Usuario" bigint) RETURNS TABLE("Codigo_Permiso" character varying, "Descripcion" character varying, "Modulo" character varying, "Sedes" character varying, "Roles" character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'CAF_GOVERNANCE'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT P."Codigo", P."Descripcion", P."Modulo",
+           CAST(STRING_AGG(DISTINCT S."Codigo", ', ') AS VARCHAR),
+           CAST(STRING_AGG(DISTINCT L."Descripcion", ', ') AS VARCHAR)
+      FROM "Usuario_Licencia" UL
+      JOIN "Usuario" U            ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+      JOIN "Catalogo_Licencia" L  ON L."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND L."Eliminado" = 'N' AND L."Activo" = 'Y'
+      JOIN "Catalogo_Sede" S      ON S."ID_Catalogo_Sede" = UL."ID_Catalogo_Sede" AND S."Eliminado" = 'N'
+      JOIN "Licencia_Permiso" LP  ON LP."ID_Catalogo_Licencia" = L."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+      JOIN "Catalogo_Permiso" P   ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Eliminado" = 'N' AND P."Activo" = 'Y'
+     WHERE UL."ID_Usuario" = "HV_ID_Usuario" AND UL."Eliminado" = 'N'
+     GROUP BY P."Codigo", P."Descripcion", P."Modulo", P."Orden"
+     ORDER BY P."Orden", P."Codigo";
+END;
+$$;
+
+-- Name: ERP_USUARIO_PERMISO_VERIFICAR(bigint, character varying, bigint); Type: FUNCTION; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE FUNCTION "CAF_GOVERNANCE"."ERP_USUARIO_PERMISO_VERIFICAR"("HV_ID_Usuario" bigint, "HV_Codigo_Permiso" character varying, "HV_ID_Catalogo_Sede" bigint) RETURNS TABLE("Tiene" character)
+    LANGUAGE plpgsql
+    SET search_path TO 'CAF_GOVERNANCE'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-16
+    RETURN QUERY
+    SELECT CAST(CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END AS CHAR(1))
+      FROM "Usuario_Licencia" UL
+      JOIN "Usuario" U           ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+      JOIN "Catalogo_Licencia" L ON L."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND L."Eliminado" = 'N' AND L."Activo" = 'Y'
+      JOIN "Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = L."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+      JOIN "Catalogo_Permiso" P  ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Eliminado" = 'N' AND P."Activo" = 'Y'
+     WHERE UL."ID_Usuario" = "HV_ID_Usuario"
+       AND P."Codigo" = "HV_Codigo_Permiso"
+       AND UL."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+       AND UL."Eliminado" = 'N';
+END;
+$$;
+
 -- Name: ERP_USUARIO_TOKEN_REGISTRAR(bigint, character varying, bigint, bigint, integer, character varying); Type: PROCEDURE; Schema: CAF_GOVERNANCE; Owner: -
 
 CREATE PROCEDURE "CAF_GOVERNANCE"."ERP_USUARIO_TOKEN_REGISTRAR"(IN "HV_ID_Usuario" bigint, IN "HV_Token_Hash" character varying, IN "HV_Minutos_Vigencia" bigint, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
@@ -2180,13 +2373,43 @@ CREATE TABLE "CAF_GOVERNANCE"."Catalogo_Licencia" (
     "UsuarioID_Update" bigint,
     "CreateDate" timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "UpdateDate" timestamp without time zone,
-    CONSTRAINT "CK_Catalogo_Licencia_Flags" CHECK ((("Activo" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar])) AND ("Eliminado" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar]))))
+    "Es_Sistema" character(1) DEFAULT 'N'::bpchar NOT NULL,
+    CONSTRAINT "CK_Catalogo_Licencia_Flags" CHECK ((("Activo" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar])) AND ("Eliminado" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar])))),
+    CONSTRAINT "CK_Catalogo_Licencia_Sistema" CHECK (("Es_Sistema" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar])))
 );
 
 -- Name: Catalogo_Licencia_ID_Catalogo_Licencia_seq; Type: SEQUENCE; Schema: CAF_GOVERNANCE; Owner: -
 
 ALTER TABLE "CAF_GOVERNANCE"."Catalogo_Licencia" ALTER COLUMN "ID_Catalogo_Licencia" ADD GENERATED BY DEFAULT AS IDENTITY (
     SEQUENCE NAME "CAF_GOVERNANCE"."Catalogo_Licencia_ID_Catalogo_Licencia_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+-- Name: Catalogo_Permiso; Type: TABLE; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE TABLE "CAF_GOVERNANCE"."Catalogo_Permiso" (
+    "ID_Catalogo_Permiso" bigint NOT NULL,
+    "Codigo" character varying(50) NOT NULL,
+    "Descripcion" character varying(500) NOT NULL,
+    "Modulo" character varying(50) NOT NULL,
+    "Orden" bigint DEFAULT 0 NOT NULL,
+    "Activo" character(1) DEFAULT 'Y'::bpchar NOT NULL,
+    "Eliminado" character(1) DEFAULT 'N'::bpchar NOT NULL,
+    "UsuarioID_Create" bigint NOT NULL,
+    "UsuarioID_Update" bigint,
+    "CreateDate" timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "UpdateDate" timestamp without time zone,
+    CONSTRAINT "CK_Catalogo_Permiso_Flags" CHECK ((("Activo" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar])) AND ("Eliminado" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar]))))
+);
+
+-- Name: Catalogo_Permiso_ID_Catalogo_Permiso_seq; Type: SEQUENCE; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE "CAF_GOVERNANCE"."Catalogo_Permiso" ALTER COLUMN "ID_Catalogo_Permiso" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "CAF_GOVERNANCE"."Catalogo_Permiso_ID_Catalogo_Permiso_seq"
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2246,6 +2469,31 @@ CREATE TABLE "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" (
 
 ALTER TABLE "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" ALTER COLUMN "ID_Catalogo_Tipo_Documento" ADD GENERATED BY DEFAULT AS IDENTITY (
     SEQUENCE NAME "CAF_GOVERNANCE"."Catalogo_Tipo_Documento_ID_Catalogo_Tipo_Documento_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+-- Name: Licencia_Permiso; Type: TABLE; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE TABLE "CAF_GOVERNANCE"."Licencia_Permiso" (
+    "ID_Licencia_Permiso" bigint NOT NULL,
+    "ID_Catalogo_Licencia" bigint NOT NULL,
+    "ID_Catalogo_Permiso" bigint NOT NULL,
+    "Eliminado" character(1) DEFAULT 'N'::bpchar NOT NULL,
+    "UsuarioID_Create" bigint NOT NULL,
+    "UsuarioID_Update" bigint,
+    "CreateDate" timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "UpdateDate" timestamp without time zone,
+    CONSTRAINT "CK_Licencia_Permiso_Flags" CHECK (("Eliminado" = ANY (ARRAY['Y'::bpchar, 'N'::bpchar])))
+);
+
+-- Name: Licencia_Permiso_ID_Licencia_Permiso_seq; Type: SEQUENCE; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE "CAF_GOVERNANCE"."Licencia_Permiso" ALTER COLUMN "ID_Licencia_Permiso" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "CAF_GOVERNANCE"."Licencia_Permiso_ID_Licencia_Permiso_seq"
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2374,6 +2622,11 @@ ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo"
 ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Licencia"
     ADD CONSTRAINT "PK_Catalogo_Licencia" PRIMARY KEY ("ID_Catalogo_Licencia");
 
+-- Name: Catalogo_Permiso PK_Catalogo_Permiso; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Permiso"
+    ADD CONSTRAINT "PK_Catalogo_Permiso" PRIMARY KEY ("ID_Catalogo_Permiso");
+
 -- Name: Catalogo_Sede PK_Catalogo_Sede; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
 
 ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Sede"
@@ -2383,6 +2636,11 @@ ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Sede"
 
 ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Tipo_Documento"
     ADD CONSTRAINT "PK_Catalogo_Tipo_Documento" PRIMARY KEY ("ID_Catalogo_Tipo_Documento");
+
+-- Name: Licencia_Permiso PK_Licencia_Permiso; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE ONLY "CAF_GOVERNANCE"."Licencia_Permiso"
+    ADD CONSTRAINT "PK_Licencia_Permiso" PRIMARY KEY ("ID_Licencia_Permiso");
 
 -- Name: Personal PK_Personal; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
 
@@ -2419,6 +2677,11 @@ ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo"
 ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Licencia"
     ADD CONSTRAINT "UQ_Catalogo_Licencia_Codigo" UNIQUE ("Codigo");
 
+-- Name: Catalogo_Permiso UQ_Catalogo_Permiso_Codigo; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Permiso"
+    ADD CONSTRAINT "UQ_Catalogo_Permiso_Codigo" UNIQUE ("Codigo");
+
 -- Name: Catalogo_Sede UQ_Catalogo_Sede_Codigo; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
 
 ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Sede"
@@ -2428,6 +2691,11 @@ ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Sede"
 
 ALTER TABLE ONLY "CAF_GOVERNANCE"."Catalogo_Tipo_Documento"
     ADD CONSTRAINT "UQ_Catalogo_Tipo_Documento_Codigo" UNIQUE ("Codigo");
+
+-- Name: Licencia_Permiso UQ_Licencia_Permiso; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE ONLY "CAF_GOVERNANCE"."Licencia_Permiso"
+    ADD CONSTRAINT "UQ_Licencia_Permiso" UNIQUE ("ID_Catalogo_Licencia", "ID_Catalogo_Permiso");
 
 -- Name: Personal UQ_Personal_Documento; Type: CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
 
@@ -2465,6 +2733,10 @@ CREATE INDEX "IX_Catalogo_Empresa_Grupo_Activa" ON "CAF_GOVERNANCE"."Catalogo_Em
 
 CREATE INDEX "IX_Catalogo_Licencia_Activa" ON "CAF_GOVERNANCE"."Catalogo_Licencia" USING btree ("Eliminado", "Activo", "Orden");
 
+-- Name: IX_Catalogo_Permiso_Activa; Type: INDEX; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE INDEX "IX_Catalogo_Permiso_Activa" ON "CAF_GOVERNANCE"."Catalogo_Permiso" USING btree ("Eliminado", "Activo", "Orden");
+
 -- Name: IX_Catalogo_Sede_Activa; Type: INDEX; Schema: CAF_GOVERNANCE; Owner: -
 
 CREATE INDEX "IX_Catalogo_Sede_Activa" ON "CAF_GOVERNANCE"."Catalogo_Sede" USING btree ("Eliminado", "Activo", "Orden");
@@ -2472,6 +2744,10 @@ CREATE INDEX "IX_Catalogo_Sede_Activa" ON "CAF_GOVERNANCE"."Catalogo_Sede" USING
 -- Name: IX_Catalogo_Tipo_Documento_Activa; Type: INDEX; Schema: CAF_GOVERNANCE; Owner: -
 
 CREATE INDEX "IX_Catalogo_Tipo_Documento_Activa" ON "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" USING btree ("Eliminado", "Activo", "Orden");
+
+-- Name: IX_Licencia_Permiso_Licencia; Type: INDEX; Schema: CAF_GOVERNANCE; Owner: -
+
+CREATE INDEX "IX_Licencia_Permiso_Licencia" ON "CAF_GOVERNANCE"."Licencia_Permiso" USING btree ("ID_Catalogo_Licencia", "Eliminado");
 
 -- Name: IX_Personal_Busqueda; Type: INDEX; Schema: CAF_GOVERNANCE; Owner: -
 
@@ -2488,6 +2764,16 @@ CREATE INDEX "IX_Usuario_Activo" ON "CAF_GOVERNANCE"."Usuario" USING btree ("Eli
 -- Name: IX_Usuario_Licencia_Usuario; Type: INDEX; Schema: CAF_GOVERNANCE; Owner: -
 
 CREATE INDEX "IX_Usuario_Licencia_Usuario" ON "CAF_GOVERNANCE"."Usuario_Licencia" USING btree ("ID_Usuario", "Eliminado");
+
+-- Name: Licencia_Permiso FK_Licencia_Permiso_Licencia; Type: FK CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE ONLY "CAF_GOVERNANCE"."Licencia_Permiso"
+    ADD CONSTRAINT "FK_Licencia_Permiso_Licencia" FOREIGN KEY ("ID_Catalogo_Licencia") REFERENCES "CAF_GOVERNANCE"."Catalogo_Licencia"("ID_Catalogo_Licencia");
+
+-- Name: Licencia_Permiso FK_Licencia_Permiso_Permiso; Type: FK CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
+
+ALTER TABLE ONLY "CAF_GOVERNANCE"."Licencia_Permiso"
+    ADD CONSTRAINT "FK_Licencia_Permiso_Permiso" FOREIGN KEY ("ID_Catalogo_Permiso") REFERENCES "CAF_GOVERNANCE"."Catalogo_Permiso"("ID_Catalogo_Permiso");
 
 -- Name: Personal FK_Personal_Area; Type: FK CONSTRAINT; Schema: CAF_GOVERNANCE; Owner: -
 

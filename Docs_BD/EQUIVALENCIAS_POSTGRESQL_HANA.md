@@ -86,6 +86,20 @@ El piloto se escribe en PostgreSQL usando **solo lo que tiene equivalente direct
 
 La última fila decide cómo se verifica: en PostgreSQL contar las rutinas no prueba nada, por eso el script de pruebas **llama a cada una** (en el Hito 1, las 43). En HANA, el conteo en `SYS.PROCEDURES` sí es una prueba.
 
+## 3-ter. Equivalencias del script 09 (permisos y pasos de aprobación)
+
+| Concepto | PostgreSQL | SAP HANA |
+| --- | --- | --- |
+| Ampliar los valores de un `CHECK` | `ALTER TABLE ... DROP CONSTRAINT` + `ADD CONSTRAINT` | Igual: no existe "modificar"; se borra y se vuelve a crear |
+| Quitar la obligatoriedad de una columna | `ALTER COLUMN "X" DROP NOT NULL` | `ALTER TABLE "T" ALTER ("X" <tipo> NULL)` (se repite el tipo) |
+| Agregar una columna con valor por defecto | `ADD COLUMN "X" CHAR(1) DEFAULT 'N' NOT NULL` | `ALTER TABLE "T" ADD ("X" CHAR(1) DEFAULT 'N' NOT NULL)` (paréntesis) |
+| Recibir una lista de códigos en un parámetro | Texto con comas, normalizado a `,COD1,COD2,` y comparado con `LIKE` | **Igual**: se eligió así a propósito, para no usar tablas temporales ni `UNNEST` |
+| Validar que todos los códigos existan | `REGEXP_SPLIT_TO_TABLE` sobre el parámetro | `SERIES_GENERATE` + `SUBSTR_REGEXPR`, o un bucle `WHILE` sobre la lista |
+| Tabla temporal dentro de un procedimiento | `CREATE TEMP TABLE ... ON COMMIT DROP` | **Evitar**: en HANA la tabla temporal es de sesión, no de transacción. Además falla al llamar dos veces el mismo procedimiento en una transacción (error medido el 2026-10-16) |
+| Texto de la izquierda | `LEFT(x, n)` | `LEFT(x, n)` |
+| Reemplazar caracteres | `REPLACE(x, a, b)`, `CHR(9)`, `CHR(10)` | `REPLACE(x, a, b)`, `CHAR(9)`, `CHAR(10)` |
+
+
 ## 4. Ejemplo probado: el mismo SP en los dos motores
 
 > **Nota (2026-10-11).** Este ejemplo es anterior a D-24. El procedimiento real (`SP_CAF_CATALOGO_MOTIVO_VISITA_ALL.sql`, generado) guarda el código en MAYÚSCULAS y busca el duplicado también entre eliminados. Para HANA se traduce ese archivo, no este ejemplo.
@@ -220,5 +234,7 @@ Repositorios, servicios y controladores llaman siempre `EjecutarLecturaAsync("ER
 | 2026-10-09 | Índices únicos | HANA no tiene índices parciales | `UQ_CAF_Persona_Externa_Documento` sin filtro; las personas no se eliminan |
 | 2026-10-11 | `05_SEED_INICIAL.sql` (zonas de VES) y `MODELO_DATOS_ETAPA1_PRUEBA_RECORRIDO.sql` | Usan `(VALUES ...) AS v(...)`, que HANA no admite | Traducir a `SELECT ... FROM DUMMY UNION ALL ...` antes de ejecutar en HANA |
 | 2026-10-11 | `_DETALLE` de Personal | Reutilizar `_LISTAR` no es portable | Se repite el `SELECT` (D-27) |
+| 2026-10-16 | `ERP_LICENCIA_PERMISO_ASIGNAR` | La primera versión usaba `CREATE TEMP TABLE`, que falla al llamar el procedimiento dos veces en una misma transacción (lo detectaron las pruebas) | Reescrito con una lista `,COD1,COD2,` y `LIKE`: funciona igual en los dos motores |
+| 2026-10-16 | Script 09 | Ampliar un `CHECK` y quitar un `NOT NULL` se escriben distinto en HANA | Anotado en la tabla 3-ter |
 | 2026-10-11 | Rutinas del Hito 1 | PostgreSQL crea una función que nombra una tabla inexistente; HANA no | El script de pruebas llama a las 43 rutinas; en HANA se cuenta en `SYS.PROCEDURES` |
 | 2026-10-11 | `_DROPDOWN` de tratamientos e ítems | Filtro opcional por etapa | Variables con `LIKE` en lugar de `OR` anidados (sección 3-ter) |

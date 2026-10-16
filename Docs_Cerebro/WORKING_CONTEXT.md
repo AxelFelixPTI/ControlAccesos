@@ -4,6 +4,10 @@ Actualizado: 2026-10-11
 
 ## Dónde estamos
 
+- **2026-10-16 · Script 09 aplicado: permisos atómicos y pasos de aprobación.** 4 tablas nuevas (`Catalogo_Permiso`, `Licencia_Permiso`, `Tipo_Acceso_Paso_Aprobacion`, `CAF_Solicitud_Decision`), 9 rutinas nuevas y 43 pruebas (`PRUEBAS_FASE1_PERMISOS.sql`). Total: **35 tablas, 106 rutinas, 251 pruebas en OK** en PostgreSQL 16 desde base limpia. El visitante externo no cambió: es el caso de un paso.
+- **Mockup v2 (memoria compartida) terminado y aprobado por el usuario.** Incluye aprobación por persona, estados calculados, Editar según el caso, Reutilizar, detalle de portería y administración funcional.
+- **Preguntas para Sandra:** documento «Preguntas pendientes de afinación» (39 preguntas, P-01 a P-39). Resuelta P-33: el sistema se construye independiente, con su propio inicio de sesión; integrarlo a Trianon Satelital queda para más adelante. P-31 enviada al área legal por correo.
+
 - **Hitos 0 y 1:** diseño **aprobado** (OK Arquitectura y OK Hito, 2026-10-11).
 - **Fases 2 a 5 de los 12 catálogos: hechas por Claude (candidato, 2026-10-13).** `src/` con 7 proyectos. Compilan en .NET 10.0.112 con 0 errores; las 68 llamadas de los repositorios verificadas contra la base. **Nunca se ejecutó C# contra PostgreSQL** (Npgsql no disponible en el entorno de Claude). Faltan Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist y CAF_Persona_Externa, y las fases 6 a 9.
 - **Fase 1 del Hito 1: hecha y verificada.** 43 rutinas en `TRIANONSATELITAL_CAF_PRODD` (8 archivos `SP_CAF_*`). Pruebas: `00_BD/PRUEBAS_FASE1_HITO1.sql`, **143 de 143 OK en PostgreSQL 16 (Claude) y en PostgreSQL 18 (usuario, 2026-10-11; 21 funciones y 22 procedimientos)**.
@@ -24,9 +28,7 @@ Actualizado: 2026-10-11
 
 ## Siguiente paso literal
 
-1. El usuario compila `src/`: `dotnet build src/ControlAccesos.slnx` (SDK 10.0.401). Si NuGet no encuentra `Npgsql 9.0.3`, `dotnet add src/Infrastructure.Persistence package Npgsql`. Pegar a Claude los errores, si los hay.
-2. Claude construye las fases 2 a 5 de las 5 entidades restantes (Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist, CAF_Persona_Externa) y las verifica igual (compilación + las llamadas contra la base).
-3. Después, fases 6 a 9 (controladores, login y licencias, vistas, JS).
+Fase 1 del Hito 2: los procedimientos de solicitudes, escritos ya con varios pasos de aprobación. El primero es el que calcula la aprobación de cada persona y el estado de la solicitud, porque todos los demás lo llaman. Después, las capas .NET de lo nuevo con `gen_capas_catalogos.py`.
 
 ## Decisiones vigentes que más condicionan
 
