@@ -5,6 +5,7 @@ Actualizado: 2026-10-11
 ## Dónde estamos
 
 - **Hitos 0 y 1:** diseño **aprobado** (OK Arquitectura y OK Hito, 2026-10-11).
+- **Fases 2 a 5 de los 12 catálogos: hechas por Claude (candidato, 2026-10-13).** `src/` con 7 proyectos. Compilan en .NET 10.0.112 con 0 errores; las 68 llamadas de los repositorios verificadas contra la base. **Nunca se ejecutó C# contra PostgreSQL** (Npgsql no disponible en el entorno de Claude). Faltan Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist y CAF_Persona_Externa, y las fases 6 a 9.
 - **Fase 1 del Hito 1: hecha y verificada.** 43 rutinas en `TRIANONSATELITAL_CAF_PRODD` (8 archivos `SP_CAF_*`). Pruebas: `00_BD/PRUEBAS_FASE1_HITO1.sql`, **143 de 143 OK en PostgreSQL 16 (Claude) y en PostgreSQL 18 (usuario, 2026-10-11; 21 funciones y 22 procedimientos)**.
 - **Fase 1 del Hito 0: hecha y verificada.** 54 rutinas en `CAF_GOVERNANCE` (catálogos transversales, Personal, Usuario, Usuario_Licencia). Pruebas: `00_BD/PRUEBAS_FASE1_HITO0.sql`, **65 de 65 OK en PostgreSQL 16 (Claude) y en PostgreSQL 18 (usuario, ejecutado con PowerShell)**.
 - **Base:** scripts 01 a 05 probados también por el usuario en PostgreSQL 18. `Docs_BD` exportado con tablas de los Hitos 0 y 1 y los 54 procedimientos.
@@ -23,12 +24,15 @@ Actualizado: 2026-10-11
 
 ## Siguiente paso literal
 
-Ejecutar `Docs_BD/_tools/generar_docs_bd.ps1` sobre la base del usuario y confirmar con `git diff` (esperado: `CAF_GOVERNANCE_*` cambia solo la línea 1; `TRIANONSATELITAL_CAF_PRODD_03` pasa de 3 a unas 1650 líneas; el inventario muestra 8 tablas, 21 funciones y 22 procedimientos en el módulo). Después, la Fase 2 en adelante (solución .NET) para los Hitos 0 y 1.
+1. El usuario compila `src/`: `dotnet build src/ControlAccesos.slnx` (SDK 10.0.401). Si NuGet no encuentra `Npgsql 9.0.3`, `dotnet add src/Infrastructure.Persistence package Npgsql`. Pegar a Claude los errores, si los hay.
+2. Claude construye las fases 2 a 5 de las 5 entidades restantes (Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist, CAF_Persona_Externa) y las verifica igual (compilación + las llamadas contra la base).
+3. Después, fases 6 a 9 (controladores, login y licencias, vistas, JS).
 
 ## Decisiones vigentes que más condicionan
 
 - Proyecto independiente con convenciones Trianon (D-01); PostgreSQL piloto, HANA destino (D-02).
 - Dos schemas `CAF_GOVERNANCE` y `TRIANONSATELITAL_CAF_PRODD`; prefijo `CAF_` (D-03 a D-05).
+- Acceso a datos: `EjecutorSp` arma toda llamada y solo `ConexionPostgres` conoce Npgsql (D-37); capas de catálogos generadas desde las firmas reales (D-39); el servicio no duplica reglas del SP (D-40). `Infrastructure.Contracts` agregado, por confirmar (D-38).
 - Seguridad de cuentas y login (D-26, D-29); bitácora con un único escritor (D-23).
 - `_DETALLE` repite el SELECT de `_LISTAR` (D-27); `search_path` por rutina (D-28).
 
@@ -62,5 +66,6 @@ Ejecutar `Docs_BD/_tools/generar_docs_bd.ps1` sobre la base del usuario y confir
 
 ## Herramientas
 
+- `Docs_BD/_tools/gen_capas_catalogos.py` + `firmas_rutinas.txt` (2026-10-13): generan DTO, `IRepo_`, `ISrv_`, `Repo_` y `Srv_` de los 12 catálogos desde las firmas reales (`python3 gen_capas_catalogos.py firmas_rutinas.txt <carpeta>`). `verificar_llamadas.py <base> <carpeta Repo_*> <firmas>` ejecuta contra la base cada llamada de los repositorios. **Tras cambiar un SP: regenerar `firmas_rutinas.txt` (comando en su cabecera), regenerar las capas y volver a verificar.**
 - `Docs_BD/_tools/generar_docs_bd.ps1` (2026-10-12): versión PowerShell de `generar_docs_bd.sh`. Probada por Claude en PowerShell 7.4 sobre Linux: salida idéntica byte a byte a la de bash, y ante base inexistente, base equivocada o psql ausente no escribe ningún archivo. **No probada en Windows PowerShell 5.1 ni en el equipo del usuario.** Uso: `powershell -ExecutionPolicy Bypass -File .\generar_docs_bd.ps1 -Base <base> -Usuario postgres -RutaBin "C:\Program Files\PostgreSQL\18\bin"`.
 - `Docs_BD/_tools/gen_catalogos.py` V1.1: genera los SPs de catálogos de los dos schemas con la plantilla única (`python gen_catalogos.py caf <carpeta>`).

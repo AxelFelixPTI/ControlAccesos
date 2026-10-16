@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="Shared.Results/Shared.Results.csproj" />
+  <Project Path="Application.DTOs/Application.DTOs.csproj" />
+  <Project Path="Application.Contracts/Application.Contracts.csproj" />
+  <Project Path="Application.Services/Application.Services.csproj" />
+  <Project Path="Infrastructure.Contracts/Infrastructure.Contracts.csproj" />
+  <Project Path="Infrastructure.Persistence/Infrastructure.Persistence.csproj" />
+  <Project Path="Infrastructure.Repositories/Infrastructure.Repositories.csproj" />
+</Solution>

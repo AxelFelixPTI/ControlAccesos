@@ -1,7 +1,7 @@
 # Paquete de diseño · Hitos 0 y 1 · Base y catálogos
 
-Proyecto **Control de Accesos** · V1.1 · 2026-10-11
-Estado: **aprobado** (OK Arquitectura y OK Hito del 2026-10-11) · Fase 1 de los Hitos 0 y 1 hecha · DDL **CANDIDATO**, probado en PostgreSQL 16.15; pendiente de traducción y prueba en SAP HANA.
+Proyecto **Control de Accesos** · V1.2 · 2026-10-13
+Estado: **aprobado** (OK Arquitectura y OK Hito del 2026-10-11) · Fase 1 de los Hitos 0 y 1 hecha · Fases 2 a 5 de los catálogos hechas (candidato) · DDL **CANDIDATO**, probado en PostgreSQL 16.15; pendiente de traducción y prueba en SAP HANA.
 
 Este paquete deja lista la base del sistema: la solución, los dos schemas, la identidad (usuarios y licencias) y todos los catálogos que necesitan las pantallas de la etapa 1. Las tablas transaccionales (solicitud, ingreso, desviación, incidencia) llegan en los hitos 2 a 4.
 
@@ -58,13 +58,13 @@ Reglas de la arquitectura:
 - **La licencia se verifica en el servidor** en cada acción (RNF-05), no solo ocultando botones.
 - Tareas automáticas (fin de día "No se presentó", envío de correos): un servicio en segundo plano dentro de la misma app; se separa a un `Worker` si crece.
 
-Estructura de la solución:
+Estructura de la solución (el código vive en `src/`):
 
 ```
-ControlAccesos.slnx
+src/ControlAccesos.slnx
 ├─ Web.ControlAccesos
 ├─ Application.DTOs / Application.Contracts / Application.Services   (carpeta ControlAccesos/ en cada una)
-├─ Infrastructure.Persistence / Infrastructure.Repositories / Infrastructure.ExternalServices
+├─ Infrastructure.Contracts / Infrastructure.Persistence / Infrastructure.Repositories / Infrastructure.ExternalServices   (Contracts agregado: D-38)
 ├─ Shared.Security / Shared.Results
 ├─ Docs_BD/          export de la base: fuente de verdad (se regenera, no se edita)
 ├─ Docs_Modulos/     una carpeta por hito: paquete de diseño, SQL, handoff
@@ -188,6 +188,29 @@ Lo que reciben y devuelven los `_DROPDOWN` del módulo:
 | D-34 | El checklist de un tipo de acceso se puede armar aunque el tipo esté inactivo o no disponible; el ítem que se asigna sí debe estar activo. Quitar un ítem es borrado lógico y volver a asignarlo reactiva la misma fila. | Contratistas y proveedores (etapas 2 y 3) se preparan antes de habilitarse. Es el mismo comportamiento que las licencias. |
 | D-35 | `_ELIMINAR` de un catálogo del módulo revisa solo las tablas que existen hoy: el pivot, para tipos de acceso e ítems. Cada `_ELIMINAR` lleva marcado dónde se agrega la revisión de los Hitos 2 a 4 (`CAF_Solicitud`, `CAF_Solicitud_Zona`, `CAF_Desviacion`, `CAF_Incidencia`, `CAF_Registro_Checklist`). | Una rutina que nombra una tabla inexistente no se crea en HANA y falla al llamarla en PostgreSQL. **Tarea fija de la Fase 1 de cada hito siguiente.** |
 | D-36 | `CAF_Persona_Externa` no tiene `_ELIMINAR` ni `_DETALLE` por ID; `_LISTAR` busca solo por nombre y la identidad se resuelve con `_DETALLE_POR_DOCUMENTO`. `Fecha_Ultima_Visita` no se escribe en este hito: la actualiza el registro de ingreso (Hito 3). | Alcance aprobado. Buscar a una persona por un texto parecido puede devolver a otra con el mismo nombre. |
+
+### Fases 2 a 5 de los catálogos (hecho el 2026-10-13, candidato)
+
+Código en `src/`: 7 proyectos, 65 archivos. Cubre los **12 catálogos** (5 transversales, licencias de solo lectura y 6 del módulo): DTO universal, `IRepo_` / `ISrv_`, `Repo_` y `Srv_`. **Faltan** las fases 2 a 5 de Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist y CAF_Persona_Externa (siguiente entrega) y las fases 6 a 9.
+
+| # | Decisión | Motivo |
+| --- | --- | --- |
+| D-37 | Una sola pieza arma llamadas a la base: `EjecutorSp`. Lecturas: `SELECT * FROM "RUTINA"(...)`. Escrituras: `CALL "RUTINA"(...)` enviando solo los parámetros de entrada por posición; los INOUT toman su `DEFAULT NULL` y PostgreSQL devuelve una fila con `HV_Codigo_Resp`, `HV_Mensaje` y, si existe, `HV_..._Result`. Solo `ConexionPostgres` conoce Npgsql; cada schema tiene su clave de conexión con `Search Path`. | Cambiar a HANA es otra implementación de `IConexionFactory` y ajustar `EjecutorSp`; ningún repositorio escribe SQL. |
+| D-38 | Se agrega el proyecto `Infrastructure.Contracts` con las interfaces `IRepo_*`. **Por confirmar**: no figuraba en la estructura aprobada. | Es la estructura real de Trianon (D-01): el servicio depende de una interfaz, no del repositorio. Alternativa: poner las `IRepo_*` dentro de `Application.Contracts`. |
+| D-39 | Un único `Dto_Catalogo_Universal` para los 12 catálogos; cada repositorio lee y escribe solo las columnas de su rutina. Las capas se **generan desde las firmas reales** de la base (`gen_capas_catalogos.py`); el orden y el tipo de cada parámetro no se escriben a mano. | Si un SP cambia, se regenera y no puede quedar un desvío entre C# y la rutina. |
+| D-40 | El servicio solo valida código y descripción (formulario) y traduce `HV_Codigo_Resp` (400 a `VALIDATION`, 404 a `NOT_FOUND`, el resto a `FAIL`). Las reglas de negocio viven en el SP y no se duplican en C#. | Una regla escrita en dos lugares termina contradiciéndose. |
+
+**Evidencia** (el código sigue siendo candidato hasta que lo compiles con tu SDK):
+
+| Comprobación | Resultado |
+| --- | --- |
+| `dotnet build` de los 7 proyectos (SDK 10.0.112, net10.0, sin red) | 0 errores, 0 advertencias |
+| Error sembrado a propósito en un repositorio y en un servicio | Ambos detectados |
+| Las 68 llamadas de los repositorios, con los tipos que enviará el ejecutor, ejecutadas contra la base | 68 de 68 resuelven; las 33 escrituras responden 400 con parámetros nulos, ninguna 500 |
+| Verificador con una llamada rota a propósito (tipo cambiado; parámetro faltante) | Detecta ambas |
+| Regenerar con el generador y comparar con lo entregado | Idéntico, 55 archivos |
+
+**Límites que no pude probar:** (1) Npgsql no está disponible en el entorno de Claude: compilé contra un sustituto mínimo y **nunca se ejecutó una llamada real por C#**. (2) Supuesto de `EjecutorSp`: que Npgsql devuelva la fila de un `CALL` con INOUT por `ExecuteReaderAsync`. (3) Versión `Npgsql 9.0.3` del `.csproj` sin verificar contra NuGet.
 
 ## 6. Modelo completo (Hitos 2 a 4)
 
