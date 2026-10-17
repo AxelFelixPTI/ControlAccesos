@@ -164,4 +164,4 @@ $sqlRes = "SELECT n.nspname || ': ' || (SELECT count(*) FROM information_schema.
 Write-Host "`n== Resultado ==" -ForegroundColor Green
 Write-Host (Invoke-Sql $Database $sqlRes)
 Write-Host ("Base '{0}' lista en {1:N0} s." -f $Database, ((Get-Date) - $t0).TotalSeconds) -ForegroundColor Green
-Write-Host "Esperado a hoy (Hito 2 escritura): 11 + 24 tablas y 59 + 65 rutinas; pruebas 65, 143, 43 y 186 en OK."
+Write-Host "Esperado a hoy (Hito 2 completo): 11 + 24 tablas y 59 + 79 rutinas; pruebas 65, 143, 43, 186 y 202 en OK."

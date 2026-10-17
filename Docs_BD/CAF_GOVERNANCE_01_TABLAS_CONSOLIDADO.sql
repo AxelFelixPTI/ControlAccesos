@@ -1,4 +1,4 @@
--- Docs_BD · CAF_GOVERNANCE · TABLAS · export 2026-10-16 22:20
+-- Docs_BD · CAF_GOVERNANCE · TABLAS · export 2026-10-17 17:58
 -- ÍNDICE
 --  1. Catalogo_Area
 --  2. Catalogo_Cargo
