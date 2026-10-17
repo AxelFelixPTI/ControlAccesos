@@ -86,6 +86,59 @@ El piloto se escribe en PostgreSQL usando **solo lo que tiene equivalente direct
 
 La última fila decide cómo se verifica: en PostgreSQL contar las rutinas no prueba nada, por eso el script de pruebas **llama a cada una** (en el Hito 1, las 43). En HANA, el conteo en `SYS.PROCEDURES` sí es una prueba.
 
+## 3-ter. Equivalencias del script 09 (permisos y pasos de aprobación)
+
+| Concepto | PostgreSQL | SAP HANA |
+| --- | --- | --- |
+| Ampliar los valores de un `CHECK` | `ALTER TABLE ... DROP CONSTRAINT` + `ADD CONSTRAINT` | Igual: no existe "modificar"; se borra y se vuelve a crear |
+| Quitar la obligatoriedad de una columna | `ALTER COLUMN "X" DROP NOT NULL` | `ALTER TABLE "T" ALTER ("X" <tipo> NULL)` (se repite el tipo) |
+| Agregar una columna con valor por defecto | `ADD COLUMN "X" CHAR(1) DEFAULT 'N' NOT NULL` | `ALTER TABLE "T" ADD ("X" CHAR(1) DEFAULT 'N' NOT NULL)` (paréntesis) |
+| Recibir una lista de códigos en un parámetro | Texto con comas, normalizado a `,COD1,COD2,` y comparado con `LIKE` | **Igual**: se eligió así a propósito, para no usar tablas temporales ni `UNNEST` |
+| Validar que todos los códigos existan | `REGEXP_SPLIT_TO_TABLE` sobre el parámetro | `SERIES_GENERATE` + `SUBSTR_REGEXPR`, o un bucle `WHILE` sobre la lista |
+| Tabla temporal dentro de un procedimiento | `CREATE TEMP TABLE ... ON COMMIT DROP` | **Evitar**: en HANA la tabla temporal es de sesión, no de transacción. Además falla al llamar dos veces el mismo procedimiento en una transacción (error medido el 2026-10-16) |
+| Un script de DDL "todo o nada" | `BEGIN; ... COMMIT;`: si algo falla, no se aplica nada | **No existe**: en HANA cada `CREATE` o `ALTER` se confirma solo. Un script que falla a medias deja lo aplicado; por eso en HANA se verifican los requisitos al inicio y se prepara un script de reversa (medido el 2026-10-16: el 09 v1.0 quedó a medias) |
+| Texto de la izquierda | `LEFT(x, n)` | `LEFT(x, n)` |
+| Reemplazar caracteres | `REPLACE(x, a, b)`, `CHR(9)`, `CHR(10)` | `REPLACE(x, a, b)`, `CHAR(9)`, `CHAR(10)` |
+
+
+## 3-quater. Equivalencias del Hito 2 (procedimientos de solicitudes)
+
+Los procedimientos del Hito 2 se probaron en PostgreSQL (186 pruebas). Esta tabla es la lista de lo que hay que **traducir y verificar** en HANA, ordenada por riesgo.
+
+### Riesgo alto: cambia el comportamiento, no solo la sintaxis
+
+| Concepto | PostgreSQL (piloto) | SAP HANA (destino) |
+| --- | --- | --- |
+| **Atomicidad de un procedimiento de escritura** | El bloque `BEGIN ... EXCEPTION WHEN OTHERS` revierte TODO lo escrito dentro del bloque si algo falla. Por eso un error a medias no deja nada | **No es automático.** En SQLScript el manejador de errores no revierte lo ya escrito. La aplicación debe ejecutar cada procedimiento de escritura dentro de una transacción explícita y hacer `ROLLBACK` si `HV_Codigo_Resp` = 500. **Verificar antes de instalar** (tarea T-05) |
+| Bloqueo por solicitud | `UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE ...` toma un bloqueo de fila hasta el fin de la transacción | Igual en principio (bloqueo de fila al actualizar). Probar con dos sesiones reales |
+| `UPDATE` con alias y subconsultas correlacionadas | `UPDATE "T" SP SET ... WHERE SP."X" = ... (SELECT ... SP."ID")` | Verificar que acepte el alias de la tabla en el `UPDATE`; si no, quitar el alias y calificar con el nombre de la tabla |
+| Subconsulta con `ORDER BY ... LIMIT 1` dentro de un `SET` | Admitido | Verificar; alternativa: `SELECT TOP 1` o `MAX` sobre la fecha |
+
+### Riesgo medio: otra sintaxis para lo mismo
+
+| Concepto | PostgreSQL | SAP HANA |
+| --- | --- | --- |
+| Función escalar (`ERP_CAF_FN_*`) | `CREATE FUNCTION ... RETURNS CHAR(1) LANGUAGE plpgsql` | `CREATE FUNCTION ... RETURNS result CHAR(1) LANGUAGE SQLSCRIPT AS BEGIN ... result := 'Y'; END` |
+| Llamar un procedimiento con parámetros de salida dentro de otro | `CALL "X"(a, b, lv_cod, lv_msg)` con variables | `CALL X(:a, :b, lv_cod, lv_msg)` |
+| Error forzado para revertir | `RAISE EXCEPTION 'texto'` | `SIGNAL SQL_ERROR_CODE 10001 SET MESSAGE_TEXT = 'texto'` |
+| Bucle sobre una lista corta (correos en copia) | `WHILE cond LOOP ... END LOOP` | `WHILE cond DO ... END WHILE` |
+| Validar un correo con patrón | `x ~ '^[^@,]+@...$'` | `x LIKE_REGEXPR '^[^@,]+@...$'` |
+| Posición de un texto | `POSITION(',' IN x)` | `LOCATE(x, ',')` (los argumentos van al revés) |
+| Subcadena | `SUBSTRING(x FROM n FOR m)` y `SUBSTRING(x FROM n)` | `SUBSTRING(x, n, m)` y `SUBSTRING(x, n)` |
+| Fecha y hora a texto | `TO_CHAR(ts, 'YYYY-MM-DD HH24:MI')` | `TO_VARCHAR(ts, 'YYYY-MM-DD HH24:MI')` |
+| Solo la fecha de una marca de tiempo | `CAST(ts AS DATE)` | `TO_DATE(ts)` o `CAST(ts AS DATE)` (verificar) |
+| Número a texto | `CAST(n AS VARCHAR)` | `TO_VARCHAR(n)` (más seguro que `CAST` sin largo) |
+| Lista de valores en un solo texto | `STRING_AGG(x, '; ' ORDER BY y)` sobre una subconsulta `DISTINCT` | Igual; se evitó `STRING_AGG(DISTINCT ...)` a propósito |
+| Texto en minúsculas / mayúsculas | `LOWER`, `UPPER` | Igual |
+
+### Lo que se evitó a propósito
+
+- **Cursores y tablas temporales**: las listas se recorren con `LIKE` sobre una lista normalizada `,1,2,3,` o con un bucle corto.
+- **`MERGE` y `UPSERT`**: siempre `SELECT COUNT`, luego `UPDATE` o `INSERT`.
+- **Índices únicos parciales**: la regla «una sola decisión vigente por persona y paso» la garantizan el bloqueo por solicitud y la validación del procedimiento.
+- **Constructores de JSON**: la foto de lo aprobado se arma como texto, con comillas escapadas.
+
+
 ## 4. Ejemplo probado: el mismo SP en los dos motores
 
 > **Nota (2026-10-11).** Este ejemplo es anterior a D-24. El procedimiento real (`SP_CAF_CATALOGO_MOTIVO_VISITA_ALL.sql`, generado) guarda el código en MAYÚSCULAS y busca el duplicado también entre eliminados. Para HANA se traduce ese archivo, no este ejemplo.
@@ -220,5 +273,10 @@ Repositorios, servicios y controladores llaman siempre `EjecutarLecturaAsync("ER
 | 2026-10-09 | Índices únicos | HANA no tiene índices parciales | `UQ_CAF_Persona_Externa_Documento` sin filtro; las personas no se eliminan |
 | 2026-10-11 | `05_SEED_INICIAL.sql` (zonas de VES) y `MODELO_DATOS_ETAPA1_PRUEBA_RECORRIDO.sql` | Usan `(VALUES ...) AS v(...)`, que HANA no admite | Traducir a `SELECT ... FROM DUMMY UNION ALL ...` antes de ejecutar en HANA |
 | 2026-10-11 | `_DETALLE` de Personal | Reutilizar `_LISTAR` no es portable | Se repite el `SELECT` (D-27) |
+| 2026-10-16 | `ERP_LICENCIA_PERMISO_ASIGNAR` | La primera versión usaba `CREATE TEMP TABLE`, que falla al llamar el procedimiento dos veces en una misma transacción (lo detectaron las pruebas) | Reescrito con una lista `,COD1,COD2,` y `LIKE`: funciona igual en los dos motores |
+| 2026-10-16 | Script 09 | Ampliar un `CHECK` y quitar un `NOT NULL` se escriben distinto en HANA | Anotado en la tabla 3-ter |
+| 2026-10-16 | Script 09 | Falló a medias en la base del usuario porque faltaban los scripts 06 a 08; en HANA no hay DDL transaccional | V1.1: verifica requisitos y va en una transacción (PostgreSQL). Para HANA: verificación al inicio + script de reversa |
+| 2026-10-16 | Atomicidad de los SP de escritura | En PostgreSQL el bloque de errores revierte lo escrito; en HANA no | La aplicación abre la transacción y revierte ante código 500 (D-48, tarea T-05) |
+| 2026-10-16 | `ERP_CAF_SOLICITUD_DESTINATARIOS` | Error real encontrado por las pruebas: avisaba también al área que ya había aprobado su paso | Corregido: en el modo `PASO_PENDIENTE` solo se avisa a los pasos que aún faltan |
 | 2026-10-11 | Rutinas del Hito 1 | PostgreSQL crea una función que nombra una tabla inexistente; HANA no | El script de pruebas llama a las 43 rutinas; en HANA se cuenta en `SYS.PROCEDURES` |
 | 2026-10-11 | `_DROPDOWN` de tratamientos e ítems | Filtro opcional por etapa | Variables con `LIKE` en lugar de `OR` anidados (sección 3-ter) |

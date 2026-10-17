@@ -10,11 +10,20 @@ Sistema de control de ingreso y salida de visitantes externos en la sede VES (et
 
 | Carpeta | Para qué sirve |
 | --- | --- |
-| `Docs_BD/` | Export de la base de datos por schema. **Fuente de verdad.** Se regenera tras cada despliegue con `_tools/generar_docs_bd.ps1` (Windows, PowerShell) o `_tools/generar_docs_bd.sh` (bash); nunca se edita a mano. Incluye la tabla de equivalencias PostgreSQL → HANA. |
+| `Docs_BD/` | Export de la base de datos por schema. **Fuente de verdad.** Se regenera con `_tools/generar_docs_bd.sh` tras cada despliegue; nunca se edita a mano. Incluye la tabla de equivalencias PostgreSQL → HANA. |
 | `Docs_Modulos/` | Una carpeta por hito (`HITO_<NN>_<Nombre>_<fecha>`), con su paquete de diseño, scripts SQL en `00_BD/` y el handoff al cerrarlo. |
 | `Docs_Cerebro/` | Contexto vivo del proyecto para retomar entre sesiones. |
-| `src/` | Solución .NET (`ControlAccesos.slnx`): 7 proyectos, hoy con los 12 catálogos. Compilar con `dotnet build src/ControlAccesos.slnx`. |
-| `PENDIENTES_VALIDACION.md` | Preguntas para el negocio (qué significa cada una, a quién preguntar, cuándo hace falta). Se actualiza en cada entrega. |
+| `src/` | Código de la solución (se crea en la Fase 2 del Hito 0). |
+
+## Restaurar la base en otra máquina
+
+`restaurar_bd.ps1` (en la raíz) reconstruye la base desde cero: tablas, datos iniciales, procedimientos y pruebas, en el orden correcto, deteniéndose en el primer error. Descubre los scripts solo; los nuevos se incluyen sin editarlo.
+
+```powershell
+.\restaurar_bd.ps1 -Database accesos_piloto -Crear
+```
+
+Otras opciones: `-SoloRutinas` (re-aplica procedimientos), `-SoloPruebas`, `-SinPruebas`. Requiere PostgreSQL 14+ y `psql`. Los scripts `NN_*.sql` corren una sola vez, por eso exige una base vacía.
 
 ## Orden de lectura para retomar el trabajo
 

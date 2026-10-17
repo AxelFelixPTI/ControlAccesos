@@ -123,6 +123,9 @@ Cuando la persona no figura en los documentos del proyecto, dice **por definir**
 | T-02 | Traducir a la forma de HANA la carga inicial de zonas (script 05), que hoy usa una construcción que HANA no tiene. | Antes de instalar en HANA |
 | T-03 | **Decisión técnica del usuario.** Los archivos de `Docs_BD` que dicen "TABLAS" traen también las rutinas, y cada rutina aparece en dos archivos. No rompe nada, pero un buscador encuentra cada rutina duplicada y el archivo de tablas del módulo pasará de 21 KB a unos 120 KB. Se puede separar para que "TABLAS" tenga solo tablas. | Cuando quiera; conviene antes de la Fase 2 |
 | T-04 | **Decisión técnica del usuario (D-38).** Se agregó el proyecto `Infrastructure.Contracts` para las interfaces de los repositorios, como hace Trianon; no estaba en la estructura aprobada. La alternativa es guardarlas dentro de `Application.Contracts` (un proyecto menos). | Antes de la Fase 6 |
+| T-05 | **Riesgo para HANA (D-48).** En PostgreSQL, si un procedimiento de escritura falla a medias, no queda nada escrito. En HANA no ocurre solo: la capa .NET debe abrir una transacción por cada llamada de escritura y revertirla si el código de respuesta es 500. Hay que probarlo con una falla provocada antes de instalar. | Fase 2 de .NET del Hito 2, y antes de instalar en HANA |
+| T-06 | Traducir a HANA los procedimientos del Hito 2 siguiendo la sección 3-quater de `EQUIVALENCIAS_POSTGRESQL_HANA.md` (alias en `UPDATE`, bucle `WHILE`, `LIKE_REGEXPR`, `LOCATE`, funciones escalares). | Antes de instalar en HANA |
+| T-07 | **Confirmar con Sandra (D-50).** El procedimiento no permite retirar a la última persona de una solicitud: pide cancelarla. El prototipo sí lo permitía y mostraba «sin personas». Si prefiere lo del prototipo, se cambia en un solo lugar. | Presentación del prototipo |
 
 ---
 

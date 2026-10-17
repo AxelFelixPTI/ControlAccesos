@@ -1,8 +1,16 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-11
+Actualizado: 2026-10-17
 
 ## Dónde estamos
+
+- **2026-10-17 · Restauración en otra máquina:** `restaurar_bd.ps1` (raíz del repo) reconstruye la base desde cero en el orden correcto y corre las pruebas. Probado con PowerShell 7.4 sobre Linux y PostgreSQL 16, desde base vacía: 65, 143, 43 y 186 en OK. No probado en Windows PowerShell 5.1 ni en PostgreSQL 18.
+- **2026-10-16 · Fase 1 del Hito 2, parte 1 (escritura): hecha.** Script 10 (tipos de correo) y 4 archivos de procedimientos: `SP_CAF_SOLICITUD_BASE_ALL.sql` (piezas internas), `_ALL.sql` (crear, editar datos, cancelar), `_PERSONA_ALL.sql` (agregar, agregar aprobada, retirar, corregir) y `_DECISION_ALL.sql` (decidir). Pruebas: `PRUEBAS_FASE1_HITO2_ESCRITURA.sql`, **186 de 186**. Total desde base limpia: **35 tablas, 124 rutinas, 437 pruebas en OK** (65 + 143 + 43 + 186).
+- **Numeración de decisiones:** las de permisos y pasos (antes D-31 a D-36 por error) pasaron a **D-41 a D-46** porque D-31 a D-40 ya existían en el paquete de diseño. Las del Hito 2 son D-47 a D-55 (`MODELO_DATOS_ETAPA1.md`).
+- **Pendiente en la Fase 1 del Hito 2, parte 2 (lectura):** listados del solicitante y del Coordinador, detalle, personas de una solicitud, historial y bandeja por paso.
+- **2026-10-16 · Script 09 aplicado: permisos atómicos y pasos de aprobación.** 4 tablas nuevas (`Catalogo_Permiso`, `Licencia_Permiso`, `Tipo_Acceso_Paso_Aprobacion`, `CAF_Solicitud_Decision`), 9 rutinas nuevas y 43 pruebas (`PRUEBAS_FASE1_PERMISOS.sql`). Total: **35 tablas, 106 rutinas, 251 pruebas en OK** en PostgreSQL 16 desde base limpia. El visitante externo no cambió: es el caso de un paso.
+- **Mockup v2 (memoria compartida) terminado y aprobado por el usuario.** Incluye aprobación por persona, estados calculados, Editar según el caso, Reutilizar, detalle de portería y administración funcional.
+- **Preguntas para Sandra:** documento «Preguntas pendientes de afinación» (39 preguntas, P-01 a P-39). Resuelta P-33: el sistema se construye independiente, con su propio inicio de sesión; integrarlo a Trianon Satelital queda para más adelante. P-31 enviada al área legal por correo.
 
 - **Hitos 0 y 1:** diseño **aprobado** (OK Arquitectura y OK Hito, 2026-10-11).
 - **Fases 2 a 5 de los 12 catálogos: hechas por Claude (candidato, 2026-10-13).** `src/` con 7 proyectos. Compilan en .NET 10.0.112 con 0 errores; las 68 llamadas de los repositorios verificadas contra la base. **Nunca se ejecutó C# contra PostgreSQL** (Npgsql no disponible en el entorno de Claude). Faltan Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist y CAF_Persona_Externa, y las fases 6 a 9.
@@ -24,9 +32,7 @@ Actualizado: 2026-10-11
 
 ## Siguiente paso literal
 
-1. El usuario compila `src/`: `dotnet build src/ControlAccesos.slnx` (SDK 10.0.401). Si NuGet no encuentra `Npgsql 9.0.3`, `dotnet add src/Infrastructure.Persistence package Npgsql`. Pegar a Claude los errores, si los hay.
-2. Claude construye las fases 2 a 5 de las 5 entidades restantes (Personal, Usuario, Usuario_Licencia, Tipo_Acceso_Item_Checklist, CAF_Persona_Externa) y las verifica igual (compilación + las llamadas contra la base).
-3. Después, fases 6 a 9 (controladores, login y licencias, vistas, JS).
+Fase 1 del Hito 2, parte 2: los procedimientos de **lectura** (listado de «Mis solicitudes» con filtros, bandeja del Coordinador por pestañas, detalle con sus personas, historial y los indicadores `Puede_Editar`, `Puede_Cancelar` y `Puede_Modificar_Personal`, para que la regla de qué botón se muestra viva en un solo lugar). Después, las capas .NET del Hito 2 con `gen_capas_catalogos.py`, abriendo la transacción por cada escritura (T-05).
 
 ## Decisiones vigentes que más condicionan
 
@@ -38,8 +44,9 @@ Actualizado: 2026-10-11
 
 ## Reglas de entrega del usuario (vigentes desde 2026-10-11)
 
-- **Toda entrega va en un ZIP `ControlAccesos.zip` COMPLETO** (todo el proyecto, no solo lo cambiado), y además se presenta cada archivo. Con el último ZIP se reconstruye todo. Para volver a un estado anterior se usa git o se conserva el ZIP de ese momento. (Corregido 2026-10-12: el ZIP del 2026-10-11 salió parcial por error.)
+- **Toda entrega va en un ZIP con SOLO los archivos nuevos o modificados**, con la estructura de carpetas del repo; el usuario lo copia sobre su repo (su copia es más avanzada que la de Claude: nunca decirle que reemplace toda la carpeta). Los archivos completos que cambian se entregan enteros, nunca como fragmentos o diferencias. (Decidido 2026-10-17; reemplaza la regla anterior del ZIP completo.)
 - **Toda entrega trae un mensaje de commit** (git, gestión desde 2026-10-12): una línea de resumen que diga el hito, la fase y el estado de verificación, seguida de viñetas con lo agregado, lo modificado y lo que falta. Se entrega en el chat junto al ZIP. El usuario pega el contenido del ZIP sobre el proyecto y hace `git add .` y `git commit`.
+- **Toda entrega incluye `restaurar_bd.ps1` (raíz del repo) actualizado y probado**, para poder continuar desde otra máquina. Antes de entregar: ejecutarlo contra una base vacía con el repo completo y confirmar que las pruebas pasan. Descubre los archivos por nombre (`NN_*.sql`, `SP_GOVERNANCE_*`, `SP_CAF_*` con `SP_CAF_SOLICITUD_BASE_ALL` antes del resto de solicitud, `PRUEBAS_*`); si aparece otro patrón o una dependencia de orden nueva, hay que ajustarlo.
 - **Toda entrega incluye `PENDIENTES_VALIDACION.md` actualizado**, en la raíz del proyecto (al lado del README, fuera de `Docs_BD`, `Docs_Modulos` y `Docs_Cerebro`). Por cada punto: código P-xx, D-* relacionado, qué significa en lenguaje no técnico, pregunta sugerida, con quién validarlo y cuándo hace falta. Un punto nuevo se agrega; uno resuelto se mueve a *Resueltos*, nunca se borra.
 
 ## Pendientes que no bloquean
