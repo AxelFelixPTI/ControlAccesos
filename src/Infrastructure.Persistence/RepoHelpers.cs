@@ -5,7 +5,7 @@
 // Hito     : 1 — Catálogos del módulo
 // Fase     : 4 — Repository (base compartida)
 // Entidad  : Compartido — acceso a datos
-// Versión  : V1.0 — 2026-10-13
+// Versión  : V1.1 — 2026-10-17
 // Sistema  : ControlAccesos (piloto PostgreSQL, destino SAP HANA)
 // ============================================================
 // Clase base de TODOS los repositorios. Convención de Trianon: Bind = Add*, Read = Rd*.
@@ -42,6 +42,10 @@ public abstract class RepoHelpers
 
     protected static void AddTimestamp(ParametrosSp p, string name, DateTime? value)
         => p.Agregar(name, DbType.DateTime, value);
+
+    /// <summary>Solo fecha (sin hora): filtros por día. V1.1 (Hito 2).</summary>
+    protected static void AddDate(ParametrosSp p, string name, DateTime? value)
+        => p.Agregar(name, DbType.Date, value?.Date);
 
     // ── READ: columnas del lector, por NOMBRE (nunca por posición) ───
     protected static string RdStr(DbDataReader rd, string col)

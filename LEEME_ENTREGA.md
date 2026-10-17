@@ -1,19 +1,21 @@
-# Entrega del 2026-10-17 · Hito 2, parte 2 (lectura)
+# Entrega del 2026-10-17 · Hito 2, capas .NET
 
 Este zip trae **solo los archivos nuevos o modificados**, con la estructura de tu repositorio: cópialos encima.
 
-## Qué trae
-- `SP_CAF_SOLICITUD_LECTURA_ALL.sql`: 14 rutinas de lectura (Mis solicitudes, bandeja de quien aprueba, contadores, detalle, personas, ruta de aprobación, historial, versiones y listados de Vigilancia). Los botones (editar, cancelar, retirar...) los decide la base, no la pantalla.
-- `PRUEBAS_FASE1_HITO2_LECTURA.sql`: 202 pruebas, terminan en ROLLBACK.
-- `DECISIONES_HITO2_LECTURA.md`: decisiones D-56 a D-61 y pendientes T-05 a T-07.
-- `restaurar_bd.ps1` actualizado, `Docs_BD` regenerado, `WORKING_CONTEXT.md` actualizado.
+## Qué trae (todo dentro de `src/`)
+- **DTOs** (`Application.DTOs`): 11 de respuesta (sacados de las columnas reales de cada rutina) y `Dto_Solicitud_Entradas.cs` con los formularios y filtros. Los botones (`Puede_...`) salen como `bool`.
+- **Repositorios** y sus interfaces: `Repo_Solicitud` (mis solicitudes, bandeja, contadores, detalle, personas, ruta, historial, versiones, crear, editar, cancelar), `Repo_Solicitud_Persona`, `Repo_Solicitud_Decision`, `Repo_Solicitud_Vigilancia` y `Repo_Tipo_Acceso_Paso`.
+- **Servicios** y sus interfaces: uno por repositorio. Solo validan el formulario; las reglas viven en la base (D-40).
+- **Modificados:** `EjecutorSp` V1.1 (escrituras que devuelven varios valores, p. ej. ID y código al crear) y `RepoHelpers` V1.1 (`AddDate`).
+- **Herramientas** (`Docs_BD/_tools`): `gen_capas_solicitud.py`, `firmas_rutinas_hito2.txt` y `verificar_llamadas.py` V1.1.
+- `restaurar_bd.ps1` (sin cambios), `WORKING_CONTEXT.md` actualizado.
 
-## Cómo aplicarlo en tu base `accesos_piloto_prueba`
+## Qué comprobar en tu equipo
+Compilar la solución (necesita el paquete Npgsql, que mi entorno no puede descargar):
 ```powershell
-.\restaurar_bd.ps1 -Database accesos_piloto_prueba -SoloRutinas
+dotnet build
 ```
-(Nota: ya tiene tablas, por eso `-SoloRutinas`; luego corre las pruebas con `-SoloPruebas`.)
-Esperado: pruebas 65, 143, 43, 186 y **202** en OK; 11 + 24 tablas y 59 + **79** rutinas.
+Esperado: 0 errores. La base de datos no cambia en esta entrega.
 
 ## Aún no
-La solución .NET del Hito 2 viene después de que confirmes estos resultados.
+Registro de dependencias y pantallas web: van al final, después de los Hitos 3 y 4.

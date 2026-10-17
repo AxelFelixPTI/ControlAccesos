@@ -4,6 +4,8 @@ Actualizado: 2026-10-17
 
 ## Dónde estamos
 
+- **2026-10-17 · Hito 2, capas .NET (DTOs, repositorios, servicios) generadas.** 12 archivos de DTO, 5 repositorios (`Repo_Solicitud`, `_Persona`, `_Decision`, `_Vigilancia`, `Repo_Tipo_Acceso_Paso`) con sus interfaces y 5 servicios con sus interfaces, generados por `Docs_BD/_tools/gen_capas_solicitud.py` desde las firmas reales (`firmas_rutinas_hito2.txt`). `EjecutorSp` V1.1 (escrituras con varias salidas) y `RepoHelpers` V1.1 (`AddDate`). Compilan en .NET 10.0.112 con 0 errores; `verificar_llamadas.py` V1.1: **21 de 21 llamadas resuelven contra la base** y las 10 escrituras responden 400 con parámetros nulos. **C# todavía no se ejecutó contra PostgreSQL** (Npgsql no disponible en el entorno de Claude). Faltan: registro de dependencias y pantallas (al final).
+
 - **2026-10-17 · Hito 2, Fase 1 completa (escritura + lectura).** Lectura: `SP_CAF_SOLICITUD_LECTURA_ALL.sql` (14 rutinas: Mis solicitudes, bandeja por pestañas, contadores, detalle, personas, ruta, historial, versiones, listados de Vigilancia). Pruebas `PRUEBAS_FASE1_HITO2_LECTURA.sql`: **202 de 202 OK**. Restauración desde cero con `restaurar_bd.ps1`: 11 + 24 tablas, 59 + 79 rutinas, pruebas 65, 143, 43, 186 y 202 OK. Decisiones D-56 a D-61 en `Docs_Modulos/HITO_02.../DECISIONES_HITO2_LECTURA.md`. Base de trabajo del usuario: `accesos_piloto_prueba`. **.NET del Hito 2 aún no iniciado.**
 
 - **2026-10-16 · Script 09 aplicado: permisos atómicos y pasos de aprobación.** 4 tablas nuevas (`Catalogo_Permiso`, `Licencia_Permiso`, `Tipo_Acceso_Paso_Aprobacion`, `CAF_Solicitud_Decision`), 9 rutinas nuevas y 43 pruebas (`PRUEBAS_FASE1_PERMISOS.sql`). Total: **35 tablas, 106 rutinas, 251 pruebas en OK** en PostgreSQL 16 desde base limpia. El visitante externo no cambió: es el caso de un paso.
@@ -30,7 +32,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario aplica la parte 2 del Hito 2 y confirma las pruebas. Luego: capas .NET del Hito 2 (una transacción por escritura, T-05), y después Hitos 3 y 4.
+Usuario compila las capas nuevas en su equipo (con Npgsql) y confirma. Luego: Hito 3 (portería y desviaciones) en el orden tablas → SP → pruebas → .NET; pantallas web al final.
 
 ## Decisiones vigentes que más condicionan
 

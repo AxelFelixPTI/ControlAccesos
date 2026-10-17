@@ -5,7 +5,7 @@
 // Hito     : 1 — Catálogos del módulo
 // Fase     : 4 — Repository (base compartida)
 // Entidad  : Compartido — acceso a datos
-// Versión  : V1.0 — 2026-10-13
+// Versión  : V1.1 — 2026-10-17
 // Sistema  : ControlAccesos (piloto PostgreSQL, destino SAP HANA)
 // ============================================================
 // ÚNICO lugar donde se arma una llamada a la base. Ninguna otra capa escribe SQL.
@@ -67,7 +67,7 @@ public sealed class EjecutorSp
     {
         try
         {
-            var r = await LlamarAsync(clave, procedimiento, bind, columnaId: null, ct).ConfigureAwait(false);
+            var r = await LlamarAsync(clave, procedimiento, bind, columnasSalida: null, ct).ConfigureAwait(false);
             return r.Codigo == 100 ? ResultSp.Success(r.Mensaje) : ResultSp.Fail(r.Codigo, r.Mensaje);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -84,9 +84,10 @@ public sealed class EjecutorSp
     {
         try
         {
-            var r = await LlamarAsync(clave, procedimiento, bind, columnaId, ct).ConfigureAwait(false);
+            var r = await LlamarAsync(clave, procedimiento, bind, new[] { columnaId }, ct).ConfigureAwait(false);
+            var id = r.Salidas.TryGetValue(columnaId, out var v) && v is not null ? Convert.ToInt64(v) : 0L;
             return r.Codigo == 100
-                ? ResultSp<long>.Success(r.Id ?? 0, r.Mensaje)
+                ? ResultSp<long>.Success(id, r.Mensaje)
                 : ResultSp<long>.Fail(r.Codigo, r.Mensaje);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -96,8 +97,30 @@ public sealed class EjecutorSp
         }
     }
 
-    private async Task<(int Codigo, string Mensaje, long? Id)> LlamarAsync(
-        string clave, string procedimiento, Action<ParametrosSp> bind, string? columnaId, CancellationToken ct)
+    /// <summary>
+    /// Escritura que devuelve varios valores de salida (INOUT *_Result) además del contrato 100/101/...:
+    /// p. ej. CREAR de solicitud devuelve el ID y el código visible. V1.1 (Hito 2).
+    /// </summary>
+    public async Task<ResultSp<IReadOnlyDictionary<string, object?>>> EjecutarEscrituraConSalidasAsync(
+        string clave, string procedimiento, string[] columnasSalida, Action<ParametrosSp> bind,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var r = await LlamarAsync(clave, procedimiento, bind, columnasSalida, ct).ConfigureAwait(false);
+            return r.Codigo == 100
+                ? ResultSp<IReadOnlyDictionary<string, object?>>.Success(r.Salidas, r.Mensaje)
+                : ResultSp<IReadOnlyDictionary<string, object?>>.Fail(r.Codigo, r.Mensaje);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogError(ex, "ESCRITURA {Procedimiento} ERROR", procedimiento);
+            return ResultSp<IReadOnlyDictionary<string, object?>>.Fail(500, MensajeGenerico);
+        }
+    }
+
+    private async Task<(int Codigo, string Mensaje, IReadOnlyDictionary<string, object?> Salidas)> LlamarAsync(
+        string clave, string procedimiento, Action<ParametrosSp> bind, string[]? columnasSalida, CancellationToken ct)
     {
         var p = new ParametrosSp();
         bind(p);
@@ -113,13 +136,14 @@ public sealed class EjecutorSp
         var codigo = rd.IsDBNull(iCodigo) ? 500 : Convert.ToInt32(rd.GetValue(iCodigo));
         var mensaje = rd.IsDBNull(iMensaje) ? string.Empty : rd.GetString(iMensaje);
 
-        long? id = null;
-        if (columnaId is not null)
-        {
-            var iId = rd.GetOrdinal(columnaId);
-            id = rd.IsDBNull(iId) ? null : Convert.ToInt64(rd.GetValue(iId));
-        }
-        return (codigo, mensaje, id);
+        var salidas = new Dictionary<string, object?>();
+        if (columnasSalida is not null)
+            foreach (var col in columnasSalida)
+            {
+                var i = rd.GetOrdinal(col);
+                salidas[col] = rd.IsDBNull(i) ? null : rd.GetValue(i);
+            }
+        return (codigo, mensaje, salidas);
     }
 
     // ── Armado ───────────────────────────────────────────────────
