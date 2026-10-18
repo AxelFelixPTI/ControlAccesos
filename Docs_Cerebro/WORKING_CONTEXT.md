@@ -4,6 +4,7 @@ Actualizado: 2026-10-17
 
 ## Dónde estamos
 
+- **2026-10-18 · Hito 4, capas .NET (DTOs, repositorios, servicios) generadas.** 13 archivos de DTO (10 de respuesta desde las columnas reales y 3 de entradas: `Dto_Incidencia_Entradas`, `Dto_Correo_Entradas`, `Dto_Reporte_Entradas`), 3 repositorios (`Repo_Incidencia`, `Repo_Correo`, `Repo_Reporte`) y 3 servicios con sus interfaces, generados por `Docs_BD/_tools/gen_capas_incidencias.py` desde `firmas_rutinas_hito4.txt`. Compilan en .NET 10.0.112 con 0 errores y 0 avisos; `verificar_llamadas.py`: **15 de 15 llamadas resuelven contra la base**. **C# todavía no se ejecutó contra PostgreSQL.** Faltan: proceso en segundo plano de envío de correos (usa el usuario 0), registro de dependencias y pantallas web (al final).
 - **2026-10-18 · Hito 4 (incidencias, correos y reporte), Fase 1 completa.** Sin cambios de tablas. 3 archivos nuevos en `Docs_Modulos/HITO_04.../00_BD`: `SP_CAF_INCIDENCIA_ALL.sql` (registrar, decidir, listar, detalle, personas, contadores, buscar personas), `SP_CAF_CORREO_ALL.sql` (pendientes, marcar enviado/error, listar, reencolar; el proceso de envío es el usuario 0) y `SP_CAF_REPORTE_ALL.sql` (accesos, resumen diario, autorizados por zona). Pruebas `PRUEBAS_FASE1_HITO4_ESCRITURA.sql` (**135 de 135 OK**) y `PRUEBAS_FASE1_HITO4_LECTURA.sql` (**113 de 113 OK**), generadas por `Docs_BD/_tools/gen_pruebas_hito4.py`. Restauración desde cero: 11 + 24 tablas, 59 + 114 rutinas. Decisiones D-74 a D-85 y pendientes P-46 a P-50, T-09 en `DECISIONES_HITO4.md`. Siguiente: capas .NET del Hito 4.
 - **2026-10-17 · Hito 3, capas .NET (DTOs, repositorios, servicios) generadas.** 13 archivos de DTO (11 de respuesta desde las columnas reales y `Dto_Porteria_Entradas.cs` con formularios y filtros), 3 repositorios (`Repo_Porteria`, `Repo_Respaldo`, `Repo_Desviacion`) y 3 servicios, con sus interfaces, generados por `Docs_BD/_tools/gen_capas_porteria.py` desde `firmas_rutinas_hito3.txt`. El checklist se envía como lista de `Dto_Porteria_Respuesta` y el repositorio lo convierte a `id:Y,id:N`. Compilan en .NET 10.0.112 con 0 errores y 0 avisos; `verificar_llamadas.py`: **16 de 16 llamadas resuelven contra la base**. **C# todavía no se ejecutó contra PostgreSQL.** Faltan: registro de dependencias y pantallas (al final), y el Hito 4.
 
@@ -37,7 +38,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario restaura la base (`restaurar_bd.ps1`), confirma las pruebas del Hito 4 (135 y 113) y compila las capas .NET del Hito 3 (con Npgsql). Luego: capas .NET del Hito 4 (incidencias, correos, reporte); pantallas web y registro de dependencias al final.
+Usuario restaura la base (`restaurar_bd.ps1`), confirma las pruebas del Hito 4 (135 y 113) y compila las capas .NET del Hito 3 (con Npgsql). Luego: compilar las capas .NET del Hito 4 (con Npgsql); después registro de dependencias, servicio de envío de correos y pantallas web (al final).
 
 ## Decisiones vigentes que más condicionan
 
