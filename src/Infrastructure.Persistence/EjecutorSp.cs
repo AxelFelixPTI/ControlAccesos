@@ -5,7 +5,7 @@
 // Hito     : 1 — Catálogos del módulo
 // Fase     : 4 — Repository (base compartida)
 // Entidad  : Compartido — acceso a datos
-// Versión  : V1.1 — 2026-10-17
+// Versión  : V1.2 — 2026-10-18 (rutinas calificadas con el schema)
 // Sistema  : ControlAccesos (piloto PostgreSQL, destino SAP HANA)
 // ============================================================
 // ÚNICO lugar donde se arma una llamada a la base. Ninguna otra capa escribe SQL.
@@ -44,7 +44,7 @@ public sealed class EjecutorSp
         bind(p);
         await using var cn = _fabrica.Crear(clave);
         await cn.OpenAsync(ct).ConfigureAwait(false);
-        await using var cmd = Armar(cn, $"SELECT * FROM {Ident(funcion)}({Marcadores(p)})", p);
+        await using var cmd = Armar(cn, $"SELECT * FROM {Rutina(clave, funcion)}({Marcadores(p)})", p);
         await using var rd = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         var lista = new List<T>();
         while (await rd.ReadAsync(ct).ConfigureAwait(false))
@@ -126,7 +126,7 @@ public sealed class EjecutorSp
         bind(p);
         await using var cn = _fabrica.Crear(clave);
         await cn.OpenAsync(ct).ConfigureAwait(false);
-        await using var cmd = Armar(cn, $"CALL {Ident(procedimiento)}({Marcadores(p)})", p);
+        await using var cmd = Armar(cn, $"CALL {Rutina(clave, procedimiento)}({Marcadores(p)})", p);
         await using var rd = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         if (!await rd.ReadAsync(ct).ConfigureAwait(false))
             throw new InvalidOperationException($"{procedimiento} no devolvió la fila de respuesta.");
@@ -165,6 +165,13 @@ public sealed class EjecutorSp
 
     private static string Marcadores(ParametrosSp p)
         => string.Join(", ", p.Items.Select(i => "@" + i.Nombre));
+
+    /// <summary>
+    /// "SCHEMA"."RUTINA": la clave de conexión ES el nombre del schema. Se califica siempre porque el
+    /// "Search Path" de la cadena de conexión pasa a minúsculas si no lleva comillas y no encontraría
+    /// los schemas en mayúsculas (error 42883).
+    /// </summary>
+    private static string Rutina(string clave, string nombre) => Ident(clave) + "." + Ident(nombre);
 
     /// <summary>Identificador entre comillas: las rutinas tienen mayúsculas y hay que respetarlas.</summary>
     private static string Ident(string nombre)
