@@ -1,4 +1,4 @@
--- Docs_BD · TRIANONSATELITAL_CAF_PRODD · TABLAS · export 2026-10-17 19:30
+-- Docs_BD · TRIANONSATELITAL_CAF_PRODD · TABLAS · export 2026-10-18 11:34
 -- ÍNDICE
 --  1. CAF_Correo_Pendiente
 --  2. CAF_Desviacion
@@ -65,6 +65,193 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
         "HV_Codigo_Resp" := 500;
         "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_ENCOLAR';
+    END;
+END;
+$$;
+
+-- Name: ERP_CAF_CORREO_LISTAR(bigint, bigint, character varying, date, date); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_CORREO_LISTAR"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint, "HV_Estado" character varying DEFAULT NULL::character varying, "HV_Fecha_Desde" date DEFAULT NULL::date, "HV_Fecha_Hasta" date DEFAULT NULL::date) RETURNS TABLE("ID_Correo_Pendiente" bigint, "Tipo" character varying, "ID_Solicitud" bigint, "Codigo_Solicitud" character varying, "Destinatarios" character varying, "Asunto" character varying, "Estado" character varying, "Intentos" bigint, "Ultimo_Error" character varying, "CreateDate" timestamp without time zone, "Fecha_Envio" timestamp without time zone)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_est VARCHAR(20) := UPPER(TRIM(COALESCE("HV_Estado", '')));
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_ADMIN_USUARIOS', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+        RETURN;
+    END IF;
+    IF lv_est NOT IN ('', 'PENDIENTE', 'ENVIADO', 'ERROR') THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT C."ID_Correo_Pendiente", C."Tipo", C."ID_Solicitud", S."Codigo", C."Destinatarios", C."Asunto", C."Estado",
+           C."Intentos", C."Ultimo_Error", C."CreateDate", C."Fecha_Envio"
+      FROM "CAF_Correo_Pendiente" C
+      LEFT JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = C."ID_Solicitud"
+     WHERE C."Eliminado" = 'N'
+       AND (C."ID_Solicitud" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
+       AND (lv_est = '' OR C."Estado" = lv_est)
+       AND ("HV_Fecha_Desde" IS NULL OR CAST(C."CreateDate" AS DATE) >= "HV_Fecha_Desde")
+       AND ("HV_Fecha_Hasta" IS NULL OR CAST(C."CreateDate" AS DATE) <= "HV_Fecha_Hasta")
+     ORDER BY C."CreateDate" DESC, C."ID_Correo_Pendiente" DESC;
+END;
+$$;
+
+-- Name: ERP_CAF_CORREO_MARCAR_ENVIADO(bigint, bigint, integer, character varying); Type: PROCEDURE; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_CORREO_MARCAR_ENVIADO"(IN "HV_ID_Correo_Pendiente" bigint, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+DECLARE
+    lv_n      INT := 0;
+    lv_estado VARCHAR(20);
+BEGIN
+    -- V1.0 2026-10-18
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_MARCAR_ENVIADO';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <> 0 THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Solo el proceso de envío puede marcar correos.'; RETURN;
+        END IF;
+        UPDATE "CAF_Correo_Pendiente" SET "UpdateDate" = "UpdateDate" WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente";
+        SELECT COUNT(*), MAX("Estado") INTO lv_n, lv_estado
+          FROM "CAF_Correo_Pendiente" WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El correo no existe.'; RETURN;
+        END IF;
+        IF lv_estado <> 'PENDIENTE' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'El correo ya no está pendiente.'; RETURN;
+        END IF;
+        UPDATE "CAF_Correo_Pendiente"
+           SET "Estado" = 'ENVIADO', "Fecha_Envio" = CURRENT_TIMESTAMP, "Intentos" = "Intentos" + 1, "Ultimo_Error" = NULL,
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente";
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Correo marcado como enviado.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_MARCAR_ENVIADO';
+    END;
+END;
+$$;
+
+-- Name: ERP_CAF_CORREO_MARCAR_ERROR(bigint, character varying, integer, bigint, character varying, integer, character varying); Type: PROCEDURE; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_CORREO_MARCAR_ERROR"(IN "HV_ID_Correo_Pendiente" bigint, IN "HV_Error" character varying, IN "HV_Max_Intentos" integer, IN "HV_UsuarioID" bigint, INOUT "HV_Estado_Result" character varying DEFAULT NULL::character varying, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+DECLARE
+    lv_n      INT := 0;
+    lv_estado VARCHAR(20);
+    lv_int    BIGINT;
+BEGIN
+    -- V1.0 2026-10-18
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_MARCAR_ERROR';
+    "HV_Estado_Result" := NULL;
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <> 0 THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Solo el proceso de envío puede marcar correos.'; RETURN;
+        END IF;
+        IF "HV_Max_Intentos" IS NULL OR "HV_Max_Intentos" < 1 OR "HV_Max_Intentos" > 20 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El máximo de intentos debe estar entre 1 y 20.'; RETURN;
+        END IF;
+        UPDATE "CAF_Correo_Pendiente" SET "UpdateDate" = "UpdateDate" WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente";
+        SELECT COUNT(*), MAX("Estado"), MAX("Intentos") INTO lv_n, lv_estado, lv_int
+          FROM "CAF_Correo_Pendiente" WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El correo no existe.'; RETURN;
+        END IF;
+        IF lv_estado <> 'PENDIENTE' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'El correo ya no está pendiente.'; RETURN;
+        END IF;
+        lv_int := lv_int + 1;
+        "HV_Estado_Result" := CASE WHEN lv_int >= "HV_Max_Intentos" THEN 'ERROR' ELSE 'PENDIENTE' END;
+        UPDATE "CAF_Correo_Pendiente"
+           SET "Intentos" = lv_int, "Estado" = "HV_Estado_Result",
+               "Ultimo_Error" = LEFT(COALESCE(NULLIF(TRIM(COALESCE("HV_Error", '')), ''), 'Error sin detalle'), 1000),
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente";
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := CASE WHEN "HV_Estado_Result" = 'ERROR' THEN 'Correo en ERROR: se agotaron los intentos.' ELSE 'Error registrado; se reintentará.' END;
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Estado_Result" := NULL;
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_MARCAR_ERROR';
+    END;
+END;
+$$;
+
+-- Name: ERP_CAF_CORREO_PENDIENTES_LISTAR(bigint, integer); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_CORREO_PENDIENTES_LISTAR"("HV_UsuarioID" bigint, "HV_Maximo" integer DEFAULT 20) RETURNS TABLE("ID_Correo_Pendiente" bigint, "Tipo" character varying, "ID_Solicitud" bigint, "Destinatarios" character varying, "Copia" character varying, "Asunto" character varying, "Cuerpo" text, "Intentos" bigint)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_max INT := COALESCE("HV_Maximo", 20);
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <> 0 THEN RETURN; END IF;
+    IF lv_max < 1 THEN lv_max := 1; END IF;
+    IF lv_max > 100 THEN lv_max := 100; END IF;
+    RETURN QUERY
+    SELECT C."ID_Correo_Pendiente", C."Tipo", C."ID_Solicitud", C."Destinatarios", C."Copia", C."Asunto", C."Cuerpo", C."Intentos"
+      FROM "CAF_Correo_Pendiente" C
+     WHERE C."Eliminado" = 'N' AND C."Estado" = 'PENDIENTE'
+     ORDER BY C."CreateDate", C."ID_Correo_Pendiente"
+     LIMIT lv_max;
+END;
+$$;
+
+-- Name: ERP_CAF_CORREO_REENCOLAR(bigint, bigint, bigint, integer, character varying); Type: PROCEDURE; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_CORREO_REENCOLAR"(IN "HV_ID_Correo_Pendiente" bigint, IN "HV_ID_Catalogo_Sede" bigint, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+DECLARE
+    lv_n      INT := 0;
+    lv_estado VARCHAR(20);
+    lv_sede   BIGINT;
+    lv_sol    BIGINT;
+BEGIN
+    -- V1.0 2026-10-18
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_REENCOLAR';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        IF "HV_ID_Catalogo_Sede" IS NULL
+           OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_ADMIN_USUARIOS', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para administrar la bandeja de correos de esta sede.'; RETURN;
+        END IF;
+        UPDATE "CAF_Correo_Pendiente" SET "UpdateDate" = "UpdateDate" WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente";
+        SELECT COUNT(*), MAX(C."Estado"), MAX(S."ID_Catalogo_Sede"), MAX(C."ID_Solicitud")
+          INTO lv_n, lv_estado, lv_sede, lv_sol
+          FROM "CAF_Correo_Pendiente" C
+          LEFT JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = C."ID_Solicitud"
+         WHERE C."ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente" AND C."Eliminado" = 'N';
+        IF lv_n = 0 OR (lv_sol IS NOT NULL AND lv_sede <> "HV_ID_Catalogo_Sede") THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El correo no existe.'; RETURN;
+        END IF;
+        IF lv_estado <> 'ERROR' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Solo se reencola un correo en ERROR.'; RETURN;
+        END IF;
+        UPDATE "CAF_Correo_Pendiente"
+           SET "Estado" = 'PENDIENTE', "Intentos" = 0, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Correo_Pendiente" = "HV_ID_Correo_Pendiente";
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Correo devuelto a la cola.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_CORREO_REENCOLAR';
     END;
 END;
 $$;
@@ -571,6 +758,422 @@ BEGIN
     RETURN 'N';
 END;
 $$;
+
+-- Name: ERP_CAF_INCIDENCIA_CONTADORES(bigint, bigint); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_CONTADORES"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint) RETURNS TABLE("Registradas" bigint, "Confirmadas" bigint, "Desestimadas" bigint)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL OR NOT (
+          "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_VER', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', "HV_ID_Catalogo_Sede") = 'Y') THEN
+        RETURN;
+    END IF;
+    RETURN QUERY
+    SELECT COUNT(CASE WHEN I."Estado" = 'REGISTRADA' THEN 1 END),
+           COUNT(CASE WHEN I."Estado" = 'CONFIRMADA' THEN 1 END),
+           COUNT(CASE WHEN I."Estado" = 'DESESTIMADA' THEN 1 END)
+      FROM "CAF_Incidencia" I
+     WHERE I."Eliminado" = 'N' AND I."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede";
+END;
+$$;
+
+-- Name: ERP_CAF_INCIDENCIA_DECIDIR(bigint, character varying, character varying, bigint, integer, character varying); Type: PROCEDURE; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_DECIDIR"(IN "HV_ID_Incidencia" bigint, IN "HV_Decision" character varying, IN "HV_Sustento" character varying, IN "HV_UsuarioID" bigint, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+DECLARE
+    lv_dec    VARCHAR(20) := UPPER(TRIM(COALESCE("HV_Decision", '')));
+    lv_n      INT := 0;
+    lv_estado VARCHAR(20);
+    lv_sede   BIGINT;
+    lv_cod    VARCHAR(20);
+    lv_nsol   INT := 0;
+    lv_sol    BIGINT;
+    lv_c      INT;
+    lv_m      VARCHAR(250);
+BEGIN
+    -- V1.0 2026-10-18
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_INCIDENCIA_DECIDIR';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        IF lv_dec NOT IN ('CONFIRMAR','DESESTIMAR') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La decisión debe ser CONFIRMAR o DESESTIMAR.'; RETURN;
+        END IF;
+        IF "HV_Sustento" IS NULL OR LENGTH(TRIM("HV_Sustento")) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Escriba el sustento de la decisión.'; RETURN;
+        END IF;
+        IF LENGTH(TRIM("HV_Sustento")) > 2000 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El sustento no puede superar 2000 caracteres.'; RETURN;
+        END IF;
+        -- Serializa decisiones simultáneas
+        UPDATE "CAF_Incidencia" SET "UpdateDate" = "UpdateDate" WHERE "ID_Incidencia" = "HV_ID_Incidencia";
+        SELECT COUNT(*), MAX("Estado"), MAX("ID_Catalogo_Sede"), MAX("Codigo")
+          INTO lv_n, lv_estado, lv_sede, lv_cod
+          FROM "CAF_Incidencia" WHERE "ID_Incidencia" = "HV_ID_Incidencia" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La incidencia no existe.'; RETURN;
+        END IF;
+        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', lv_sede) <> 'Y' THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para decidir incidencias de esta sede.'; RETURN;
+        END IF;
+        IF lv_estado <> 'REGISTRADA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La incidencia ya fue decidida.'; RETURN;
+        END IF;
+
+        UPDATE "CAF_Incidencia"
+           SET "Estado" = CASE lv_dec WHEN 'CONFIRMAR' THEN 'CONFIRMADA' ELSE 'DESESTIMADA' END,
+               "ID_Usuario_Decision" = "HV_UsuarioID", "Fecha_Decision" = CURRENT_TIMESTAMP,
+               "Sustento_Decision" = TRIM("HV_Sustento"),
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Incidencia" = "HV_ID_Incidencia";
+
+        SELECT COUNT(DISTINCT P."ID_Solicitud"), MAX(P."ID_Solicitud") INTO lv_nsol, lv_sol
+          FROM "CAF_Incidencia_Persona" IP
+          JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud_Persona" = IP."ID_Solicitud_Persona"
+         WHERE IP."ID_Incidencia" = "HV_ID_Incidencia" AND IP."Eliminado" = 'N';
+        IF lv_nsol <> 1 THEN lv_sol := NULL; END IF;
+
+        CALL "ERP_CAF_EVENTO_REGISTRAR"('INCIDENCIA', "HV_ID_Incidencia", lv_sol, lv_dec,
+             lv_cod || ' · ' || LEFT(TRIM("HV_Sustento"), 200), "HV_UsuarioID", lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
+
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := CASE lv_dec WHEN 'CONFIRMAR' THEN 'Incidencia confirmada.' ELSE 'Incidencia desestimada.' END;
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_INCIDENCIA_DECIDIR';
+    END;
+END;
+$$;
+
+-- Name: ERP_CAF_INCIDENCIA_DETALLE(bigint, bigint); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_DETALLE"("HV_UsuarioID" bigint, "HV_ID_Incidencia" bigint) RETURNS TABLE("ID_Incidencia" bigint, "Codigo" character varying, "ID_Catalogo_Sede" bigint, "Fecha_Hora_Hecho" timestamp without time zone, "ID_Catalogo_Tipo_Incidencia" bigint, "Tipo_Descripcion" character varying, "Tipo_Detalle" character varying, "ID_Catalogo_Zona_Acceso" bigint, "Zona_Descripcion" character varying, "Lugar_Detalle" character varying, "Descripcion" character varying, "Origen" character varying, "Registrador_Nombre" character varying, "Estado" character varying, "Decisor_Nombre" character varying, "Fecha_Decision" timestamp without time zone, "Sustento_Decision" character varying, "Puede_Decidir" character)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_sede BIGINT;
+BEGIN
+    -- V1.0 2026-10-18
+    SELECT MAX(I."ID_Catalogo_Sede") INTO lv_sede
+      FROM "CAF_Incidencia" I WHERE I."ID_Incidencia" = "HV_ID_Incidencia" AND I."Eliminado" = 'N';
+    IF lv_sede IS NULL OR NOT (
+          "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', lv_sede) = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', lv_sede) = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_VER', lv_sede) = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', lv_sede) = 'Y') THEN
+        RETURN;
+    END IF;
+    RETURN QUERY
+    SELECT I."ID_Incidencia", I."Codigo", I."ID_Catalogo_Sede", I."Fecha_Hora_Hecho",
+           I."ID_Catalogo_Tipo_Incidencia", T."Descripcion", I."Tipo_Detalle",
+           I."ID_Catalogo_Zona_Acceso", Z."Descripcion", I."Lugar_Detalle",
+           I."Descripcion", I."Origen",
+           CAST(U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" AS VARCHAR),
+           I."Estado",
+           CAST(D."Apellido_Paterno" || COALESCE(' ' || D."Apellido_Materno", '') || ', ' || D."Nombres" AS VARCHAR),
+           I."Fecha_Decision", I."Sustento_Decision",
+           CAST(CASE WHEN I."Estado" = 'REGISTRADA'
+                      AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', I."ID_Catalogo_Sede") = 'Y'
+                     THEN 'Y' ELSE 'N' END AS CHAR(1))
+      FROM "CAF_Incidencia" I
+      JOIN "Catalogo_Tipo_Incidencia" T ON T."ID_Catalogo_Tipo_Incidencia" = I."ID_Catalogo_Tipo_Incidencia"
+      LEFT JOIN "Catalogo_Zona_Acceso" Z ON Z."ID_Catalogo_Zona_Acceso" = I."ID_Catalogo_Zona_Acceso"
+      LEFT JOIN "CAF_GOVERNANCE"."Usuario" U ON U."ID_Usuario" = I."ID_Usuario_Registro"
+      LEFT JOIN "CAF_GOVERNANCE"."Usuario" D ON D."ID_Usuario" = I."ID_Usuario_Decision"
+     WHERE I."ID_Incidencia" = "HV_ID_Incidencia" AND I."Eliminado" = 'N';
+END;
+$$;
+
+-- Name: ERP_CAF_INCIDENCIA_LISTAR(bigint, bigint, character varying, date, date, character varying); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_LISTAR"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint, "HV_Estado" character varying DEFAULT NULL::character varying, "HV_Fecha_Desde" date DEFAULT NULL::date, "HV_Fecha_Hasta" date DEFAULT NULL::date, "HV_Texto" character varying DEFAULT NULL::character varying) RETURNS TABLE("ID_Incidencia" bigint, "Codigo" character varying, "Fecha_Hora_Hecho" timestamp without time zone, "Tipo_Codigo" character varying, "Tipo_Descripcion" character varying, "Zona_Descripcion" character varying, "Lugar_Detalle" character varying, "Descripcion" character varying, "Origen" character varying, "Registrador_Nombre" character varying, "Estado" character varying, "Cantidad_Personas" bigint, "Fecha_Decision" timestamp without time zone)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_est VARCHAR(20)  := UPPER(TRIM(COALESCE("HV_Estado", '')));
+    lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL OR NOT (
+          "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_VER', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', "HV_ID_Catalogo_Sede") = 'Y') THEN
+        RETURN;
+    END IF;
+    IF lv_est NOT IN ('', 'REGISTRADA', 'CONFIRMADA', 'DESESTIMADA') THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT I."ID_Incidencia", I."Codigo", I."Fecha_Hora_Hecho", T."Codigo",
+           CAST(CASE WHEN T."Es_Otro" = 'Y' THEN T."Descripcion" || ': ' || COALESCE(I."Tipo_Detalle", '') ELSE T."Descripcion" END AS VARCHAR),
+           Z."Descripcion", I."Lugar_Detalle", I."Descripcion", I."Origen",
+           CAST(U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" AS VARCHAR),
+           I."Estado",
+           (SELECT COUNT(*) FROM "CAF_Incidencia_Persona" IP WHERE IP."ID_Incidencia" = I."ID_Incidencia" AND IP."Eliminado" = 'N'),
+           I."Fecha_Decision"
+      FROM "CAF_Incidencia" I
+      JOIN "Catalogo_Tipo_Incidencia" T ON T."ID_Catalogo_Tipo_Incidencia" = I."ID_Catalogo_Tipo_Incidencia"
+      LEFT JOIN "Catalogo_Zona_Acceso" Z ON Z."ID_Catalogo_Zona_Acceso" = I."ID_Catalogo_Zona_Acceso"
+      LEFT JOIN "CAF_GOVERNANCE"."Usuario" U ON U."ID_Usuario" = I."ID_Usuario_Registro"
+     WHERE I."Eliminado" = 'N' AND I."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+       AND (lv_est = '' OR I."Estado" = lv_est)
+       AND ("HV_Fecha_Desde" IS NULL OR CAST(I."Fecha_Hora_Hecho" AS DATE) >= "HV_Fecha_Desde")
+       AND ("HV_Fecha_Hasta" IS NULL OR CAST(I."Fecha_Hora_Hecho" AS DATE) <= "HV_Fecha_Hasta")
+       AND (lv_txt = '' OR "ERP_CAF_FN_NORMALIZAR"(I."Codigo" || ' ' || I."Descripcion" || ' ' || T."Descripcion" || ' '
+                                                    || COALESCE(I."Lugar_Detalle", '') || ' ' || COALESCE(Z."Descripcion", '')) LIKE '%' || lv_txt || '%')
+     ORDER BY CASE I."Estado" WHEN 'REGISTRADA' THEN 0 ELSE 1 END,
+              CASE I."Estado" WHEN 'REGISTRADA' THEN EXTRACT(EPOCH FROM I."Fecha_Hora_Hecho") ELSE -EXTRACT(EPOCH FROM I."Fecha_Hora_Hecho") END,
+              I."ID_Incidencia";
+END;
+$$;
+
+-- Name: ERP_CAF_INCIDENCIA_PERSONAS_BUSCAR(bigint, bigint, date, date, character varying); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_PERSONAS_BUSCAR"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint, "HV_Fecha_Desde" date DEFAULT NULL::date, "HV_Fecha_Hasta" date DEFAULT NULL::date, "HV_Texto" character varying DEFAULT NULL::character varying) RETURNS TABLE("ID_Solicitud_Persona" bigint, "ID_Solicitud" bigint, "Codigo_Solicitud" character varying, "Fecha_Hora_Prevista" timestamp without time zone, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Empresa_Visitante" character varying, "Estado_Persona" character varying)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_d1  DATE := COALESCE("HV_Fecha_Desde", CURRENT_DATE - 1);
+    lv_d2  DATE := COALESCE("HV_Fecha_Hasta", COALESCE("HV_Fecha_Desde", CURRENT_DATE));
+    lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+        RETURN;
+    END IF;
+    IF lv_d2 < lv_d1 THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT P."ID_Solicitud_Persona", S."ID_Solicitud", S."Codigo", S."Fecha_Hora_Prevista", TD."Codigo", PE."Numero_Documento",
+           CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),
+           S."Empresa_Visitante", P."Estado"
+      FROM "CAF_Solicitud_Persona" P
+      JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud" AND S."Eliminado" = 'N'
+      JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
+     WHERE P."Eliminado" = 'N' AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+       AND CAST(S."Fecha_Hora_Prevista" AS DATE) BETWEEN lv_d1 AND lv_d2
+       AND (lv_txt = '' OR "ERP_CAF_FN_NORMALIZAR"(PE."Numero_Documento" || ' ' || PE."Apellido_Paterno" || ' ' || COALESCE(PE."Apellido_Materno", '')
+                                                    || ' ' || PE."Nombres" || ' ' || COALESCE(S."Empresa_Visitante", '') || ' ' || S."Codigo") LIKE '%' || lv_txt || '%')
+     ORDER BY S."Fecha_Hora_Prevista" DESC, PE."Apellido_Paterno", PE."Nombres", P."ID_Solicitud_Persona";
+END;
+$$;
+
+-- Name: ERP_CAF_INCIDENCIA_PERSONAS_LISTAR(bigint, bigint); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_PERSONAS_LISTAR"("HV_UsuarioID" bigint, "HV_ID_Incidencia" bigint) RETURNS TABLE("ID_Solicitud_Persona" bigint, "ID_Solicitud" bigint, "Codigo_Solicitud" character varying, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Empresa_Visitante" character varying, "Estado_Persona" character varying)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_sede BIGINT;
+BEGIN
+    -- V1.0 2026-10-18
+    SELECT MAX(I."ID_Catalogo_Sede") INTO lv_sede
+      FROM "CAF_Incidencia" I WHERE I."ID_Incidencia" = "HV_ID_Incidencia" AND I."Eliminado" = 'N';
+    IF lv_sede IS NULL OR NOT (
+          "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', lv_sede) = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', lv_sede) = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_VER', lv_sede) = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', lv_sede) = 'Y') THEN
+        RETURN;
+    END IF;
+    RETURN QUERY
+    SELECT P."ID_Solicitud_Persona", S."ID_Solicitud", S."Codigo", TD."Codigo", PE."Numero_Documento",
+           CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),
+           S."Empresa_Visitante", P."Estado"
+      FROM "CAF_Incidencia_Persona" IP
+      JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud_Persona" = IP."ID_Solicitud_Persona"
+      JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
+      JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
+     WHERE IP."ID_Incidencia" = "HV_ID_Incidencia" AND IP."Eliminado" = 'N'
+     ORDER BY PE."Apellido_Paterno", PE."Nombres", P."ID_Solicitud_Persona";
+END;
+$$;
+
+-- Name: ERP_CAF_INCIDENCIA_REGISTRAR(bigint, bigint, character varying, timestamp without time zone, bigint, character varying, character varying, character varying, bigint, bigint, character varying, integer, character varying); Type: PROCEDURE; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE PROCEDURE "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_INCIDENCIA_REGISTRAR"(IN "HV_ID_Catalogo_Sede" bigint, IN "HV_ID_Catalogo_Tipo_Incidencia" bigint, IN "HV_Tipo_Detalle" character varying, IN "HV_Fecha_Hora_Hecho" timestamp without time zone, IN "HV_ID_Catalogo_Zona_Acceso" bigint, IN "HV_Lugar_Detalle" character varying, IN "HV_Descripcion" character varying, IN "HV_IDs_Solicitud_Persona" character varying, IN "HV_UsuarioID" bigint, INOUT "HV_ID_Incidencia_Result" bigint DEFAULT NULL::bigint, INOUT "HV_Codigo_Result" character varying DEFAULT NULL::character varying, INOUT "HV_Codigo_Resp" integer DEFAULT NULL::integer, INOUT "HV_Mensaje" character varying DEFAULT NULL::character varying)
+    LANGUAGE plpgsql
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $_$
+DECLARE
+    lv_lista  VARCHAR(600) := ',' || REPLACE(COALESCE("HV_IDs_Solicitud_Persona", ''), ' ', '') || ',';
+    lv_hay    CHAR(1) := 'N';
+    lv_tokens INT := 0;
+    lv_dbl    VARCHAR(1200);
+    lv_dup    INT := 0;
+    lv_id     BIGINT := 0;
+    lv_total  INT := 0;
+    lv_validas INT := 0;
+    lv_sol    BIGINT;
+    lv_nsol   INT := 0;
+    lv_n      INT := 0;
+    lv_otro   CHAR(1);
+    lv_detalle VARCHAR(4000) := NULLIF(TRIM(COALESCE("HV_Tipo_Detalle", '')), '');
+    lv_lugar  VARCHAR(4000) := NULLIF(TRIM(COALESCE("HV_Lugar_Detalle", '')), '');
+    lv_origen VARCHAR(20);
+    lv_inc    BIGINT;
+    lv_cod    VARCHAR(20);
+    lv_c      INT;
+    lv_m      VARCHAR(250);
+BEGIN
+    -- V1.0 2026-10-18
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_INCIDENCIA_REGISTRAR';
+    "HV_ID_Incidencia_Result" := 0;
+    "HV_Codigo_Result" := NULL;
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        IF "HV_ID_Catalogo_Sede" IS NULL THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique la sede.'; RETURN;
+        END IF;
+        IF "HV_ID_Catalogo_Tipo_Incidencia" IS NULL THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Elija el tipo de incidencia.'; RETURN;
+        END IF;
+        IF "HV_Fecha_Hora_Hecho" IS NULL THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique cuándo ocurrió el hecho.'; RETURN;
+        END IF;
+        IF "HV_Fecha_Hora_Hecho" > LOCALTIMESTAMP + INTERVAL '5 minutes' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La fecha y hora del hecho no puede ser futura.'; RETURN;
+        END IF;
+        IF "HV_Descripcion" IS NULL OR LENGTH(TRIM("HV_Descripcion")) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Describa lo ocurrido.'; RETURN;
+        END IF;
+        IF LENGTH(TRIM("HV_Descripcion")) > 2000 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La descripción no puede superar 2000 caracteres.'; RETURN;
+        END IF;
+        IF lv_detalle IS NOT NULL AND LENGTH(lv_detalle) > 500 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El detalle del tipo no puede superar 500 caracteres.'; RETURN;
+        END IF;
+        IF lv_lugar IS NOT NULL AND LENGTH(lv_lugar) > 200 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El lugar no puede superar 200 caracteres.'; RETURN;
+        END IF;
+        IF "HV_ID_Catalogo_Zona_Acceso" IS NULL AND lv_lugar IS NULL THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique la zona o describa el lugar.'; RETURN;
+        END IF;
+
+        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para registrar incidencias en esta sede.'; RETURN;
+        END IF;
+
+        -- Tipo
+        SELECT COUNT(*), MAX("Es_Otro") INTO lv_n, lv_otro
+          FROM "Catalogo_Tipo_Incidencia"
+         WHERE "ID_Catalogo_Tipo_Incidencia" = "HV_ID_Catalogo_Tipo_Incidencia" AND "Eliminado" = 'N' AND "Activo" = 'Y';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El tipo de incidencia no existe o está inactivo.'; RETURN;
+        END IF;
+        IF lv_otro = 'Y' AND lv_detalle IS NULL THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Explique de qué tipo de incidencia se trata («Otro»).'; RETURN;
+        END IF;
+        IF lv_otro <> 'Y' THEN lv_detalle := NULL; END IF;
+
+        -- Zona (de la misma sede)
+        IF "HV_ID_Catalogo_Zona_Acceso" IS NOT NULL THEN
+            SELECT COUNT(*) INTO lv_n FROM "Catalogo_Zona_Acceso"
+             WHERE "ID_Catalogo_Zona_Acceso" = "HV_ID_Catalogo_Zona_Acceso" AND "ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+               AND "Eliminado" = 'N' AND "Activo" = 'Y';
+            IF lv_n = 0 THEN
+                "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La zona no existe en esta sede o está inactiva.'; RETURN;
+            END IF;
+        END IF;
+
+        -- Personas (opcionales)
+        IF lv_lista <> ',,' THEN
+            lv_hay := 'Y';
+            IF lv_lista !~ '^,([0-9]+,)+$' THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique las personas como lista de números separados por coma.'; RETURN;
+            END IF;
+            lv_tokens := LENGTH(lv_lista) - LENGTH(REPLACE(lv_lista, ',', '')) - 1;
+            lv_dbl := REPLACE(lv_lista, ',', ',,');
+            LOOP
+                SELECT MIN(P."ID_Solicitud_Persona") INTO lv_id
+                  FROM "CAF_Solicitud_Persona" P
+                 WHERE P."ID_Solicitud_Persona" > lv_id AND lv_lista LIKE '%,' || CAST(P."ID_Solicitud_Persona" AS VARCHAR) || ',%';
+                EXIT WHEN lv_id IS NULL;
+                lv_total := lv_total + 1;
+                IF LENGTH(lv_dbl) - LENGTH(REPLACE(lv_dbl, ',' || CAST(lv_id AS VARCHAR) || ',', '')) > LENGTH(',' || CAST(lv_id AS VARCHAR) || ',') THEN
+                    lv_dup := 1;
+                END IF;
+            END LOOP;
+            IF lv_dup = 1 THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Una persona está repetida en la lista.'; RETURN;
+            END IF;
+            IF lv_total <> lv_tokens THEN
+                "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'Alguna persona indicada no existe.'; RETURN;
+            END IF;
+            SELECT COUNT(*), COUNT(DISTINCT S."ID_Solicitud"), MAX(S."ID_Solicitud")
+              INTO lv_validas, lv_nsol, lv_sol
+              FROM "CAF_Solicitud_Persona" P
+              JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud" AND S."Eliminado" = 'N'
+                                    AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+             WHERE P."Eliminado" = 'N' AND lv_lista LIKE '%,' || CAST(P."ID_Solicitud_Persona" AS VARCHAR) || ',%';
+            IF lv_validas <> lv_total THEN
+                "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Todas las personas deben ser de visitas de esta sede.'; RETURN;
+            END IF;
+            IF lv_nsol <> 1 THEN lv_sol := NULL; END IF;
+        END IF;
+
+        lv_origen := CASE WHEN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y'
+                          THEN 'COORDINADOR' ELSE 'VIGILANCIA' END;
+
+        INSERT INTO "CAF_Incidencia" ("ID_Catalogo_Sede","ID_Catalogo_Tipo_Incidencia","Tipo_Detalle","Fecha_Hora_Hecho",
+                                      "ID_Catalogo_Zona_Acceso","Lugar_Detalle","Descripcion","Origen","ID_Usuario_Registro",
+                                      "Estado","UsuarioID_Create")
+        VALUES ("HV_ID_Catalogo_Sede","HV_ID_Catalogo_Tipo_Incidencia", lv_detalle, "HV_Fecha_Hora_Hecho",
+                "HV_ID_Catalogo_Zona_Acceso", lv_lugar, TRIM("HV_Descripcion"), lv_origen, "HV_UsuarioID",
+                'REGISTRADA', "HV_UsuarioID")
+        RETURNING "ID_Incidencia" INTO lv_inc;
+
+        lv_cod := 'INC-' || LPAD(CAST(lv_inc AS VARCHAR), 5, '0');
+        UPDATE "CAF_Incidencia" SET "Codigo" = lv_cod WHERE "ID_Incidencia" = lv_inc;
+
+        IF lv_hay = 'Y' THEN
+            INSERT INTO "CAF_Incidencia_Persona" ("ID_Incidencia","ID_Solicitud_Persona","UsuarioID_Create")
+            SELECT lv_inc, P."ID_Solicitud_Persona", "HV_UsuarioID"
+              FROM "CAF_Solicitud_Persona" P
+             WHERE lv_lista LIKE '%,' || CAST(P."ID_Solicitud_Persona" AS VARCHAR) || ',%';
+        END IF;
+
+        CALL "ERP_CAF_EVENTO_REGISTRAR"('INCIDENCIA', lv_inc, lv_sol, 'REGISTRAR',
+             lv_cod || ' · ' || lv_origen || ' · ' || LEFT(TRIM("HV_Descripcion"), 200), "HV_UsuarioID", lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
+
+        "HV_ID_Incidencia_Result" := lv_inc;
+        "HV_Codigo_Result" := lv_cod;
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Incidencia ' || lv_cod || ' registrada.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_ID_Incidencia_Result" := 0;
+        "HV_Codigo_Result" := NULL;
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_INCIDENCIA_REGISTRAR';
+    END;
+END;
+$_$;
 
 -- Name: ERP_CAF_PERSONA_EXTERNA_ACTUALIZAR(bigint, bigint, character varying, character varying, character varying, character varying, bigint, integer, character varying); Type: PROCEDURE; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
 
@@ -1438,6 +2041,124 @@ BEGIN
         "HV_Codigo_Resp" := 500;
         "HV_Mensaje"     := 'Error interno en ERP_CAF_PORTERIA_SALIDA_REGISTRAR';
     END;
+END;
+$$;
+
+-- Name: ERP_CAF_REPORTE_ACCESOS(bigint, bigint, date, date, character varying, character varying, character varying); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_REPORTE_ACCESOS"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint, "HV_Fecha_Desde" date, "HV_Fecha_Hasta" date, "HV_Tipo" character varying DEFAULT NULL::character varying, "HV_Resultado" character varying DEFAULT NULL::character varying, "HV_Texto" character varying DEFAULT NULL::character varying) RETURNS TABLE("ID_Registro_Acceso" bigint, "Fecha_Hora" timestamp without time zone, "Tipo_Movimiento" character varying, "Resultado" character varying, "Es_Registro_Tardio" character, "Codigo_Solicitud" character varying, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Empresa_Visitante" character varying, "Zonas" character varying, "Vigilante_Nombre" character varying, "Items_Incumplidos" bigint, "Codigo_Desviacion" character varying, "Estado_Desviacion" character varying, "Observacion" character varying)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+DECLARE
+    lv_tip VARCHAR(10)  := UPPER(TRIM(COALESCE("HV_Tipo", '')));
+    lv_res VARCHAR(30)  := UPPER(TRIM(COALESCE("HV_Resultado", '')));
+    lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL OR "HV_Fecha_Desde" IS NULL OR "HV_Fecha_Hasta" IS NULL
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+        RETURN;
+    END IF;
+    IF "HV_Fecha_Hasta" < "HV_Fecha_Desde" OR "HV_Fecha_Hasta" - "HV_Fecha_Desde" > 92 THEN RETURN; END IF;
+    IF lv_tip NOT IN ('', 'INGRESO', 'SALIDA') THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT A."ID_Registro_Acceso", A."Fecha_Hora", A."Tipo_Movimiento", A."Resultado", A."Es_Registro_Tardio",
+           S."Codigo", TD."Codigo", PE."Numero_Documento",
+           CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),
+           S."Empresa_Visitante",
+           CAST((SELECT STRING_AGG(Z."Descripcion", ', ' ORDER BY Z."Orden", Z."ID_Catalogo_Zona_Acceso")
+                   FROM "CAF_Solicitud_Zona" SZ
+                   JOIN "Catalogo_Zona_Acceso" Z ON Z."ID_Catalogo_Zona_Acceso" = SZ."ID_Catalogo_Zona_Acceso"
+                  WHERE SZ."ID_Solicitud" = S."ID_Solicitud" AND SZ."Eliminado" = 'N') AS VARCHAR),
+           CAST(U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" AS VARCHAR),
+           (SELECT COUNT(*) FROM "CAF_Registro_Checklist" RC
+             WHERE RC."ID_Registro_Acceso" = A."ID_Registro_Acceso" AND RC."Eliminado" = 'N' AND RC."Cumple" = 'N'),
+           D."Codigo", D."Estado", A."Observacion"
+      FROM "CAF_Registro_Acceso" A
+      JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud_Persona" = A."ID_Solicitud_Persona"
+      JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
+      JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
+      LEFT JOIN "CAF_GOVERNANCE"."Usuario" U ON U."ID_Usuario" = A."ID_Usuario_Vigilante"
+      LEFT JOIN "CAF_Desviacion" D ON D."ID_Registro_Acceso" = A."ID_Registro_Acceso" AND D."Eliminado" = 'N'
+     WHERE A."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede" AND A."Eliminado" = 'N'
+       AND CAST(A."Fecha_Hora" AS DATE) BETWEEN "HV_Fecha_Desde" AND "HV_Fecha_Hasta"
+       AND (lv_tip = '' OR A."Tipo_Movimiento" = lv_tip)
+       AND (lv_res = '' OR A."Resultado" = lv_res)
+       AND (lv_txt = '' OR "ERP_CAF_FN_NORMALIZAR"(PE."Numero_Documento" || ' ' || PE."Apellido_Paterno" || ' ' || COALESCE(PE."Apellido_Materno", '')
+                                                    || ' ' || PE."Nombres" || ' ' || COALESCE(S."Empresa_Visitante", '') || ' ' || S."Codigo") LIKE '%' || lv_txt || '%')
+     ORDER BY A."Fecha_Hora", A."ID_Registro_Acceso";
+END;
+$$;
+
+-- Name: ERP_CAF_REPORTE_AUTORIZADOS_POR_ZONA(bigint, bigint, bigint, date); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_REPORTE_AUTORIZADOS_POR_ZONA"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint, "HV_ID_Catalogo_Zona_Acceso" bigint, "HV_Fecha" date) RETURNS TABLE("ID_Solicitud_Persona" bigint, "Codigo_Solicitud" character varying, "Fecha_Hora_Prevista" timestamp without time zone, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Empresa_Visitante" character varying, "Estado_Persona" character varying, "Acceso_Restringido" character, "Fecha_Hora_Ingreso" timestamp without time zone, "Fecha_Hora_Salida" timestamp without time zone)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL OR "HV_ID_Catalogo_Zona_Acceso" IS NULL OR "HV_Fecha" IS NULL
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+        RETURN;
+    END IF;
+    RETURN QUERY
+    SELECT P."ID_Solicitud_Persona", S."Codigo", S."Fecha_Hora_Prevista", TD."Codigo", PE."Numero_Documento",
+           CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),
+           S."Empresa_Visitante", P."Estado", P."Acceso_Restringido", P."Fecha_Hora_Ingreso", P."Fecha_Hora_Salida"
+      FROM "CAF_Solicitud_Zona" SZ
+      JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = SZ."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
+                            AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+      JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
+      JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
+     WHERE SZ."Eliminado" = 'N' AND SZ."ID_Catalogo_Zona_Acceso" = "HV_ID_Catalogo_Zona_Acceso"
+       AND CAST(S."Fecha_Hora_Prevista" AS DATE) = "HV_Fecha"
+     ORDER BY S."Fecha_Hora_Prevista", PE."Apellido_Paterno", PE."Nombres", P."ID_Solicitud_Persona";
+END;
+$$;
+
+-- Name: ERP_CAF_REPORTE_RESUMEN_DIARIO(bigint, bigint, date, date); Type: FUNCTION; Schema: TRIANONSATELITAL_CAF_PRODD; Owner: -
+
+CREATE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_REPORTE_RESUMEN_DIARIO"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint, "HV_Fecha_Desde" date, "HV_Fecha_Hasta" date) RETURNS TABLE("Fecha" date, "Ingresos" bigint, "Ingresos_Restringidos" bigint, "Ingresos_Denegados" bigint, "Salidas" bigint, "Desviaciones" bigint, "Incidencias" bigint)
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
+    AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-10-18
+    IF "HV_ID_Catalogo_Sede" IS NULL OR "HV_Fecha_Desde" IS NULL OR "HV_Fecha_Hasta" IS NULL
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_REPORTE_VER', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+        RETURN;
+    END IF;
+    IF "HV_Fecha_Hasta" < "HV_Fecha_Desde" OR "HV_Fecha_Hasta" - "HV_Fecha_Desde" > 92 THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT X."Dia",
+           CAST(SUM(X."I") AS BIGINT), CAST(SUM(X."IR") AS BIGINT), CAST(SUM(X."ID") AS BIGINT),
+           CAST(SUM(X."S") AS BIGINT), CAST(SUM(X."D") AS BIGINT), CAST(SUM(X."N") AS BIGINT)
+      FROM (
+            SELECT CAST(A."Fecha_Hora" AS DATE) AS "Dia",
+                   CAST(CASE WHEN A."Resultado" IN ('INGRESA','INGRESA_RESTRINGIDO') THEN 1 ELSE 0 END AS BIGINT) AS "I",
+                   CAST(CASE WHEN A."Resultado" = 'INGRESA_RESTRINGIDO' THEN 1 ELSE 0 END AS BIGINT) AS "IR",
+                   CAST(CASE WHEN A."Resultado" = 'NO_INGRESA' THEN 1 ELSE 0 END AS BIGINT) AS "ID",
+                   CAST(CASE WHEN A."Tipo_Movimiento" = 'SALIDA' THEN 1 ELSE 0 END AS BIGINT) AS "S",
+                   CAST((SELECT COUNT(*) FROM "CAF_Desviacion" D WHERE D."ID_Registro_Acceso" = A."ID_Registro_Acceso" AND D."Eliminado" = 'N') AS BIGINT) AS "D",
+                   CAST(0 AS BIGINT) AS "N"
+              FROM "CAF_Registro_Acceso" A
+             WHERE A."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede" AND A."Eliminado" = 'N'
+               AND CAST(A."Fecha_Hora" AS DATE) BETWEEN "HV_Fecha_Desde" AND "HV_Fecha_Hasta"
+            UNION ALL
+            SELECT CAST(I."Fecha_Hora_Hecho" AS DATE), 0, 0, 0, 0, 0, 1
+              FROM "CAF_Incidencia" I
+             WHERE I."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede" AND I."Eliminado" = 'N' AND I."Estado" <> 'DESESTIMADA'
+               AND CAST(I."Fecha_Hora_Hecho" AS DATE) BETWEEN "HV_Fecha_Desde" AND "HV_Fecha_Hasta"
+           ) X
+     GROUP BY X."Dia"
+     ORDER BY X."Dia";
 END;
 $$;
 

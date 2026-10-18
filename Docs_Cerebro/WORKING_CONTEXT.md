@@ -4,6 +4,7 @@ Actualizado: 2026-10-17
 
 ## Dónde estamos
 
+- **2026-10-18 · Hito 4 (incidencias, correos y reporte), Fase 1 completa.** Sin cambios de tablas. 3 archivos nuevos en `Docs_Modulos/HITO_04.../00_BD`: `SP_CAF_INCIDENCIA_ALL.sql` (registrar, decidir, listar, detalle, personas, contadores, buscar personas), `SP_CAF_CORREO_ALL.sql` (pendientes, marcar enviado/error, listar, reencolar; el proceso de envío es el usuario 0) y `SP_CAF_REPORTE_ALL.sql` (accesos, resumen diario, autorizados por zona). Pruebas `PRUEBAS_FASE1_HITO4_ESCRITURA.sql` (**135 de 135 OK**) y `PRUEBAS_FASE1_HITO4_LECTURA.sql` (**113 de 113 OK**), generadas por `Docs_BD/_tools/gen_pruebas_hito4.py`. Restauración desde cero: 11 + 24 tablas, 59 + 114 rutinas. Decisiones D-74 a D-85 y pendientes P-46 a P-50, T-09 en `DECISIONES_HITO4.md`. Siguiente: capas .NET del Hito 4.
 - **2026-10-17 · Hito 3, capas .NET (DTOs, repositorios, servicios) generadas.** 13 archivos de DTO (11 de respuesta desde las columnas reales y `Dto_Porteria_Entradas.cs` con formularios y filtros), 3 repositorios (`Repo_Porteria`, `Repo_Respaldo`, `Repo_Desviacion`) y 3 servicios, con sus interfaces, generados por `Docs_BD/_tools/gen_capas_porteria.py` desde `firmas_rutinas_hito3.txt`. El checklist se envía como lista de `Dto_Porteria_Respuesta` y el repositorio lo convierte a `id:Y,id:N`. Compilan en .NET 10.0.112 con 0 errores y 0 avisos; `verificar_llamadas.py`: **16 de 16 llamadas resuelven contra la base**. **C# todavía no se ejecutó contra PostgreSQL.** Faltan: registro de dependencias y pantallas (al final), y el Hito 4.
 
 - **2026-10-17 · Hito 3 (portería y desviaciones), Fase 1 completa.** Sin cambios de tablas. 4 archivos nuevos en `Docs_Modulos/HITO_03.../00_BD`: `SP_CAF_DESVIACION_ALL.sql` (validar, crear, dar conformidad), `SP_CAF_PORTERIA_ALL.sql` (ítems aplicables, regla única de movimiento, registrar ingreso, registrar salida, «no se presentó»), `SP_CAF_RESPALDO_ALL.sql` y `SP_CAF_PORTERIA_LECTURA_ALL.sql` (11 lecturas). Pruebas `PRUEBAS_FASE1_HITO3_ESCRITURA.sql` (**140 de 140 OK**) y `PRUEBAS_FASE1_HITO3_LECTURA.sql` (**100 de 100 OK**), generadas por `Docs_BD/_tools/gen_pruebas_hito3.py`. Restauración desde cero: 11 + 24 tablas, 59 + 99 rutinas, pruebas 65, 143, 43, 186, 202, 140 y 100 OK. Decisiones D-62 a D-73 y pendientes P-40 a P-45, T-08 en `DECISIONES_HITO3.md`. Siguiente: capas .NET del Hito 3.
@@ -36,7 +37,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario restaura la base (`restaurar_bd.ps1`), confirma las pruebas del Hito 3 (140 y 100) y compila las capas .NET del Hito 3 (con Npgsql). Luego: Hito 4 (incidencias, reporte, correos); pantallas web al final.
+Usuario restaura la base (`restaurar_bd.ps1`), confirma las pruebas del Hito 4 (135 y 113) y compila las capas .NET del Hito 3 (con Npgsql). Luego: capas .NET del Hito 4 (incidencias, correos, reporte); pantallas web y registro de dependencias al final.
 
 ## Decisiones vigentes que más condicionan
 
