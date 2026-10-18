@@ -2,6 +2,9 @@
 // Consola de operación de ControlAccesos (piloto). Comandos:
 //   probar           Lee los catálogos y la cola de correos: confirma que C# ↔ PostgreSQL funciona.
 //   crear-admin      Crea el primer administrador (pide los datos y la contraseña por teclado).
+//   login            Prueba el inicio de sesión (correo y contraseña) y muestra licencias y permisos.
+//   emitir-token     Genera un token de un solo uso para que un usuario defina su contraseña.
+//   definir-password Usa ese token para definir la contraseña.
 //   enviar-correos   Una sola vuelta de envío de correos pendientes.
 //   servir           Deja corriendo el envío de correos en segundo plano (Ctrl+C para parar).
 // Configuración: appsettings.json y, si existe, appsettings.Local.json (NO se sube a git; ahí va la clave real).
@@ -18,11 +21,14 @@ using Shared.Results;
 
 var comando = args.Length > 0 ? args[0].ToLowerInvariant() : "ayuda";
 
-if (comando is not ("probar" or "crear-admin" or "enviar-correos" or "servir"))
+if (comando is not ("probar" or "crear-admin" or "login" or "emitir-token" or "definir-password" or "enviar-correos" or "servir"))
 {
     Console.WriteLine("Uso: dotnet run --project src/Consola -- <comando>");
     Console.WriteLine("  probar           lee catálogos y cola de correos (prueba de conexión)");
     Console.WriteLine("  crear-admin      crea el primer administrador");
+    Console.WriteLine("  login            prueba el inicio de sesión");
+    Console.WriteLine("  emitir-token     token de un solo uso para definir contraseña");
+    Console.WriteLine("  definir-password usa el token para definir la contraseña");
     Console.WriteLine("  enviar-correos   una vuelta de envío de correos pendientes");
     Console.WriteLine("  servir           envío de correos en segundo plano (Ctrl+C para parar)");
     return 1;
@@ -46,6 +52,12 @@ try
             return await Probar(host.Services);
         case "enviar-correos":
             return await EnviarCorreos(host.Services);
+        case "login":
+            return await Login(host.Services);
+        case "emitir-token":
+            return await EmitirToken(host.Services);
+        case "definir-password":
+            return await DefinirPassword(host.Services);
         default:
             return await CrearAdmin(host.Services);
     }
@@ -104,6 +116,53 @@ static async Task<int> EnviarCorreos(IServiceProvider raiz)
     if (r.ErrorGeneral is not null) { Console.WriteLine($"No se pudo leer la cola: {r.ErrorGeneral}"); return 3; }
     Console.WriteLine($"Leídos {r.Leidos} · enviados {r.Enviados} · con error {r.Fallidos}");
     return 0;
+}
+
+static async Task<int> Login(IServiceProvider raiz)
+{
+    using var ambito = raiz.CreateScope();
+    var auth = ambito.ServiceProvider.GetRequiredService<ISrv_Auth>();
+    var r = await auth.IniciarSesionAsync(new Dto_Login_Entrada { Correo = Pedir("Correo"), Password = PedirPassword("Contraseña") });
+    if (!r.Success)
+    {
+        Console.WriteLine($"Acceso denegado: {r.Message}");
+        foreach (var e in r.Errors) Console.WriteLine($"  - {e.Message}");
+        return 1;
+    }
+    var s = r.Data!;
+    Console.WriteLine($"Bienvenido/a {s.Nombre_Completo} (ID {s.ID_Usuario}){(s.Password_Requiere_Cambio ? " — debe cambiar su contraseña" : "")}");
+    Console.WriteLine($"Licencias ({s.Licencias.Count}):");
+    foreach (var l in s.Licencias) Console.WriteLine($"  {l.Codigo_Licencia} en {l.Codigo_Sede}");
+    Console.WriteLine($"Permisos ({s.Permisos.Count}):");
+    foreach (var p in s.Permisos) Console.WriteLine($"  {p.Codigo_Permiso}  [{p.Sedes}]");
+    return 0;
+}
+
+static async Task<int> EmitirToken(IServiceProvider raiz)
+{
+    using var ambito = raiz.CreateScope();
+    var auth = ambito.ServiceProvider.GetRequiredService<ISrv_Auth>();
+    var u = await auth.BuscarPorCorreoAsync(Pedir("Correo del usuario"));
+    if (!u.Success || u.Data is null) { Console.WriteLine(u.Success ? "No existe ese usuario." : u.Message); return 1; }
+    var minutos = int.TryParse(Pedir("Vigencia en minutos", "60"), out var m) ? m : 60;
+    var t = await auth.EmitirTokenAsync(u.Data.ID_Usuario, minutos, ProcesadorCorreos.UsuarioSistema);
+    if (!t.Success) { Console.WriteLine($"No se pudo: {t.Message}"); return 1; }
+    Console.WriteLine($"Token para {u.Data.Nombre_Completo} (vale {minutos} min, un solo uso):");
+    Console.WriteLine(t.Data);
+    return 0;
+}
+
+static async Task<int> DefinirPassword(IServiceProvider raiz)
+{
+    using var ambito = raiz.CreateScope();
+    var auth = ambito.ServiceProvider.GetRequiredService<ISrv_Auth>();
+    var token = Pedir("Token");
+    var p1 = PedirPassword("Contraseña nueva (mínimo 10 caracteres)");
+    if (p1 != PedirPassword("Repita la contraseña")) { Console.WriteLine("Las contraseñas no coinciden."); return 1; }
+    var r = await auth.DefinirPasswordConTokenAsync(token, p1);
+    Console.WriteLine(r.Success ? "Contraseña definida." : $"No se pudo: {r.Message}");
+    foreach (var e in r.Errors) Console.WriteLine($"  - {e.Message}");
+    return r.Success ? 0 : 1;
 }
 
 static async Task<int> CrearAdmin(IServiceProvider raiz)
