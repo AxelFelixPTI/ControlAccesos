@@ -1,0 +1,21 @@
+@model IngresarVM
+@{ ViewData["Titulo"] = "Ingresar"; }
+<section class="card login-card">
+    <div class="brand dark"><span class="logo"><i></i></span><span><b>TRIANON</b><small>Control de Accesos &middot; VES</small></span></div>
+    <h2>Ingresar</h2>
+    <form asp-action="Ingresar" method="post" autocomplete="off" class="stack">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div asp-validation-summary="ModelOnly" class="aviso a-danger" role="alert"></div>
+        <div class="field">
+            <label asp-for="Correo" class="field-l"></label>
+            <input asp-for="Correo" autofocus autocomplete="username" />
+            <span asp-validation-for="Correo" class="campo-error"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Password" class="field-l"></label>
+            <input asp-for="Password" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="campo-error"></span>
+        </div>
+        <button type="submit" class="btn btn-primary">Ingresar</button>
+    </form>
+</section>

@@ -1,31 +1,17 @@
-# Entrega del 2026-10-18 · Login (inicio de sesión, contraseñas y permisos)
+# Entrega del 2026-10-19 · Rediseño de la web con los mockups
 
-Este zip trae **solo los archivos nuevos o modificados**, con la estructura de tu repositorio: cópialos encima. No hay cambios de base de datos.
+Solo archivos nuevos o modificados, con la estructura del repositorio: cópialos encima. No hay cambios de base de datos.
 
-## Qué trae
-- **Nuevos:** `Dto_Auth.cs`, `ISrv_Auth.cs`, `Srv_Auth.cs`.
-- **Modificados:** `IRepo_Usuario.cs`, `Repo_Usuario.cs` (7 métodos nuevos), `ServiciosControlAccesos.cs` (registra `ISrv_Auth`) y `src\Consola\Program.cs` (3 comandos nuevos).
-- `DECISIONES_ARRANQUE.md` (se agregan D-89 a D-92, P-53 a P-55, T-11), `WORKING_CONTEXT.md`. `restaurar_bd.ps1` sin cambios.
+## Qué cambia
+- La web ahora usa el diseño de los mockups: lateral navy, acento verde-azulado, tarjetas blancas, chips y botones del prototipo 1.1, con la paleta de la primera fase. El «casi todo azul» venía de mi hoja de estilos anterior.
+- Pantallas rehechas: ingreso, cambiar contraseña, inicio, sin acceso y error. Menú agrupado como el prototipo (Solicitante, Coordinador, Vigilancia, Administración) y filtrado por permisos.
+- Con cambio de contraseña obligatorio ya no se ve el menú lateral.
+- Archivos: `wwwroot/css/site.css`, `wwwroot/js/layout.js` (nuevo, abre el menú en pantallas angostas), `Views/Shared/_Layout.cshtml`, vistas de Cuenta e Inicio, `Menu/MenuCaf.cs`, y los documentos (D-98 a D-100; P-56 resuelta; P-57 postergada).
 
-## Qué hace
-- **Iniciar sesión:** compara la contraseña con su hash, bloquea 15 minutos tras 5 intentos fallidos y devuelve licencias y permisos del usuario. No revela si el correo existe.
-- **Token de un solo uso** para definir contraseña (en la base solo queda su hash), **cambiar contraseña** y **verificar un permiso**.
-
-## Pasos en tu equipo
-1. Copia los archivos, **Rebuild All** (10 proyectos).
-2. Si aún no lo hiciste, crea tu administrador:
-```powershell
-dotnet run --project src/Consola -- crear-admin
-```
-3. Prueba el login con ese usuario:
-```powershell
-dotnet run --project src/Consola -- login
-```
-Esperado: «Bienvenido/a …», licencia `LIC_CAF_ADMIN en VES` (o la sede que elegiste) y la lista de permisos.
-4. Prueba una contraseña equivocada 5 veces: la quinta debe decir que la cuenta quedó bloqueada.
-5. Prueba el token (opcional): `emitir-token` (te da un código) y luego `definir-password` (pega el código y pon una contraseña nueva).
-
-Si algo falla, pégame el mensaje tal cual.
+## Pasos
+1. Copia los archivos y haz Rebuild All.
+2. `dotnet run --project src/Web.ControlAccesos` y abre http://localhost:5080
+3. Si el navegador muestra el estilo anterior, recarga con Ctrl+F5.
 
 ## Siguiente
-Capa web: arranque, inicio de sesión con cookie y pantallas.
+Pantallas de negocio con la funcionalidad del prototipo 1.1, empezando por Catálogos.

@@ -1,0 +1,41 @@
+@{ ViewData["Titulo"] = "Inicio"; ViewData["Migas"] = "Sede VES"; }
+<div class="stack">
+    <p class="lead">Bienvenido/a, @User.Identity!.Name. Elija una opción del menú lateral.</p>
+    <section class="card">
+        <h3>Mis licencias</h3>
+        @if (!User.Licencias().Any())
+        {
+            <div class="vacio">No tiene licencias asignadas.</div>
+        }
+        else
+        {
+            <div class="chips">
+                @foreach (var l in User.Licencias())
+                {
+                    <span class="chip c-ok">@l.Licencia &middot; @l.Sede</span>
+                }
+            </div>
+        }
+    </section>
+    <section class="card">
+        <h3>Mis permisos</h3>
+        @if (!User.Permisos().Any())
+        {
+            <div class="vacio">No tiene permisos.</div>
+        }
+        else
+        {
+            <div class="tw">
+                <table class="tabla-simple">
+                    <thead><tr><th>Permiso</th><th>Sedes</th></tr></thead>
+                    <tbody>
+                    @foreach (var p in User.Permisos().OrderBy(p => p.Codigo))
+                    {
+                        <tr><td class="mono small">@p.Codigo</td><td>@p.Sedes</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>

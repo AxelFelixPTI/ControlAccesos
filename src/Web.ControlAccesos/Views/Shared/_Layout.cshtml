@@ -1,0 +1,79 @@
+@inject MenuCaf Menu
+@{
+    var autenticado = User.Identity?.IsAuthenticated == true;
+    var conMenu = autenticado && !User.RequiereCambioPassword();
+    var controlador = ViewContext.RouteData.Values["controller"]?.ToString();
+    var migas = ViewData["Migas"] as string ?? "";
+    var titulo = ViewData["Titulo"] as string ?? "Control de Accesos";
+    var nombre = User.Identity?.Name ?? "";
+    var iniciales = string.Concat(nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>@titulo · Control de Accesos · Grupo Trianon</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+@if (autenticado)
+{
+    <div class="app @(conMenu ? "" : "sin-lateral")">
+        @if (conMenu)
+        {
+            <aside class="side" id="lateral">
+                <div class="brand"><span class="logo"><i></i></span><span><b>TRIANON</b><small>Control de Accesos · VES</small></span><button type="button" class="menu-t" id="menu-t" aria-label="Menú">&#9776;</button></div>
+                <nav aria-label="Menú principal">
+                    <a class="nav-i @(controlador == "Inicio" ? "on" : "")" asp-controller="Inicio" asp-action="Index"><span>Inicio</span></a>
+                    @foreach (var grupo in Menu.Para(User))
+                    {
+                        <p class="nav-r">@grupo.Key</p>
+                        @foreach (var e in grupo)
+                        {
+                            if (e.Disponible)
+                            {
+                                <a class="nav-i @(controlador == e.Controlador ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion"><span>@e.Titulo</span></a>
+                            }
+                            else
+                            {
+                                <span class="nav-i pronto" title="Pantalla en construcción"><span>@e.Titulo</span><em>pronto</em></span>
+                            }
+                        }
+                    }
+                </nav>
+                <p class="side-f">Etapa 1 · Visita externa</p>
+            </aside>
+        }
+        <main class="main">
+            <header class="top">
+                <div><p class="crumb">@migas</p><h1>@titulo</h1></div>
+                <div class="who">
+                    <div class="who-t"><b>@nombre</b><small>@User.Correo()</small></div>
+                    <span class="avatar">@iniciales</span>
+                    @if (conMenu)
+                    {
+                        <a class="btn btn-sm" asp-controller="Cuenta" asp-action="CambiarPassword">Contraseña</a>
+                    }
+                    <form asp-controller="Cuenta" asp-action="Salir" method="post" class="en-linea">
+                        <button type="submit" class="btn btn-sm">Salir</button>
+                    </form>
+                </div>
+            </header>
+            <div class="content">
+                @if (TempData["Aviso"] is string aviso)
+                {
+                    <div class="aviso a-ok" role="status">@aviso</div>
+                }
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+}
+else
+{
+    <main class="login">@RenderBody()</main>
+}
+<script src="~/js/layout.js" asp-append-version="true"></script>
+</body>
+</html>

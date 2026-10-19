@@ -9,4 +9,5 @@
   <Project Path="Infrastructure.ExternalServices/Infrastructure.ExternalServices.csproj" />
   <Project Path="Composicion/Composicion.csproj" />
   <Project Path="Consola/Consola.csproj" />
+  <Project Path="Web.ControlAccesos/Web.ControlAccesos.csproj" />
 </Solution>
