@@ -66,8 +66,10 @@
 | D-103 | Tema claro por defecto; botón sol/luna en la barra superior; la elección se guarda en el navegador (no en la base). Ya no se sigue el modo oscuro del sistema operativo. | Candidata |
 | D-104 | Protección real de pantallas y llamadas de datos con `ExigirPermiso(...)` (redirige a «Sin acceso» o responde 403 en JSON); el menú solo es comodidad. Las pantallas usan JavaScript propio (`caf.js`) sin librerías externas, con texto siempre insertado como texto (nunca HTML). | Candidata |
 
+| D-105 | Hasta que se responda P-58, los datos de las personas externas se conservan sin límite de tiempo y no hay bloque «Datos personales» en Catálogos. | Candidata |
+
 ## Pendientes para `PENDIENTES_VALIDACION.md`
-- **P-58** — «Datos personales» del prototipo (meses de conservación de registros y texto del aviso de privacidad): la base no tiene dónde guardarlo. Falta decidir dónde (tabla de parámetros) antes de construir ese bloque.
-- **P-59** — El prototipo avisa «está en uso en N registros» al editar un catálogo; requiere un procedimiento que cuente usos. Por ahora el aviso es general.
+- **P-58** — Datos personales de las personas externas (documento, nombres y apellidos registrados en las solicitudes): ¿por cuánto tiempo se conservan y qué aviso de privacidad se les muestra (Ley 29733)? **Para consultar en la presentación del prototipo.** Mientras tanto se guardan sin límite de tiempo (D-105). El prototipo traía un bloque «Datos personales» (meses de conservación y texto del aviso) que no se construyó; si se aprueba, requiere una tabla de parámetros.
+- **P-59** — Aviso «está en uso» (ejemplo: al editar el motivo «Visita técnica», avisar que ya lo usan 12 solicitudes y que por eso se desactiva y no se elimina). El prototipo lo muestra; requiere un procedimiento que cuente usos. Antes decía: el prototipo avisa «está en uso en N registros» al editar un catálogo; requiere un procedimiento que cuente usos. Por ahora el aviso es general.
 - **P-60** — Autogestión de contraseña (olvidé mi contraseña por correo): se evalúa después del MVP.
 - **T-13** — La pantalla no cambia con HANA: usa los servicios existentes.
