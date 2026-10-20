@@ -90,3 +90,24 @@
 - **P-62** — «Importar desde Excel» del prototipo (carga masiva de personal): no construido; confirmar si entra en el MVP.
 - **P-63** — Envío del enlace de contraseña por correo (hoy lo entrega el administrador): requiere un tipo de correo nuevo en `CAF_Correo_Pendiente`.
 - **T-14** — Las pantallas no cambian con HANA; los procedimientos `ERP_PERSONAL_*` y `ERP_USUARIO_*` ya están previstos en T-06.
+
+---
+
+# Decisiones de la solicitud de visita — lado solicitante (2026-10-19)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-110 | Pantallas del **solicitante** (permiso `PER_CAF_SOLICITUD_PROPIA`): **Mis solicitudes** (contadores por estado, filtros por empresa/persona/DNI/fecha, acciones Ver / Reutilizar / Cancelar), **Nueva solicitud** (asistente de 3 pasos: datos de la visita, personas, revisión y envío) y **Detalle** (datos, personas con sus acciones, historial). Funcionalidad del prototipo 1.1. | Candidata |
+| D-111 | Los botones salen de las banderas `Puede_*` que calcula la base de datos, y cuando no se puede se muestra el motivo (`Motivo_No_*`). La web no repite reglas. | Candidata |
+| D-112 | **Editar** una solicitud ya enviada se hace en el **Detalle** («Editar datos» en una ventana, y las personas se editan, retiran o corrigen allí mismo), no reabriendo el asistente. Es una diferencia con el prototipo (que reutiliza el asistente); el resultado para el usuario es el mismo. El asistente se usa solo para crear y para «Reutilizar». | Candidata |
+| D-113 | **Reutilizar** copia empresa, responsable, motivo, zonas, observaciones, correos y personas (no las retiradas) de otra solicitud; la fecha y la hora se eligen de nuevo. La nueva solicitud guarda de cuál viene. | Candidata |
+| D-114 | Las personas externas se **buscan por tipo y número de documento**: si ya existen, sus nombres se completan solos y se pueden corregir (se actualiza el registro); si no, se registran al agregarlas. Servicio nuevo `ISrv_Persona_Externa` (buscar por documento, crear, actualizar). | Candidata |
+| D-115 | El **tipo de acceso** no se elige en esta etapa: se usa el único habilitado (hoy «Visita externa»). La sede es VES fija. Si más adelante se habilita otro tipo, hay que añadir el selector. | Candidata |
+| D-116 | El **responsable de atención** se busca escribiendo 2 letras del nombre y solo aparece personal activo. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-64** — Selector de tipo de acceso en el asistente cuando se habiliten Contratista, Proveedor o Interno visitante (D-115).
+- **P-65** — El prototipo muestra un aviso cuando una persona ya está aprobada el mismo día en otra solicitud; no está construido (requiere un procedimiento de consulta). Confirmar si se quiere.
+- **P-66** — Correos en copia: hoy se escriben separados por «;» en un solo campo; el prototipo los muestra como etiquetas. Cambiar si se prefiere.
+- **T-15** — Las pantallas no cambian con HANA; usan los servicios `ERP_CAF_SOLICITUD_*` y `ERP_CAF_PERSONA_EXTERNA_*` ya previstos en T-06.
+

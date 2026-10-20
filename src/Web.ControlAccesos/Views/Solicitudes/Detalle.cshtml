@@ -1,0 +1,19 @@
+@{ ViewData["Titulo"] = "Solicitud"; ViewData["Migas"] = "Mis solicitudes"; }
+<div class="stack" id="caf-det" data-id="@ViewData["Id"]"
+     data-url-datos="@Url.Action("Datos", "Solicitudes")" data-url-opciones="@Url.Action("Opciones", "Solicitudes")" data-url-responsables="@Url.Action("Responsables", "Solicitudes")"
+     data-url-buscar="@Url.Action("PersonaPorDocumento", "Solicitudes")" data-url-persona="@Url.Action("PersonaGuardar", "Solicitudes")"
+     data-url-editar="@Url.Action("Editar", "Solicitudes")" data-url-cancelar="@Url.Action("Cancelar", "Solicitudes")"
+     data-url-agregar="@Url.Action("PersonaAgregar", "Solicitudes")" data-url-retirar="@Url.Action("PersonaRetirar", "Solicitudes")"
+     data-url-corregir="@Url.Action("PersonaCorregir", "Solicitudes")" data-url-nueva="@Url.Action("Nueva", "Solicitudes")"
+     data-url-mis="@Url.Action("Index", "Solicitudes")">
+    @Html.AntiForgeryToken()
+    <div id="d-aviso"></div>
+    <section class="card" id="d-cab"><p class="vacio">Cargando...</p></section>
+    <section class="card" id="d-personas"></section>
+    <section class="card" id="d-historial"></section>
+    <p><a class="link" href="@Url.Action("Index", "Solicitudes")">← Volver a Mis solicitudes</a></p>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/detalle.js" asp-append-version="true"></script>

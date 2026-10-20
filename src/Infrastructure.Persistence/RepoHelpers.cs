@@ -41,7 +41,7 @@ public abstract class RepoHelpers
         => p.Agregar(name, DbType.Int32, value);
 
     protected static void AddTimestamp(ParametrosSp p, string name, DateTime? value)
-        => p.Agregar(name, DbType.DateTime, value);
+        => p.Agregar(name, DbType.DateTime2, value);   // DateTime2 = «timestamp» (sin zona); DateTime sería «timestamptz» y no coincide con las rutinas
 
     /// <summary>Solo fecha (sin hora): filtros por día. V1.1 (Hito 2).</summary>
     protected static void AddDate(ParametrosSp p, string name, DateTime? value)

@@ -41,7 +41,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario copia el zip de Personal y Usuarios y roles (D-106..D-109), Rebuild All, ejecuta la web y prueba: Personal (crear/editar/buscar), Usuarios y roles (crear con personal vinculado y con externo, roles, enlace de contraseña, abrir el enlace y definir la contraseña, ingresar con ese usuario). Después: solicitud de visita y su aprobación, portería, desviaciones, incidencias y reporte, con la funcionalidad del prototipo 1.1. Pendientes: P-58 (datos personales), P-59, P-60, P-61, P-62, P-63, P-57 (sede activa, postergada hasta MAG).
+Usuario copia el zip de la solicitud (lado solicitante, D-110..D-116) y prueba con un usuario con rol Solicitante: Nueva solicitud (2 personas), Detalle (editar, retirar, volver a agregar, cancelar), Reutilizar y Mis solicitudes. Después: pantalla del **Coordinador** «Solicitudes» (Por decidir / Todas, Revisar con aprobar, observar o rechazar por persona, agregar persona ya aprobada; usa `ISrv_Solicitud.BandejaListarAsync/PasosListarAsync` y `ISrv_Solicitud_Decision.DecidirAsync`), luego portería, desviaciones, incidencias y reporte, con la misma ruta (tablas → SPs → .NET → pantallas).
 
 ## Decisiones vigentes que más condicionan
 

@@ -64,3 +64,42 @@ public sealed class IdVM
 {
     public long Id { get; set; }
 }
+
+/// <summary>Datos de la solicitud que envía el asistente (crear) o el formulario «Editar datos». Fecha y hora vienen separadas.</summary>
+public sealed class SolicitudGuardarVM
+{
+    public string? Fecha { get; set; }                 // yyyy-MM-dd
+    public string? Hora { get; set; }                  // HH:mm
+    public string? Empresa { get; set; }
+    public long ResponsableId { get; set; }
+    public long? MotivoId { get; set; }
+    public string? MotivoDetalle { get; set; }
+    public string? Observaciones { get; set; }
+    public List<long> ZonasIds { get; set; } = new();
+    public List<long> PersonasIds { get; set; } = new();   // solo al crear
+    public string? Copias { get; set; }
+    public long? OrigenId { get; set; }                    // solo al crear («Reutilizar»)
+}
+
+public sealed class PersonaExternaVM
+{
+    public long Id { get; set; }                       // 0 = nueva; >0 = corregir datos de una ya registrada
+    public long TipoDocId { get; set; }
+    public string Doc { get; set; } = string.Empty;
+    public string ApellidoPaterno { get; set; } = string.Empty;
+    public string? ApellidoMaterno { get; set; }
+    public string Nombres { get; set; } = string.Empty;
+}
+
+public sealed class SolicitudPersonaVM
+{
+    public long SolicitudId { get; set; }
+    public long SolicitudPersonaId { get; set; }
+    public long PersonaId { get; set; }
+}
+
+public sealed class SolicitudCancelarVM
+{
+    public long SolicitudId { get; set; }
+    public string? Motivo { get; set; }
+}

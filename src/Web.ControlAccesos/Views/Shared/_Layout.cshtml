@@ -3,6 +3,7 @@
     var autenticado = User.Identity?.IsAuthenticated == true;
     var conMenu = autenticado && !User.RequiereCambioPassword();
     var controlador = ViewContext.RouteData.Values["controller"]?.ToString();
+    var accionActual = ViewContext.RouteData.Values["action"]?.ToString();
     var migas = ViewData["Migas"] as string ?? "";
     var titulo = ViewData["Titulo"] as string ?? "Control de Accesos";
     var nombre = User.Identity?.Name ?? "";
@@ -34,7 +35,7 @@
                         {
                             if (e.Disponible)
                             {
-                                <a class="nav-i @(controlador == e.Controlador ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion"><span>@e.Titulo</span></a>
+                                <a class="nav-i @(controlador == e.Controlador && (e.Controlador != "Solicitudes" || e.Accion == accionActual || (e.Accion == "Index" && accionActual == "Detalle")) ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion"><span>@e.Titulo</span></a>
                             }
                             else
                             {

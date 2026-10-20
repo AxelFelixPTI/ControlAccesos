@@ -1,0 +1,27 @@
+@{ ViewData["Titulo"] = "Mis solicitudes"; ViewData["Migas"] = "Solicitante"; }
+<div class="stack" id="caf-mis" data-url-mis="@Url.Action("Mis", "Solicitudes")" data-url-nueva="@Url.Action("Nueva", "Solicitudes")"
+     data-url-detalle="@Url.Action("Detalle", "Solicitudes", new { id = "__ID__" })" data-url-cancelar="@Url.Action("Cancelar", "Solicitudes")">
+    @Html.AntiForgeryToken()
+    <div class="row-sp">
+        <p class="lead">Aquí ve el estado de cada visita que pidió y qué falta para que sus invitados puedan entrar.</p>
+        <div class="acc"><a class="btn btn-primary" href="@Url.Action("Nueva", "Solicitudes")">+ Nueva solicitud</a></div>
+    </div>
+    <div class="kpis" id="m-kpis"></div>
+    <section class="card filtros f3">
+        <label class="field"><span class="field-l">Empresa, persona o DNI</span><input type="text" id="m-texto" placeholder="Buscar" autocomplete="off" /></label>
+        <label class="field"><span class="field-l">Desde</span><input type="date" id="m-desde" /></label>
+        <label class="field"><span class="field-l">Hasta</span><input type="date" id="m-hasta" /></label>
+    </section>
+    <section class="card">
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th>Código</th><th>Visita</th><th>Empresa</th><th>Responsable de atención</th><th>Personas</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="m-filas"><tr><td colspan="7" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/mis.js" asp-append-version="true"></script>

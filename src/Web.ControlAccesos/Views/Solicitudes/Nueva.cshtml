@@ -1,0 +1,23 @@
+@{ ViewData["Titulo"] = "Nueva solicitud"; ViewData["Migas"] = "Solicitante"; }
+<div class="stack" id="caf-nueva" data-reutilizar="@ViewData["Reutilizar"]"
+     data-url-opciones="@Url.Action("Opciones", "Solicitudes")" data-url-responsables="@Url.Action("Responsables", "Solicitudes")"
+     data-url-buscar="@Url.Action("PersonaPorDocumento", "Solicitudes")" data-url-persona="@Url.Action("PersonaGuardar", "Solicitudes")"
+     data-url-crear="@Url.Action("Crear", "Solicitudes")" data-url-datos="@Url.Action("Datos", "Solicitudes")"
+     data-url-detalle="@Url.Action("Detalle", "Solicitudes", new { id = "__ID__" })" data-url-mis="@Url.Action("Index", "Solicitudes")">
+    @Html.AntiForgeryToken()
+    <section class="card">
+        <div class="wz-h">
+            <ol class="steps" id="w-pasos"></ol>
+            <p class="lead" id="w-ayuda"></p>
+        </div>
+    </section>
+    <section class="card" id="w-cuerpo"><p class="vacio">Cargando...</p></section>
+    <div class="wz-f">
+        <button type="button" class="btn" id="w-atras">Atrás</button>
+        <button type="button" class="btn btn-primary" id="w-sigue">Continuar</button>
+    </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/nueva.js" asp-append-version="true"></script>
