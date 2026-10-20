@@ -81,6 +81,31 @@ public sealed class CuentaController : Controller
         return RedirectToAction("Index", "Inicio");
     }
 
+    // Enlace que el administrador entrega a un usuario nuevo (o que olvidó su contraseña): un solo uso, con vencimiento.
+    [HttpGet, AllowAnonymous]
+    public IActionResult DefinirPassword(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return View("DefinirPasswordInvalido");
+        return View(new DefinirPasswordVM { Token = token });
+    }
+
+    [HttpPost, AllowAnonymous, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DefinirPassword(DefinirPasswordVM vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) { vm.Nueva = vm.Confirmar = string.Empty; return View(vm); }
+
+        var r = await _auth.DefinirPasswordConTokenAsync(vm.Token, vm.Nueva, ct);
+        if (!r.Success)
+        {
+            ModelState.AddModelError(string.Empty, r.Message);
+            foreach (var e in r.Errors) ModelState.AddModelError(string.Empty, e.Message);
+            vm.Nueva = vm.Confirmar = string.Empty;
+            return View(vm);
+        }
+        TempData["Aviso"] = "Su contraseña quedó definida. Ya puede ingresar.";
+        return RedirectToAction(nameof(Ingresar));
+    }
+
     [HttpGet, AllowAnonymous]
     public IActionResult SinAcceso() => View();
 }

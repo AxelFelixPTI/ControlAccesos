@@ -28,3 +28,39 @@ public sealed class CatalogoFila
     public string? ResultadoIngreso { get; set; }
     public string? ResultadoSalida { get; set; }
 }
+
+public sealed class PersonalGuardarVM
+{
+    public long Id { get; set; }                     // 0 = nuevo
+    public string ApellidoPaterno { get; set; } = string.Empty;
+    public string? ApellidoMaterno { get; set; }
+    public string Nombres { get; set; } = string.Empty;
+    public long TipoDocId { get; set; }
+    public string Doc { get; set; } = string.Empty;
+    public string? Anexo { get; set; }
+    public long AreaId { get; set; }
+    public long? CargoId { get; set; }
+    public long EmpresaId { get; set; }
+    public string? Correo { get; set; }
+    public bool Activo { get; set; } = true;
+}
+
+public sealed class UsuarioGuardarVM
+{
+    public long Id { get; set; }                     // 0 = nuevo
+    public long? PersonalId { get; set; }            // personal vinculado (nulo = externo)
+    public string? ApellidoPaterno { get; set; }
+    public string? ApellidoMaterno { get; set; }
+    public string? Nombres { get; set; }
+    public long TipoDocId { get; set; }
+    public string? Doc { get; set; }
+    public string? Correo { get; set; }
+    public string? EmpresaExterna { get; set; }
+    public List<long> Roles { get; set; } = new();   // ids de licencia LIC_CAF_*
+    public bool Activo { get; set; } = true;
+}
+
+public sealed class IdVM
+{
+    public long Id { get; set; }
+}

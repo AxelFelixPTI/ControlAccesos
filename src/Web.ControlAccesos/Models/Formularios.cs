@@ -35,3 +35,20 @@ public sealed class CambiarPasswordVM
     [Display(Name = "Repetir contraseña nueva")]
     public string Confirmar { get; set; } = string.Empty;
 }
+
+public sealed class DefinirPasswordVM
+{
+    public string Token { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Escriba la contraseña nueva.")]
+    [MinLength(10, ErrorMessage = "La contraseña debe tener al menos 10 caracteres.")]
+    [DataType(DataType.Password)]
+    [Display(Name = "Contraseña nueva")]
+    public string Nueva { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Repita la contraseña.")]
+    [Compare(nameof(Nueva), ErrorMessage = "Las contraseñas no coinciden.")]
+    [DataType(DataType.Password)]
+    [Display(Name = "Repita la contraseña")]
+    public string Confirmar { get; set; } = string.Empty;
+}

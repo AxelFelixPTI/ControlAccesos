@@ -3,6 +3,10 @@
 <section class="card login-card">
     <div class="brand dark"><span class="logo"><i></i></span><span><b>TRIANON</b><small>Control de Accesos &middot; VES</small></span></div>
     <h2>Ingresar</h2>
+    @if (TempData["Aviso"] is string aviso)
+    {
+        <div class="aviso a-ok" role="status">@aviso</div>
+    }
     <form asp-action="Ingresar" method="post" autocomplete="off" class="stack">
         <input type="hidden" asp-for="ReturnUrl" />
         <div asp-validation-summary="ModelOnly" class="aviso a-danger" role="alert"></div>

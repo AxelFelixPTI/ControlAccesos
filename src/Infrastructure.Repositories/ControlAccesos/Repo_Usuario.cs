@@ -1,5 +1,5 @@
 // ============================================================
-// Usuarios — llama a ERP_USUARIO_CREAR, ERP_USUARIO_PASSWORD_ACTUALIZAR y ERP_USUARIO_LICENCIA_AGREGAR
+// Usuarios — llama a ERP_USUARIO_CREAR, _ACTUALIZAR, _LISTAR, _DETALLE, _PASSWORD_ACTUALIZAR y _LICENCIA_AGREGAR/_QUITAR
 // (schema CAF_GOVERNANCE). Parámetros copiados de las firmas reales.
 // ============================================================
 
@@ -66,6 +66,78 @@ public sealed class Repo_Usuario : RepoHelpers, IRepo_Usuario
                 AddLongReq(p, "HV_ID_Catalogo_Licencia", idLicencia);
                 AddLongReq(p, "HV_ID_Catalogo_Sede", idSede);
                 AddLongReq(p, "HV_UsuarioID_Create", usuarioId);
+            },
+            ct: ct);
+    }
+
+    // ══ Gestión desde la web ═════════════════════════════════════
+
+    public async Task<Result<List<Dto_Usuario_Lista>>> ListarAsync(string? filtroTexto, string? codigoLicencia, bool incluirEliminados, CancellationToken ct = default)
+    {
+        try
+        {
+            var l = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_USUARIO_LISTAR",
+                bind: p =>
+                {
+                    AddStr(p, "HV_Filtro_Texto", filtroTexto);
+                    AddStr(p, "HV_Codigo_Licencia", codigoLicencia);
+                    AddChar1(p, "HV_Incluir_Eliminados", incluirEliminados ? "Y" : "N");
+                },
+                map: MapUsuarioLista,
+                ct: ct);
+            return Result<List<Dto_Usuario_Lista>>.Ok(l);
+        }
+        catch (Exception ex) { return Result<List<Dto_Usuario_Lista>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public async Task<Result<Dto_Usuario_Lista?>> DetalleAsync(long idUsuario, CancellationToken ct = default)
+    {
+        try
+        {
+            var u = await _exec.EjecutarLecturaUnicaAsync(
+                clave: Conn,
+                funcion: "ERP_USUARIO_DETALLE",
+                bind: p => AddLongReq(p, "HV_ID_Usuario", idUsuario),
+                map: MapUsuarioLista,
+                ct: ct);
+            return Result<Dto_Usuario_Lista?>.Ok(u);
+        }
+        catch (Exception ex) { return Result<Dto_Usuario_Lista?>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public async Task<ResultSp> ActualizarAsync(Dto_Usuario_Actualizar dto, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_USUARIO_ACTUALIZAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Usuario", dto.ID_Usuario);
+                AddStrReq(p, "HV_Correo", dto.Correo);
+                AddLongReq(p, "HV_ID_Catalogo_Tipo_Documento", dto.ID_Catalogo_Tipo_Documento);
+                AddStrReq(p, "HV_Numero_Documento", dto.Numero_Documento);
+                AddStrReq(p, "HV_Apellido_Paterno", dto.Apellido_Paterno);
+                AddStr(p, "HV_Apellido_Materno", dto.Apellido_Materno);
+                AddStrReq(p, "HV_Nombres", dto.Nombres);
+                AddLong(p, "HV_ID_Personal", dto.ID_Personal);
+                AddStr(p, "HV_Empresa_Externa", dto.Empresa_Externa);
+                AddChar1(p, "HV_Activo", dto.Activo ? "Y" : "N");
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> LicenciaQuitarAsync(long idUsuarioLicencia, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_USUARIO_LICENCIA_QUITAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Usuario_Licencia", idUsuarioLicencia);
+                AddLongReq(p, "HV_UsuarioID_Update", usuarioId);
             },
             ct: ct);
     }
@@ -191,6 +263,28 @@ public sealed class Repo_Usuario : RepoHelpers, IRepo_Usuario
     }
 
     // ── Mapeos ───────────────────────────────────────────────
+    private static Dto_Usuario_Lista MapUsuarioLista(DbDataReader rd) => new()
+    {
+        ID_Usuario = RdLong(rd, "ID_Usuario"),
+        Correo = RdStr(rd, "Correo"),
+        ID_Catalogo_Tipo_Documento = RdLong(rd, "ID_Catalogo_Tipo_Documento"),
+        Tipo_Documento = RdStrN(rd, "Tipo_Documento"),
+        Numero_Documento = RdStr(rd, "Numero_Documento"),
+        Apellido_Paterno = RdStr(rd, "Apellido_Paterno"),
+        Apellido_Materno = RdStrN(rd, "Apellido_Materno"),
+        Nombres = RdStr(rd, "Nombres"),
+        Nombre_Completo = RdStr(rd, "Nombre_Completo"),
+        ID_Personal = RdLongN(rd, "ID_Personal"),
+        Area = RdStrN(rd, "Area"),
+        Empresa_Externa = RdStrN(rd, "Empresa_Externa"),
+        Licencias = RdStrN(rd, "Licencias"),
+        Tiene_Password = RdBool(rd, "Tiene_Password"),
+        Password_Requiere_Cambio = RdBool(rd, "Password_Requiere_Cambio"),
+        Bloqueado = RdBool(rd, "Bloqueado"),
+        Ultimo_Acceso = RdDtN(rd, "Ultimo_Acceso"),
+        Activo = RdBool(rd, "Activo"),
+    };
+
     private static Dto_Usuario_Credencial MapCredencial(DbDataReader rd) => new()
     {
         ID_Usuario = RdLong(rd, "ID_Usuario"),

@@ -73,3 +73,20 @@
 - **P-59** — Aviso «está en uso» (ejemplo: al editar el motivo «Visita técnica», avisar que ya lo usan 12 solicitudes y que por eso se desactiva y no se elimina). El prototipo lo muestra; requiere un procedimiento que cuente usos. Antes decía: el prototipo avisa «está en uso en N registros» al editar un catálogo; requiere un procedimiento que cuente usos. Por ahora el aviso es general.
 - **P-60** — Autogestión de contraseña (olvidé mi contraseña por correo): se evalúa después del MVP.
 - **T-13** — La pantalla no cambia con HANA: usa los servicios existentes.
+
+---
+
+# Decisiones de Personal y Usuarios y roles (2026-10-19)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-106 | «Trabajadores» pasa a llamarse **Personal** en el menú, la pantalla y los textos. El código técnico del permiso (`PER_CAF_ADMIN_TRABAJADORES`) y los textos de los procedimientos no cambian por ahora (ver P-61). | Candidata |
+| D-107 | **Personal** = catálogo del personal del grupo (documento, nombres, área, cargo, empresa, correo, anexo). De aquí sale el responsable de atención. Estar en Personal no da acceso al sistema. Se desactiva, no se elimina; no se desactiva a quien tiene una cuenta de usuario activa. Al editar a una persona se actualiza la copia de sus datos en su usuario. | Candidata |
+| D-108 | **Usuarios y roles**: un usuario es una persona de Personal (sus datos vienen de allí) o un externo con empresa (por ejemplo vigilancia contratista). Los roles son las licencias `LIC_CAF_*` en la sede VES y puede tener varios. Las reglas (último administrador activo, duplicados) las aplican los procedimientos. | Candidata |
+| D-109 | El administrador **no define contraseñas**: al crear un usuario (o al generar otro enlace) el sistema muestra una sola vez un enlace de un solo uso, válido 3 días, que el administrador entrega al usuario; el usuario define su propia contraseña. Sin envío por correo por ahora (resuelve provisionalmente P-54). | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-61** — Renombrar «trabajador» a «personal» también en el código del permiso y en los mensajes de los procedimientos (cambio en la base y en la traducción a HANA).
+- **P-62** — «Importar desde Excel» del prototipo (carga masiva de personal): no construido; confirmar si entra en el MVP.
+- **P-63** — Envío del enlace de contraseña por correo (hoy lo entrega el administrador): requiere un tipo de correo nuevo en `CAF_Correo_Pendiente`.
+- **T-14** — Las pantallas no cambian con HANA; los procedimientos `ERP_PERSONAL_*` y `ERP_USUARIO_*` ya están previstos en T-06.

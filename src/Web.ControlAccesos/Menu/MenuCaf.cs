@@ -23,9 +23,9 @@ public sealed class MenuCaf
         new("Reporte de accesos",         "Coordinador",    new[] { "PER_CAF_REPORTE_VER" }, false),
         new("Control de accesos",         "Vigilancia",     new[] { "PER_CAF_PORTERIA_VER", "PER_CAF_PORTERIA_REGISTRAR" }, false),
         new("Incidencias del día",        "Vigilancia",     new[] { "PER_CAF_INCIDENCIA_REGISTRAR" }, false),
-        new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, false),
+        new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, true, "Usuarios", "Index"),
         new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS" }, true, "Catalogos", "Index"),
-        new("Trabajadores",               "Administración", new[] { "PER_CAF_ADMIN_TRABAJADORES" }, false),
+        new("Personal",                   "Administración", new[] { "PER_CAF_ADMIN_TRABAJADORES" }, true, "Personal", "Index"),
     };
 
     public IReadOnlyList<IGrouping<string, EntradaMenu>> Para(ClaimsPrincipal usuario)

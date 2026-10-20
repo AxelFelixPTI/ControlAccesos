@@ -1,0 +1,23 @@
+@{ ViewData["Titulo"] = "Personal"; ViewData["Migas"] = "Administración"; }
+<div class="stack" id="caf-personal" data-url-listar="@Url.Action("Listar", "Personal")" data-url-opciones="@Url.Action("Opciones", "Personal")" data-url-guardar="@Url.Action("Guardar", "Personal")">
+    @Html.AntiForgeryToken()
+    <div class="row-sp">
+        <p class="lead">Catálogo del personal del grupo: de aquí sale el responsable de atención. Estar aquí no da acceso al sistema.</p>
+        <div class="acc"><button type="button" class="btn btn-primary" id="t-nuevo">+ Nueva persona</button></div>
+    </div>
+    <section class="card filtros f2">
+        <label class="field"><span class="field-l">Buscar</span><input type="text" id="t-buscar" placeholder="Nombre, documento o cargo" autocomplete="off" /></label>
+        <label class="field"><span class="field-l">Área</span><select id="t-area"><option value="">Todas</option></select></label>
+    </section>
+    <section class="card">
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th class="stk">Persona</th><th>Documento</th><th>Área</th><th>Cargo</th><th>Anexo</th><th>Usuario</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="t-filas"><tr><td colspan="8" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/personal/personal.js" asp-append-version="true"></script>

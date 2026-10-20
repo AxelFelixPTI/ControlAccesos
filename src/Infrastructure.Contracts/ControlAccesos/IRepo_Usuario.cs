@@ -9,6 +9,12 @@ public interface IRepo_Usuario
     Task<ResultSp> PasswordActualizarAsync(long idUsuario, string passwordHash, long usuarioId, CancellationToken ct = default);
     Task<ResultSp<long>> LicenciaAgregarAsync(long idUsuario, long idLicencia, long idSede, long usuarioId, CancellationToken ct = default);
 
+    // ── Gestión desde la web ─────────────────────────────────
+    Task<Result<List<Dto_Usuario_Lista>>> ListarAsync(string? filtroTexto, string? codigoLicencia, bool incluirEliminados, CancellationToken ct = default);
+    Task<Result<Dto_Usuario_Lista?>> DetalleAsync(long idUsuario, CancellationToken ct = default);
+    Task<ResultSp> ActualizarAsync(Dto_Usuario_Actualizar dto, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> LicenciaQuitarAsync(long idUsuarioLicencia, long usuarioId, CancellationToken ct = default);
+
     // ── Autenticación (Hito de login) ────────────────────────
     Task<Result<Dto_Usuario_Credencial?>> AutenticacionPorCorreoAsync(string correo, CancellationToken ct = default);
     Task<Result<Dto_Usuario_Token?>> AutenticacionPorTokenAsync(string tokenHash, CancellationToken ct = default);

@@ -36,6 +36,7 @@ public static class ServiciosControlAccesos
         s.AddSingleton<EjecutorSp>();
 
         // ── Repositorios ────────────────────────────────────────────
+        s.AddScoped<IRepo_Personal, Repo_Personal>();
         s.AddScoped<IRepo_Catalogo_Area, Repo_Catalogo_Area>();
         s.AddScoped<IRepo_Catalogo_Cargo, Repo_Catalogo_Cargo>();
         s.AddScoped<IRepo_Catalogo_Empresa_Grupo, Repo_Catalogo_Empresa_Grupo>();
@@ -62,6 +63,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<IRepo_Usuario, Repo_Usuario>();
 
         // ── Servicios ───────────────────────────────────────────────
+        s.AddScoped<ISrv_Personal, Srv_Personal>();
         s.AddScoped<ISrv_Catalogo_Area, Srv_Catalogo_Area>();
         s.AddScoped<ISrv_Catalogo_Cargo, Srv_Catalogo_Cargo>();
         s.AddScoped<ISrv_Catalogo_Empresa_Grupo, Srv_Catalogo_Empresa_Grupo>();
