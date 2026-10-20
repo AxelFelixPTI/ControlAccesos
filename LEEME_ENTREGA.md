@@ -1,17 +1,26 @@
-# Entrega del 2026-10-19 · Rediseño de la web con los mockups
+# Entrega del 2026-10-19 · Catálogos y botón de tema
 
-Solo archivos nuevos o modificados, con la estructura del repositorio: cópialos encima. No hay cambios de base de datos.
+Solo archivos nuevos o modificados, con la estructura del repositorio: cópialos encima. No hay cambios de base de datos ni de proyectos (no hace falta tocar el .slnx).
 
-## Qué cambia
-- La web ahora usa el diseño de los mockups: lateral navy, acento verde-azulado, tarjetas blancas, chips y botones del prototipo 1.1, con la paleta de la primera fase. El «casi todo azul» venía de mi hoja de estilos anterior.
-- Pantallas rehechas: ingreso, cambiar contraseña, inicio, sin acceso y error. Menú agrupado como el prototipo (Solicitante, Coordinador, Vigilancia, Administración) y filtrado por permisos.
-- Con cambio de contraseña obligatorio ya no se ve el menú lateral.
-- Archivos: `wwwroot/css/site.css`, `wwwroot/js/layout.js` (nuevo, abre el menú en pantallas angostas), `Views/Shared/_Layout.cshtml`, vistas de Cuenta e Inicio, `Menu/MenuCaf.cs`, y los documentos (D-98 a D-100; P-56 resuelta; P-57 postergada).
+## Qué trae
+- **Pantalla Catálogos** (menú Administración): zonas de VES, motivos de visita, tratamientos de desviación y tipos de incidencia. Crear, editar y desactivar. «Otro» es fijo.
+- **Botón de tema** (luna/sol) en la barra superior derecha. Por defecto es claro; recuerda tu elección en el navegador.
+- Archivos nuevos: `Controllers/CatalogosController.cs`, `Models/CatalogoModelos.cs`, `Seguridad/ExigirPermisoAttribute.cs`, `Views/Catalogos/Index.cshtml`, `wwwroot/js/caf.js`, `wwwroot/js/tema.js`, `wwwroot/js/catalogos/catalogos.js`.
+- Modificados: `WebApp.cs`, `Menu/MenuCaf.cs`, `Views/Shared/_Layout.cshtml`, `wwwroot/css/site.css`, `wwwroot/js/layout.js`, y los documentos (D-101 a D-104, P-58 a P-60).
 
 ## Pasos
-1. Copia los archivos y haz Rebuild All.
-2. `dotnet run --project src/Web.ControlAccesos` y abre http://localhost:5080
-3. Si el navegador muestra el estilo anterior, recarga con Ctrl+F5.
+1. Copia los archivos y haz Rebuild All. Arranca la web y recarga con Ctrl+F5.
+2. Entra con tu administrador y abre **Catálogos** en el menú.
+
+## Qué probar
+- Se ven las 7 zonas, 4 motivos (+ Otro), 5 tratamientos (+ Otro) y los tipos de incidencia.
+- «+ Nueva zona»: escribe un nombre, elige tipo y marca SCTR/EPP; al guardar aparece en la tabla.
+- Escribe un nombre que ya existe: dice «Ya existe uno con ese nombre.»
+- Tratamiento sin efecto al ingreso ni a la salida: lo rechaza.
+- Editar un elemento y desmarcar «Activo»: queda en gris con «inactivo».
+- Botón luna: cambia a oscuro; al recargar se mantiene.
+
+Los datos de prueba que crees quedan en tu base; puedes desactivarlos o reiniciar con `restaurar_bd.ps1`.
 
 ## Siguiente
-Pantallas de negocio con la funcionalidad del prototipo 1.1, empezando por Catálogos.
+Trabajadores y Usuarios y roles.

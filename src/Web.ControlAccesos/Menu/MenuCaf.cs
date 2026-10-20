@@ -24,7 +24,7 @@ public sealed class MenuCaf
         new("Control de accesos",         "Vigilancia",     new[] { "PER_CAF_PORTERIA_VER", "PER_CAF_PORTERIA_REGISTRAR" }, false),
         new("Incidencias del día",        "Vigilancia",     new[] { "PER_CAF_INCIDENCIA_REGISTRAR" }, false),
         new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, false),
-        new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS" }, false),
+        new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS" }, true, "Catalogos", "Index"),
         new("Trabajadores",               "Administración", new[] { "PER_CAF_ADMIN_TRABAJADORES" }, false),
     };
 

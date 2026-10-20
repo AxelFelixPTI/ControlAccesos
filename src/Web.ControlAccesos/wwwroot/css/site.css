@@ -7,12 +7,6 @@
   color-scheme:light;box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0E141D;--sf:#151E2B;--sf2:#1A2534;--ink:#E5EAF1;--muted:#A9B4C4;--faint:#8592A3;--line:#26334A;--line2:#33425C;
-  --nav:#0A111C;--nav2:#1A2A44;--navink:#AEBBD0;--teal:#2A9D8F;--teal-h:#34B3A4;--teal-ink:#7FD3C6;--teal-soft:#123A36;
-  --warn-bg:#3A2C10;--warn-ink:#F2C879;--warn-line:#5C4518;--dang:#D9534F;--dang-bg:#3B1A1A;--dang-ink:#F2A7A7;--dang-line:#6B2C2C;
-  --info-bg:#16294A;--info-ink:#A9C6F2;--ok-bg:#143425;--ok-ink:#8FD6B0;--pend-bg:#212C3D;--pend-ink:#C3CCDA;--par-bg:#1A2C4D;--par-ink:#A8C4F0;--mark:#5C4A12;
-  color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0E141D;--sf:#151E2B;--sf2:#1A2534;--ink:#E5EAF1;--muted:#A9B4C4;--faint:#8592A3;--line:#26334A;--line2:#33425C;
   --nav:#0A111C;--nav2:#1A2A44;--navink:#AEBBD0;--teal:#2A9D8F;--teal-h:#34B3A4;--teal-ink:#7FD3C6;--teal-soft:#123A36;
@@ -172,3 +166,12 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
 .tabla-simple{width:100%;border-collapse:collapse;font-size:14px}
 .tabla-simple th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--sf2)}
 .tabla-simple td{padding:10px 12px;border-bottom:1px solid var(--line)}
+
+/* ---- Avisos, ventanas y tema ---- */
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;z-index:90;width:min(560px,calc(100vw - 32px))}
+.toast{padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:var(--shadow)}.t-ok{background:#123B34;color:#E6F4F1}.t-warn{background:#4A3510;color:#FFE7B8}
+.modal-normal{max-width:560px}.modal-ancho{max-width:860px}
+.btn-tema{width:38px;height:38px;padding:0;border-radius:50%}
+.btn-tema svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-tema .i-sol{display:none}
+:root[data-theme="dark"] .btn-tema .i-sol{display:block}:root[data-theme="dark"] .btn-tema .i-luna{display:none}

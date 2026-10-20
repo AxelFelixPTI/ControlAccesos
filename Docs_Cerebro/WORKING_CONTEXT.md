@@ -41,7 +41,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario copia el zip (rediseño web con los mockups, D-98..D-100), Rebuild All, ejecuta `dotnet run --project src/Web.ControlAccesos`, entra a http://localhost:5080 y confirma que se ve como el prototipo. Después: pantallas de negocio con la funcionalidad del prototipo 1.1, empezando por Catálogos (orden por confirmar: catálogos, solicitud de visita, aprobación, portería, desviaciones, incidencias, reporte). P-57 (sede activa) postergada hasta MAG.
+Usuario copia el zip de Catálogos + tema (D-101..D-104), Rebuild All, ejecuta la web y prueba Catálogos (crear, editar, desactivar zona/motivo/tratamiento/incidencia) y el botón de tema. Después: Trabajadores y Usuarios y roles (administración), luego solicitud de visita y aprobación, portería, desviaciones, incidencias y reporte, con la funcionalidad del prototipo 1.1. Pendientes: P-58 (datos personales), P-59, P-60, P-57 (sede activa, postergada hasta MAG).
 
 ## Decisiones vigentes que más condicionan
 

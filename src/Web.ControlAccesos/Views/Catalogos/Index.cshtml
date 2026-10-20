@@ -1,0 +1,44 @@
+@{ ViewData["Titulo"] = "Catálogos"; ViewData["Migas"] = "Administración · Sede VES"; }
+<div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")">
+    @Html.AntiForgeryToken()
+
+    <section class="card">
+        <div class="card-hd">
+            <div>
+                <h3>Zonas de VES</h3>
+                <p class="small muted">Lo que marque aquí decide los avisos de la solicitud y los ítems del checklist en portería.</p>
+            </div>
+            <button type="button" class="btn" data-nuevo="zona">+ Nueva zona</button>
+        </div>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th class="stk">Zona</th><th>Tipo</th><th>Exige SCTR</th><th>Exige EPP</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="cat-zona"><tr><td colspan="6" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="grid g3 cat3">
+        <section class="card">
+            <h3>Motivos de visita</h3>
+            <p class="small muted">Lista del paso 1 de la solicitud. «Otro» siempre existe.</p>
+            <ul class="clist" id="cat-motivo"></ul>
+            <button type="button" class="btn" data-nuevo="motivo">+ Agregar</button>
+        </section>
+        <section class="card">
+            <h3>Tratamientos de desviación</h3>
+            <p class="small muted">Decisiones que Vigilancia registra según lo indicado por el Coordinador. «Otro» siempre existe.</p>
+            <ul class="clist" id="cat-tratamiento"></ul>
+            <button type="button" class="btn" data-nuevo="tratamiento">+ Agregar</button>
+        </section>
+        <section class="card">
+            <h3>Tipos de incidencia</h3>
+            <p class="small muted">Faltas que puede cometer una persona que ingresó. «Otro» siempre existe.</p>
+            <ul class="clist" id="cat-incidencia"></ul>
+            <button type="button" class="btn" data-nuevo="incidencia">+ Agregar</button>
+        </section>
+    </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/catalogos/catalogos.js" asp-append-version="true"></script>

@@ -42,6 +42,7 @@ public static class WebApp
                 o.AccessDeniedPath = "/Cuenta/SinAcceso";
             });
         builder.Services.AddAuthorization();
+        builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
         builder.Services.AddControllersWithViews()
             .AddApplicationPart(typeof(WebApp).Assembly);
         builder.Services.AddSingleton<MenuCaf>();

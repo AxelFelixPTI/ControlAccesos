@@ -54,3 +54,20 @@
 | D-98 | Diseño de la web = mockups aprobados: **funcionalidad e interacciones** del `Prototipo - Control de Accesos VES - Etapa 1.1`; **paleta** de la primera fase (fondo `#F3F5F8`, tarjetas blancas, lateral navy `#15233B`, acento verde-azulado `#0B7A6E`, resto en grises). No se usa Inspinia por ahora; si se consigue otro layout se rediseña (el diseño vive en `wwwroot/css/site.css` y `Views/Shared/_Layout.cshtml`). | Candidata |
 | D-99 | Tipografía del sistema (Segoe UI) en vez de IBM Plex del prototipo, porque la política de contenido (`style-src 'self'`) no permite fuentes externas. Se quitó el azul saturado del prototipo (`btn-navy`); el botón principal es verde-azulado. | Candidata |
 | D-100 | Menú lateral agrupado como el prototipo (Solicitante, Coordinador, Vigilancia, Administración), siempre filtrado por permisos. Con cambio de contraseña obligatorio no se muestra el lateral. | Candidata |
+
+---
+
+# Decisiones de la pantalla Catálogos y tema (2026-10-19)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-101 | Pantalla **Catálogos** (permiso `PER_CAF_ADMIN_CATALOGOS`) como el prototipo 1.1: zonas de VES (tipo, exige SCTR/EPP), motivos de visita, tratamientos de desviación (efecto al ingreso y a la salida) y tipos de incidencia. Crear y editar; **no se elimina, se desactiva**. El elemento «Otro» de cada lista es fijo y no se edita. | Candidata |
+| D-102 | El usuario escribe solo el **nombre**; el **código** lo genera el servidor (MAYÚSCULAS_CON_GUION_BAJO, sin tildes; si existe agrega _2, _3) y no cambia al editar. El **orden** de un elemento nuevo es el siguiente al mayor (queda antes de «Otro»). Nombre duplicado (sin distinguir tildes ni mayúsculas) se rechaza. | Candidata |
+| D-103 | Tema claro por defecto; botón sol/luna en la barra superior; la elección se guarda en el navegador (no en la base). Ya no se sigue el modo oscuro del sistema operativo. | Candidata |
+| D-104 | Protección real de pantallas y llamadas de datos con `ExigirPermiso(...)` (redirige a «Sin acceso» o responde 403 en JSON); el menú solo es comodidad. Las pantallas usan JavaScript propio (`caf.js`) sin librerías externas, con texto siempre insertado como texto (nunca HTML). | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-58** — «Datos personales» del prototipo (meses de conservación de registros y texto del aviso de privacidad): la base no tiene dónde guardarlo. Falta decidir dónde (tabla de parámetros) antes de construir ese bloque.
+- **P-59** — El prototipo avisa «está en uso en N registros» al editar un catálogo; requiere un procedimiento que cuente usos. Por ahora el aviso es general.
+- **P-60** — Autogestión de contraseña (olvidé mi contraseña por correo): se evalúa después del MVP.
+- **T-13** — La pantalla no cambia con HANA: usa los servicios existentes.
