@@ -1,29 +1,29 @@
-# Entrega del 2026-10-19 · Solicitud de visita (lado solicitante)
+# Entrega del 2026-10-21 · Solicitud de visita (lado coordinador)
 
 Solo archivos nuevos o modificados, con la estructura del repositorio: cópialos encima. No hay cambios de base de datos ni de proyectos (no hace falta tocar el .slnx).
 
 ## Qué trae
-- **Mis solicitudes**: contadores (Todas / Pendientes / Observadas / Aprobadas / Canceladas), búsqueda por empresa, persona o DNI, filtro por fechas, y las acciones Ver, Reutilizar y Cancelar.
-- **Nueva solicitud**: asistente de 3 pasos (datos de la visita → personas → revisión y envío).
-- **Detalle**: datos de la visita, personas con su estado y acciones (Editar, Corregir y reenviar, Retirar, Volver a agregar), «+ Agregar persona», «Editar datos», cancelar e historial.
-- **Reutilizar**: copia los datos y las personas de otra solicitud; tú eliges la nueva fecha y hora.
-- Servicio nuevo para **personas externas** (buscar por documento, registrar, corregir) y registrado en `Composicion`.
-- El menú habilita «Mis solicitudes» y «Nueva solicitud». Documentos: D-110 a D-116, P-64 a P-66, T-15.
+- **Solicitudes** (menú Coordinador): pestañas «Por decidir (N)» y «Todas», filtros por empresa, solicitante, persona o DNI, fecha y estado.
+- **Revisar**: ventana con los datos de la visita, las personas (con su estado) y el historial. Se marcan personas y se elige: Aprobar todas, Aprobar seleccionadas, Observar seleccionadas o Rechazar seleccionadas. Observar y rechazar piden texto.
+- Si quedan personas sin marcar, la pantalla pregunta si se dejan pendientes, se observan o se rechazan.
+- **«+ Agregar persona (queda aprobada)»** para invitados de último momento.
+- Servicio nuevo `AgregarAprobadaAsync` (repositorio, servicio y contratos de `Solicitud_Persona`).
+- El menú habilita «Solicitudes». Documentos: D-117 a D-120, P-67 a P-69, T-16.
 
 ## Pasos
 1. Copia los archivos y haz Rebuild All. Arranca la web y recarga con Ctrl+F5.
-2. Necesitas un usuario con el rol **Solicitante** (créalo en Usuarios y roles, vinculado a una persona de Personal, y define su contraseña con el enlace). También puedes darle ese rol a tu usuario administrador.
-3. Para elegir responsable de atención debe haber personas activas en **Personal**; para elegir zonas y motivos, los de **Catálogos**.
+2. Necesitas un usuario con el rol **Coordinador** (LIC_CAF_COORDINADOR) en VES. Créalo en Usuarios y roles, vinculado a una persona de Personal, y define su contraseña con el enlace. Tu administrador no decide solicitudes.
+3. Con un usuario **Solicitante** (puede ser otro, o el mismo con ambos roles) crea una solicitud con 3 personas.
 
 ## Qué probar
-1. **Nueva solicitud**: elige fecha futura, hora, empresa, responsable (escribe 2 letras), motivo (prueba «Otro»: pide detalle) y una zona. Continúa.
-2. **Personas**: agrega una con DNI nuevo (se registra) y otra repitiendo el mismo DNI en otra solicitud (se completa sola). Envía.
-3. **Detalle**: debe mostrar el aviso de envío. Prueba «Editar datos», «+ Agregar persona», «Retirar» y «Volver a agregar».
-4. **Cancelar** desde Mis solicitudes: pide motivo opcional; la solicitud pasa a Canceladas.
-5. **Reutilizar** una solicitud: los datos y personas vienen copiados; elige fecha y envía.
-6. Todavía no puedes aprobar: eso es la pantalla del coordinador (siguiente entrega). Para ver estados «Observada» o «Autorizada» hay que esperar esa pantalla.
+1. Entra como coordinador → **Solicitudes**: debe decir «Por decidir (1)». Pulsa **Revisar**.
+2. Marca una persona y pulsa «Aprobar seleccionadas»: pregunta por las otras dos; elige «Dejarlas pendientes». Queda **Autorizada**.
+3. Marca otra, escribe un texto y «Observar seleccionadas»; la tercera, «Rechazar seleccionadas» con motivo.
+4. Entra como solicitante → Detalle: debe ver Autorizada / Observada (con el mensaje) / Rechazada. En la observada usa «Corregir y reenviar»; vuelve a quedar pendiente.
+5. Como coordinador, «+ Agregar persona (queda aprobada)» con un DNI nuevo: aparece autorizada y marcada «Agregada por coordinación».
+6. Prueba los filtros y la pestaña «Todas».
 
 Los datos de prueba quedan en tu base; puedes reiniciar con `restaurar_bd.ps1`.
 
 ## Siguiente
-Pantalla del coordinador: Solicitudes (Por decidir / Todas) y revisión por persona (aprobar, observar, rechazar).
+Vigilancia: control de accesos (ingreso y salida con checklist), luego desviaciones, incidencias y reporte.

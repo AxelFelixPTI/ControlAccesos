@@ -41,7 +41,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario copia el zip de la solicitud (lado solicitante, D-110..D-116) y prueba con un usuario con rol Solicitante: Nueva solicitud (2 personas), Detalle (editar, retirar, volver a agregar, cancelar), Reutilizar y Mis solicitudes. Después: pantalla del **Coordinador** «Solicitudes» (Por decidir / Todas, Revisar con aprobar, observar o rechazar por persona, agregar persona ya aprobada; usa `ISrv_Solicitud.BandejaListarAsync/PasosListarAsync` y `ISrv_Solicitud_Decision.DecidirAsync`), luego portería, desviaciones, incidencias y reporte, con la misma ruta (tablas → SPs → .NET → pantallas).
+Usuario copia el zip de la pantalla del coordinador (D-117..D-120) y prueba el ciclo completo: un Solicitante envía una solicitud con 3 personas; un usuario con rol Coordinador abre Solicitudes → Por decidir → Revisar, aprueba una, observa otra con mensaje y rechaza otra; el solicitante ve los estados y corrige la observada («Corregir y reenviar»); el coordinador agrega una persona ya aprobada. Después: Vigilancia (Control de accesos: ingreso y salida con el checklist), desviaciones, incidencias y reporte, con la misma ruta (tablas → SPs → .NET → pantallas).
 
 ## Decisiones vigentes que más condicionan
 

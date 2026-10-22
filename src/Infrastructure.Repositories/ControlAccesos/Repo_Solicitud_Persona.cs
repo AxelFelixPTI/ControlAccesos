@@ -42,6 +42,21 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             ct: ct);
     }
 
+    public async Task<ResultSp<long>> AgregarAprobadaAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraConIdAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA",
+            columnaId: "HV_ID_Solicitud_Persona_Result",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_ID_Persona_Externa", personaExternaId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
     public async Task<ResultSp> RetirarAsync(long solicitudPersonaId, long usuarioId, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraAsync(

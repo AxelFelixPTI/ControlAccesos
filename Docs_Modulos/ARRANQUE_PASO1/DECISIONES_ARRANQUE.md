@@ -111,3 +111,20 @@
 - **P-66** — Correos en copia: hoy se escriben separados por «;» en un solo campo; el prototipo los muestra como etiquetas. Cambiar si se prefiere.
 - **T-15** — Las pantallas no cambian con HANA; usan los servicios `ERP_CAF_SOLICITUD_*` y `ERP_CAF_PERSONA_EXTERNA_*` ya previstos en T-06.
 
+---
+
+# Decisiones de la solicitud de visita — lado coordinador (2026-10-21)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-117 | Pantalla **Solicitudes** del coordinador (permisos `PER_CAF_SOLICITUD_APROBAR` o `PER_CAF_SOLICITUD_VER_TODAS`): pestañas **Por decidir (N)** y **Todas**, filtros (empresa, solicitante, persona o DNI, fecha, estado) y ventana **Revisar** con las pestañas Personas e Historial. Si no hay nada por decidir, abre en «Todas». | Candidata |
+| D-118 | La decisión se toma **persona por persona**: se marcan las personas y se elige **Aprobar todas / Aprobar seleccionadas / Observar seleccionadas / Rechazar seleccionadas**. Observar y rechazar exigen texto. Si quedan personas sin marcar, la pantalla pregunta qué hacer con ellas: dejarlas pendientes, observarlas o rechazarlas (con su propio mensaje). | Candidata |
+| D-119 | El **paso** que se decide lo determina la base de datos (`Pasos_Mis_Decidir`); la web no lo elige. Si las personas marcadas tienen pasos distintos, se hace una decisión por paso. Solo se pueden marcar las personas que el usuario puede decidir; quien tiene solo `VER_TODAS` ve la solicitud en solo lectura. | Candidata |
+| D-120 | **«+ Agregar persona (queda aprobada)»** para invitados de último momento: usa `ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA` (servicio nuevo `AgregarAprobadaAsync`). Disponible mientras la solicitud no esté cancelada y la visita no haya pasado. El solicitante recibe el aviso. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-67** — Insignia con el número de solicitudes por decidir junto a «Solicitudes» en el menú lateral (hoy el número aparece solo dentro de la pantalla).
+- **P-68** — Paginación de la bandeja: hoy se listan todas las solicitudes que cumplen el filtro; confirmar el volumen esperado antes de agregar páginas.
+- **P-69** — Vista de solo lectura para quien tiene `VER_TODAS` sin `APROBAR` (ej. gerencia): confirmar qué roles la tendrán.
+- **T-16** — La pantalla no cambia con HANA; usa `ERP_CAF_SOLICITUD_BANDEJA_LISTAR`, `_DECIDIR` y `_PERSONA_AGREGAR_APROBADA`, ya previstos en T-06.
+

@@ -1,0 +1,34 @@
+@{ ViewData["Titulo"] = "Solicitudes"; ViewData["Migas"] = "Coordinador"; }
+<div class="stack" id="caf-coord" data-url-lista="@Url.Action("Lista", "Coordinacion")" data-url-revisar="@Url.Action("Revisar", "Coordinacion")"
+     data-url-decidir="@Url.Action("Decidir", "Coordinacion")" data-url-agregar="@Url.Action("AgregarAprobada", "Coordinacion")"
+     data-url-opciones="@Url.Action("Opciones", "Coordinacion")" data-url-buscar="@Url.Action("PersonaPorDocumento", "Coordinacion")"
+     data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")">
+    @Html.AntiForgeryToken()
+    <p class="lead">Revise las solicitudes y decida persona por persona: aprobar, observar (pedir una corrección) o rechazar.</p>
+    <div class="pills" id="c-tabs"></div>
+    <section class="card filtros">
+        <label class="field"><span class="field-l">Empresa</span><input type="text" id="c-empresa" autocomplete="off" /></label>
+        <label class="field"><span class="field-l">Solicitante</span><input type="text" id="c-solicitante" autocomplete="off" /></label>
+        <label class="field"><span class="field-l">Persona o DNI</span><input type="text" id="c-persona" autocomplete="off" /></label>
+        <label class="field"><span class="field-l">Fecha de visita</span><input type="date" id="c-fecha" /></label>
+        <label class="field"><span class="field-l">Estado</span>
+            <select id="c-estado">
+                <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="OBSERVADA">Observada</option>
+                <option value="APROBADA_PARCIAL">Aprobada parcial</option><option value="APROBADA">Aprobada</option>
+                <option value="RECHAZADA">Rechazada</option><option value="CANCELADA">Cancelada</option>
+            </select>
+        </label>
+    </section>
+    <section class="card">
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th>Código</th><th>Visita</th><th>Empresa</th><th>Solicitante</th><th>Personas</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="c-filas"><tr><td colspan="7" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/coordinacion/coordinacion.js" asp-append-version="true"></script>

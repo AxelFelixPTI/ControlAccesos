@@ -46,6 +46,22 @@ public sealed class Srv_Solicitud_Persona : ISrv_Solicitud_Persona
         }
     }
 
+    public async Task<Result<long>> AgregarAprobadaAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.AgregarAprobadaAsync(solicitudId, personaExternaId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok
+                ? Result<long>.Ok(sp.Data!, sp.Mensaje)
+                : Result<long>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AGREGAR_APROBADA Persona ID={ID} ERROR", solicitudId);
+            return Result<long>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result> RetirarAsync(long solicitudPersonaId, long usuarioId, CancellationToken ct = default)
     {
         try
