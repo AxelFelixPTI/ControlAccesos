@@ -1,29 +1,27 @@
-# Entrega del 2026-10-21 · Solicitud de visita (lado coordinador)
+# Entrega del 2026-10-21 · Vigilancia: Control de accesos
 
 Solo archivos nuevos o modificados, con la estructura del repositorio: cópialos encima. No hay cambios de base de datos ni de proyectos (no hace falta tocar el .slnx).
 
 ## Qué trae
-- **Solicitudes** (menú Coordinador): pestañas «Por decidir (N)» y «Todas», filtros por empresa, solicitante, persona o DNI, fecha y estado.
-- **Revisar**: ventana con los datos de la visita, las personas (con su estado) y el historial. Se marcan personas y se elige: Aprobar todas, Aprobar seleccionadas, Observar seleccionadas o Rechazar seleccionadas. Observar y rechazar piden texto.
-- Si quedan personas sin marcar, la pantalla pregunta si se dejan pendientes, se observan o se rechazan.
-- **«+ Agregar persona (queda aprobada)»** para invitados de último momento.
-- Servicio nuevo `AgregarAprobadaAsync` (repositorio, servicio y contratos de `Solicitud_Persona`).
-- El menú habilita «Solicitudes». Documentos: D-117 a D-120, P-67 a P-69, T-16.
+- **Control de accesos** (menú Vigilancia): las personas autorizadas **para hoy**, agrupadas por solicitud. Buscador (documento, nombre o empresa) y pestañas Todos / Por ingresar / Dentro / Salieron / Denegados o no vinieron, con su cantidad.
+- **Validar ingreso**: checklist (con «Marcar todo»), interruptores «Trae equipos» y «Trae herramientas o materiales» que cambian los ítems, **respaldo** (G-FSCA-009, guía de remisión o G-FSCA-010) que se registra ahí mismo, **desviación** cuando un ítem no se cumple (coordinador consultado, tratamiento, efecto si es «Otro») y **registro tardío** (hora real + motivo).
+- **Registrar salida** con su checklist, y **Detalle** con los movimientos de la persona.
+- **No autorizado para hoy**: si buscas a alguien que no está en la lista, te dice quién es y por qué no puede pasar.
+- Archivos: `VigilanciaController`, `VigilanciaModelos`, vista `Vigilancia/Index`, `vigilancia.js`, menú (se enciende «Control de accesos»), documentos (D-121 a D-128, P-70 a P-74, T-17).
 
 ## Pasos
 1. Copia los archivos y haz Rebuild All. Arranca la web y recarga con Ctrl+F5.
-2. Necesitas un usuario con el rol **Coordinador** (LIC_CAF_COORDINADOR) en VES. Créalo en Usuarios y roles, vinculado a una persona de Personal, y define su contraseña con el enlace. Tu administrador no decide solicitudes.
-3. Con un usuario **Solicitante** (puede ser otro, o el mismo con ambos roles) crea una solicitud con 3 personas.
+2. Necesitas un usuario con rol **Vigilancia** (permiso de portería) y una solicitud **aprobada con fecha de hoy**. Si no la tienes: crea una solicitud para hoy como Solicitante y apruébala como Coordinador.
 
 ## Qué probar
-1. Entra como coordinador → **Solicitudes**: debe decir «Por decidir (1)». Pulsa **Revisar**.
-2. Marca una persona y pulsa «Aprobar seleccionadas»: pregunta por las otras dos; elige «Dejarlas pendientes». Queda **Autorizada**.
-3. Marca otra, escribe un texto y «Observar seleccionadas»; la tercera, «Rechazar seleccionadas» con motivo.
-4. Entra como solicitante → Detalle: debe ver Autorizada / Observada (con el mensaje) / Rechazada. En la observada usa «Corregir y reenviar»; vuelve a quedar pendiente.
-5. Como coordinador, «+ Agregar persona (queda aprobada)» con un DNI nuevo: aparece autorizada y marcada «Agregada por coordinación».
-6. Prueba los filtros y la pestaña «Todas».
+1. Entra como Vigilancia: en el menú aparece **Control de accesos** con la lista de hoy.
+2. **Ingreso limpio**: «Validar ingreso» → «Marcar todo» → Registrar. La persona pasa a «Dentro».
+3. **Con equipos**: marca «Trae equipos»; intenta registrar sin respaldo (debe pedirlo); registra el respaldo y vuelve a registrar.
+4. **Con desviación**: deja un ítem sin marcar; aparece el bloque amarillo; elige coordinador y tratamiento. Si el ítem es de identidad (crítico) solo deja denegar.
+5. **Salida** de la persona que está dentro, y **Detalle** para ver el checklist guardado.
+6. Busca un documento que no esté en ninguna solicitud de hoy: aparece el cuadro rojo.
 
-Los datos de prueba quedan en tu base; puedes reiniciar con `restaurar_bd.ps1`.
+Si algo falla con «No se pudo completar la operación en la base de datos», envíame la línea «ESCRITURA ... ERROR» de la ventana de salida de Visual Studio.
 
 ## Siguiente
-Vigilancia: control de accesos (ingreso y salida con checklist), luego desviaciones, incidencias y reporte.
+Desviaciones y incidencias (coordinador), incidencias del día (Vigilancia) y reporte de accesos.

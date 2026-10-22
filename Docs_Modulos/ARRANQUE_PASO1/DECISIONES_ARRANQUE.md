@@ -128,3 +128,26 @@
 - **P-69** — Vista de solo lectura para quien tiene `VER_TODAS` sin `APROBAR` (ej. gerencia): confirmar qué roles la tendrán.
 - **T-16** — La pantalla no cambia con HANA; usa `ERP_CAF_SOLICITUD_BANDEJA_LISTAR`, `_DECIDIR` y `_PERSONA_AGREGAR_APROBADA`, ya previstos en T-06.
 
+---
+
+# Decisiones de Vigilancia — «Control de accesos» (2026-10-21)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-121 | Pantalla **Control de accesos** (menú Vigilancia; permisos `PER_CAF_PORTERIA_VER` o `PER_CAF_PORTERIA_REGISTRAR`): lista de las personas autorizadas **para hoy**, agrupadas por solicitud (código, empresa, hora prevista, quién atiende, zonas y «Exige SCTR / EPP»). Buscador por documento, nombre o empresa; pestañas **Todos / Por ingresar / Dentro / Salieron / Denegados o no vinieron** con su cantidad. Con solo `PORTERIA_VER` la pantalla es de lectura: no aparecen los botones de ingreso ni salida. | Candidata |
+| D-122 | La lista se pide una vez por búsqueda (sin filtrar por grupo) y la pantalla reparte y cuenta los grupos; así las cantidades siempre cuadran. Datos: `ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR`. | Candidata |
+| D-123 | **Validar ingreso** abre una ventana con: aviso de SCTR/EPP exigidos, interruptores «Trae equipos» y «Trae herramientas o materiales», y el **checklist** (se vuelve a pedir al base cuando cambian los interruptores, conservando lo ya marcado) con «Marcar todo». Los botones permitidos y sus motivos salen de la ficha (`ERP_CAF_PORTERIA_FICHA`); la web no repite reglas. | Candidata |
+| D-124 | **Respaldo previo** (RN-14): si la persona trae equipos o herramientas, el respaldo se registra dentro de la misma ventana antes de ingresar: equipos = formato G-FSCA-009; herramientas = guía de remisión (con número) o guía manual G-FSCA-010. Se registra para **una persona** por vez (la base ya admite varias). | Candidata |
+| D-125 | **Desviación**: si algún ítem queda sin cumplir aparece el bloque con descripción, **coordinador consultado** y **tratamiento**. Con tratamiento «Otro» se pide el detalle y el **efecto** (ingreso: Ingresa / Ingresa restringido / No ingresa; salida: Sale / Sale y se retiene el elemento). Si falla un ítem **crítico** (identidad) solo se ofrece denegar el ingreso. El resultado calculado se muestra antes de guardar. La validación final la hace la base. | Candidata |
+| D-126 | **Registro tardío**: casilla «Es un registro tardío» pide la hora real (de hoy) y obliga a explicar el motivo en la observación. Si el ingreso ya solo es posible como tardío, la casilla viene marcada y no se puede quitar. En la salida es opcional. | Candidata |
+| D-127 | **Detalle** (personas que ya no están «Por ingresar»): movimientos de hoy con hora, resultado, vigilante, desviación, observación y el checklist de cada uno (✓ / ✗). | Candidata |
+| D-128 | **No autorizado para hoy**: si la búsqueda no encuentra a nadie y tiene 3 letras o más, se consulta `ERP_CAF_SOLICITUD_VIGILANCIA_NO_AUTORIZADA_BUSCAR` y se muestra en rojo quién es y por qué no puede pasar (observada, rechazada, otra fecha, etc.). Si no hay nada: «No debe ingresar». | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-70** — Botón «Registrar incidencia» en cada persona (prototipo): no está hasta construir la pantalla de incidencias.
+- **P-71** — Respaldo para varias personas a la vez (ej. un grupo con una sola guía de remisión): la base lo admite, la pantalla lo registra de a una persona. Confirmar si Vigilancia lo necesita.
+- **P-72** — Marcar «No se presentó» (`NoSePresentoMarcarAsync`): hoy solo existe el proceso; falta decidir quién lo ejecuta y cuándo (¿al cierre del día?).
+- **P-73** — La lista de hoy se carga al abrir y al buscar; no se refresca sola entre varios vigilantes. Confirmar si se quiere actualización automática cada cierto tiempo.
+- **P-74** — Sede fija VES en la consulta de «No autorizado» y en las opciones de desviación (ver P-57, sede activa).
+- **T-17** — La pantalla no cambia con HANA; usa `ERP_CAF_SOLICITUD_VIGILANCIA_*`, `ERP_CAF_PORTERIA_*`, `ERP_CAF_RESPALDO_*` y `ERP_CAF_DESVIACION_*_DROPDOWN`, ya previstos en T-06.
+
