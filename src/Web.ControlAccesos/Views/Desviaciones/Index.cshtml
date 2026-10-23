@@ -1,0 +1,22 @@
+@{ ViewData["Titulo"] = "Desviaciones"; ViewData["Migas"] = "Coordinador"; }
+<div class="stack" id="caf-desv" data-url-lista="@Url.Action("Lista", "Desviaciones")" data-url-detalle="@Url.Action("Detalle", "Desviaciones")"
+     data-url-conformidad="@Url.Action("Conformidad", "Desviaciones")">
+    @Html.AntiForgeryToken()
+    <p class="lead">Pasos del registro en portería que no se cumplieron. La persona no tiene una falta: se registra cómo se resolvió, con la indicación que usted dio por teléfono. Revise y dé su conformidad.</p>
+    <div class="pills" id="d-tabs"></div>
+    <section class="card filtros">
+        <label class="field"><span class="field-l">Persona, DNI o código</span><input type="search" id="d-texto" autocomplete="off" placeholder="Buscar" /></label>
+    </section>
+    <section class="card">
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th>Código</th><th>Fecha</th><th>Persona</th><th>Etapa</th><th>Descripción</th><th>Decisión</th><th></th></tr></thead>
+                <tbody id="d-filas"><tr><td colspan="7" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/desviaciones/desviaciones.js" asp-append-version="true"></script>

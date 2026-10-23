@@ -181,3 +181,19 @@
 - **P-77** — Producción: definir cómo se crea el primer administrador real (hoy: entrar con el demo, crear el real y ejecutar la limpieza). Alternativa: un procedimiento de arranque que lo cree con una contraseña temporal que obligue a cambiarla.
 - **T-19** — Los scripts de usuarios son solo de piloto; en HANA el primer administrador se carga con el procedimiento que se decida en P-77.
 
+---
+
+# Decisiones de la pantalla Desviaciones del coordinador (2026-10-23)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-136 | Pantalla **Desviaciones** (menú Coordinador; permiso `PER_CAF_DESVIACION_CONFORMIDAD`): pestañas **Por revisar (N)** y **Revisadas (N)**, búsqueda por persona, DNI o código, y tabla con código, fecha, persona (con solicitud y empresa), etapa, descripción y decisión (tratamiento y efecto). Si no hay nada por revisar al abrir y existen revisadas, abre en Revisadas. | Candidata |
+| D-137 | **Revisar** abre una ventana con persona, solicitud, momento (quién registró), descripción, a quién se consultó, decisión y efecto, y el **checklist** del movimiento (✓ / ✗). **Dar conformidad** con comentario opcional; la base decide quién puede (`Puede_Dar_Conformidad`) y la web muestra el motivo si no puede. Las revisadas se ven en solo lectura con quién dio la conformidad. | Candidata |
+| D-138 | La conformidad es una revisión, no una sanción: el texto de la pantalla aclara que la persona no tiene una falta. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-78** — El prototipo muestra en la lista la columna «No cumplió» (los ítems fallidos); la rutina `_LISTAR` no los devuelve, por eso solo se ven en el detalle. Ampliar la rutina si se quiere en la lista.
+- **P-79** — Si una desviación originó una incidencia, la ventana lo indica; el enlace directo se agrega cuando exista la pantalla de incidencias.
+- **P-80** — Sin filtro por rango de fechas en la pantalla (la rutina lo admite). Confirmar si hace falta.
+- **T-20** — La pantalla no cambia con HANA; usa `ERP_CAF_DESVIACION_LISTAR`, `_DETALLE`, `_CONTADORES` y `_CONFORMIDAD_DAR`, ya previstos en T-06.
+

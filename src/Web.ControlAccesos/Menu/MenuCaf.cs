@@ -18,7 +18,7 @@ public sealed class MenuCaf
         new("Mis solicitudes",            "Solicitante",    new[] { "PER_CAF_SOLICITUD_PROPIA" }, true, "Solicitudes", "Index"),
         new("Nueva solicitud",            "Solicitante",    new[] { "PER_CAF_SOLICITUD_PROPIA" }, true, "Solicitudes", "Nueva"),
         new("Solicitudes",                "Coordinador",    new[] { "PER_CAF_SOLICITUD_APROBAR", "PER_CAF_SOLICITUD_VER_TODAS" }, true, "Coordinacion", "Index"),
-        new("Desviaciones",               "Coordinador",    new[] { "PER_CAF_DESVIACION_CONFORMIDAD" }, false),
+        new("Desviaciones",               "Coordinador",    new[] { "PER_CAF_DESVIACION_CONFORMIDAD" }, true, "Desviaciones", "Index"),
         new("Incidencias",                "Coordinador",    new[] { "PER_CAF_INCIDENCIA_DECIDIR" }, false),
         new("Reporte de accesos",         "Coordinador",    new[] { "PER_CAF_REPORTE_VER" }, false),
         new("Control de accesos",         "Vigilancia",     new[] { "PER_CAF_PORTERIA_VER", "PER_CAF_PORTERIA_REGISTRAR" }, true, "Vigilancia", "Index"),
