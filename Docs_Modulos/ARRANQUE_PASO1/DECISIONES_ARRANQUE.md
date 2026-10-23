@@ -165,3 +165,19 @@
 - **P-75** — Confirmar el servidor de producción: si usa otra zona horaria o ya está en hora de Lima, el ajuste de D-129 sigue siendo correcto. Datos de prueba guardados antes del ajuste pueden tener horas corridas 5 horas.
 - **T-18** — En HANA, la zona horaria se resuelve en la sesión o en el servidor (`CURRENT_DATE` usa la hora del servidor HANA); revisar al traducir. La rutina nueva se traduce igual que `_LISTAR` (T-06), con `TOP 500` en lugar de `LIMIT`.
 
+---
+
+# Usuarios de demostración y limpieza (2026-10-23)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-132 | Script `11_SEED_DEMO_USUARIOS.sql` (restaurar_bd.ps1 lo corre solo, por su número): 8 personas en Personal y 8 usuarios **ficticios** con licencia en VES: 1 administrador, 1 coordinador, 3 vigilancia y 3 solicitantes. Correos `@trianon.test` (dominio que no existe), documentos `900000xx`, contraseñas de prueba públicas por rol. Sin ellos, una base reconstruida no tendría cómo entrar. Se puede ejecutar varias veces sin duplicar. | Candidata |
+| D-133 | Las contraseñas del script se guardan ya convertidas (PBKDF2-SHA256, 210 000 vueltas, el mismo formato de la aplicación). No piden cambio al primer ingreso. Como las contraseñas son públicas, **el script es solo para piloto y pruebas**. | Candidata |
+| D-134 | `LIMPIAR_DATOS_PRUEBA.sql` (manual, no lo corre el restaurador): borra los datos de operación (solicitudes, personas externas, decisiones, movimientos, respaldos, desviaciones, incidencias, correos pendientes, bitácora) y reinicia los números; opcionalmente borra los usuarios y Personal de prueba (correo `@trianon.test`) conservando un administrador (`PARAM_ADMIN_CONSERVAR`). No toca catálogos ni usuarios reales. Se cancela entero si no quedara un administrador activo con contraseña. | Candidata |
+| D-135 | Las pruebas de Hito 2 (escritura) y Hito 3 (lectura) cuentan quién recibe avisos y cuántos Coordinadores hay; ahora borran los usuarios de demostración al inicio (dentro de su transacción, se deshace con el ROLLBACK). Resultado con los usuarios cargados: todas las pruebas pasan. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-76** — Los usuarios de demostración tienen correos ficticios: si el envío de correos (P-51) está activo, los avisos a esas direcciones no llegarán a nadie. Usar solo en piloto.
+- **P-77** — Producción: definir cómo se crea el primer administrador real (hoy: entrar con el demo, crear el real y ejecutar la limpieza). Alternativa: un procedimiento de arranque que lo cree con una contraseña temporal que obligue a cambiarla.
+- **T-19** — Los scripts de usuarios son solo de piloto; en HANA el primer administrador se carga con el procedimiento que se decida en P-77.
+

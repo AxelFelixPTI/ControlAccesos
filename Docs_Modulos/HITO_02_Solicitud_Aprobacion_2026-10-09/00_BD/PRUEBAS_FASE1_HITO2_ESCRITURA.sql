@@ -15,6 +15,11 @@
 BEGIN;
 SET search_path TO "TRIANONSATELITAL_CAF_PRODD", "CAF_GOVERNANCE";
 
+-- Aísla la prueba de los usuarios de demostración de 11_SEED_DEMO_USUARIOS.sql (todo se deshace con el ROLLBACK final):
+-- las pruebas cuentan quién recibe los avisos y quién es Coordinador, y esperan una base sin esos usuarios.
+DELETE FROM "CAF_GOVERNANCE"."Usuario_Licencia" WHERE "ID_Usuario" IN (SELECT "ID_Usuario" FROM "CAF_GOVERNANCE"."Usuario" WHERE "Correo" LIKE '%@trianon.test');
+DELETE FROM "CAF_GOVERNANCE"."Usuario" WHERE "Correo" LIKE '%@trianon.test';
+
 CREATE TEMP TABLE pruebas (n SERIAL, prueba TEXT, esperado TEXT, obtenido TEXT, detalle TEXT) ON COMMIT DROP;
 CREATE FUNCTION pg_temp.chk(p TEXT, e TEXT, o TEXT, d TEXT) RETURNS void LANGUAGE sql
 AS $f$ INSERT INTO pruebas (prueba, esperado, obtenido, detalle) VALUES (p, e, o, COALESCE(d, '')) $f$;
