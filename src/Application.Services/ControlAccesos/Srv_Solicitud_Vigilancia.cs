@@ -40,6 +40,16 @@ public sealed class Srv_Solicitud_Vigilancia : ISrv_Solicitud_Vigilancia
         }
     }
 
+    public async Task<Result<List<Dto_Vigilancia_Persona>>> AprobadasListarAsync(long usuarioId, Dto_Filtro_Vigilancia_Aprobadas f, CancellationToken ct = default)
+    {
+        try { return await _repo.AprobadasListarAsync(usuarioId, f, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "APROBADAS Vigilancia ERROR");
+            return Result<List<Dto_Vigilancia_Persona>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Vigilancia_No_Autorizada>>> NoAutorizadaBuscarAsync(long usuarioId, long sedeId, DateTime fecha, string texto, CancellationToken ct = default)
     {
         try { return await _repo.NoAutorizadaBuscarAsync(usuarioId, sedeId, fecha, texto ?? string.Empty, ct).ConfigureAwait(false); }

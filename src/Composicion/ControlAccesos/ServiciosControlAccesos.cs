@@ -124,6 +124,8 @@ public static class ServiciosControlAccesos
         c = Reemplazar(config, c, "CAF_DB_BASE", "accesos_piloto_prueba");
         c = Reemplazar(config, c, "CAF_DB_USUARIO", null);
         c = Reemplazar(config, c, "CAF_DB_CLAVE", null);
+        // Toda fecha del servidor (CURRENT_DATE, CURRENT_TIMESTAMP) debe ser la de Lima, no la del servidor de la base (UTC).
+        if (!c.Contains("Timezone", StringComparison.OrdinalIgnoreCase)) c = c.TrimEnd(';') + ";Timezone=America/Lima";
         return c;
     }
 

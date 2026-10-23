@@ -1,15 +1,19 @@
 @{ ViewData["Titulo"] = "Control de accesos"; ViewData["Migas"] = "Vigilancia"; var puede = (bool)(ViewData["PuedeRegistrar"] ?? false); }
 <div class="stack" id="caf-vig" data-puede-registrar="@(puede ? "Y" : "N")"
-     data-url-lista="@Url.Action("Lista", "Vigilancia")" data-url-noaut="@Url.Action("NoAutorizada", "Vigilancia")"
+     data-url-lista="@Url.Action("Lista", "Vigilancia")" data-url-aprobadas="@Url.Action("Aprobadas", "Vigilancia")" data-url-noaut="@Url.Action("NoAutorizada", "Vigilancia")"
      data-url-ficha="@Url.Action("Ficha", "Vigilancia")" data-url-checklist="@Url.Action("Checklist", "Vigilancia")"
      data-url-opdesv="@Url.Action("OpcionesDesviacion", "Vigilancia")" data-url-detalle="@Url.Action("Detalle", "Vigilancia")"
      data-url-respaldo="@Url.Action("RespaldoRegistrar", "Vigilancia")" data-url-ingreso="@Url.Action("Ingreso", "Vigilancia")"
      data-url-salida="@Url.Action("Salida", "Vigilancia")">
     @Html.AntiForgeryToken()
     <p class="lead">Personas autorizadas para hoy. Busque por documento, nombre o empresa; valide el ingreso con el checklist y registre la salida.</p>
+    <div class="seg" id="v-modos"></div>
     <section class="card filtros">
         <label class="field"><span class="field-l">Buscar</span><input type="search" id="v-texto" autocomplete="off" placeholder="DNI, CE, nombre o empresa" /></label>
+        <label class="field" id="v-desde-c" hidden><span class="field-l">Visita desde</span><input type="date" id="v-desde" /></label>
+        <label class="field" id="v-hasta-c" hidden><span class="field-l">Visita hasta</span><input type="date" id="v-hasta" /></label>
     </section>
+    <div class="aviso a-info" id="v-aviso-apr" hidden>Consulta de todas las personas aprobadas, de cualquier fecha. Aquí no se registran ingresos ni salidas: eso se hace el día de la visita, en «Hoy».</div>
     <div class="pills" id="v-pills"></div>
     <div id="v-noaut" hidden></div>
     <div class="stack" id="v-bloques"></div>

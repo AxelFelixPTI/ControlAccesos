@@ -50,7 +50,31 @@ public sealed class VigilanciaController : Controller
             success = true,
             data = r.Data!.Select(p => new
             {
-                id = p.ID_Solicitud_Persona, solicitudId = p.ID_Solicitud, codigo = p.Codigo, hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
+                id = p.ID_Solicitud_Persona, solicitudId = p.ID_Solicitud, codigo = p.Codigo, fecha = p.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
+                empresa = p.Empresa_Visitante, atiende = p.Responsable_Nombre, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
+                nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
+                restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
+                exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
+            })
+        });
+    }
+
+    /// <summary>Solo consulta: personas aprobadas de cualquier fecha (por defecto desde hoy). No permite registrar nada.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Aprobadas(string? texto, string? desde, string? hasta, CancellationToken ct)
+    {
+        var r = await _vig.AprobadasListarAsync(User.UsuarioId(), new Dto_Filtro_Vigilancia_Aprobadas
+        {
+            Texto = Vacio(texto), Fecha_Desde = Fecha(desde), Fecha_Hasta = Fecha(hasta),
+        }, ct);
+        if (!r.Success) return Falla(r.Message);
+        return Json(new
+        {
+            success = true,
+            limite = r.Data!.Count >= 500,
+            data = r.Data!.Select(p => new
+            {
+                id = p.ID_Solicitud_Persona, solicitudId = p.ID_Solicitud, codigo = p.Codigo, fecha = p.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = p.Empresa_Visitante, atiende = p.Responsable_Nombre, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
                 nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
@@ -230,6 +254,7 @@ public sealed class VigilanciaController : Controller
 
     private IActionResult Falla(string mensaje) => Json(new { success = false, message = mensaje });
     private static string? Vacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static DateTime? Fecha(string? t) => DateTime.TryParseExact(t, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
     private static string? Hora(DateTime? d) => d?.ToString("HH:mm");
     private static object Errores(Result r) => r.Errors.Select(e => new { field = e.Field, message = e.Message });
 }

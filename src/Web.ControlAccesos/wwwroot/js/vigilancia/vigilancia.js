@@ -6,7 +6,8 @@
     var raiz = document.getElementById('caf-vig');
     if (!raiz) return;
     var el = CAF.el, d = raiz.dataset, puede = d.puedeRegistrar === 'Y';
-    var todas = [], grupo = 'TODOS', texto = '', temporizador = null, secuencia = 0;
+    var todas = [], grupo = 'TODOS', texto = '', temporizador = null, secuencia = 0, modo = 'HOY', hayLimite = false;
+    var modos = document.getElementById('v-modos'), desde = document.getElementById('v-desde'), hasta = document.getElementById('v-hasta');
     var cajaTexto = document.getElementById('v-texto'), pills = document.getElementById('v-pills');
     var panelNoAut = document.getElementById('v-noaut'), bloques = document.getElementById('v-bloques');
     var opDesv = {};
@@ -25,14 +26,33 @@
     function docTexto(p) { return (p.tipoDoc ? p.tipoDoc + ' ' : '') + (p.doc || ''); }
 
     // ── Lista ────────────────────────────────────────────────────────────────────────────────
+    function pintarModos() {
+        modos.textContent = '';
+        [['HOY', 'Hoy'], ['APROBADAS', 'Aprobadas (todas las fechas)']].forEach(function (m) {
+            modos.appendChild(el('button', { type: 'button', class: m[0] === modo ? 'on' : '', text: m[1], onclick: function () { cambiarModo(m[0]); } }));
+        });
+        var apr = modo === 'APROBADAS';
+        document.getElementById('v-desde-c').hidden = !apr; document.getElementById('v-hasta-c').hidden = !apr;
+        document.getElementById('v-aviso-apr').hidden = !apr;
+    }
+
+    function cambiarModo(m) {
+        if (m === modo) return;
+        modo = m; grupo = 'TODOS'; todas = []; panelNoAut.hidden = true;
+        if (modo === 'APROBADAS' && !desde.value) desde.value = SOL.hoy();
+        pintarModos(); cargar();
+    }
+
     function cargar() {
         var mi = ++secuencia;
-        return CAF.pedir(d.urlLista + '?texto=' + encodeURIComponent(texto)).then(function (r) {
+        var apr = modo === 'APROBADAS';
+        var url = apr ? d.urlAprobadas + '?texto=' + encodeURIComponent(texto) + '&desde=' + desde.value + '&hasta=' + hasta.value : d.urlLista + '?texto=' + encodeURIComponent(texto);
+        return CAF.pedir(url).then(function (r) {
             if (mi !== secuencia) return;
             if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
-            todas = r.data;
+            todas = r.data; hayLimite = !!r.limite;
             pintar();
-            if (!todas.length && texto.trim().length >= 3) buscarNoAutorizada(mi); else panelNoAut.hidden = true;
+            if (!apr && !todas.length && texto.trim().length >= 3) buscarNoAutorizada(mi); else panelNoAut.hidden = true;
         });
     }
 
@@ -60,13 +80,15 @@
 
     function pintar() {
         pills.textContent = '';
-        GRUPOS.forEach(function (g) {
+        var soloLectura = modo === 'APROBADAS';
+        pills.hidden = soloLectura;
+        if (!soloLectura) GRUPOS.forEach(function (g) {
             pills.appendChild(el('button', { type: 'button', class: 'pill' + (grupo === g[0] ? ' on' : ''), text: g[1] + ' (' + cuenta(g[0]) + ')', onclick: function () { grupo = g[0]; pintar(); } }));
         });
         bloques.textContent = '';
-        var visibles = todas.filter(function (p) { return grupo === 'TODOS' || p.grupo === grupo; });
+        var visibles = soloLectura ? todas : todas.filter(function (p) { return grupo === 'TODOS' || p.grupo === grupo; });
         if (!visibles.length) {
-            bloques.appendChild(el('section', { class: 'card' }, [el('p', { class: 'vacio', text: todas.length ? 'No hay personas en este grupo.' : (texto ? 'Nadie coincide con la búsqueda.' : 'No hay personas autorizadas para hoy.') })]));
+            bloques.appendChild(el('section', { class: 'card' }, [el('p', { class: 'vacio', text: todas.length ? 'No hay personas en este grupo.' : (texto ? 'Nadie coincide con la búsqueda.' : (soloLectura ? 'No hay personas aprobadas en esas fechas.' : 'No hay personas autorizadas para hoy.')) })]));
             return;
         }
         var orden = [], por = {};
@@ -75,23 +97,24 @@
             var l = por[sid], s = l[0];
             var exige = [s.exigeSctr ? 'SCTR' : null, s.exigeEpp ? 'EPP' : null].filter(Boolean).join(' y ');
             var cab = el('div', { class: 'blk-h' }, [
-                el('div', {}, [el('strong', { text: s.empresa || '(sin empresa)' }), el('div', { class: 'field-h', text: s.codigo + ' · hora prevista ' + s.hora + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
+                el('div', {}, [el('strong', { text: s.empresa || '(sin empresa)' }), el('div', { class: 'field-h', text: s.codigo + ' · ' + (soloLectura ? 'visita ' + SOL.fechaLarga(s.fecha) + ' ' + s.hora : 'hora prevista ' + s.hora) + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
                 el('div', { class: 'vrow-e' }, [s.zonas ? el('span', { class: 'field-h', text: 'Zonas: ' + s.zonas }) : null, exige ? chip('Exige ' + exige, 'c-obs') : null])
             ]);
             var blk = el('section', { class: 'card blk' }, [cab]);
-            l.forEach(function (p) { blk.appendChild(fila(p)); });
+            l.forEach(function (p) { blk.appendChild(fila(p, soloLectura)); });
             bloques.appendChild(blk);
         });
+        if (soloLectura && hayLimite) bloques.appendChild(el('div', { class: 'aviso a-warn', text: 'Se muestran las primeras 500 personas. Acote con la búsqueda o con las fechas.' }));
     }
 
-    function fila(p) {
+    function fila(p, soloLectura) {
         var e = ESTADO[p.estado] || [p.estado, 'c-pend'];
         var tiempos = [];
         if (p.ingreso) tiempos.push('Ingresó ' + p.ingreso);
         if (p.salida) tiempos.push('Salió ' + p.salida);
         var botones = [];
-        if (puede && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
-        if (puede && p.estado === 'DENTRO') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
+        if (puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
+        if (puede && !soloLectura && p.estado === 'DENTRO') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
         if (p.estado !== 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Detalle', onclick: function () { detalle(p); } }));
         return el('div', { class: 'vrow' }, [
             el('div', { class: 'vrow-n' }, [el('strong', { text: p.nombre }), el('span', { class: 'field-h', text: docTexto(p) })]),
@@ -103,6 +126,7 @@
         ]);
     }
 
+    desde.addEventListener('change', cargar); hasta.addEventListener('change', cargar);
     cajaTexto.addEventListener('input', function () { clearTimeout(temporizador); temporizador = setTimeout(function () { texto = cajaTexto.value.trim(); cargar(); }, 300); });
 
     // ── Detalle de la persona ────────────────────────────────────────────────────────────────
@@ -388,5 +412,6 @@
         });
     }
 
+    pintarModos();
     cargar();
 })();

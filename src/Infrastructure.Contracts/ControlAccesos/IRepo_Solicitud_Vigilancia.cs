@@ -17,5 +17,6 @@ namespace Infrastructure.Contracts.ControlAccesos;
 public interface IRepo_Solicitud_Vigilancia
 {
     Task<Result<List<Dto_Vigilancia_Persona>>> ListarAsync(long usuarioId, Dto_Filtro_Vigilancia? f = null, CancellationToken ct = default);
+    Task<Result<List<Dto_Vigilancia_Persona>>> AprobadasListarAsync(long usuarioId, Dto_Filtro_Vigilancia_Aprobadas f, CancellationToken ct = default);
     Task<Result<List<Dto_Vigilancia_No_Autorizada>>> NoAutorizadaBuscarAsync(long usuarioId, long sedeId, DateTime fecha, string texto, CancellationToken ct = default);
 }

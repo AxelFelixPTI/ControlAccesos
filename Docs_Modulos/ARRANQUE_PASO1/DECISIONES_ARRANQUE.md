@@ -151,3 +151,17 @@
 - **P-74** — Sede fija VES en la consulta de «No autorizado» y en las opciones de desviación (ver P-57, sede activa).
 - **T-17** — La pantalla no cambia con HANA; usa `ERP_CAF_SOLICITUD_VIGILANCIA_*`, `ERP_CAF_PORTERIA_*`, `ERP_CAF_RESPALDO_*` y `ERP_CAF_DESVIACION_*_DROPDOWN`, ya previstos en T-06.
 
+---
+
+# Ajustes del 2026-10-21 (noche): hora de Lima y consulta de aprobadas
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-129 | **Zona horaria**: toda conexión a la base abre con `Timezone=America/Lima` (se agrega sola a la cadena si no la trae). Motivo: `CURRENT_DATE` y `CURRENT_TIMESTAMP` usaban la hora del servidor de la base (UTC); después de las 19:00 en Lima la base ya estaba en el día siguiente y rechazaba «hoy» con «La fecha de la visita no puede ser anterior a hoy». Las rutinas no cambian. | Candidata |
+| D-130 | Vigilancia tiene dos modos: **Hoy** (ingreso y salida) y **Aprobadas (todas las fechas)**, de **solo consulta**: búsqueda y rango «visita desde / hasta» (por defecto desde hoy), sin botones de ingreso ni salida; **Detalle** disponible si la persona ya tuvo movimientos. Máximo 500 filas, con aviso. | Candidata |
+| D-131 | Rutina nueva `ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS` (archivo `SP_CAF_SOLICITUD_VIGILANCIA_APROBADAS.sql`): mismas columnas y permisos que `_LISTAR`, sin fijar el día. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-75** — Confirmar el servidor de producción: si usa otra zona horaria o ya está en hora de Lima, el ajuste de D-129 sigue siendo correcto. Datos de prueba guardados antes del ajuste pueden tener horas corridas 5 horas.
+- **T-18** — En HANA, la zona horaria se resuelve en la sesión o en el servidor (`CURRENT_DATE` usa la hora del servidor HANA); revisar al traducir. La rutina nueva se traduce igual que `_LISTAR` (T-06), con `TOP 500` en lugar de `LIMIT`.
+

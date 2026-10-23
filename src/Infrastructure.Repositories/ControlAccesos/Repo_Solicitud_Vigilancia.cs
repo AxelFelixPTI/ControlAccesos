@@ -52,6 +52,31 @@ public sealed class Repo_Solicitud_Vigilancia : RepoHelpers, IRepo_Solicitud_Vig
         }
     }
 
+    public async Task<Result<List<Dto_Vigilancia_Persona>>> AprobadasListarAsync(long usuarioId, Dto_Filtro_Vigilancia_Aprobadas f, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS",
+                bind: p =>
+                {
+                    AddLongReq(p, "HV_UsuarioID", usuarioId);
+                    AddLong(p, "HV_ID_Catalogo_Sede", f.ID_Catalogo_Sede);
+                    AddDate(p, "HV_Fecha_Desde", f.Fecha_Desde);
+                    AddDate(p, "HV_Fecha_Hasta", f.Fecha_Hasta);
+                    AddStr(p, "HV_Texto", f.Texto);
+                },
+                map: MapVigilancia_Persona,
+                ct: ct);
+            return Result<List<Dto_Vigilancia_Persona>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Vigilancia_Persona>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Vigilancia_No_Autorizada>>> NoAutorizadaBuscarAsync(long usuarioId, long sedeId, DateTime fecha, string texto, CancellationToken ct = default)
     {
         try
