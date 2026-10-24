@@ -63,9 +63,25 @@
 
     f.texto.addEventListener('input', function () { clearTimeout(temporizador); temporizador = setTimeout(cargar, 300); });
     [f.desde, f.hasta, f.tipo, f.desv].forEach(function (c) { c.addEventListener('change', cargar); });
-    document.getElementById('r-exportar').addEventListener('click', function () {
+    // La descarga se pide con fetch y se entrega como archivo: la pestaña nunca navega (así no se corta la sesión de depuración ni se pierden los filtros)
+    // y un error (por ejemplo, rango mayor a 92 días) se muestra como aviso en vez de una página en blanco.
+    var btnExportar = document.getElementById('r-exportar'), exportando = false;
+    btnExportar.addEventListener('click', function () {
+        if (exportando) return;
         if (!f.desde.value || !f.hasta.value) { CAF.aviso('Indique las fechas «Desde» y «Hasta».', 'warn'); return; }
-        window.location.href = d.urlExportar + consulta();
+        exportando = true; btnExportar.disabled = true;
+        function fin() { exportando = false; btnExportar.disabled = false; }
+        fetch(d.urlExportar + consulta(), { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function (resp) {
+            if (!resp.ok) return resp.text().then(function (t) { throw new Error(t && t.length < 300 ? t : 'No se pudo exportar.'); });
+            var m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(resp.headers.get('Content-Disposition') || '');
+            var nombre = m ? decodeURIComponent(m[1]) : 'accesos.csv';
+            return resp.blob().then(function (blob) {
+                var url = URL.createObjectURL(blob), a = document.createElement('a');
+                a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+                CAF.aviso('Archivo generado: ' + nombre);
+            });
+        }).catch(function (e) { CAF.aviso(e.message || 'No se pudo exportar.', 'warn'); }).then(fin);
     });
     document.getElementById('r-imprimir').addEventListener('click', function () { window.print(); });
     cargar();

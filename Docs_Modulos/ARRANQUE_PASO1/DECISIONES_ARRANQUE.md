@@ -146,7 +146,7 @@
 ## Pendientes para `PENDIENTES_VALIDACION.md`
 - **P-70** — Botón «Registrar incidencia» en cada persona (prototipo): no está hasta construir la pantalla de incidencias.
 - **P-71** — Respaldo para varias personas a la vez (ej. un grupo con una sola guía de remisión): la base lo admite, la pantalla lo registra de a una persona. Confirmar si Vigilancia lo necesita.
-- **P-72** — Marcar «No se presentó» (`NoSePresentoMarcarAsync`): hoy solo existe el proceso; falta decidir quién lo ejecuta y cuándo (¿al cierre del día?).
+- **P-72** — «No se presentó» es **automático** (D-70, lo ejecuta el sistema, no una persona). Lo que falta es programarlo: hoy existe la rutina pero ningún proceso en segundo plano la dispara (solo está el de correos). Hacer un proceso diario que corra después de medianoche (hora de Lima) y marque a las personas aprobadas de ayer que no ingresaron. Confirmar con P-44 si es al cierre del mismo día o a primera hora del siguiente.
 - **P-73** — La lista de hoy se carga al abrir y al buscar; no se refresca sola entre varios vigilantes. Confirmar si se quiere actualización automática cada cierto tiempo.
 - **P-74** — Sede fija VES en la consulta de «No autorizado» y en las opciones de desviación (ver P-57, sede activa).
 - **T-17** — La pantalla no cambia con HANA; usa `ERP_CAF_SOLICITUD_VIGILANCIA_*`, `ERP_CAF_PORTERIA_*`, `ERP_CAF_RESPALDO_*` y `ERP_CAF_DESVIACION_*_DROPDOWN`, ya previstos en T-06.
@@ -230,6 +230,13 @@
 
 ## Pendientes para `PENDIENTES_VALIDACION.md`
 - **P-84** — El prototipo muestra la columna «Atendió» (el responsable de la solicitud); la rutina `ERP_CAF_REPORTE_ACCESOS` no la devuelve, por eso no está en la tabla ni en el archivo. Ampliar la rutina si se quiere.
-- **P-85** — La exportación es CSV, no un `.xlsx` ni un PDF con formato. Confirmar si basta o si se necesita Excel con formato o un PDF con membrete (requiere agregar una librería).
+- **P-85** — **Descargar PDF del Reporte de accesos: pendiente de hacer.** Hoy solo existe la exportación a CSV (se abre en Excel). Cuando se haga el PDF, **tanto el CSV como el PDF deben responder a los mismos filtros de la pantalla** (fechas, persona/DNI/empresa, ingresos o salidas y «solo con desviación»). El CSV ya lo cumple (probado: con «Salidas» trae solo salidas; con «solo con desviación» trae solo esas). Para el PDF hay que decidir si se genera con una librería o con la impresión del navegador, y si lleva membrete.
 - **P-86** — El reporte no tiene filtro por resultado (Ingresa / Restringido / No ingresa) aunque la rutina lo admite. Confirmar si hace falta.
 - **T-22** — La pantalla no cambia con HANA; usa `ERP_CAF_REPORTE_ACCESOS` y `ERP_CAF_REPORTE_RESUMEN_DIARIO`, ya previstos en T-06. La rutina `ERP_CAF_REPORTE_AUTORIZADOS_POR_ZONA` aún no tiene pantalla.
+
+
+## Corrección del 2026-10-24 (tarde)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-147 | **Exportar a Excel** ya no navega la pestaña hacia el archivo: la pantalla lo pide en segundo plano y lo entrega como descarga. Así no se corta la sesión de depuración de Visual Studio (que se detenía al navegar a la descarga) y un error, como pasar de 92 días, se muestra como aviso. | Candidata |

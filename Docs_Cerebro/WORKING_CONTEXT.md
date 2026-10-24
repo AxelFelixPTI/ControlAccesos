@@ -46,7 +46,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario aplica el zip de Incidencias y luego el de Reporte de accesos (D-143..D-146) y prueba: como `coordinador.demo@trianon.test` → Reporte de accesos (filtros, resumen, Exportar a Excel, Imprimir); como `vigilante1.demo@trianon.test` → Control de accesos → en una persona que está Dentro, «Registrar incidencia». Después: marcado «No se presentó» (P-72), pantalla de autorizados por zona (ya existe la rutina) y revisión de pendientes con Sandra.
+Usuario aplica el zip de Incidencias, el de Reporte de accesos y esta corrección (D-147) y prueba **Exportar a Excel (CSV)** con distintos filtros: la aplicación ya no debe detenerse. Después, **proceso automático diario de «No se presentó»** (D-70, P-72), luego pantalla de «Autorizados por zona» (rutina existente, D-85) y revisión de pendientes (PENDIENTES_VALIDACION.md). Pendiente aparte: PDF del reporte, con los mismos filtros que el CSV (P-85).
 
 ## Decisiones vigentes que más condicionan
 
