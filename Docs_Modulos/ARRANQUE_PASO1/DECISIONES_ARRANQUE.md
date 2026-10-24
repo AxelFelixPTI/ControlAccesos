@@ -197,3 +197,21 @@
 - **P-80** — Sin filtro por rango de fechas en la pantalla (la rutina lo admite). Confirmar si hace falta.
 - **T-20** — La pantalla no cambia con HANA; usa `ERP_CAF_DESVIACION_LISTAR`, `_DETALLE`, `_CONTADORES` y `_CONFORMIDAD_DAR`, ya previstos en T-06.
 
+
+
+---
+
+# Decisiones de las pantallas de Incidencias (2026-10-24)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-139 | Pantalla **Incidencias** del Coordinador (permiso `PER_CAF_INCIDENCIA_DECIDIR`): pestañas **Por decidir (N)** y **Todas**, búsqueda, filtros por estado, origen (Vigilancia / Coordinador) y fechas. **Decidir** abre el detalle (tipo, hora, lugar, descripción, quién registró y personas involucradas) y permite **Confirmar** o **Desestimar** con sustento obligatorio. | Candidata |
+| D-140 | Pantalla **Incidencias del día** de Vigilancia (permiso `PER_CAF_INCIDENCIA_REGISTRAR`): solo las de hoy, en solo lectura, y el botón **Registrar incidencia**. Es el mismo controlador y el mismo JS; cambia el modo. | Candidata |
+| D-141 | Formulario **Registrar incidencia**: personas involucradas (se buscan entre quienes ingresaron hoy, dentro o ya salidos), tipo (si es «Otro» pide especificar), hora aproximada, lugar (zona del catálogo u «Otro lugar» con texto) y descripción. La fecha siempre es hoy. Si quien registra es Coordinador, queda confirmada; si es Vigilancia, queda Registrada. | Candidata |
+| D-142 | Una incidencia ya decidida no se vuelve a decidir (la base responde 409 y la pantalla muestra el mensaje). El menú resalta la entrada correcta (Incidencias / Incidencias del día) por acción. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-81** — Las incidencias solo se registran para personas que ya ingresaron hoy; una incidencia de alguien que no llegó a entrar (p. ej. en la puerta) no se puede registrar. Confirmar si hace falta.
+- **P-82** — Falta el botón «Registrar incidencia» dentro de la fila de cada persona en Control de accesos (el formulario ya lo admite con una persona pre-elegida). Confirmar si se agrega (relacionado con P-70).
+- **P-83** — La hora de la incidencia es solo de hoy; no se pueden registrar incidencias de días anteriores desde Vigilancia.
+- **T-21** — Las pantallas no cambian con HANA; usan `ERP_CAF_INCIDENCIA_LISTAR`, `_DETALLE`, `_CONTADORES`, `_PERSONAS_BUSCAR`, `_REGISTRAR` y `_DECIDIR`, ya previstos en T-06.

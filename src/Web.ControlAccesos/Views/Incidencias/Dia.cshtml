@@ -1,0 +1,19 @@
+@{ ViewData["Titulo"] = "Incidencias del día"; ViewData["Migas"] = "Vigilancia"; var puedeRegistrar = true; }
+<div class="stack" id="caf-inc" data-modo="dia" data-puede-registrar="@(puedeRegistrar ? "Y" : "N")"
+     data-url-lista="@Url.Action("Lista", "Incidencias")" data-url-detalle="@Url.Action("Detalle", "Incidencias")" data-url-opciones="@Url.Action("Opciones", "Incidencias")"
+     data-url-personas="@Url.Action("Personas", "Incidencias")" data-url-registrar="@Url.Action("Registrar", "Incidencias")" data-url-decidir="@Url.Action("Decidir", "Incidencias")">
+    @Html.AntiForgeryToken()
+    <div class="row-sp"><p class="lead">Faltas de personas que ingresaron hoy. Su registro es informativo: el Coordinador la confirma o la desestima.</p><button type="button" class="btn btn-danger" id="i-nueva" hidden>+ Registrar incidencia</button></div>
+    <section class="card">
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th>Código</th><th>Fecha y hora</th><th>Personas</th><th>Tipo</th><th>Lugar</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="i-filas"><tr><td colspan="7" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/incidencias/incidencias.js" asp-append-version="true"></script>

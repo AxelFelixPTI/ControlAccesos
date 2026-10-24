@@ -45,7 +45,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario copia el zip de Desviaciones (D-136..D-138) y prueba el ciclo: Vigilancia registra un ingreso con un ítem sin cumplir (desviación con coordinador y tratamiento); entra como `coordinador.demo@trianon.test` → Desviaciones → Por revisar → Revisar → Dar conformidad; la desviación pasa a Revisadas. Después: incidencias (coordinador y del día de Vigilancia) y reporte de accesos.
+Usuario copia el zip de Incidencias (D-139..D-142) y prueba: como `vigilante1.demo@trianon.test` → Incidencias del día → Registrar incidencia (busca a alguien que ya ingresó hoy); como `coordinador.demo@trianon.test` → Incidencias → Por decidir → Decidir → Confirmar o Desestimar con sustento. Después: reporte de accesos, «No se presentó» (P-72) y, si se confirma, el botón de incidencia en la fila de Control de accesos (P-82).
 
 ## Decisiones vigentes que más condicionan
 

@@ -35,7 +35,7 @@
                         {
                             if (e.Disponible)
                             {
-                                <a class="nav-i @(controlador == e.Controlador && (e.Controlador != "Solicitudes" || e.Accion == accionActual || (e.Accion == "Index" && accionActual == "Detalle")) ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion"><span>@e.Titulo</span></a>
+                                <a class="nav-i @(controlador == e.Controlador && ((e.Controlador != "Solicitudes" && e.Controlador != "Incidencias") || e.Accion == accionActual || (e.Accion == "Index" && accionActual == "Detalle")) ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion"><span>@e.Titulo</span></a>
                             }
                             else
                             {
