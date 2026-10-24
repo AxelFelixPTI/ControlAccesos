@@ -20,7 +20,7 @@ public sealed class MenuCaf
         new("Solicitudes",                "Coordinador",    new[] { "PER_CAF_SOLICITUD_APROBAR", "PER_CAF_SOLICITUD_VER_TODAS" }, true, "Coordinacion", "Index"),
         new("Desviaciones",               "Coordinador",    new[] { "PER_CAF_DESVIACION_CONFORMIDAD" }, true, "Desviaciones", "Index"),
         new("Incidencias", "Coordinador", new[] { "PER_CAF_INCIDENCIA_DECIDIR" }, true, "Incidencias", "Index"),
-        new("Reporte de accesos",         "Coordinador",    new[] { "PER_CAF_REPORTE_VER" }, false),
+        new("Reporte de accesos", "Coordinador", new[] { "PER_CAF_REPORTE_VER" }, true, "Reportes", "Index"),
         new("Control de accesos",         "Vigilancia",     new[] { "PER_CAF_PORTERIA_VER", "PER_CAF_PORTERIA_REGISTRAR" }, true, "Vigilancia", "Index"),
         new("Incidencias del día", "Vigilancia", new[] { "PER_CAF_INCIDENCIA_REGISTRAR" }, true, "Incidencias", "Dia"),
         new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, true, "Usuarios", "Index"),

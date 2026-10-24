@@ -36,6 +36,7 @@ public sealed class VigilanciaController : Controller
     public IActionResult Index()
     {
         ViewData["PuedeRegistrar"] = User.TienePermiso(PermRegistrar);
+        ViewData["PuedeIncidencia"] = User.TienePermiso("PER_CAF_INCIDENCIA_REGISTRAR");
         return View();
     }
 

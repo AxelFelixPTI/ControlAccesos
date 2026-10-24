@@ -1,0 +1,34 @@
+@{ ViewData["Titulo"] = "Reporte de accesos"; ViewData["Migas"] = "Coordinador"; }
+<div class="stack" id="caf-rep" data-url-lista="@Url.Action("Lista", "Reportes")" data-url-exportar="@Url.Action("Exportar", "Reportes")">
+    <div class="row-sp">
+        <p class="lead">Reemplaza el registro en papel G-FSCA-008. Cada fila es un movimiento en portería.</p>
+        <div class="acc">
+            <button type="button" class="btn" id="r-exportar">Exportar a Excel (CSV)</button>
+            <button type="button" class="btn" id="r-imprimir">Imprimir</button>
+        </div>
+    </div>
+    <section class="card filtros">
+        <label class="field"><span class="field-l">Desde</span><input type="date" id="r-desde" /></label>
+        <label class="field"><span class="field-l">Hasta</span><input type="date" id="r-hasta" /></label>
+        <label class="field"><span class="field-l">Persona, DNI o empresa</span><input type="search" id="r-texto" autocomplete="off" placeholder="Buscar" /></label>
+        <label class="field"><span class="field-l">Movimiento</span>
+            <select id="r-tipo"><option value="">Todos</option><option value="INGRESO">Ingresos</option><option value="SALIDA">Salidas</option></select>
+        </label>
+        <label class="chk-all"><input type="checkbox" id="r-desv" /> Solo con desviación</label>
+    </section>
+    <div class="pills" id="r-resumen" aria-live="polite"></div>
+    <div class="aviso a-warn" id="r-aviso" hidden></div>
+    <section class="card">
+        <p class="card-cap" id="r-cuenta"></p>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th>Fecha y hora</th><th>Movimiento</th><th>Persona</th><th>Documento</th><th>Empresa</th><th>Solicitud</th><th>Resultado</th><th>Vigilante</th><th>Desviación</th></tr></thead>
+                <tbody id="r-filas"><tr><td colspan="9" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/reportes/reportes.js" asp-append-version="true"></script>

@@ -215,3 +215,21 @@
 - **P-82** — Falta el botón «Registrar incidencia» dentro de la fila de cada persona en Control de accesos (el formulario ya lo admite con una persona pre-elegida). Confirmar si se agrega (relacionado con P-70).
 - **P-83** — La hora de la incidencia es solo de hoy; no se pueden registrar incidencias de días anteriores desde Vigilancia.
 - **T-21** — Las pantallas no cambian con HANA; usan `ERP_CAF_INCIDENCIA_LISTAR`, `_DETALLE`, `_CONTADORES`, `_PERSONAS_BUSCAR`, `_REGISTRAR` y `_DECIDIR`, ya previstos en T-06.
+
+
+---
+
+# Decisiones del Reporte de accesos y del botón de incidencia en Vigilancia (2026-10-24)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-143 | Pantalla **Reporte de accesos** (menú Coordinador; permiso `PER_CAF_REPORTE_VER`): cada fila es un movimiento en portería (reemplaza el registro en papel G-FSCA-008). Filtros: fechas (por defecto, los últimos 7 días), persona, DNI o empresa, tipo de movimiento y «solo con desviación». Arriba muestra el resumen del rango (ingresos, restringidos, denegados, salidas, desviaciones, incidencias). | Candidata |
+| D-144 | El rango máximo es de **92 días** (lo valida el procedimiento y la pantalla avisa). En pantalla se ven hasta 1000 movimientos; si hay más, aparece un aviso y la exportación trae todos. | Candidata |
+| D-145 | **Exportar a Excel** genera un archivo **CSV** con los mismos filtros (UTF-8 con BOM, se abre en Excel con tildes correctas). Las celdas que empiezan con `=`, `+`, `-` o `@` llevan un apóstrofo delante para que Excel no las ejecute como fórmula. **Imprimir** usa la impresión del navegador (sirve para guardar en PDF). | Candidata |
+| D-146 | **Control de accesos (Vigilancia):** cada persona que está **Dentro** o ya **Salió** tiene el botón **Registrar incidencia**, que abre el mismo formulario de Incidencias con la persona ya elegida (como en el prototipo). Solo aparece con el permiso `PER_CAF_INCIDENCIA_REGISTRAR` y en el modo «Hoy». Cierra P-82. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-84** — El prototipo muestra la columna «Atendió» (el responsable de la solicitud); la rutina `ERP_CAF_REPORTE_ACCESOS` no la devuelve, por eso no está en la tabla ni en el archivo. Ampliar la rutina si se quiere.
+- **P-85** — La exportación es CSV, no un `.xlsx` ni un PDF con formato. Confirmar si basta o si se necesita Excel con formato o un PDF con membrete (requiere agregar una librería).
+- **P-86** — El reporte no tiene filtro por resultado (Ingresa / Restringido / No ingresa) aunque la rutina lo admite. Confirmar si hace falta.
+- **T-22** — La pantalla no cambia con HANA; usa `ERP_CAF_REPORTE_ACCESOS` y `ERP_CAF_REPORTE_RESUMEN_DIARIO`, ya previstos en T-06. La rutina `ERP_CAF_REPORTE_AUTORIZADOS_POR_ZONA` aún no tiene pantalla.

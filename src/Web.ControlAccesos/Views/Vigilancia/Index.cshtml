@@ -1,5 +1,6 @@
-@{ ViewData["Titulo"] = "Control de accesos"; ViewData["Migas"] = "Vigilancia"; var puede = (bool)(ViewData["PuedeRegistrar"] ?? false); }
-<div class="stack" id="caf-vig" data-puede-registrar="@(puede ? "Y" : "N")"
+@{ ViewData["Titulo"] = "Control de accesos"; ViewData["Migas"] = "Vigilancia"; var puede = (bool)(ViewData["PuedeRegistrar"] ?? false); var puedeInc = (bool)(ViewData["PuedeIncidencia"] ?? false); }
+<div class="stack" id="caf-vig" data-puede-registrar="@(puede ? "Y" : "N")" data-puede-incidencia="@(puedeInc ? "Y" : "N")"
+     data-url-inc-opciones="@Url.Action("Opciones", "Incidencias")" data-url-inc-personas="@Url.Action("Personas", "Incidencias")" data-url-inc-registrar="@Url.Action("Registrar", "Incidencias")"
      data-url-lista="@Url.Action("Lista", "Vigilancia")" data-url-aprobadas="@Url.Action("Aprobadas", "Vigilancia")" data-url-noaut="@Url.Action("NoAutorizada", "Vigilancia")"
      data-url-ficha="@Url.Action("Ficha", "Vigilancia")" data-url-checklist="@Url.Action("Checklist", "Vigilancia")"
      data-url-opdesv="@Url.Action("OpcionesDesviacion", "Vigilancia")" data-url-detalle="@Url.Action("Detalle", "Vigilancia")"
@@ -21,4 +22,5 @@
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="~/js/caf.js" asp-append-version="true"></script>
 <script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/incidencias/incidencias.js" asp-append-version="true"></script>
 <script src="~/js/vigilancia/vigilancia.js" asp-append-version="true"></script>
