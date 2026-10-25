@@ -44,7 +44,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-77 | **Primer administrador real en producción.** Hoy se entra con el administrador demo, se crea el real y se corre la limpieza. Alternativa: un procedimiento de arranque que lo cree con contraseña temporal que obligue a cambiarla. | 2026-10-23 | Equipo y TI | Salida a producción | Pendiente |
 | P-01 | Listas reales de áreas, cargos, motivos de visita y tipos de incidencia (detalle en la sección 3). | 2026-10-13 | Sandra, con Control de Activos y SST | Cargar datos reales | Pendiente |
 | P-02 | Zonas reales de VES y cuáles exigen SCTR y EPP (sección 3). | 2026-10-13 | SST, con Control de Activos | Cargar datos reales | Pendiente |
-| P-51 | **Correo saliente:** servidor SMTP, puerto, SSL y cuenta remitente del grupo. Hoy el envío es simulado (no sale ningún correo). | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
+| P-51 | **Correo saliente:** servidor SMTP, puerto, SSL y cuenta remitente del grupo. Ya existe el envío real por SMTP (Gmail de prueba `trianon.accesos@gmail.com`, ver `GUIA_CORREO.md`); falta definir la cuenta corporativa. | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
 | P-54 y P-63 | **Enlace para definir contraseña por correo:** hoy lo entrega el administrador. Para enviarlo por correo hay que agregar ese tipo de correo en la base. | 2026-10-18 | Sandra y TI | Piloto con usuarios | Pendiente |
 | P-52 y P-53 | **Política de contraseñas del grupo:** largo, vigencia, complejidad, y si el bloqueo de 5 intentos por 15 minutos es la regla. Hoy: mínimo 10 caracteres. | 2026-10-18 | TI / Seguridad | Piloto con usuarios | Pendiente |
 | P-58 | **Datos personales (Ley 29733):** cuánto tiempo se conservan los datos de los visitantes y qué aviso de privacidad se les muestra. Hoy se guardan sin límite de tiempo. | 2026-10-19 | Legal (consulta ya enviada en P-31) y Sandra | Piloto con usuarios | Pendiente |
@@ -53,6 +53,10 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-76 | Los usuarios de demostración tienen correos ficticios: con el envío real activo (P-51) esos avisos no llegarán a nadie. Usarlos solo en piloto y borrarlos con la limpieza antes de usar datos reales. | 2026-10-23 | Equipo | Cargar datos reales | Pendiente |
 | P-50 | Correos: máximo de reintentos (propuesta: 5) y espera entre intentos (propuesta: 5 minutos). | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
 | P-47 | ¿Una incidencia confirmada debe avisar por correo y a quién? Hoy no se envía ninguno; agregarlo requiere un tipo de correo nuevo. | 2026-10-18 | Sandra | Piloto con usuarios | Pendiente |
+| P-88 | **Destinatarios de cada aviso (D-150):** confirmar que Vigilancia solo recibe copia cuando la solicitud queda Aprobada. | 2026-10-24 | Sandra | Piloto con usuarios | Pendiente |
+| P-89 | **Hilo de correos en Gmail:** probar en un envío real que los avisos de una solicitud se agrupan en una conversación. | 2026-10-24 | Equipo | Piloto con usuarios | Pendiente |
+| P-90 | **Respuestas al correo:** la casilla del sistema no se lee; decidir si se agrega «Responder a» o basta el aviso del pie. | 2026-10-24 | Sandra | Piloto con usuarios | Pendiente |
+| P-91 | **Dirección real de la web** (`UrlBase`) y cuenta de correo corporativa definitiva. | 2026-10-24 | TI | Publicar en internet | Pendiente |
 
 ### C. Reglas de portería e incidencias a confirmar
 

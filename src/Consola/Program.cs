@@ -6,6 +6,7 @@
 //   emitir-token     Genera un token de un solo uso para que un usuario defina su contraseña.
 //   definir-password Usa ese token para definir la contraseña.
 //   enviar-correos   Una sola vuelta de envío de correos pendientes.
+//   vista-previa-correos [carpeta]  Genera ejemplos .html de cada correo (sin base de datos).
 //   servir           Deja corriendo el envío de correos en segundo plano (Ctrl+C para parar).
 // Configuración: appsettings.json y, si existe, appsettings.Local.json (NO se sube a git; ahí va la clave real).
 // ============================================================
@@ -21,7 +22,7 @@ using Shared.Results;
 
 var comando = args.Length > 0 ? args[0].ToLowerInvariant() : "ayuda";
 
-if (comando is not ("probar" or "crear-admin" or "login" or "emitir-token" or "definir-password" or "enviar-correos" or "servir"))
+if (comando is not ("probar" or "crear-admin" or "login" or "emitir-token" or "definir-password" or "enviar-correos" or "servir" or "vista-previa-correos"))
 {
     Console.WriteLine("Uso: dotnet run --project src/Consola -- <comando>");
     Console.WriteLine("  probar           lee catálogos y cola de correos (prueba de conexión)");
@@ -31,11 +32,57 @@ if (comando is not ("probar" or "crear-admin" or "login" or "emitir-token" or "d
     Console.WriteLine("  definir-password usa el token para definir la contraseña");
     Console.WriteLine("  enviar-correos   una vuelta de envío de correos pendientes");
     Console.WriteLine("  servir           envío de correos en segundo plano (Ctrl+C para parar)");
+    Console.WriteLine("  vista-previa-correos [carpeta]  genera un .html de ejemplo por tipo de correo (sin base de datos)");
     return 1;
+}
+
+if (comando == "vista-previa-correos")
+{
+    var carpeta = args.Length > 1 ? args[1] : "vista_previa_correos";
+    Directory.CreateDirectory(carpeta);
+    var d = new Dto_Correo_Solicitud
+    {
+        ID_Solicitud = 123, Codigo = "SOL-2026-000123", Estado = "PENDIENTE", Fecha_Hora_Prevista = new DateTime(2026, 11, 3, 9, 30, 0),
+        Sede = "Villa El Salvador", Tipo_Acceso = "Visitante externo", Empresa_Visitante = "Ferretería Andina S.A.C.",
+        Responsable_Nombre = "Quispe Rojas, Marta", Responsable_Correo = "marta@grupotrianon.com", Responsable_Area = "Almacén",
+        Motivo = "Entrega de materiales", Motivo_Detalle = "Descarga de 3 pallets", Zonas_Nombres = "Almacén, Patio de maniobras",
+        Observaciones = "Llegarán en un camión de 8 toneladas.\nPor favor habilitar el portón lateral.",
+        Solicitante_Nombre = "Pérez Díaz, Carlos", Solicitante_Correo = "carlos@grupotrianon.com",
+        Exige_SCTR = true, Exige_EPP = true, Total_Personas = 3, Pendientes = 3, Version = 1, Fecha_Envio = DateTime.Now
+    };
+    var pers = new List<Dto_Correo_Solicitud_Persona>
+    {
+        new() { Tipo_Documento = "DNI", Numero_Documento = "45871236", Nombre_Completo = "Huamán Soto, Luis", Aprobacion = "PENDIENTE", Trae_Equipos = true },
+        new() { Tipo_Documento = "DNI", Numero_Documento = "70125489", Nombre_Completo = "Ramos Vega, Jorge", Aprobacion = "PENDIENTE" },
+        new() { Tipo_Documento = "CE",  Numero_Documento = "001458796", Nombre_Completo = "Torres León, Ana", Aprobacion = "PENDIENTE", Trae_Herramientas = true },
+    };
+    void Guardar(string tipo, string archivo, string msg, string estado, bool resp, Action<List<Dto_Correo_Solicitud_Persona>>? ajusta = null)
+    {
+        d.Estado = estado;
+        var lista = pers.Select(p => new Dto_Correo_Solicitud_Persona { Tipo_Documento = p.Tipo_Documento, Numero_Documento = p.Numero_Documento,
+            Nombre_Completo = p.Nombre_Completo, Aprobacion = p.Aprobacion, Trae_Equipos = p.Trae_Equipos, Trae_Herramientas = p.Trae_Herramientas }).ToList();
+        ajusta?.Invoke(lista);
+        d.Autorizadas = lista.Count(p => p.Aprobacion == "APROBADA"); d.Pendientes = lista.Count(p => p.Aprobacion == "PENDIENTE");
+        d.Rechazadas = lista.Count(p => p.Aprobacion == "RECHAZADA"); d.Observadas = lista.Count(p => p.Aprobacion == "OBSERVADA");
+        var a = PlantillaCorreo.Armar(tipo, msg, d, lista, "http://192.168.1.50:5080", resp);
+        File.WriteAllText(Path.Combine(carpeta, archivo + ".html"), a.Html);
+        File.WriteAllText(Path.Combine(carpeta, archivo + ".txt"), "Asunto: " + a.Asunto + "\n\n" + a.Texto);
+        Console.WriteLine($"  {archivo}.html  ({a.Asunto})");
+    }
+    Console.WriteLine($"Ejemplos de correo en: {Path.GetFullPath(carpeta)}");
+    Guardar("SOLICITUD_NUEVA", "1_solicitud_nueva", "Se registró una nueva solicitud de acceso y está por aprobar: 3 persona(s) de Ferretería Andina S.A.C., visita prevista el 03/11/2026 09:30.", "PENDIENTE", false);
+    Guardar("SOLICITUD_DECISION", "2_aprobada", "Sobre la solicitud: 3 personas aprobada(s).\nEstado de la solicitud: APROBADA.", "APROBADA", true, l => l.ForEach(p => p.Aprobacion = "APROBADA"));
+    Guardar("SOLICITUD_DECISION", "3_observada", "Sobre la solicitud: 1 persona observada(s).\nFalta el SCTR vigente de Ramos Vega, Jorge.\nEstado de la solicitud: APROBADA_PARCIAL.", "APROBADA_PARCIAL", true,
+        l => { l[0].Aprobacion = "APROBADA"; l[2].Aprobacion = "APROBADA"; l[1].Aprobacion = "OBSERVADA"; l[1].Aprobacion_Mensaje = "Falta el SCTR vigente."; });
+    Guardar("SOLICITUD_DECISION", "4_rechazada", "Sobre la solicitud: 3 personas rechazada(s).\nNo se autoriza el ingreso en esa fecha.\nEstado de la solicitud: RECHAZADA.", "RECHAZADA", true,
+        l => l.ForEach(p => { p.Aprobacion = "RECHAZADA"; p.Aprobacion_Mensaje = "No se autoriza el ingreso en esa fecha."; }));
+    Guardar("SOLICITUD_CANCELADA", "5_cancelada", "La solicitud fue cancelada. La visita se reprogramó.", "CANCELADA", true);
+    return 0;
 }
 
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory });
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddControlAccesos(builder.Configuration);
 if (comando == "servir") builder.Services.AddEnvioDeCorreos();
 

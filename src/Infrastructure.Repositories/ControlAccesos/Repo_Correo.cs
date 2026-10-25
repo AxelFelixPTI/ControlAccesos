@@ -75,6 +75,44 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         }
     }
 
+    public async Task<Result<Dto_Correo_Solicitud>> SolicitudDatosAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_CORREO_SOLICITUD_DATOS",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: MapCorreo_Solicitud,
+                ct: ct);
+            return lista.Count == 0
+                ? Result<Dto_Correo_Solicitud>.Fail("La solicitud no existe.")
+                : Result<Dto_Correo_Solicitud>.Ok(lista[0]);
+        }
+        catch (Exception ex)
+        {
+            return Result<Dto_Correo_Solicitud>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Correo_Solicitud_Persona>>> SolicitudPersonasAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_CORREO_SOLICITUD_PERSONAS",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: MapCorreo_Solicitud_Persona,
+                ct: ct);
+            return Result<List<Dto_Correo_Solicitud_Persona>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Correo_Solicitud_Persona>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
     public async Task<ResultSp> MarcarEnviadoAsync(long correoId, long usuarioId, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraAsync(
@@ -134,6 +172,50 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Asunto              = RdStr(rd, "Asunto"),
         Cuerpo              = RdStr(rd, "Cuerpo"),
         Intentos            = RdLong(rd, "Intentos"),
+    };
+
+    private static Dto_Correo_Solicitud MapCorreo_Solicitud(DbDataReader rd) => new()
+    {
+        ID_Solicitud            = RdLong(rd, "ID_Solicitud"),
+        Codigo                  = RdStr(rd, "Codigo"),
+        Estado                  = RdStr(rd, "Estado"),
+        Fecha_Hora_Prevista     = RdDt(rd, "Fecha_Hora_Prevista"),
+        Sede                    = RdStrN(rd, "Sede"),
+        Tipo_Acceso             = RdStrN(rd, "Tipo_Acceso"),
+        Empresa_Visitante       = RdStr(rd, "Empresa_Visitante"),
+        Responsable_Nombre      = RdStrN(rd, "Responsable_Nombre"),
+        Responsable_Correo      = RdStrN(rd, "Responsable_Correo"),
+        Responsable_Area        = RdStrN(rd, "Responsable_Area"),
+        Motivo                  = RdStrN(rd, "Motivo"),
+        Motivo_Detalle          = RdStrN(rd, "Motivo_Detalle"),
+        Observaciones           = RdStrN(rd, "Observaciones"),
+        Zonas_Nombres           = RdStrN(rd, "Zonas_Nombres"),
+        Solicitante_Nombre      = RdStrN(rd, "Solicitante_Nombre"),
+        Solicitante_Correo      = RdStrN(rd, "Solicitante_Correo"),
+        Exige_SCTR              = RdBool(rd, "Exige_SCTR"),
+        Exige_EPP               = RdBool(rd, "Exige_EPP"),
+        Total_Personas          = RdInt(rd, "Total_Personas"),
+        Autorizadas             = RdInt(rd, "Autorizadas"),
+        Observadas              = RdInt(rd, "Observadas"),
+        Pendientes              = RdInt(rd, "Pendientes"),
+        Rechazadas              = RdInt(rd, "Rechazadas"),
+        Retiradas               = RdInt(rd, "Retiradas"),
+        Observacion_Coordinador = RdStrN(rd, "Observacion_Coordinador"),
+        Motivo_Cancelacion      = RdStrN(rd, "Motivo_Cancelacion"),
+        Version                 = RdLong(rd, "Version"),
+        Fecha_Envio             = RdDtN(rd, "Fecha_Envio"),
+    };
+
+    private static Dto_Correo_Solicitud_Persona MapCorreo_Solicitud_Persona(DbDataReader rd) => new()
+    {
+        ID_Solicitud_Persona = RdLong(rd, "ID_Solicitud_Persona"),
+        Tipo_Documento       = RdStrN(rd, "Tipo_Documento"),
+        Numero_Documento     = RdStr(rd, "Numero_Documento"),
+        Nombre_Completo      = RdStr(rd, "Nombre_Completo"),
+        Aprobacion           = RdStr(rd, "Aprobacion"),
+        Aprobacion_Mensaje   = RdStrN(rd, "Aprobacion_Mensaje"),
+        Trae_Equipos         = RdBool(rd, "Trae_Equipos"),
+        Trae_Herramientas    = RdBool(rd, "Trae_Herramientas"),
     };
 
     private static Dto_Correo_Lista MapCorreo_Lista(DbDataReader rd) => new()

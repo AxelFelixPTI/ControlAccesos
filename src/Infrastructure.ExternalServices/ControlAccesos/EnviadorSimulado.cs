@@ -8,10 +8,10 @@ public sealed class EnviadorSimulado : IEnviadorCorreo
     private readonly ILogger<EnviadorSimulado> _log;
     public EnviadorSimulado(ILogger<EnviadorSimulado> log) => _log = log;
 
-    public Task EnviarAsync(string destinatarios, string? copia, string asunto, string cuerpo, CancellationToken ct = default)
+    public Task EnviarAsync(MensajeCorreo m, CancellationToken ct = default)
     {
-        _log.LogInformation("CORREO SIMULADO → {Para} (cc: {Cc}) | {Asunto} | {Largo} caracteres",
-            destinatarios, copia ?? "-", asunto, cuerpo.Length);
+        _log.LogInformation("CORREO SIMULADO → {Para} (cc: {Cc}) | {Asunto} | id {Id} responde a {Resp} | {Largo} caracteres",
+            string.Join("; ", m.Para), m.Cc.Count == 0 ? "-" : string.Join("; ", m.Cc), m.Asunto, m.MessageId, m.EnRespuestaA ?? "-", m.Html.Length);
         return Task.CompletedTask;
     }
 }

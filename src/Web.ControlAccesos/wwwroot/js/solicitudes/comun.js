@@ -48,7 +48,7 @@ var SOL = (function () {
         motivo.value = v.motivoId ? String(v.motivoId) : '';
         var detalle = texto(v.motivoDetalle, 250, 'Describa el motivo');
         var detalleCampo = campo('Detalle del motivo *', detalle);
-        var obs = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Lo que Coordinación y Vigilancia deban saber' }); obs.value = v.observaciones || '';
+        var obs = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Opcional. Se incluye en el correo que reciben Coordinación, Vigilancia y las personas en copia' }); obs.value = v.observaciones || '';
         var copias = texto(v.copias, 500, 'correo1@empresa.com; correo2@empresa.com');
 
         function sincMotivo() {
@@ -108,8 +108,8 @@ var SOL = (function () {
             el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]),
             el('div', { class: 'grid g2' }, [campo('Motivo de la visita *', motivo), detalleCampo]),
             zonasNodo, aviso,
-            campo('Observaciones', obs),
-            campo('Correos en copia (opcional)', copias, 'Reciben el aviso cuando la solicitud se decide. Sepárelos con «;».')
+            campo('Detalles adicionales (opcional)', obs),
+            campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud (nueva, decisiones, cancelación). Sepárelos con «;».')
         ]);
 
         function leer() {

@@ -148,7 +148,7 @@ BEGIN
     PERFORM pg_temp.chk('Crear: tiene fecha de envío', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Fecha_Envio" IS NOT NULL'), '');
     PERFORM pg_temp.chk('Crear: deja un evento CREAR en la bitácora', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Accion" = ''CREAR'''), '');
     PERFORM pg_temp.chk('Crear: avisa al Coordinador', 'roberto@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), 'solo el rol del primer paso');
-    PERFORM pg_temp.chk('Crear: las copias van en la columna Copia', 'almacen@ejemplo.pe; gerencia@ejemplo.pe', pg_temp.q('SELECT "Copia" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), '');
+    PERFORM pg_temp.chk('Crear: en Copia van el solicitante y los correos del asistente', 'carlos@ejemplo.pe; almacen@ejemplo.pe; gerencia@ejemplo.pe', pg_temp.q('SELECT "Copia" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), '');
 
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Otra S.A.C.', v_mot_otro, 'Entrega de planos', NULL, v_z_adm::TEXT, v_e4::TEXT, NULL, NULL, v_u_sol, v_a, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: con motivo «Otro» y su detalle', '100', v_cod::TEXT, v_msg);
@@ -201,6 +201,9 @@ BEGIN
     PERFORM pg_temp.chk('Decidir: no se decide sobre personas de otra solicitud', '409', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Decidir: 3 eventos en la bitácora (aprobar, observar, rechazar)', 'APROBAR,OBSERVAR,RECHAZAR', pg_temp.q('SELECT STRING_AGG("Accion", '','' ORDER BY "ID_Evento") FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Entidad" = ''SOLICITUD_DECISION'''), '');
     PERFORM pg_temp.chk('Decidir: avisa al solicitante de cada decisión', '3', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_DECISION'' AND "Destinatarios" = ''carlos@ejemplo.pe'''), '');
+    PERFORM pg_temp.chk('Decidir: el aviso al solicitante copia a los aprobadores y a los correos del asistente', '3', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_DECISION'' AND "Copia" LIKE ''roberto@ejemplo.pe; almacen@ejemplo.pe; gerencia@ejemplo.pe%'''), 'Vigilancia solo si queda aprobada');
+    PERFORM pg_temp.chk('Correo: datos de la plantilla solo para el sistema', '0|1', pg_temp.q('SELECT (SELECT COUNT(*) FROM "ERP_CAF_CORREO_SOLICITUD_DATOS"(2, ' || v_s1 || ')) || ''|'' || (SELECT COUNT(*) FROM "ERP_CAF_CORREO_SOLICITUD_DATOS"(0, ' || v_s1 || '))'), '');
+    PERFORM pg_temp.chk('Correo: personas de la plantilla', '1', pg_temp.q('SELECT CASE WHEN COUNT(*) >= 1 THEN 1 ELSE 0 END FROM "ERP_CAF_CORREO_SOLICITUD_PERSONAS"(0, ' || v_s1 || ')'), '');
     PERFORM pg_temp.chk('Decidir: resume la última decisión en la cabecera', 'No autorizado por seguridad.', pg_temp.q('SELECT "Observacion_Coordinador" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s1), '');
     CALL "ERP_CAF_SOLICITUD_RECALCULAR"(v_s1, 0, v_est, v_cod, v_msg);
     PERFORM pg_temp.chk('Recalcular: llamarlo otra vez da lo mismo', 'APROBADA_PARCIAL', v_est::TEXT, 'idempotente');
@@ -371,6 +374,7 @@ BEGIN
     PERFORM pg_temp.chk('Cancelar: correcta', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Cancelar: estado CANCELADA con su motivo', 'CANCELADA|La empresa reprogramó.', pg_temp.q('SELECT "Estado" || ''|'' || "Motivo_Cancelacion" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s2), 'no se borra');
     PERFORM pg_temp.chk('Cancelar: deja el evento', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Accion" = ''CANCELAR'''), '');
+    PERFORM pg_temp.chk('Decidir: al quedar aprobada la solicitud, Vigilancia va en copia', '1', pg_temp.q('SELECT CASE WHEN COUNT(*) >= 1 THEN 1 ELSE 0 END FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Tipo" = ''SOLICITUD_DECISION'' AND "Copia" LIKE ''%maria@ejemplo.pe%'''), 'Vigilancia = portería');
     PERFORM pg_temp.chk('Cancelar: con una persona autorizada avisa a aprobadores y Vigilancia', 'roberto@ejemplo.pe; maria@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Tipo" = ''SOLICITUD_CANCELADA'''), 'primero los aprobadores, luego portería');
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_s2, 'x', v_u_sol, v_cod, v_msg);
     PERFORM pg_temp.chk('Cancelar: dos veces', '409', v_cod::TEXT, v_msg);

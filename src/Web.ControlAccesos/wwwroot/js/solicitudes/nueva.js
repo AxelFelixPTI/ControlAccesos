@@ -64,7 +64,7 @@
         var motivo = (op.motivos.filter(function (m) { return m.id === v.motivoId; })[0] || {}).texto || '';
         var dl = el('dl', { class: 'dl' });
         [['Sede', op.sede.texto], ['Visita', SOL.fechaLarga(v.fecha) + ' · ' + v.hora], ['Empresa', v.empresa], ['Responsable de atención', v.responsable],
-         ['Motivo', motivo + (v.motivoDetalle ? ' — ' + v.motivoDetalle : '')], ['Zonas', zonas], ['Observaciones', v.observaciones || '—'], ['Correos en copia', v.copias || '—']]
+         ['Motivo', motivo + (v.motivoDetalle ? ' — ' + v.motivoDetalle : '')], ['Zonas', zonas], ['Detalles adicionales', v.observaciones || '—'], ['Correos en copia', v.copias || '—']]
             .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
         var lista = el('ul', { class: 'plist' }, personas.map(function (p) {
             return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: p.nombre }), el('div', { class: 'field-h', text: p.doc })])]);

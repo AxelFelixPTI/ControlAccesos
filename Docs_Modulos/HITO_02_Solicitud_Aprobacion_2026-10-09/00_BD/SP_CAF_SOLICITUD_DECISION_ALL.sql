@@ -215,12 +215,14 @@ BEGIN
         -- Aviso al solicitante con el resumen de lo decidido
         lv_texto := lv_cnt || CASE WHEN lv_cnt = 1 THEN ' persona ' ELSE ' personas ' END
                     || CASE "HV_Decision" WHEN 'APROBADA' THEN 'aprobada(s)' WHEN 'OBSERVADA' THEN 'observada(s)' ELSE 'rechazada(s)' END;
+        -- Para: el solicitante. Copia: aprobadores y correos adicionales; Vigilancia solo si quedó APROBADA
         CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'SOLICITANTE', NULL, lv_dest, lv_c, lv_m);
-        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_DECISION', "HV_ID_Solicitud", lv_dest, NULL,
+        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_DECISION', "HV_ID_Solicitud", lv_dest,
+             "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'N', 'Y', CASE WHEN lv_est2 = 'APROBADA' THEN 'Y' ELSE 'N' END, 'Y'),
              'Decisión sobre ' || lv_codsol || ': ' || lv_texto,
-             '<p>Sobre la solicitud ' || lv_codsol || ': ' || lv_texto || '.</p>'
-             || CASE WHEN "HV_Decision" = 'APROBADA' THEN '' ELSE '<p>' || TRIM("HV_Mensaje_Decision") || '</p>' END
-             || '<p>Estado de la solicitud: ' || lv_est2 || '.</p>',
+             'Sobre la solicitud: ' || lv_texto || '.'
+             || CASE WHEN "HV_Decision" = 'APROBADA' THEN '' ELSE CHR(10) || TRIM("HV_Mensaje_Decision") END
+             ,
              "HV_UsuarioID", lv_c, lv_m);
 
         -- Si aprobó y todavía faltan pasos, se avisa a quienes deciden el siguiente
@@ -231,7 +233,7 @@ BEGIN
                 CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'SIGUIENTE_PASO', lv_orden, lv_dest, lv_c, lv_m);
                 CALL "ERP_CAF_CORREO_ENCOLAR"('PERSONA_POR_APROBAR', "HV_ID_Solicitud", lv_dest, NULL,
                      'Personas por aprobar en ' || lv_codsol,
-                     '<p>La solicitud ' || lv_codsol || ' tiene ' || lv_pend || ' persona(s) esperando el siguiente paso.</p>',
+                     'La solicitud tiene ' || lv_pend || ' persona(s) esperando el siguiente paso.',
                      "HV_UsuarioID", lv_c, lv_m);
             END IF;
         END IF;

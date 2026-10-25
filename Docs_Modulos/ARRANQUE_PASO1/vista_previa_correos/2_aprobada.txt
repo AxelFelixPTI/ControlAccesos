@@ -1,0 +1,32 @@
+Asunto: Re: Solicitud SOL-2026-000123 · Ferretería Andina S.A.C.
+
+ACTUALIZACIÓN DE LA SOLICITUD
+
+Sobre la solicitud: 3 personas aprobada(s).
+Estado de la solicitud: APROBADA.
+
+Código: SOL-2026-000123
+Estado: Aprobada
+Sede: Villa El Salvador
+Tipo de acceso: Visitante externo
+Visita prevista: 03/11/2026 09:30
+Empresa visitante: Ferretería Andina S.A.C.
+Responsable: Quispe Rojas, Marta (Almacén)
+Motivo: Entrega de materiales — Descarga de 3 pallets
+Zonas: Almacén, Patio de maniobras
+Solicitante: Pérez Díaz, Carlos (carlos@grupotrianon.com)
+Personas: 3 en total · 3 autorizada(s)
+Requisitos: SCTR y EPP
+
+Detalles adicionales del solicitante:
+Llegarán en un camión de 8 toneladas.
+Por favor habilitar el portón lateral.
+
+Personas (3):
+ - Huamán Soto, Luis · DNI 45871236 · Autorizada
+ - Ramos Vega, Jorge · DNI 70125489 · Autorizada
+ - Torres León, Ana · CE 001458796 · Autorizada
+
+Ver solicitud: http://192.168.1.50:5080/Solicitudes/Detalle/123
+
+Mensaje automático. Esta casilla no se monitorea.

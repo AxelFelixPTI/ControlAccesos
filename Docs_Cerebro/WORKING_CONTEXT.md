@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-17
+Actualizado: 2026-10-24 (noche)
 
 ## Dónde estamos
 
+- **2026-10-24 (noche) · Integración de correo hecha (candidata).** Flujo Para/CC por estado (D-150), hilo con `Message-ID`/`In-Reply-To` (D-151), plantilla HTML sobria + texto (D-152) alimentada por `ERP_CAF_CORREO_SOLICITUD_DATOS/_PERSONAS` (`SP_CAF_CORREO_PLANTILLA_ALL.sql`) y `ERP_CAF_FN_COPIA_CORREO`; «Observaciones» → «Detalles adicionales» (D-153); `UrlBase`, `RedirigirA` (modo prueba) y envío dentro de la web (D-154). Pruebas Hito 2 escritura: 190 de 190. Cabeceras del hilo verificadas contra un SMTP local; falta probar con Gmail real (P-89). Guías: `GUIA_CORREO.md` y `GUIA_DESPLIEGUE_RED.md` (primer despliegue en la red del usuario).
 - **2026-10-24 · Reporte de accesos hecho (candidato).** `ReportesController` + vista + `reportes.js`: filtros, resumen del rango, exportar CSV, imprimir (D-143..D-145, P-84..P-86, T-22). Además, botón «Registrar incidencia» en Control de accesos (D-146). Sin cambios de base de datos.
 - **2026-10-18 · Capa web, corte 1 (arranque, login y menú).** Proyecto `src/Web.ControlAccesos` (ASP.NET Core MVC + Razor): inicio de sesión con cookie, cierre, cambio de contraseña (obligatorio si la cuenta lo exige), menú lateral por permisos, pantalla de inicio con licencias y permisos, pantallas «Sin acceso» y «Error». Probado de punta a punta con peticiones HTTP reales y un servicio de autenticación falso (sin sesión → redirige; token anti-falsificación; clave mala; login; menú; cabeceras; redirección externa bloqueada; salir; cambio de contraseña obligatorio y validaciones). Antes: `login` real contra PostgreSQL funcionó (administrador creado, licencia LIC_CAF_ADMIN y 3 permisos). Decisiones D-93 a D-97, pendientes P-56, P-57, T-12 en `DECISIONES_ARRANQUE.md`.
 - **2026-10-18 · Login (capa de aplicación) generado.** `ISrv_Auth`/`Srv_Auth` (iniciar sesión con bloqueo 5 intentos / 15 min, emitir token de un solo uso, definir contraseña con token, cambiar contraseña, buscar por correo, verificar permiso), 7 métodos nuevos en `Repo_Usuario` (autenticación por correo y por token, registrar login, registrar token, licencias y permisos del usuario, verificar permiso), `Dto_Auth.cs` y 3 comandos de consola (`login`, `emitir-token`, `definir-password`). Compila con 0 errores y 0 avisos; las 10 llamadas de `Repo_Usuario` resuelven contra la base; prueba local de `Srv_Auth` con repositorio falso (bloqueo, vencimiento, un solo uso) y token verificado contra la base (vigente / vencido / usado). Antes, el mismo día: `probar` dio 13 de 13 OK (primera ejecución real de C# contra PostgreSQL) y `EjecutorSp` V1.2 califica las rutinas con su schema. Decisiones D-89 a D-92, pendientes P-53 a P-55, T-11 en `DECISIONES_ARRANQUE.md`.
@@ -46,7 +47,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario copia `PENDIENTES_VALIDACION.md` reorganizado (D-148) y lo usa para decidir con Sandra qué entra al MVP. Código: construir el **proceso automático diario de «No se presentó»** (D-70, P-72), luego revisar con la base real las pantallas de Desviaciones, Incidencias y Reporte de accesos. Todas las pantallas del prototipo ya están hechas. Pendiente aparte: PDF del reporte con los mismos filtros que el CSV (P-85); «Autorizados por zona» postergado (P-87).
+Usuario aplica la entrega de correo (restaurar en una base vacía con `-Crear`), configura Gmail con `GUIA_CORREO.md` (con `RedirigirA` a su correo) y prueba el hilo (P-89); luego el primer despliegue en su red con `GUIA_DESPLIEGUE_RED.md`. Código siguiente: rediseños de interfaces que el usuario indicará; después, el proceso automático diario de «No se presentó» (D-70, P-72) y el PDF del reporte (P-85).
 
 ## Decisiones vigentes que más condicionan
 

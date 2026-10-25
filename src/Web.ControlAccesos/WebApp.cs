@@ -23,8 +23,13 @@ public static class WebApp
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+        // Las variables de entorno van al final: ganan sobre cualquier archivo (orden: appsettings.json < Local.json < variables).
+        builder.Configuration.AddEnvironmentVariables();
 
         builder.Services.AddControlAccesos(builder.Configuration);
+        // El envío de correos corre dentro de la propia web (un solo proceso). Se apaga con Correo:EnviarDesdeWeb=false
+        // si se prefiere dejarlo al comando «servir» de la consola.
+        if (builder.Configuration.GetValue("Correo:EnviarDesdeWeb", true)) builder.Services.AddEnvioDeCorreos();
         sobrescribir?.Invoke(builder.Services);
 
         var horas = builder.Configuration.GetValue("Sesion:Horas", 8);

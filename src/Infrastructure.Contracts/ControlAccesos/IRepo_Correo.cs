@@ -20,5 +20,7 @@ public interface IRepo_Correo
     Task<Result<List<Dto_Correo_Lista>>> ListarAsync(long usuarioId, Dto_Filtro_Correos f, CancellationToken ct = default);
     Task<ResultSp> MarcarEnviadoAsync(long correoId, long usuarioId, CancellationToken ct = default);
     Task<ResultSp<string>> MarcarErrorAsync(long correoId, string? error, int maxIntentos, long usuarioId, CancellationToken ct = default);
+    Task<Result<Dto_Correo_Solicitud>> SolicitudDatosAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
+    Task<Result<List<Dto_Correo_Solicitud_Persona>>> SolicitudPersonasAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<ResultSp> ReencolarAsync(long correoId, long sedeId, long usuarioId, CancellationToken ct = default);
 }

@@ -253,3 +253,25 @@
 
 ## Pendientes para `PENDIENTES_VALIDACION.md`
 - **P-87** — **Pantalla «Autorizados por zona»: postergada, fuera del MVP.** No está en el prototipo y no se tiene claro para qué se usaría. La rutina `ERP_CAF_REPORTE_AUTORIZADOS_POR_ZONA` queda sin pantalla. Se retoma solo si el negocio la pide.
+
+
+---
+
+# Integración de correo (2026-10-24, noche)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-150 | **Quién recibe cada aviso (visitante externo).** Solicitud nueva o modificada: Para = quien decide el primer paso; CC = solicitante + correos adicionales del asistente. Decisión: Para = solicitante; CC = aprobadores + adicionales, y **Vigilancia (portería) solo si la solicitud queda Aprobada**. Cancelada con autorizados: Para = aprobadores y Vigilancia; CC = solicitante + adicionales. Se arma con la función `ERP_CAF_FN_COPIA_CORREO`; los repetidos se depuran al enviar (quien va en Para no se repite en CC). | Candidata |
+| D-151 | **Hilo de mensajes.** El aviso de solicitud nueva es la raíz (`Message-ID` `<caf-sol-{id}@dominio>`); los demás llevan el mismo asunto con «Re: » y `In-Reply-To`/`References` hacia la raíz. Asunto único: `Solicitud {código} · {empresa}`. | Candidata |
+| D-152 | **Plantilla única** HTML sobria (tablas y estilos en línea, 600 px) + versión en texto plano (multipart): título según el tipo, mensaje, tabla con todos los datos de la solicitud, detalles adicionales, tabla de personas con su estado, botón «Ver solicitud» y pie «mensaje automático». Los datos se leen al enviar (el correo refleja el estado actual). Rutinas nuevas, solo del sistema: `ERP_CAF_CORREO_SOLICITUD_DATOS` y `_PERSONAS`. | Candidata |
+| D-153 | El campo opcional «Observaciones» del asistente pasa a llamarse **«Detalles adicionales (opcional)»** y se incluye en el correo. No hay campo nuevo ni cambio de tablas. | Candidata |
+| D-154 | Configuración nueva en `Correo`: `UrlBase` (dirección de la web para el botón), `RedirigirA` (**modo prueba**: todo sale a una sola dirección con aviso de a quién habría llegado) y `EnviarDesdeWeb` (la web envía los pendientes por sí misma; por defecto sí). La clave del correo va en `appsettings.Local.json` o variable de entorno, nunca en git. | Candidata |
+| D-155 | Los cuerpos que dejan los procedimientos pasan de HTML a **texto plano** (saltos de línea); la plantilla los escapa y les da formato. Así la presentación vive en un solo lugar. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-88** — Confirmar con Sandra la matriz de destinatarios de D-150 (en especial: Vigilancia solo recibe copia cuando queda Aprobada; no recibe avisos de solicitudes nuevas ni observadas).
+- **P-89** — Probar en un envío real con Gmail que los correos de una solicitud se agrupan en un solo hilo (Gmail puede reemplazar el `Message-ID`; el asunto «Re: …» debería sostener el hilo igual).
+- **P-90** — La casilla remitente no se lee: si alguien responde a todos, esa respuesta no llega a nadie. Decidir si se agrega «Responder a» hacia el coordinador o el solicitante, o si basta el aviso del pie.
+- **P-91** — Dirección real de la web (`UrlBase`) y cuenta corporativa definitiva (se suma a P-51).
+- **T-23** — En HANA `ERP_CAF_FN_COPIA_CORREO` no puede llamar a un procedimiento con parámetros de salida dentro de una función: traducirla como procedimiento con salida o calcular la lista dentro del procedimiento que encola. `CHR(10)` se traduce a `CHAR(10)`.
+

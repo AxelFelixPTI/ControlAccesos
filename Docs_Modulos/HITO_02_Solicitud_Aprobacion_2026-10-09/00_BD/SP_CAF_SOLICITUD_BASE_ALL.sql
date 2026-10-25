@@ -648,3 +648,43 @@ BEGIN
     END;
 END;
 $$;
+
+-- -----------------------------------------------------------------------------
+-- 7. ERP_CAF_FN_COPIA_CORREO  (V1.0 2026-10-24)
+--    Arma la lista "Copia" de un aviso sumando los grupos pedidos ('Y'/'N'):
+--    solicitante, aprobadores, portería y correos en copia de la solicitud.
+--    Devuelve NULL si no hay nadie. Los repetidos se depuran al enviar (.NET).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_COPIA_CORREO"(
+    "HV_ID_Solicitud" BIGINT,
+    "HV_Solicitante"  CHAR(1),
+    "HV_Aprobadores"  CHAR(1),
+    "HV_Porteria"     CHAR(1),
+    "HV_Copias"       CHAR(1)
+) RETURNS VARCHAR(2000)
+LANGUAGE plpgsql VOLATILE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_res VARCHAR(4000) := NULL;
+    lv_x   VARCHAR(2000);
+    lv_c   INT;
+    lv_m   VARCHAR(250);
+BEGIN
+    IF "HV_Solicitante" = 'Y' THEN
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'SOLICITANTE', NULL, lv_x, lv_c, lv_m);
+        IF lv_x IS NOT NULL THEN lv_res := CASE WHEN lv_res IS NULL THEN lv_x ELSE lv_res || '; ' || lv_x END; END IF;
+    END IF;
+    IF "HV_Aprobadores" = 'Y' THEN
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'APROBADORES', NULL, lv_x, lv_c, lv_m);
+        IF lv_x IS NOT NULL THEN lv_res := CASE WHEN lv_res IS NULL THEN lv_x ELSE lv_res || '; ' || lv_x END; END IF;
+    END IF;
+    IF "HV_Porteria" = 'Y' THEN
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'PORTERIA', NULL, lv_x, lv_c, lv_m);
+        IF lv_x IS NOT NULL THEN lv_res := CASE WHEN lv_res IS NULL THEN lv_x ELSE lv_res || '; ' || lv_x END; END IF;
+    END IF;
+    IF "HV_Copias" = 'Y' THEN
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'COPIAS', NULL, lv_x, lv_c, lv_m);
+        IF lv_x IS NOT NULL THEN lv_res := CASE WHEN lv_res IS NULL THEN lv_x ELSE lv_res || '; ' || lv_x END; END IF;
+    END IF;
+    RETURN NULLIF(LEFT(lv_res, 2000), '');
+END;
+$$;

@@ -87,6 +87,26 @@ public sealed class Srv_Correo : ISrv_Correo
         }
     }
 
+    public async Task<Result<Dto_Correo_Solicitud>> SolicitudDatosAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.SolicitudDatosAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SOLICITUD_DATOS Correo ID={ID} ERROR", solicitudId);
+            return Result<Dto_Correo_Solicitud>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Correo_Solicitud_Persona>>> SolicitudPersonasAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.SolicitudPersonasAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SOLICITUD_PERSONAS Correo ID={ID} ERROR", solicitudId);
+            return Result<List<Dto_Correo_Solicitud_Persona>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result> ReencolarAsync(long correoId, long sedeId, long usuarioId, CancellationToken ct = default)
     {
         if (correoId <= 0)

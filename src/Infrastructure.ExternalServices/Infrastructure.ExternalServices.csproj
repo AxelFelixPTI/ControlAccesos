@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Cliente SMTP moderno (reemplaza System.Net.Mail.SmtpClient, que Gmail cerraba al conectar) -->
+    <PackageReference Include="MailKit" Version="4.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Application.Contracts\Application.Contracts.csproj" />
     <ProjectReference Include="..\Application.DTOs\Application.DTOs.csproj" />
     <ProjectReference Include="..\Shared.Results\Shared.Results.csproj" />

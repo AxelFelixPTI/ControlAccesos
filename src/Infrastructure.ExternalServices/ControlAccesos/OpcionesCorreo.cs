@@ -21,6 +21,21 @@ public sealed class OpcionesCorreo
     public string Remitente { get; set; } = string.Empty;
     public string NombreRemitente { get; set; } = "Control de Accesos";
 
+    /// <summary>
+    /// Dirección web donde está publicada la aplicación, sin barra final (ej. "http://192.168.1.50:5080").
+    /// Se usa para el botón «Ver solicitud» del correo. Vacío = el correo sale sin botón.
+    /// </summary>
+    public string UrlBase { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Modo prueba: si tiene valor, TODOS los correos salen solo a esa dirección (con un aviso arriba que lista
+    /// a quién habría llegado). Vacío = envío normal a los destinatarios reales.
+    /// </summary>
+    public string RedirigirA { get; set; } = string.Empty;
+
+    /// <summary>La web envía los correos pendientes por sí misma (true) o lo hace la consola con «servir» (false).</summary>
+    public bool EnviarDesdeWeb { get; set; } = true;
+
     /// <summary>Intentos antes de dejar el correo en ERROR definitivo (la rutina acepta 1..20).</summary>
     public int MaxIntentos { get; set; } = 5;
 

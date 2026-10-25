@@ -130,7 +130,7 @@ BEGIN
             CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'PASO_PENDIENTE', lv_sp, lv_dest, lv_c, lv_m);
             CALL "ERP_CAF_CORREO_ENCOLAR"('PERSONA_POR_APROBAR', "HV_ID_Solicitud", lv_dest, NULL,
                  'Persona por aprobar en ' || lv_codsol,
-                 '<p>Se agregó a ' || lv_nom || ' a la solicitud ' || lv_codsol || ' y espera su decisión.</p>', "HV_UsuarioID", lv_c, lv_m);
+                 'Se agregó a ' || lv_nom || ' a la solicitud y espera su decisión.', "HV_UsuarioID", lv_c, lv_m);
         END IF;
 
         "HV_ID_Solicitud_Persona_Result" := lv_sp;
@@ -268,15 +268,16 @@ BEGIN
 
         -- Se avisa al solicitante; y a los demás aprobadores si todavía faltan pasos
         CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'SOLICITANTE', NULL, lv_dest, lv_c, lv_m);
-        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_DECISION', "HV_ID_Solicitud", lv_dest, NULL,
+        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_DECISION', "HV_ID_Solicitud", lv_dest,
+             "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'N', 'Y', 'N', 'Y'),
              'Se agregó a una persona en ' || lv_codsol,
-             '<p>Se agregó a ' || lv_nom || ' a la solicitud ' || lv_codsol || ' porque llegó a portería.</p>', "HV_UsuarioID", lv_c, lv_m);
+             'Se agregó a ' || lv_nom || ' a la solicitud porque llegó a portería.', "HV_UsuarioID", lv_c, lv_m);
         SELECT "Aprobacion" INTO lv_apr2 FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = lv_sp;
         IF lv_apr2 = 'PENDIENTE' THEN
             CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'PASO_PENDIENTE', lv_sp, lv_dest, lv_c, lv_m);
             CALL "ERP_CAF_CORREO_ENCOLAR"('PERSONA_POR_APROBAR', "HV_ID_Solicitud", lv_dest, NULL,
                  'Persona por aprobar en ' || lv_codsol,
-                 '<p>' || lv_nom || ' llegó sin estar en la solicitud ' || lv_codsol || ' y espera su decisión.</p>', "HV_UsuarioID", lv_c, lv_m);
+                 lv_nom || ' llegó sin estar en la solicitud y espera su decisión.', "HV_UsuarioID", lv_c, lv_m);
         END IF;
 
         "HV_ID_Solicitud_Persona_Result" := lv_sp;
@@ -512,7 +513,7 @@ BEGIN
                 CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(lv_sol, 'PASO_PENDIENTE', "HV_ID_Solicitud_Persona", lv_dest, lv_c, lv_m);
                 CALL "ERP_CAF_CORREO_ENCOLAR"('PERSONA_POR_APROBAR', lv_sol, lv_dest, NULL,
                      'Persona corregida en ' || lv_codsol,
-                     '<p>' || lv_nom || ' fue corregida y reenviada en la solicitud ' || lv_codsol || '.</p>', "HV_UsuarioID", lv_c, lv_m);
+                     lv_nom || ' fue corregida y reenviada en la solicitud.', "HV_UsuarioID", lv_c, lv_m);
             END IF;
         END IF;
 

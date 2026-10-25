@@ -37,7 +37,7 @@
         [['Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], ['Empresa', s.empresa || '—'],
          ['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—'],
          ['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')],
-         ['Observaciones', s.observaciones || '—'], ['Correos en copia', s.copias || '—']]
+         ['Detalles adicionales', s.observaciones || '—'], ['Correos en copia', s.copias || '—']]
             .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
         cab.appendChild(dl);
         if (s.exigeSctr || s.exigeEpp) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Vigilancia verificará ' + [s.exigeSctr ? 'el SCTR' : '', s.exigeEpp ? 'el uso de EPP' : ''].filter(Boolean).join(' y ') + ' al ingreso.' }));

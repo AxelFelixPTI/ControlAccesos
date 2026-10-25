@@ -213,11 +213,12 @@ BEGIN
         -- Aviso a quienes deciden el primer paso (si el flujo no requería aprobación ya quedó aprobada)
         IF lv_estado = 'PENDIENTE' THEN
             CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(lv_id, 'PRIMER_PASO', NULL, lv_dest, lv_c, lv_m);
-            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(lv_id, 'COPIAS', NULL, lv_copia, lv_c, lv_m);
-            CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_NUEVA', lv_id, lv_dest, lv_copia,
+            -- Para: quien decide el primer paso. Copia: el solicitante y los correos adicionales del asistente
+            CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_NUEVA', lv_id, lv_dest,
+                 "ERP_CAF_FN_COPIA_CORREO"(lv_id, 'Y', 'N', 'N', 'Y'),
                  'Nueva solicitud ' || lv_codsol || ' por aprobar',
-                 '<p>La solicitud ' || lv_codsol || ' de ' || TRIM("HV_Empresa_Visitante") || ' (visita el '
-                 || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || ') tiene ' || lv_cntP || ' persona(s) por aprobar.</p>',
+                 'Se registró una nueva solicitud de acceso y está por aprobar: ' || lv_cntP || ' persona(s) de '
+                 || TRIM("HV_Empresa_Visitante") || ', visita prevista el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '.',
                  "HV_UsuarioID", lv_c, lv_m);
         END IF;
 
@@ -456,10 +457,10 @@ BEGIN
 
         IF lv_cambia = 'Y' AND lv_est2 IN ('PENDIENTE','APROBADA_PARCIAL') THEN
             CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'PRIMER_PASO', NULL, lv_dest, lv_c, lv_m);
-            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'COPIAS', NULL, lv_copia, lv_c, lv_m);
-            CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_EDITADA', "HV_ID_Solicitud", lv_dest, lv_copia,
+            CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_EDITADA', "HV_ID_Solicitud", lv_dest,
+                 "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'Y', 'N', 'N', 'Y'),
                  'Solicitud ' || lv_codsol || ' modificada: hay personas por aprobar',
-                 '<p>Se modificaron los datos de la solicitud ' || lv_codsol || '. ' || TRIM(lv_desc) || '</p>',
+                 'Se modificaron los datos de la solicitud y hay personas por aprobar. ' || TRIM(lv_desc),
                  "HV_UsuarioID", lv_c, lv_m);
         END IF;
 
@@ -547,11 +548,11 @@ BEGIN
         IF lv_aut > 0 THEN
             CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'APROBADORES', NULL, lv_dest, lv_c, lv_m);
             CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'PORTERIA', NULL, lv_port, lv_c, lv_m);
-            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'COPIAS', NULL, lv_copia, lv_c, lv_m);
             CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_CANCELADA', "HV_ID_Solicitud",
                  CASE WHEN lv_dest IS NULL THEN lv_port WHEN lv_port IS NULL THEN lv_dest ELSE lv_dest || '; ' || lv_port END,
-                 lv_copia, 'Solicitud ' || lv_codsol || ' cancelada',
-                 '<p>La solicitud ' || lv_codsol || ' fue cancelada. ' || COALESCE(NULLIF(TRIM("HV_Motivo_Cancelacion"), ''), '') || '</p>',
+                 "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'Y', 'N', 'N', 'Y'),
+                 'Solicitud ' || lv_codsol || ' cancelada',
+                 'La solicitud fue cancelada. ' || COALESCE(NULLIF(TRIM("HV_Motivo_Cancelacion"), ''), ''),
                  "HV_UsuarioID", lv_c, lv_m);
         END IF;
 
