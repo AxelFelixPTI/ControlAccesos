@@ -1,40 +1,123 @@
 # Pendientes de validación · Control de Accesos
 
-Actualizado: 2026-10-13 · tras las fases 2 a 5 de los catálogos
+Actualizado: 2026-10-24 · ordenado por relevancia para el MVP
 
-Este archivo reúne todo lo que el sistema necesita que **una persona del negocio confirme o decida**. Ninguno de estos puntos detiene el desarrollo hoy: el sistema se construyó con una suposición razonable, que puede ajustarse después. Cada punto dice **cuándo** hace falta la respuesta. Pasada esa fecha, cambiar la suposición cuesta más.
+Este archivo reúne lo que el sistema necesita que **una persona del negocio confirme o decida**, y lo que queda por construir. Está ordenado de lo más importante a lo menos: primero lo que hay que resolver para usar el sistema con datos reales, y al final lo que puede esperar. Dentro de cada grupo, de lo más antiguo a lo más nuevo cuando tienen la misma importancia.
 
 Cómo usarlo:
 
-1. Antes de cada reunión, filtra por la persona (sección 2).
-2. Haz la **pregunta sugerida** tal cual o con tus palabras.
-3. Anota la respuesta en la columna *Estado* de la tabla de resumen y avísame en la siguiente sesión. Yo ajusto el sistema y el documento técnico.
+1. Antes de cada reunión, filtra la columna **Con quién**.
+2. Los puntos P-01 a P-11 tienen su explicación y pregunta sugerida en la sección 3. Los demás se explican en la propia tabla.
+3. Anota la respuesta en **Estado** y avísame en la siguiente sesión; yo ajusto el sistema y el documento técnico.
 
-Los códigos **D-xx** son las decisiones del documento técnico (`Docs_Modulos/.../00_PAQUETE_DISENO.md`). Los **P-xx** son los números de este archivo y no cambian aunque se resuelvan.
+La columna **Registrado** es la fecha de la entrega en que apareció cada punto. Los códigos **D-xx** son decisiones del documento técnico y **T-xx** son tareas internas.
+
+> **Nota:** las preguntas P-12 a P-39 del documento «Preguntas pendientes de afinación» (39 preguntas) no están integradas aquí porque ese documento no está entre los archivos del proyecto. Si quieres que las ordene junto con estas, compártelo.
 
 ---
 
-## 1. Resumen
+## 1. Resumen por grupo
 
-| # | Tema | D-* | Con quién | Se necesita antes de | Estado |
+| Grupo | Qué contiene | Puntos |
+| --- | --- | --- |
+| A | Por construir antes de cerrar el MVP | 1 |
+| B | Necesario para operar con datos reales | 12 |
+| C | Reglas de portería e incidencias a confirmar | 21 |
+| D | Mejoras del prototipo que pueden esperar | 11 |
+| E | Para instalar en producción o en HANA | 7 |
+| F | Postergado, fuera del MVP | 2 |
+
+---
+
+## 2. Lista ordenada
+
+### A. Por construir antes de cerrar el MVP
+
+| # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
 | --- | --- | --- | --- | --- | --- |
-| P-01 | Listas reales de áreas, cargos, motivos de visita y tipos de incidencia | — | Sandra, con Control de Activos y SST | Cargar datos reales (piloto con usuarios) | Pendiente |
-| P-02 | Zonas reales de VES y cuáles exigen SCTR y EPP | D-08, D-18 | SST, con Control de Activos | Cargar datos reales | Pendiente |
-| P-03 | Copias de correo: ¿reciben todos los avisos de la solicitud? | — | Sandra | Hito 4 (correos) | Pendiente |
-| P-04 | Qué pasa con la persona en cada tratamiento de desviación | D-11, D-32 | Vigilancia | Hito 3 (portería) | Pendiente |
-| P-05 | Pantalla de solicitud con el nombre en tres campos | D-10 | Quien aprobó el mockup *(por definir; sugerido: Sandra)* | Hito 2 (pantalla de solicitud) | Pendiente |
-| P-06 | Preparar el checklist de contratistas antes de habilitarlos | D-34 | Sandra *(sugerido)* | Etapa 2 (contratistas) | Pendiente |
-| P-07 | Pasaporte y carné de extranjería: mayúsculas y largo | — | Vigilancia y RRHH *(sugerido)* | Hito 2 (registro de visitantes) | Pendiente |
-| P-08 | Razón social y RUC de las cuatro empresas del grupo | — | *Por definir (sugerido: Contabilidad)* | Cargar datos reales | Pendiente |
-| P-09 | Dirección de las sedes | — | *Por definir (sugerido: Administración)* | Cargar datos reales | Pendiente |
-| P-10 | Nombres de las bases en el servidor de producción | D-03, D-04 | TI | Instalación en HANA | Pendiente |
-| P-11 | Estados de la visita y empresa del visitante | D-13 | Vigilancia y Sandra | Inicio del Hito 2 | Pendiente |
+| P-72 | **«No se presentó» automático:** hoy la rutina existe pero ningún proceso la dispara. Hay que programar un proceso diario que marque, después de medianoche (hora de Lima), a las personas aprobadas de ayer que no ingresaron. Con P-44 se confirma si es al cierre del mismo día o a primera hora del siguiente. | 2026-10-21 | Equipo (construir) y Sandra (P-44) | Piloto con usuarios | Por construir |
 
-Cuando la persona no figura en los documentos del proyecto, dice **por definir** con una sugerencia. Confírmala tú.
+### B. Necesario para operar con datos reales
+
+| # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
+| --- | --- | --- | --- | --- | --- |
+| P-77 | **Primer administrador real en producción.** Hoy se entra con el administrador demo, se crea el real y se corre la limpieza. Alternativa: un procedimiento de arranque que lo cree con contraseña temporal que obligue a cambiarla. | 2026-10-23 | Equipo y TI | Salida a producción | Pendiente |
+| P-01 | Listas reales de áreas, cargos, motivos de visita y tipos de incidencia (detalle en la sección 3). | 2026-10-13 | Sandra, con Control de Activos y SST | Cargar datos reales | Pendiente |
+| P-02 | Zonas reales de VES y cuáles exigen SCTR y EPP (sección 3). | 2026-10-13 | SST, con Control de Activos | Cargar datos reales | Pendiente |
+| P-51 | **Correo saliente:** servidor SMTP, puerto, SSL y cuenta remitente del grupo. Hoy el envío es simulado (no sale ningún correo). | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
+| P-54 y P-63 | **Enlace para definir contraseña por correo:** hoy lo entrega el administrador. Para enviarlo por correo hay que agregar ese tipo de correo en la base. | 2026-10-18 | Sandra y TI | Piloto con usuarios | Pendiente |
+| P-52 y P-53 | **Política de contraseñas del grupo:** largo, vigencia, complejidad, y si el bloqueo de 5 intentos por 15 minutos es la regla. Hoy: mínimo 10 caracteres. | 2026-10-18 | TI / Seguridad | Piloto con usuarios | Pendiente |
+| P-58 | **Datos personales (Ley 29733):** cuánto tiempo se conservan los datos de los visitantes y qué aviso de privacidad se les muestra. Hoy se guardan sin límite de tiempo. | 2026-10-19 | Legal (consulta ya enviada en P-31) y Sandra | Piloto con usuarios | Pendiente |
+| P-08 | Razón social y RUC de las cuatro empresas del grupo (sección 3). | 2026-10-13 | Contabilidad (sugerido) | Cargar datos reales | Pendiente |
+| P-09 | Dirección de las sedes (sección 3). | 2026-10-13 | Administración (sugerido) | Cargar datos reales | Pendiente |
+| P-76 | Los usuarios de demostración tienen correos ficticios: con el envío real activo (P-51) esos avisos no llegarán a nadie. Usarlos solo en piloto y borrarlos con la limpieza antes de usar datos reales. | 2026-10-23 | Equipo | Cargar datos reales | Pendiente |
+| P-50 | Correos: máximo de reintentos (propuesta: 5) y espera entre intentos (propuesta: 5 minutos). | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
+| P-47 | ¿Una incidencia confirmada debe avisar por correo y a quién? Hoy no se envía ninguno; agregarlo requiere un tipo de correo nuevo. | 2026-10-18 | Sandra | Piloto con usuarios | Pendiente |
+
+### C. Reglas de portería e incidencias a confirmar
+
+| # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
+| --- | --- | --- | --- | --- | --- |
+| P-04 | Qué pasa con la persona en cada tratamiento de desviación (entra, entra restringida, no entra; sale o se retiene un elemento). Detalle en la sección 3. | 2026-10-13 | Vigilancia | Piloto con usuarios | Pendiente |
+| P-40 | ¿El respaldo de equipos o herramientas debe existir **antes** del ingreso (supuesto actual) o puede registrarse después? | 2026-10-17 | Sandra | Piloto con usuarios | Pendiente |
+| P-41 | Si se deniega el ingreso y luego se corrige (por ejemplo, trae el DNI): hoy no reingresa en la misma visita; habría que anular el registro o crear otra solicitud. | 2026-10-17 | Vigilancia | Piloto con usuarios | Pendiente |
+| P-42 | Registro tardío: ¿lo puede hacer cualquier vigilante o solo con visto bueno? ¿Hasta cuántos días después? | 2026-10-17 | Sandra y Vigilancia | Piloto con usuarios | Pendiente |
+| P-43 | ¿Se acepta como «Coordinador consultado» a cualquier usuario con permiso de conformidad en la sede (supuesto actual)? | 2026-10-17 | Sandra | Piloto con usuarios | Pendiente |
+| P-44 | «No se presentó»: ¿se marca al cierre del mismo día o al día siguiente? (hoy: visitas anteriores al corte, normalmente ayer). | 2026-10-17 | Sandra | Al construir P-72 | Pendiente |
+| P-45 y P-79 | Desviación e incidencia: hoy están separadas. Confirmar cuándo una desviación debe convertirse en incidencia y si la pantalla debe enlazarlas. | 2026-10-17 | Sandra | Piloto con usuarios | Pendiente |
+| P-46 | ¿Un Coordinador puede decidir una incidencia que él mismo registró (supuesto actual: sí)? | 2026-10-18 | Sandra | Piloto con usuarios | Pendiente |
+| P-48 | ¿Una incidencia puede corregirse o anularse después de registrada? Hoy solo se decide (confirmar o desestimar). | 2026-10-18 | Sandra | Piloto con usuarios | Pendiente |
+| P-81 y P-83 | Incidencias: hoy solo se registran para personas que **ya ingresaron hoy** y con la hora de hoy. No se puede registrar la de alguien que no llegó a entrar ni la de un día anterior. | 2026-10-24 | Vigilancia y Sandra | Piloto con usuarios | Pendiente |
+| P-07 | Pasaporte y carné de extranjería: mayúsculas y largo mínimo y máximo (sección 3). | 2026-10-13 | Vigilancia y RRHH (sugerido) | Piloto con usuarios | Pendiente |
+| P-11 | Estados de la visita y empresa del visitante (¿lista o texto libre?) (sección 3). | 2026-10-13 | Vigilancia y Sandra | Piloto con usuarios | Pendiente |
+| P-03 | Copias de correo: ¿reciben todos los avisos de la solicitud o solo algunos? (sección 3). | 2026-10-13 | Sandra | Piloto con usuarios | Pendiente |
+| P-05 | Nombre del visitante en tres casillas en vez de una (sección 3). | 2026-10-13 | Sandra (quien aprobó el mockup) | Presentación del prototipo | Pendiente |
+| P-71 | Respaldo para varias personas a la vez (un grupo con una sola guía de remisión): la base lo admite, la pantalla lo registra de a una persona. | 2026-10-21 | Vigilancia | Piloto con usuarios | Pendiente |
+| P-73 | La lista de hoy no se actualiza sola entre varios vigilantes (hay que volver a buscar). ¿Se quiere actualización automática cada cierto tiempo? | 2026-10-21 | Vigilancia | Piloto con usuarios | Pendiente |
+| P-49 y P-86 | Reporte: ¿92 días de rango máximo es suficiente? ¿Qué columnas necesita el Excel del G-FSCA-008? ¿Falta un filtro por resultado (ingresa, restringido, no ingresa)? | 2026-10-18 | Sandra y Vigilancia | Piloto con usuarios | Pendiente |
+| P-84 | Reporte: el prototipo muestra la columna «Atendió» (responsable de la solicitud); la base no la devuelve y por eso no está. | 2026-10-24 | Sandra | Después del piloto | Pendiente |
+| P-69 | Vista de solo lectura para quien puede ver todas las solicitudes pero no aprobar (por ejemplo, gerencia): ¿qué roles la tendrán? | 2026-10-21 | Sandra | Piloto con usuarios | Pendiente |
+| P-68 | Bandeja de solicitudes del coordinador: hoy lista todas las que cumplen el filtro. Confirmar el volumen esperado antes de agregar páginas. | 2026-10-21 | Sandra | Después del piloto | Pendiente |
+| P-80 | Desviaciones: sin filtro por fechas en la pantalla (la base lo admite). ¿Hace falta? | 2026-10-23 | Sandra | Después del piloto | Pendiente |
+
+### D. Mejoras del prototipo que pueden esperar
+
+| # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
+| --- | --- | --- | --- | --- | --- |
+| P-85 | **Descargar PDF del Reporte de accesos.** Hoy solo existe la exportación a CSV (se abre en Excel). **Tanto el CSV como el PDF deben responder a los mismos filtros de la pantalla** (fechas, persona/DNI/empresa, ingresos o salidas, solo con desviación). El CSV ya lo cumple. Para el PDF hay que decidir librería o impresión del navegador, y si lleva membrete. | 2026-10-24 | Sandra (formato) y Equipo | Después del piloto | Por construir |
+| P-59 | Aviso «está en uso» al editar un catálogo (ejemplo: «lo usan 12 solicitudes, por eso se desactiva y no se elimina»). El prototipo lo muestra; falta una rutina que cuente usos. Hoy el aviso es general. | 2026-10-19 | Sandra | Después del piloto | Pendiente |
+| P-62 | «Importar desde Excel» del prototipo (carga masiva de personal): no construido. ¿Entra en el MVP? | 2026-10-19 | Sandra | Decidir alcance del MVP | Pendiente |
+| P-65 | El prototipo avisa cuando una persona ya está aprobada el mismo día en otra solicitud. No está construido. | 2026-10-19 | Sandra | Después del piloto | Pendiente |
+| P-66 | Correos en copia: hoy se escriben separados por «;» en un solo campo; el prototipo los muestra como etiquetas. | 2026-10-19 | Sandra | Después del piloto | Pendiente |
+| P-67 | Insignia con el número de solicitudes por decidir junto a «Solicitudes» en el menú (hoy el número aparece solo dentro de la pantalla). | 2026-10-21 | Sandra | Después del piloto | Pendiente |
+| P-78 | Desviaciones: el prototipo muestra la columna «No cumplió» (ítems fallidos) en la lista; hoy solo se ve en el detalle. | 2026-10-23 | Sandra | Después del piloto | Pendiente |
+| P-61 | Renombrar «trabajador» a «personal» también en el código del permiso y en los mensajes internos de la base. | 2026-10-19 | Equipo | Antes de traducir a HANA | Pendiente |
+| P-60 | Autogestión de contraseña («olvidé mi contraseña» por correo). Se evalúa después del MVP. | 2026-10-19 | Sandra y TI | Después del MVP | Pendiente |
+| P-06 | Preparar el checklist de contratistas antes de habilitarlos (sección 3). | 2026-10-13 | Sandra (sugerido) | Etapa 2 (contratistas) | Pendiente |
+| P-64 | Selector de tipo de acceso en la solicitud cuando se habiliten Contratista, Proveedor o Interno visitante. | 2026-10-19 | Sandra | Etapa 2 | Pendiente |
+
+### E. Para instalar en producción o en HANA
+
+| # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
+| --- | --- | --- | --- | --- | --- |
+| P-10 | Nombres de los esquemas (bases) en el servidor de producción HANA y en qué servidor se instala (sección 3). | 2026-10-13 | TI | Instalación en HANA | Pendiente |
+| P-55 y P-75 | **Hora:** la aplicación y la base deben estar en la misma zona horaria. La conexión ya fuerza hora de Lima (D-129); confirmar cómo está el servidor de producción. Los datos de prueba guardados antes del ajuste pueden tener horas corridas 5 horas. | 2026-10-18 | TI | Instalación en HANA | Pendiente |
+| T-05 | **Riesgo para HANA:** si un procedimiento de escritura falla a medias, HANA no deshace solo; la aplicación debe abrir una transacción por cada escritura y revertirla si hay error. Probar con una falla provocada. | 2026-10-13 | Equipo | Instalación en HANA | Por probar |
+| T-06 a T-22 | **Traducción a HANA** de todas las rutinas (Hitos 2 a 4, login, personal, pantallas). Las pantallas no cambian; sí las rutinas (cursores, tablas temporales, `RETURN QUERY`, etc.). Reglas en `EQUIVALENCIAS_POSTGRESQL_HANA.md`. | 2026-10-13 | Equipo | Instalación en HANA | Por hacer |
+| T-02 | Traducir a HANA la carga inicial de zonas (script 05). | 2026-10-13 | Equipo | Instalación en HANA | Por hacer |
+| T-03 y T-04 | **Decisiones técnicas del usuario:** separar «TABLAS» de las rutinas en `Docs_BD` (T-03) y mantener o no el proyecto `Infrastructure.Contracts` (T-04). | 2026-10-13 | Axel | Cuando quiera | Por decidir |
+| T-07 | Confirmar con Sandra: el sistema no deja retirar a la última persona de una solicitud (pide cancelarla); el prototipo sí lo permitía. | 2026-10-17 | Sandra | Presentación del prototipo | Pendiente |
+
+### F. Postergado, fuera del MVP
+
+| # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
+| --- | --- | --- | --- | --- | --- |
+| P-87 | **Pantalla «Autorizados por zona»** (quién estaba autorizado a una zona en una fecha y si llegó a entrar). No está en el prototipo y no se tiene claro para qué se usaría. La rutina de la base ya existe. Se retoma solo si el negocio la pide. | 2026-10-24 | Sandra | Sin fecha (fuera del MVP) | Postergado |
+| P-57 y P-74 | Selección de sede activa al entrar (hoy VES fija). Se retoma cuando se contemple la sede Magdalena. | 2026-10-19 | Sandra | Etapa con sede MAG | Postergado |
 
 ---
 
-## 2. Por persona
+## 3. Detalle de los puntos P-01 a P-11 (por persona)
 
 ### Sandra
 
@@ -115,7 +198,7 @@ Cuando la persona no figura en los documentos del proyecto, dice **por definir**
 
 ---
 
-## 3. Tareas internas (no requieren preguntar a nadie)
+## 4. Tareas internas T-01 a T-07 (no requieren preguntar a nadie)
 
 | # | Qué es | Cuándo |
 | --- | --- | --- |
@@ -129,10 +212,9 @@ Cuando la persona no figura en los documentos del proyecto, dice **por definir**
 
 ---
 
-## 4. Resueltos
+## 5. Resueltos
 
-*(Cuando un punto se resuelva, se mueve aquí con la fecha y la respuesta.)*
-
-| # | Fecha | Respuesta | Quién respondió |
+| # | Tema | Registrado | Resolución |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| P-70 y P-82 | Botón «Registrar incidencia» en cada persona de Control de accesos (como el prototipo). | 2026-10-24 | Construido (D-146) |
+| P-56 | Estilo de la web: se construyó con el diseño del prototipo aprobado. | 2026-10-19 | Construido (según prototipo) |

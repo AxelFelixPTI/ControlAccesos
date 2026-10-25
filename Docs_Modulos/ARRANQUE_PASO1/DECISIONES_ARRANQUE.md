@@ -240,3 +240,16 @@
 | N.º | Decisión | Estado |
 |---|---|---|
 | D-147 | **Exportar a Excel** ya no navega la pestaña hacia el archivo: la pantalla lo pide en segundo plano y lo entrega como descarga. Así no se corta la sesión de depuración de Visual Studio (que se detenía al navegar a la descarga) y un error, como pasar de 92 días, se muestra como aviso. | Candidata |
+
+
+---
+
+# Orden de pendientes y entorno de desarrollo (2026-10-24, noche)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-148 | `PENDIENTES_VALIDACION.md` se reorganizó **por relevancia para el MVP** en seis grupos (A por construir, B datos reales, C reglas a confirmar, D mejoras del prototipo, E producción/HANA, F postergado) y trae la fecha en que apareció cada punto y con quién validarlo. | Candidata |
+| D-149 | **Entorno de desarrollo:** la detención de la aplicación al descargar el CSV venía de la opción de Visual Studio «detener el depurador cuando se cierre la ventana del navegador», no de la aplicación. Se desactivó esa opción y se resolvió. No afecta a producción. | Resuelta |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-87** — **Pantalla «Autorizados por zona»: postergada, fuera del MVP.** No está en el prototipo y no se tiene claro para qué se usaría. La rutina `ERP_CAF_REPORTE_AUTORIZADOS_POR_ZONA` queda sin pantalla. Se retoma solo si el negocio la pide.

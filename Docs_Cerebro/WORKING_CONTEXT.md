@@ -46,7 +46,7 @@ Actualizado: 2026-10-17
 
 ## Siguiente paso literal
 
-Usuario aplica el zip de Incidencias, el de Reporte de accesos y esta corrección (D-147) y prueba **Exportar a Excel (CSV)** con distintos filtros: la aplicación ya no debe detenerse. Después, **proceso automático diario de «No se presentó»** (D-70, P-72), luego pantalla de «Autorizados por zona» (rutina existente, D-85) y revisión de pendientes (PENDIENTES_VALIDACION.md). Pendiente aparte: PDF del reporte, con los mismos filtros que el CSV (P-85).
+Usuario copia `PENDIENTES_VALIDACION.md` reorganizado (D-148) y lo usa para decidir con Sandra qué entra al MVP. Código: construir el **proceso automático diario de «No se presentó»** (D-70, P-72), luego revisar con la base real las pantallas de Desviaciones, Incidencias y Reporte de accesos. Todas las pantallas del prototipo ya están hechas. Pendiente aparte: PDF del reporte con los mismos filtros que el CSV (P-85); «Autorizados por zona» postergado (P-87).
 
 ## Decisiones vigentes que más condicionan
 
