@@ -37,6 +37,44 @@ public static class PlantillaCorreo
         ["SOLICITUD_CANCELADA"] = "Solicitud cancelada",
     };
 
+    /// <summary>
+    /// Correo sin solicitud (por ejemplo, el enlace para definir contraseña). Las líneas que empiezan con http
+    /// se muestran como botón; en texto plano quedan como dirección.
+    /// </summary>
+    public static CorreoArmado ArmarSimple(string tipo, string asunto, string mensaje, string? aviso = null)
+    {
+        var titulo = tipo == "USUARIO_DEFINIR_PASSWORD" ? "Restablecer su contraseña" : "Aviso del sistema";
+        var lineas = (mensaje ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var h = new StringBuilder();
+        h.Append("<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>");
+        h.Append("<body style=\"margin:0;padding:0;background:#f3f5f8;\">");
+        h.Append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f3f5f8;\"><tr><td align=\"center\" style=\"padding:20px 10px;\">");
+        h.Append($"<table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:100%;max-width:600px;background:#ffffff;border:1px solid {Borde};font-family:Segoe UI,Arial,sans-serif;color:#1d2530;\">");
+        h.Append($"<tr><td style=\"background:{Azul};color:#ffffff;padding:14px 22px;font-size:13px;letter-spacing:.3px;\">Control de Accesos · Grupo Trianon</td></tr>");
+        if (!string.IsNullOrWhiteSpace(aviso))
+            h.Append($"<tr><td style=\"background:#fff8e1;border-bottom:1px solid #f0d98a;padding:10px 22px;font-size:12px;color:#6b5400;\">{Esc(aviso).Replace("\n", "<br>")}</td></tr>");
+        h.Append($"<tr><td style=\"padding:22px 22px 6px 22px;\"><div style=\"font-size:19px;font-weight:600;color:{Azul};\">{Esc(titulo)}</div></td></tr>");
+        h.Append("<tr><td style=\"padding:12px 22px 4px 22px;font-size:14px;line-height:1.5;\">");
+        foreach (var l in lineas)
+        {
+            if (l.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                h.Append($"<p style=\"margin:14px 0;\"><a href=\"{Esc(l)}\" style=\"display:inline-block;background:{Azul};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-size:14px;\">Definir mi contraseña</a></p>")
+                 .Append($"<p style=\"margin:0 0 8px 0;font-size:11px;color:{Gris};word-break:break-all;\">Si el botón no funciona, copie esta dirección en el navegador:<br>{Esc(l)}</p>");
+            else
+                h.Append($"<p style=\"margin:0 0 8px 0;\">{Esc(l)}</p>");
+        }
+        h.Append("</td></tr>");
+        h.Append($"<tr><td style=\"padding:20px 22px;font-size:11px;color:{Gris};line-height:1.5;\">Mensaje automático del sistema Control de Accesos. Esta casilla no se monitorea.</td></tr>");
+        h.Append("</table></td></tr></table></body></html>");
+
+        var x = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(aviso)) x.AppendLine(aviso).AppendLine();
+        x.AppendLine(titulo.ToUpperInvariant()).AppendLine();
+        foreach (var l in lineas) x.AppendLine(l);
+        x.AppendLine().AppendLine("Mensaje automático. Esta casilla no se monitorea.");
+        return new CorreoArmado(asunto, h.ToString(), x.ToString());
+    }
+
     public static string Asunto(Dto_Correo_Solicitud d, bool esRespuesta)
         => (esRespuesta ? "Re: " : "") + $"Solicitud {d.Codigo} · {d.Empresa_Visitante}";
 

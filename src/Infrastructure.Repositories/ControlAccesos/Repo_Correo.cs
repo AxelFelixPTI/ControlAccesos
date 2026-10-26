@@ -113,6 +113,24 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         }
     }
 
+    public async Task<ResultSp> EncolarAsync(string tipo, long? solicitudId, string destinatarios, string? copia, string asunto, string cuerpo, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_CORREO_ENCOLAR",
+            bind: p =>
+            {
+                AddStrReq(p, "HV_Tipo", tipo);
+                AddLong(p, "HV_ID_Solicitud", solicitudId);
+                AddStrReq(p, "HV_Destinatarios", destinatarios);
+                AddStr(p, "HV_Copia", copia);
+                AddStrReq(p, "HV_Asunto", asunto);
+                AddStrReq(p, "HV_Cuerpo", cuerpo);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
     public async Task<ResultSp> MarcarEnviadoAsync(long correoId, long usuarioId, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraAsync(

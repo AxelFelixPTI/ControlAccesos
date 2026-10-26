@@ -91,6 +91,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<ISrv_Tipo_Acceso_Paso, Srv_Tipo_Acceso_Paso>();
         s.AddScoped<ISrv_Usuario, Srv_Usuario>();
         s.AddScoped<ISrv_Auth, Srv_Auth>();
+        s.AddScoped<ISrv_Restablecer, Srv_Restablecer>();
 
         // ── Correo y seguridad ──────────────────────────────────────
         s.Configure<OpcionesCorreo>(config.GetSection(OpcionesCorreo.Seccion));

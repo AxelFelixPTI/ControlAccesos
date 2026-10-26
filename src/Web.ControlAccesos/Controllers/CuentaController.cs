@@ -17,7 +17,12 @@ namespace Web.ControlAccesos.Controllers;
 public sealed class CuentaController : Controller
 {
     private readonly ISrv_Auth _auth;
-    public CuentaController(ISrv_Auth auth) => _auth = auth;
+    private readonly ISrv_Restablecer _restablecer;
+    private readonly IConfiguration _config;
+    public CuentaController(ISrv_Auth auth, ISrv_Restablecer restablecer, IConfiguration config)
+    {
+        _auth = auth; _restablecer = restablecer; _config = config;
+    }
 
     [HttpGet, AllowAnonymous]
     public IActionResult Ingresar(string? returnUrl = null)
@@ -48,6 +53,26 @@ public sealed class CuentaController : Controller
         return !string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)
             ? LocalRedirect(vm.ReturnUrl)
             : RedirectToAction("Index", "Inicio");
+    }
+
+    // «¿Olvidó su contraseña?»: pide el correo y envía un enlace de un solo uso. La respuesta es la misma exista o no la cuenta.
+    [HttpGet, AllowAnonymous]
+    public IActionResult OlvidePassword()
+    {
+        if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "Inicio");
+        return View(new OlvidePasswordVM());
+    }
+
+    [HttpPost, AllowAnonymous, ValidateAntiForgeryToken]
+    public async Task<IActionResult> OlvidePassword(OlvidePasswordVM vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return View(vm);
+        // El enlace usa la dirección configurada (Correo:UrlBase), nunca la del encabezado Host, que alguien podría falsear.
+        var baseUrl = _config["Correo:UrlBase"];
+        if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var r = await _restablecer.SolicitarAsync(vm.Correo, baseUrl, ct);
+        TempData["Aviso"] = r.Message;
+        return RedirectToAction(nameof(Ingresar));
     }
 
     [HttpPost, Authorize, ValidateAntiForgeryToken]

@@ -16,6 +16,13 @@ public sealed class IngresarVM
     public string? ReturnUrl { get; set; }
 }
 
+public sealed class OlvidePasswordVM
+{
+    [Required(ErrorMessage = "Escriba su correo.")]
+    [Display(Name = "Correo")]
+    public string Correo { get; set; } = string.Empty;
+}
+
 public sealed class CambiarPasswordVM
 {
     [Required(ErrorMessage = "Escriba su contraseña actual.")]

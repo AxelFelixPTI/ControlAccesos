@@ -103,9 +103,8 @@ public sealed class ProcesadorCorreos
 
         if (c.ID_Solicitud is null)
         {
-            var textoSimple = (aviso is null ? "" : aviso + "\n\n") + c.Cuerpo;
-            var htmlSimple = "<p>" + WebUtility.HtmlEncode(textoSimple).Replace("\n", "<br>") + "</p>";
-            return new MensajeCorreo(para, cc, c.Asunto, htmlSimple, textoSimple, id, respuestaA);
+            var s = PlantillaCorreo.ArmarSimple(c.Tipo, c.Asunto, c.Cuerpo, aviso);
+            return new MensajeCorreo(para, cc, s.Asunto, s.Html, s.Texto, id, respuestaA);
         }
 
         var datos = await _correos.SolicitudDatosAsync(UsuarioSistema, c.ID_Solicitud.Value, ct).ConfigureAwait(false);

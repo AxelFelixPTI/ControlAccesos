@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-24 (noche)
+Actualizado: 2026-10-25
 
 ## Dónde estamos
 
+- **2026-10-25 · Correo funcionando con Gmail + recuperar contraseña.** Se resolvió el envío real: el `Local.json` pisaba las variables de entorno (D-156) y `System.Net.Mail` fallaba con Gmail (cambio a MailKit, D-157). Login: ojito en todos los campos de contraseña (D-158) y «¿Olvidó su contraseña?» con enlace por correo (D-159, `ISrv_Restablecer`). El usuario entregó 10 puntos de mejora: P-95 a P-104 en el grupo A.
 - **2026-10-24 (noche) · Integración de correo hecha (candidata).** Flujo Para/CC por estado (D-150), hilo con `Message-ID`/`In-Reply-To` (D-151), plantilla HTML sobria + texto (D-152) alimentada por `ERP_CAF_CORREO_SOLICITUD_DATOS/_PERSONAS` (`SP_CAF_CORREO_PLANTILLA_ALL.sql`) y `ERP_CAF_FN_COPIA_CORREO`; «Observaciones» → «Detalles adicionales» (D-153); `UrlBase`, `RedirigirA` (modo prueba) y envío dentro de la web (D-154). Pruebas Hito 2 escritura: 190 de 190. Cabeceras del hilo verificadas contra un SMTP local; falta probar con Gmail real (P-89). Guías: `GUIA_CORREO.md` y `GUIA_DESPLIEGUE_RED.md` (primer despliegue en la red del usuario).
 - **2026-10-24 · Reporte de accesos hecho (candidato).** `ReportesController` + vista + `reportes.js`: filtros, resumen del rango, exportar CSV, imprimir (D-143..D-145, P-84..P-86, T-22). Además, botón «Registrar incidencia» en Control de accesos (D-146). Sin cambios de base de datos.
 - **2026-10-18 · Capa web, corte 1 (arranque, login y menú).** Proyecto `src/Web.ControlAccesos` (ASP.NET Core MVC + Razor): inicio de sesión con cookie, cierre, cambio de contraseña (obligatorio si la cuenta lo exige), menú lateral por permisos, pantalla de inicio con licencias y permisos, pantallas «Sin acceso» y «Error». Probado de punta a punta con peticiones HTTP reales y un servicio de autenticación falso (sin sesión → redirige; token anti-falsificación; clave mala; login; menú; cabeceras; redirección externa bloqueada; salir; cambio de contraseña obligatorio y validaciones). Antes: `login` real contra PostgreSQL funcionó (administrador creado, licencia LIC_CAF_ADMIN y 3 permisos). Decisiones D-93 a D-97, pendientes P-56, P-57, T-12 en `DECISIONES_ARRANQUE.md`.
@@ -47,7 +48,7 @@ Actualizado: 2026-10-24 (noche)
 
 ## Siguiente paso literal
 
-Usuario aplica la entrega de correo (restaurar en una base vacía con `-Crear`), configura Gmail con `GUIA_CORREO.md` (con `RedirigirA` a su correo) y prueba el hilo (P-89); luego el primer despliegue en su red con `GUIA_DESPLIEGUE_RED.md`. Código siguiente: rediseños de interfaces que el usuario indicará; después, el proceso automático diario de «No se presentó» (D-70, P-72) y el PDF del reporte (P-85).
+Usuario prueba el login (ojito y «¿Olvidó su contraseña?»). Luego se trabaja la lista P-95 a P-104 en este orden sugerido: P-100 y P-102 (rápidos), P-99 (incidencias fusionadas), P-98 (modificar personas tras aprobar), P-101, P-96 (móvil), P-97 y P-95 (requieren decidir con Sandra). Después: «No se presentó» automático (P-72) y PDF del reporte (P-85).
 
 ## Decisiones vigentes que más condicionan
 

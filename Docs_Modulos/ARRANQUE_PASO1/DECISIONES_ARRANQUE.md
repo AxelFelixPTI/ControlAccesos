@@ -275,3 +275,21 @@
 - **P-91** — Dirección real de la web (`UrlBase`) y cuenta corporativa definitiva (se suma a P-51).
 - **T-23** — En HANA `ERP_CAF_FN_COPIA_CORREO` no puede llamar a un procedimiento con parámetros de salida dentro de una función: traducirla como procedimiento con salida o calcular la lista dentro del procedimiento que encola. `CHR(10)` se traduce a `CHAR(10)`.
 
+
+---
+
+# Correo en uso real y recuperación de contraseña (2026-10-25)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-156 | **Orden de configuración:** `appsettings.json` < `appsettings.Local.json` < **variables de entorno** (las variables ganan siempre). Antes el `Local.json` las pisaba (una `Clave` vacía anulaba `Correo__Clave`). Las opciones anidadas se escriben con doble guion bajo: `Correo__Clave`. | Resuelta |
+| D-157 | **Envío SMTP con MailKit** en lugar de `System.Net.Mail`, que terminaba en «The connection was closed» al conectar con Gmail. 587 = STARTTLS, 465 = SSL directo. Si falla, `Ultimo_Error` guarda la cadena completa de errores. | Resuelta (probada con Gmail) |
+| D-158 | **Ojito para ver la contraseña** en todos los campos de contraseña (ingreso, definir, cambiar), puesto desde `layout.js`; no cambia las vistas. | Candidata |
+| D-159 | **«¿Olvidó su contraseña?»** en la pantalla de ingreso: el usuario escribe su correo y recibe un enlace de un solo uso, con vencimiento de 60 minutos (tipo de correo `USUARIO_DEFINIR_PASSWORD`, plantilla propia). La respuesta es siempre la misma exista o no la cuenta; un mismo correo no puede pedir otro enlace antes de 60 segundos. El enlace usa `Correo:UrlBase`, no el encabezado Host. Cierra P-54 y P-63. | Candidata |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-92** — El límite de un enlace por minuto se guarda en memoria: se pierde al reiniciar la web y no sirve con varias instancias. Si hace falta, moverlo a la base.
+- **P-93** — El enlace de restablecer queda en el cuerpo del correo en la cola (`CAF_Correo_Pendiente`). El token es de un solo uso y vence en 60 minutos, pero conviene decidir si se borra el cuerpo al enviarlo.
+- **P-94** — El botón «Contraseña» de la parte superior sigue existiendo para cambiar la clave dentro de la aplicación. En los puntos de mejora se pidió quitarlo; confirmar si se retira ahora que existe el enlace por correo.
+- **P-95 a P-104** — Puntos de mejora recibidos el 2026-10-25: ver el grupo A de `PENDIENTES_VALIDACION.md`.
+

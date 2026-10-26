@@ -1,6 +1,6 @@
 # Pendientes de validación · Control de Accesos
 
-Actualizado: 2026-10-24 · ordenado por relevancia para el MVP
+Actualizado: 2026-10-25 · ordenado por relevancia para el MVP
 
 Este archivo reúne lo que el sistema necesita que **una persona del negocio confirme o decida**, y lo que queda por construir. Está ordenado de lo más importante a lo menos: primero lo que hay que resolver para usar el sistema con datos reales, y al final lo que puede esperar. Dentro de cada grupo, de lo más antiguo a lo más nuevo cuando tienen la misma importancia.
 
@@ -36,6 +36,16 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
 | --- | --- | --- | --- | --- | --- |
 | P-72 | **«No se presentó» automático:** hoy la rutina existe pero ningún proceso la dispara. Hay que programar un proceso diario que marque, después de medianoche (hora de Lima), a las personas aprobadas de ayer que no ingresaron. Con P-44 se confirma si es al cierre del mismo día o a primera hora del siguiente. | 2026-10-21 | Equipo (construir) y Sandra (P-44) | Piloto con usuarios | Por construir |
+| P-95 | **Hilo con días de diferencia:** si la aprobación llega días después, Gmail puede no agrupar el correo con el original; y se quiere que la respuesta use «Responder a todos» (que los copiados desde el asistente, por ejemplo gerencia, sigan al tanto) y que el hilo permita seguir conversando (proveedores, almacén…). Hoy los correos llevan `In-Reply-To`; falta definir cómo mantener la conversación y quién puede escribir en ella. | 2026-10-25 | Sandra | Piloto con usuarios | Por analizar |
+| P-96 | **Móvil (responsive):** las pantallas se ven justas en celular; revisar cada una. | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
+| P-97 | **Varios roles:** cambiar de rol desde el perfil (como en el prototipo). El selector existe en el prototipo; confirmar qué falta en la aplicación. | 2026-10-25 | Equipo | Piloto con usuarios | Por analizar |
+| P-98 | **Coordinador: agregar o quitar personas después de aprobar la solicitud** (acción de emergencia «Corregir/Modificar»), reflejada en Vigilancia. Hoy «agregar con aprobación automática» convive con aprobar a las personas indicadas; no debería. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
+| P-99 | **Incidencias:** fusionar «Incidencias» (Coordinador) e «Incidencias del día» (Vigilancia) en una sola; si la registra el Coordinador, queda **aprobada automáticamente**; desde Control de accesos, su botón debe ir a su pantalla con la persona enlazada. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
+| P-100 | **Reporte de accesos:** la etiqueta «Sale» debe decir «Salió». | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
+| P-101 | **Autocompletado de empresa** (con las ya registradas) y mejora del buscador de personas al crear la solicitud. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
+| P-102 | **Asistente, paso Personas:** al cambiar un DNI autocompletado por otro no registrado, limpiar automáticamente nombres y apellidos. | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
+| P-103 | **Correos en copia del asistente:** se reportó que no llegaba la copia, solo el aviso al coordinador. Revisar con la prueba de correos reales (ya se envía el CC según D-150). | 2026-10-25 | Equipo | Piloto con usuarios | Por probar |
+| P-104 | **Quitar el botón «Contraseña»** de la parte superior (ver P-94), ahora que existe «¿Olvidó su contraseña?». | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
 
 ### B. Necesario para operar con datos reales
 
@@ -45,7 +55,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-01 | Listas reales de áreas, cargos, motivos de visita y tipos de incidencia (detalle en la sección 3). | 2026-10-13 | Sandra, con Control de Activos y SST | Cargar datos reales | Pendiente |
 | P-02 | Zonas reales de VES y cuáles exigen SCTR y EPP (sección 3). | 2026-10-13 | SST, con Control de Activos | Cargar datos reales | Pendiente |
 | P-51 | **Correo saliente:** servidor SMTP, puerto, SSL y cuenta remitente del grupo. Ya existe el envío real por SMTP (Gmail de prueba `trianon.accesos@gmail.com`, ver `GUIA_CORREO.md`); falta definir la cuenta corporativa. | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
-| P-54 y P-63 | **Enlace para definir contraseña por correo:** hoy lo entrega el administrador. Para enviarlo por correo hay que agregar ese tipo de correo en la base. | 2026-10-18 | Sandra y TI | Piloto con usuarios | Pendiente |
+| P-54 y P-63 | **Enlace para definir contraseña por correo.** Hecho para «¿Olvidó su contraseña?» en el ingreso (D-159); falta probarlo con usuarios reales. | 2026-10-18 | Sandra y TI | Piloto con usuarios | Hecho, por probar |
 | P-52 y P-53 | **Política de contraseñas del grupo:** largo, vigencia, complejidad, y si el bloqueo de 5 intentos por 15 minutos es la regla. Hoy: mínimo 10 caracteres. | 2026-10-18 | TI / Seguridad | Piloto con usuarios | Pendiente |
 | P-58 | **Datos personales (Ley 29733):** cuánto tiempo se conservan los datos de los visitantes y qué aviso de privacidad se les muestra. Hoy se guardan sin límite de tiempo. | 2026-10-19 | Legal (consulta ya enviada en P-31) y Sandra | Piloto con usuarios | Pendiente |
 | P-08 | Razón social y RUC de las cuatro empresas del grupo (sección 3). | 2026-10-13 | Contabilidad (sugerido) | Cargar datos reales | Pendiente |

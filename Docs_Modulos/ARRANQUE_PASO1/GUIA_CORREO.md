@@ -51,6 +51,9 @@ Cada correo trae todos los datos de la solicitud (código, estado, sede, fecha, 
 5. **Modo prueba:** mientras `RedirigirA` tenga un valor, todos los correos llegan **solo a esa dirección**, con un aviso arriba que dice a quién habrían llegado. Úsalo hasta que los usuarios reales estén cargados; después déjalo vacío.
 6. Reinicia la web. El envío corre dentro de la web cada 30 segundos (`Correo:IntervaloSegundos`).
 
+### Variables de entorno (alternativa recomendada para las claves)
+Las variables de entorno **ganan** sobre `appsettings.json` y sobre `appsettings.Local.json`. Se escriben con doble guion bajo, por ejemplo `Correo__Clave`, `Correo__Usuario`, `Correo__Remitente`, `Correo__RedirigirA`, `CAF_DB_CLAVE`. Después de crearlas hay que reiniciar Visual Studio. No dejes en el `Local.json` valores de ejemplo de lo que vayas a poner como variable.
+
 ## 4. Qué es `UrlBase` (la «dirección»)
 
 Es la dirección donde la gente abre el sistema; con ella se arma el botón **Ver solicitud**. En desarrollo: `http://localhost:5080`. En la prueba en red: `http://IP-DE-TU-PC:5080` (ver `GUIA_DESPLIEGUE_RED.md`). Al publicar en internet será la dirección definitiva (por ejemplo `https://accesos.grupotrianon.com`).
