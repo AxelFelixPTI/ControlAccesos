@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-26
+Actualizado: 2026-10-27
 
 ## Dónde estamos
 
+- **2026-10-27 · Puntos de mejora, entrega C (P-98).** Corrección de emergencia del Coordinador sobre solicitudes `APROBADA`/`APROBADA_PARCIAL` hasta el día de la visita, con sustento obligatorio (D-169 a D-175). SP nuevos `ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA` y `_RETIRAR_EMERGENCIA` (reemplazan a `_AGREGAR_APROBADA`); no se quita a quien ya ingresó ni a la última persona; correo `SOLICITUD_CORRECCION` (script `13_ALTER_CORREOS_CORRECCION.sql`, se ejecuta una sola vez en base vacía con `restaurar_bd.ps1`). Pruebas SQL en PostgreSQL 16: Hito 2 escritura 227/227 (+33), Hito 1 143/143, Hito 2 lectura 202/202, Hito 3 140/140 y 100/100, Hito 4 138/138 y 113/113, permisos 43/43; Hito 0: 60 de 65 (5 fallos conocidos por el seed demo 11). Compilación completa con 0 errores y 0 avisos; navegador (Playwright, 1280 y 390 px) sobre la pantalla con servicios simulados. **No probado:** C# contra PostgreSQL real, Gmail, HANA.
 - **2026-10-26 · Puntos de mejora, entrega B.** Incidencias en una sola pantalla (D-166), la del Coordinador nace confirmada (D-165, SP cambiado), botón de Control de accesos lleva a ella con la persona (D-167), Áreas y Cargos editables en Catálogos (D-168). Pruebas SQL: Hito 4 escritura 138/138.
 - **2026-10-26 · Puntos de mejora, entrega A.** «Salió» en el reporte (D-160), limpieza de nombres al cambiar el DNI (D-161), autocompletar empresa y persona (D-162, `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR`, `Empresas` y `PersonasBuscar`), botón «Contraseña» quitado (D-163), copia de correos aclarada (D-164). Quedan por entregar B (incidencias), C (modificar personas tras aprobar), D (móvil y cambio de rol), E (hilo de correo). Decisión del usuario: no se archivan en pendientes, se resuelven antes de presentar el prototipo.
 - **2026-10-25 · Correo funcionando con Gmail + recuperar contraseña.** Se resolvió el envío real: el `Local.json` pisaba las variables de entorno (D-156) y `System.Net.Mail` fallaba con Gmail (cambio a MailKit, D-157). Login: ojito en todos los campos de contraseña (D-158) y «¿Olvidó su contraseña?» con enlace por correo (D-159, `ISrv_Restablecer`). El usuario entregó 10 puntos de mejora: P-95 a P-104 en el grupo A.
@@ -50,7 +51,7 @@ Actualizado: 2026-10-26
 
 ## Siguiente paso literal
 
-Usuario prueba las entregas A y B. Luego, en este orden: C = P-98 (Corregir/Modificar personas tras aprobar, emergencia), D = P-96 y P-97 (móvil y cambio de rol), E = P-95 (hilo y «responder a todos»). Después:
+Usuario prueba la entrega C (aplicar con `restaurar_bd.ps1 -Database <nueva> -Crear`, porque trae el script 13). Luego, en este orden: **D = P-96 y P-97** (móvil a 360–414 px y cambio de rol desde el perfil), **E = P-95** (hilo de correo y «responder a todos»). Después:
 
 ## Decisiones vigentes que más condicionan
 

@@ -46,18 +46,21 @@ public sealed class Srv_Solicitud_Persona : ISrv_Solicitud_Persona
         }
     }
 
-    public async Task<Result<long>> AgregarAprobadaAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default)
+    public async Task<Result<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string? sustento, long usuarioId, CancellationToken ct = default)
     {
+        // Solo formulario: que haya sustento. Que la solicitud esté aprobada, la fecha y el rol los valida la rutina.
+        if (string.IsNullOrWhiteSpace(sustento))
+            return Result<long>.Validation("Datos inválidos.", new[] { new ResultError("Sustento", "Escriba el sustento de la corrección de emergencia.") });
         try
         {
-            var sp = await _repo.AgregarAprobadaAsync(solicitudId, personaExternaId, usuarioId, ct).ConfigureAwait(false);
+            var sp = await _repo.AgregarEmergenciaAsync(solicitudId, personaExternaId, sustento.Trim(), usuarioId, ct).ConfigureAwait(false);
             return sp.Ok
                 ? Result<long>.Ok(sp.Data!, sp.Mensaje)
                 : Result<long>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AGREGAR_APROBADA Persona ID={ID} ERROR", solicitudId);
+            _logger.LogError(ex, "AGREGAR_EMERGENCIA Persona ID={ID} ERROR", solicitudId);
             return Result<long>.Fail(ex.Message);
         }
     }
@@ -72,6 +75,22 @@ public sealed class Srv_Solicitud_Persona : ISrv_Solicitud_Persona
         catch (Exception ex)
         {
             _logger.LogError(ex, "RETIRAR Persona ID={ID} ERROR", solicitudPersonaId);
+            return Result.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> RetirarEmergenciaAsync(long solicitudPersonaId, string? sustento, long usuarioId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(sustento))
+            return Result.Validation("Datos inválidos.", new[] { new ResultError("Sustento", "Escriba el sustento de la corrección de emergencia.") });
+        try
+        {
+            var sp = await _repo.RetirarEmergenciaAsync(solicitudPersonaId, sustento.Trim(), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "RETIRAR_EMERGENCIA Persona ID={ID} ERROR", solicitudPersonaId);
             return Result.Fail(ex.Message);
         }
     }

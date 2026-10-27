@@ -271,22 +271,85 @@ BEGIN
     PERFORM pg_temp.chk('Retirar: quien ya ingresó no se retira', '409', v_cod::TEXT, v_msg);
     UPDATE "CAF_Solicitud_Persona" SET "Aprobacion" = 'PENDIENTE', "Estado" = 'ESPERADA' WHERE "ID_Solicitud_Persona" = v_p4;
 
-    -- ===================================================== F. AGREGAR_APROBADA (quien aprueba agrega a quien llegó sin estar)
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(v_s1, v_e6, v_u_sol, v_p5, v_cod, v_msg);
-    PERFORM pg_temp.chk('Agregar aprobada: el solicitante no puede', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(v_s1, v_e6, v_u_alm, v_p5, v_cod, v_msg);
-    PERFORM pg_temp.chk('Agregar aprobada: el aprobador de almacén no decide pasos de este flujo', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(v_s1, v_e1, v_u_coo, v_p5, v_cod, v_msg);
-    PERFORM pg_temp.chk('Agregar aprobada: quien ya está en la solicitud', '101', v_cod::TEXT, v_msg);
+    -- ===================================================== F. CORRECCIÓN DE EMERGENCIA: agregar (D-169, P-98)
+    -- Solo vale sobre una solicitud ya aprobada, con sustento y hasta el día de la visita.
+    PERFORM pg_temp.chk('Emergencia: el procedimiento anterior (agregar aprobada) ya no existe', '0', pg_temp.q('SELECT COUNT(*) FROM pg_proc WHERE proname = ''ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA'''), 'no puede convivir con la aprobación normal');
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, 'Llegó sin avisar', v_u_sol, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: el solicitante no puede', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, 'Llegó sin avisar', v_u_alm, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: el aprobador de almacén no decide pasos de este flujo', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_a, v_e6, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: con la solicitud por decidir no vale', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: la solicitud por decidir sigue PENDIENTE', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_a), '');
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_s1, v_paso_ext, 'APROBADA', NULL, v_p1::TEXT, v_u_coo, v_cant, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: preparación, el Coordinador aprueba a una persona', 'APROBADA_PARCIAL', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s1), 'ya hay algo aprobado');
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, NULL, v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: sin sustento', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, '    ', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: sustento en blanco', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, REPEAT('x', 301), v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: sustento de más de 300 caracteres', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e1, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: quien ya está en la solicitud', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, 888888, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: persona no registrada', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(999999, v_e6, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: solicitud inexistente', '404', v_cod::TEXT, v_msg);
     SELECT "ID_Solicitud_Persona" INTO v_dummy FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_s1 AND "ID_Persona_Externa" = v_e6;
-    UPDATE "CAF_Solicitud_Persona" SET "Aprobacion" = 'RETIRADA' WHERE "ID_Solicitud_Persona" = v_dummy;
     CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR"(v_dummy, v_u_sol, v_cod, v_msg);
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'71000007','Nueva','Persona','Julia',0, v_d, v_cod, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(v_s1, v_d, v_u_coo, v_p5, v_cod, v_msg);
-    PERFORM pg_temp.chk('Agregar aprobada: el Coordinador agrega a quien llegó', '100', v_cod::TEXT, v_msg);
-    PERFORM pg_temp.chk('Agregar aprobada: queda APROBADA al instante', 'APROBADA|AGREGADA_COORDINADOR', pg_temp.q('SELECT "Aprobacion" || ''|'' || "Origen" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), 'resuelve el caso del teléfono');
-    PERFORM pg_temp.chk('Agregar aprobada: deja el evento', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Accion" = ''AGREGAR_APROBADA'''), '');
-    PERFORM pg_temp.chk('Agregar aprobada: avisa al solicitante', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Asunto" LIKE ''Se agregó a una persona%'''), '');
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_pas WHERE "ID_Solicitud" = v_s1;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: una visita de fecha pasada no se corrige', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_fut WHERE "ID_Solicitud" = v_s1;
+    UPDATE "CAF_Solicitud" SET "Estado" = 'CANCELADA' WHERE "ID_Solicitud" = v_s1;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: una solicitud cancelada no se corrige', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud" SET "Estado" = 'APROBADA_PARCIAL' WHERE "ID_Solicitud" = v_s1;
+    PERFORM pg_temp.chk('Emergencia agregar: lo rechazado no dejó nada escrito', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "ID_Persona_Externa" = ' || v_d), '');
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: el Coordinador agrega a quien llegó', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Emergencia agregar: queda APROBADA al instante', 'APROBADA|AGREGADA_COORDINADOR', pg_temp.q('SELECT "Aprobacion" || ''|'' || "Origen" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), 'resuelve el caso del teléfono');
+    PERFORM pg_temp.chk('Emergencia agregar: la bitácora guarda el sustento', 'Nueva Persona, Julia · Emergencia: Llegó sin avisar', pg_temp.q('SELECT "Detalle" FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Accion" = ''AGREGAR_EMERGENCIA'''), '');
+    PERFORM pg_temp.chk('Emergencia agregar: avisa al solicitante y a Vigilancia', 'carlos@ejemplo.pe; maria@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_CORRECCION'''), 'Para: solicitante + portería');
+    PERFORM pg_temp.chk('Emergencia agregar: en copia el Coordinador y los correos del asistente', 'roberto@ejemplo.pe; almacen@ejemplo.pe; gerencia@ejemplo.pe', pg_temp.q('SELECT "Copia" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_CORRECCION'''), '');
+    PERFORM pg_temp.chk('Emergencia agregar: el correo lleva el sustento', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_CORRECCION'' AND "Cuerpo" LIKE ''%Sustento: Llegó sin avisar%'''), '');
+    PERFORM pg_temp.chk('Emergencia agregar: Vigilancia ve a la persona al instante', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"(' || v_u_vig || ', ' || v_ves || ', NULL, NULL, ''julia'')'), 'su lista sale de las personas aprobadas');
+    PERFORM pg_temp.chk('Emergencia agregar: el historial lo muestra', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_HISTORIAL_LISTAR"(' || v_u_coo || ', ' || v_s1 || ') WHERE "Accion_Texto" = ''Agregó a una persona (corrección de emergencia)'''), '');
+
+    -- ===================================================== F2. CORRECCIÓN DE EMERGENCIA: quitar
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, 'Ya no viene', v_u_sol, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: el solicitante no puede por esta vía', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, 'Ya no viene', v_u_alm, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: el aprobador de almacén no decide pasos de este flujo', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, NULL, v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: sin sustento', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(999999, 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: persona inexistente', '404', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p4, 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: una persona pendiente se resuelve con la decisión normal', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'DENTRO' WHERE "ID_Solicitud_Persona" = v_p5;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: quien ya ingresó no se quita', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: el mensaje indica registrar la salida con observación', '1', pg_temp.q('SELECT CASE WHEN ''' || v_msg || ''' LIKE ''%salida%observación%'' THEN 1 ELSE 0 END'), '');
+    PERFORM pg_temp.chk('Emergencia quitar: la persona que ingresó sigue autorizada', 'APROBADA', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), '');
+    UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'ESPERADA' WHERE "ID_Solicitud_Persona" = v_p5;
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_pas WHERE "ID_Solicitud" = v_s1;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: una visita de fecha pasada no se corrige', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_fut WHERE "ID_Solicitud" = v_s1;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: el Coordinador quita a una autorizada que no ingresó', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: queda RETIRADA, no se borra', 'RETIRADA', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), '');
+    PERFORM pg_temp.chk('Emergencia quitar: sus decisiones dejan de ser vigentes', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Decision" WHERE "ID_Solicitud_Persona" = ' || v_p5 || ' AND "Vigente" = ''Y'''), '');
+    PERFORM pg_temp.chk('Emergencia quitar: la bitácora guarda el sustento', 'Nueva Persona, Julia · Emergencia: Ya no viene', pg_temp.q('SELECT "Detalle" FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Accion" = ''RETIRAR_EMERGENCIA'''), '');
+    PERFORM pg_temp.chk('Emergencia quitar: avisa al solicitante y a Vigilancia', '2', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_CORRECCION'' AND "Destinatarios" = ''carlos@ejemplo.pe; maria@ejemplo.pe'''), 'uno al agregar y otro al quitar');
+    PERFORM pg_temp.chk('Emergencia quitar: Vigilancia ya no la ve', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"(' || v_u_vig || ', ' || v_ves || ', NULL, NULL, ''julia'')'), '');
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_p5, 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: dos veces', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_a, v_paso_ext, 'APROBADA', NULL, pg_temp.sp(v_a, v_e4)::TEXT, v_u_coo, v_cant, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(pg_temp.sp(v_a, v_e4), 'Ya no viene', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Emergencia quitar: no se quita a la única persona de la solicitud', '101', v_cod::TEXT, v_msg);
 
     -- ===================================================== G. EDITAR los datos de la visita
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Editable S.A.C.', v_mot, NULL, 'Primera versión', v_z_adm::TEXT, v_e1 || ',' || v_e2, 'a@ejemplo.pe', NULL, v_u_sol, v_s2, v_cs, v_cod, v_msg);
@@ -432,10 +495,10 @@ BEGIN
     PERFORM pg_temp.chk('Varios pasos: quien llega después HEREDA el paso por solicitud', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Decision" WHERE "ID_Solicitud_Persona" = ' || v_p4 || ' AND "ID_Tipo_Acceso_Paso_Aprobacion" = ' || v_paso_serv || ' AND "Vigente" = ''Y'''), 'no vuelve a pasar por el área');
     PERFORM pg_temp.chk('Varios pasos: solo le faltan los pasos que dependen de ella', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p4), '');
     PERFORM pg_temp.chk('Varios pasos: avisa solo a quien decide su paso pendiente', 'roberto@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_c || ' AND "Tipo" = ''PERSONA_POR_APROBAR'' ORDER BY "ID_Correo_Pendiente" DESC LIMIT 1'), 'no al área, que ya aprobó');
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(v_c, v_e5, v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_c, v_e5, 'Prueba de varios pasos', v_u_coo, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: quien decide 2 pasos aprueba a quien llegó en ambos, en orden', 'APROBADA', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), 'hereda el servicio');
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'71000008','Otra','Visita','Pilar',0, v_dummy, v_cod, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(v_c, v_dummy, v_u_alm, v_d, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_c, v_dummy, 'Prueba de varios pasos', v_u_alm, v_d, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: el área agrega a alguien; solo hereda el suyo', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Varios pasos: y le faltan los pasos de otros roles', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_d), '');
 

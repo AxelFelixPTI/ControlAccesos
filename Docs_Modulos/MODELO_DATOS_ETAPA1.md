@@ -100,7 +100,8 @@ Probados con `PRUEBAS_FASE1_HITO2_ESCRITURA.sql` (186 pruebas). Las lecturas (li
 | `ERP_CAF_SOLICITUD_EDITAR_DATOS` | Cambia los datos de la visita; reabre la aprobación solo si cambió algo que altera lo autorizado | El solicitante dueño |
 | `ERP_CAF_SOLICITUD_CANCELAR` | Cancela (nunca se borra); avisa a aprobadores y portería si había autorizados | El solicitante dueño |
 | `ERP_CAF_SOLICITUD_PERSONA_AGREGAR` | Agrega o reactiva (misma fila) a una persona; nace Pendiente | El solicitante dueño |
-| `ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA` | Quien aprueba agrega a quien llegó sin estar; queda aprobada en los pasos que le tocan por rol | Quien tenga `PER_CAF_SOLICITUD_APROBAR` y rol en el flujo |
+| `ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA` | Corrección de emergencia (D-169): agrega a quien llegó sin estar a una solicitud ya aprobada, hasta el día de la visita, con sustento obligatorio; avisa al solicitante y a Vigilancia | Quien tenga `PER_CAF_SOLICITUD_APROBAR` y rol en el flujo |
+| `ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA` | Corrección de emergencia: retira a una persona autorizada que aún no ingresó (nunca a la última); sustento obligatorio | Quien tenga `PER_CAF_SOLICITUD_APROBAR` y rol en el flujo |
 | `ERP_CAF_SOLICITUD_PERSONA_RETIRAR` | Retira (no se borra); no se retira a la última persona | El solicitante dueño |
 | `ERP_CAF_SOLICITUD_PERSONA_CORREGIR` | Corrige y, si estaba observada, reenvía | El solicitante dueño |
 | `ERP_CAF_SOLICITUD_DECIDIR` | Aprueba, observa o rechaza personas en un paso | Quien tenga el permiso **y** el rol al que le toca ese paso |

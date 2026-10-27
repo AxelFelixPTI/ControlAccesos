@@ -1,6 +1,6 @@
 @{ ViewData["Titulo"] = "Solicitudes"; ViewData["Migas"] = "Coordinador"; }
 <div class="stack" id="caf-coord" data-url-lista="@Url.Action("Lista", "Coordinacion")" data-url-revisar="@Url.Action("Revisar", "Coordinacion")"
-     data-url-decidir="@Url.Action("Decidir", "Coordinacion")" data-url-agregar="@Url.Action("AgregarAprobada", "Coordinacion")"
+     data-url-decidir="@Url.Action("Decidir", "Coordinacion")" data-url-agregar="@Url.Action("AgregarEmergencia", "Coordinacion")" data-url-quitar="@Url.Action("RetirarEmergencia", "Coordinacion")"
      data-url-opciones="@Url.Action("Opciones", "Coordinacion")" data-url-buscar="@Url.Action("PersonaPorDocumento", "Coordinacion")"
      data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")">
     @Html.AntiForgeryToken()

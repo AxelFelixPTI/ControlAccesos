@@ -12,8 +12,17 @@ public sealed class DecidirVM
     public string? MensajeResto { get; set; }
 }
 
-public sealed class AgregarAprobadaVM
+/// <summary>Corrección de emergencia (D-169): agregar a una persona a una solicitud ya aprobada.</summary>
+public sealed class CorreccionAgregarVM
 {
     public long SolicitudId { get; set; }
     public long PersonaId { get; set; }
+    public string? Sustento { get; set; }
+}
+
+/// <summary>Corrección de emergencia (D-169): quitar a una persona autorizada que aún no ingresó.</summary>
+public sealed class CorreccionRetirarVM
+{
+    public long SolicitudPersonaId { get; set; }
+    public string? Sustento { get; set; }
 }

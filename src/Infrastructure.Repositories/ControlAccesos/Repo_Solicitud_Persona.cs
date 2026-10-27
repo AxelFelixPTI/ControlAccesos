@@ -8,7 +8,7 @@
 // Versión  : V1.0 — 2026-10-17
 // Sistema  : ControlAccesos (piloto PostgreSQL, destino SAP HANA)
 // ============================================================
-// SP base  : ERP_CAF_SOLICITUD_PERSONA_<ACCION> (AGREGAR, RETIRAR, CORREGIR)
+// SP base  : ERP_CAF_SOLICITUD_PERSONA_<ACCION> (AGREGAR, RETIRAR, CORREGIR, AGREGAR_EMERGENCIA, RETIRAR_EMERGENCIA)
 // Conexión : ConexionesCaf.Modulo  (schema TRIANONSATELITAL_CAF_PRODD)
 // Las firmas de bind salen de las firmas reales de las rutinas (gen_capas_solicitud.py).
 
@@ -42,16 +42,17 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             ct: ct);
     }
 
-    public async Task<ResultSp<long>> AgregarAprobadaAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default)
+    public async Task<ResultSp<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string sustento, long usuarioId, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraConIdAsync(
             clave: Conn,
-            procedimiento: "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA",
+            procedimiento: "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA",
             columnaId: "HV_ID_Solicitud_Persona_Result",
             bind: p =>
             {
                 AddLongReq(p, "HV_ID_Solicitud", solicitudId);
                 AddLongReq(p, "HV_ID_Persona_Externa", personaExternaId);
+                AddStrReq(p, "HV_Sustento", sustento);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -65,6 +66,20 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             bind: p =>
             {
                 AddLongReq(p, "HV_ID_Solicitud_Persona", solicitudPersonaId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> RetirarEmergenciaAsync(long solicitudPersonaId, string sustento, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud_Persona", solicitudPersonaId);
+                AddStrReq(p, "HV_Sustento", sustento);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);

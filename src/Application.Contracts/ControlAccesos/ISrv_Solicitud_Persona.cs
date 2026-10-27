@@ -17,8 +17,10 @@ namespace Application.Contracts.ControlAccesos;
 public interface ISrv_Solicitud_Persona
 {
     Task<Result<long>> AgregarAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default);
-    /// <summary>El coordinador agrega una persona ya aprobada (por ejemplo, un invitado de último momento).</summary>
-    Task<Result<long>> AgregarAprobadaAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default);
+    /// <summary>Corrección de emergencia (D-169): el coordinador agrega una persona ya aprobada a una solicitud aprobada, con sustento.</summary>
+    Task<Result<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string? sustento, long usuarioId, CancellationToken ct = default);
     Task<Result> RetirarAsync(long solicitudPersonaId, long usuarioId, CancellationToken ct = default);
+    /// <summary>Corrección de emergencia (D-169): el coordinador quita a una persona autorizada que aún no ingresó, con sustento.</summary>
+    Task<Result> RetirarEmergenciaAsync(long solicitudPersonaId, string? sustento, long usuarioId, CancellationToken ct = default);
     Task<Result<bool>> CorregirAsync(long solicitudPersonaId, long personaExternaNuevaId, long usuarioId, CancellationToken ct = default);
 }

@@ -69,6 +69,9 @@ public sealed class CoordinacionController : Controller
         if (!per.Success) return Falla(per.Message);
         if (!his.Success) return Falla(his.Message);
         var s = d.Data!;
+        var puedeCorregir = User.TienePermiso("PER_CAF_SOLICITUD_APROBAR")
+                            && (s.Estado == "APROBADA" || s.Estado == "APROBADA_PARCIAL")
+                            && s.Fecha_Hora_Prevista.Date >= DateTime.Today;
         return Json(new
         {
             success = true,
@@ -79,13 +82,16 @@ public sealed class CoordinacionController : Controller
                 responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area, solicitante = s.Solicitante_Nombre, solicitanteCorreo = s.Solicitante_Correo,
                 exigeSctr = s.Exige_SCTR, exigeEpp = s.Exige_EPP, motivoCancelacion = s.Motivo_Cancelacion, codigoOrigen = s.Codigo_Origen,
                 puedeDecidir = s.Puede_Decidir,
-                // Se puede agregar una persona ya aprobada mientras la solicitud siga abierta y la visita no haya pasado.
-                puedeAgregar = s.Puede_Decidir && s.Estado != "CANCELADA" && s.Fecha_Hora_Prevista.Date >= DateTime.Today,
+                // Corrección de emergencia (D-169): solo sobre una solicitud ya aprobada y hasta el día de la visita.
+                // Es solo para mostrar el botón: la rutina vuelve a validar estado, fecha, rol y sustento.
+                puedeCorregir = puedeCorregir,
                 personas = per.Data!.Select(p => new
                 {
                     id = p.ID_Solicitud_Persona, personaId = p.ID_Persona_Externa, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento, nombre = p.Nombre_Completo,
                     aprobacion = p.Aprobacion, mensaje = p.Aprobacion_Mensaje, aprobadoPor = p.Aprobado_Por_Nombre, estado = p.Estado, origen = p.Origen,
                     puedeDecidir = p.Puede_Decidir,
+                    // Se quita por emergencia a quien está autorizado y aún no ingresó; quien ya ingresó se despide con la salida de Vigilancia.
+                    puedeQuitar = puedeCorregir && p.Aprobacion == "APROBADA" && p.Estado == "ESPERADA",
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }
@@ -134,10 +140,19 @@ public sealed class CoordinacionController : Controller
         return Json(new { success = true, message = "Decisión registrada.", data = new { personas = hechas } });
     }
 
+    /// <summary>Corrección de emergencia (D-169): agrega a una persona a una solicitud ya aprobada. Exige sustento.</summary>
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> AgregarAprobada([FromBody] AgregarAprobadaVM m, CancellationToken ct)
+    public async Task<IActionResult> AgregarEmergencia([FromBody] CorreccionAgregarVM m, CancellationToken ct)
     {
-        var r = await _solPer.AgregarAprobadaAsync(m.SolicitudId, m.PersonaId, User.UsuarioId(), ct);
+        var r = await _solPer.AgregarEmergenciaAsync(m.SolicitudId, m.PersonaId, m.Sustento, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>Corrección de emergencia (D-169): quita a una persona autorizada que aún no ingresó. Exige sustento.</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RetirarEmergencia([FromBody] CorreccionRetirarVM m, CancellationToken ct)
+    {
+        var r = await _solPer.RetirarEmergenciaAsync(m.SolicitudPersonaId, m.Sustento, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

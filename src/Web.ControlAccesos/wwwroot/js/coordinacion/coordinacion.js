@@ -115,6 +115,8 @@
             var ul = el('ul', { class: 'plist' });
             s.personas.forEach(function (p) {
                 var chk = null;
+                var quitable = p.puedeQuitar ? el('div', { class: 'plist-r' }, [el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Quitar (emergencia)', onclick: function () { quitar(p); } })]) : null;
+                var yaIngreso = s.puedeCorregir && p.aprobacion === 'APROBADA' && p.estado === 'DENTRO';
                 if (p.puedeDecidir) {
                     chk = el('input', { type: 'checkbox', 'aria-label': 'Elegir a ' + p.nombre });
                     chk.addEventListener('change', function () { sel[p.id] = chk.checked; p._chk = chk; });
@@ -125,8 +127,10 @@
                     el('div', { class: 'plist-m' }, [
                         el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), p.origen === 'AGREGADA_COORDINADOR' ? el('span', { class: 'chip c-line', text: 'Agregada por coordinación' }) : null]),
                         el('div', { class: 'field-h', text: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }),
-                        nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null
-                    ])
+                        nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null,
+                        yaIngreso ? el('div', { class: 'field-h', text: 'Ya ingresó: no se quita. Vigilancia registra su salida con una observación.' }) : null
+                    ]),
+                    quitable
                 ]));
             });
             caja.appendChild(ul);
@@ -178,29 +182,65 @@
                 caja.appendChild(el('p', { class: 'field-h', text: 'Solo lectura: su rol no decide pasos de esta solicitud.' }));
             }
             caja.appendChild(error);
-            if (s.puedeAgregar) caja.appendChild(el('div', { class: 'row-end' }, [el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona (queda aprobada)', onclick: agregar })]));
+            if (s.puedeCorregir) {
+                caja.appendChild(el('div', { class: 'aviso a-warn' }, [
+                    el('span', { text: 'Corrección de emergencia: solo si la visita cambia el mismo día. Agregue a quien llegó sin estar en la solicitud o quite a quien ya no viene. Vigilancia lo ve al instante y el solicitante y Vigilancia reciben un correo con su sustento.' }),
+                    el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona (emergencia)', onclick: agregar })
+                ]));
+            }
             return caja;
+        }
+
+        function campoSustento(ayuda) {
+            var area = el('textarea', { rows: '3', maxlength: '300', placeholder: ayuda });
+            return { area: area, nodo: el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Sustento (obligatorio)' }), area]) };
         }
 
         function agregar() {
             opciones().then(function (o) {
                 if (!o) return;
                 var fp = SOL.formPersona(o, d.urlBuscar, d.urlPersona), err = el('p', { class: 'field-e' });
-                CAF.modal('Agregar persona', el('div', { class: 'stack' }, [el('p', { class: 'field-h', text: 'La persona que agregue quedará aprobada y el solicitante recibirá el aviso.' }), fp.nodo, err]), [
+                var sus = campoSustento('Por qué se agrega a esta persona ahora (por ejemplo: llegó a portería, lo pidió el responsable de atención).');
+                CAF.modal('Agregar persona (emergencia)', el('div', { class: 'stack' }, [
+                    el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: la persona queda autorizada de inmediato. Vigilancia la verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
+                    fp.nodo, sus.nodo, err]), [
                     { texto: 'Cancelar', onclick: function (c) { c(); } },
                     {
                         texto: 'Agregar', tipo: 'primary', onclick: function (c) {
+                            err.textContent = '';
+                            if (!sus.area.value.trim()) { err.textContent = 'Escriba el sustento de la corrección de emergencia.'; return; }
                             fp.guardar().then(function (r) {
                                 if (!r.success) { err.textContent = SOL.errores(r); return; }
-                                CAF.pedir(d.urlAgregar, { method: 'POST', body: { solicitudId: id, personaId: r.data.id } }).then(function (x) {
+                                CAF.pedir(d.urlAgregar, { method: 'POST', body: { solicitudId: id, personaId: r.data.id, sustento: sus.area.value } }).then(function (x) {
                                     if (!x.success) { err.textContent = SOL.errores(x); return; }
-                                    c(); cargar(); refrescar('Persona agregada y aprobada.');
+                                    c(); cargar(); refrescar(x.message || 'Persona agregada y aprobada.');
                                 });
                             });
                         }
                     }
                 ], 'ancho');
             });
+        }
+
+        function quitar(p) {
+            var err = el('p', { class: 'field-e' });
+            var sus = campoSustento('Por qué se quita a esta persona (por ejemplo: ya no viene, la reemplazó otra persona).');
+            CAF.modal('Quitar persona (emergencia)', el('div', { class: 'stack' }, [
+                el('p', { text: '¿Quitar a ' + p.nombre + ' de esta solicitud? Ya no podrá ingresar.' }),
+                el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: Vigilancia lo verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
+                sus.nodo, err]), [
+                { texto: 'Volver', onclick: function (c) { c(); } },
+                {
+                    texto: 'Quitar', tipo: 'primary', onclick: function (c) {
+                        err.textContent = '';
+                        if (!sus.area.value.trim()) { err.textContent = 'Escriba el sustento de la corrección de emergencia.'; return; }
+                        CAF.pedir(d.urlQuitar, { method: 'POST', body: { solicitudPersonaId: p.id, sustento: sus.area.value } }).then(function (x) {
+                            if (!x.success) { err.textContent = SOL.errores(x); return; }
+                            c(); cargar(); refrescar(x.message || 'Persona retirada.');
+                        });
+                    }
+                }
+            ]);
         }
 
         refrescar();

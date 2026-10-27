@@ -1,6 +1,6 @@
 # Pendientes de validación · Control de Accesos
 
-Actualizado: 2026-10-26 · ordenado por relevancia para el MVP
+Actualizado: 2026-10-27 · ordenado por relevancia para el MVP
 
 Este archivo reúne lo que el sistema necesita que **una persona del negocio confirme o decida**, y lo que queda por construir. Está ordenado de lo más importante a lo menos: primero lo que hay que resolver para usar el sistema con datos reales, y al final lo que puede esperar. Dentro de cada grupo, de lo más antiguo a lo más nuevo cuando tienen la misma importancia.
 
@@ -39,7 +39,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-95 | **Hilo con días de diferencia:** si la aprobación llega días después, Gmail puede no agrupar el correo con el original; y se quiere que la respuesta use «Responder a todos» (que los copiados desde el asistente, por ejemplo gerencia, sigan al tanto) y que el hilo permita seguir conversando (proveedores, almacén…). Hoy los correos llevan `In-Reply-To`; falta definir cómo mantener la conversación y quién puede escribir en ella. | 2026-10-25 | Sandra | Piloto con usuarios | Por analizar |
 | P-96 | **Móvil (responsive):** las pantallas se ven justas en celular; revisar cada una. | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
 | P-97 | **Varios roles:** cambiar de rol desde el perfil (como en el prototipo). El selector existe en el prototipo; confirmar qué falta en la aplicación. | 2026-10-25 | Equipo | Piloto con usuarios | Por analizar |
-| P-98 | **Coordinador: agregar o quitar personas después de aprobar la solicitud** (acción de emergencia «Corregir/Modificar»), reflejada en Vigilancia. Hoy «agregar con aprobación automática» convive con aprobar a las personas indicadas; no debería. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
+| P-106 | **Corrección de emergencia (revisar con Sandra):** quién va en copia del correo; si `APROBADA_PARCIAL` también admite corrección; qué hacer cuando es la única persona de la solicitud; si se puede quitar a quien ya salió. Hoy: aprobadores + correos del asistente; sí; solo el solicitante cancela; no. | 2026-10-27 | Sandra | Piloto con usuarios | Por confirmar |
 
 ### B. Necesario para operar con datos reales
 
@@ -224,6 +224,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | # | Tema | Registrado | Resolución |
 | --- | --- | --- | --- |
+| P-98 | Coordinador: agregar o quitar personas después de aprobar (corrección de emergencia con sustento, reflejada en Vigilancia). | 2026-10-25 | Construido (D-169 a D-175); ver P-106 |
 | P-99 | Incidencias: una sola pantalla; lo que registra el Coordinador queda confirmado; botón de Control de accesos lleva a ella con la persona. | 2026-10-25 | Construido (D-165 a D-167) |
 | P-105 | Catálogos de Área y Cargo editables desde la aplicación. | 2026-10-26 | Construido (D-168) |
 | P-100 | Reporte de accesos: «Sale» → «Salió». | 2026-10-25 | Construido (D-160) |

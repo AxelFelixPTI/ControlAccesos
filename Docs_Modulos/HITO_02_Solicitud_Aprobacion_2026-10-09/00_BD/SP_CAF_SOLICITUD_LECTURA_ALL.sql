@@ -630,6 +630,8 @@ BEGIN
                 WHEN 'SOLICITUD_PERSONA:AGREGAR'            THEN 'Agregó a una persona'
                 WHEN 'SOLICITUD_PERSONA:AGREGAR_APROBADA'   THEN 'Agregó a una persona ya aprobada'
                 WHEN 'SOLICITUD_PERSONA:RETIRAR'            THEN 'Retiró a una persona'
+                WHEN 'SOLICITUD_PERSONA:AGREGAR_EMERGENCIA' THEN 'Agregó a una persona (corrección de emergencia)'
+                WHEN 'SOLICITUD_PERSONA:RETIRAR_EMERGENCIA' THEN 'Retiró a una persona (corrección de emergencia)'
                 WHEN 'SOLICITUD_PERSONA:CORREGIR'           THEN 'Corrigió los datos de una persona'
                 WHEN 'SOLICITUD_PERSONA:REENVIAR'           THEN 'Reenvió a una persona a aprobación'
                 WHEN 'SOLICITUD_PERSONA:NO_SE_PRESENTO'     THEN 'Marcó que una persona no se presentó'

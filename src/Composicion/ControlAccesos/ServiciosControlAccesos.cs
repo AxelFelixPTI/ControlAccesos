@@ -122,7 +122,7 @@ public static class ServiciosControlAccesos
         if (string.IsNullOrWhiteSpace(c))
             throw new InvalidOperationException($"Falta ConnectionStrings:{clave} en la configuración.");
 
-        c = Reemplazar(config, c, "CAF_DB_BASE", "accesos_piloto_prueba");
+        c = Reemplazar(config, c, "CAF_DB_BASE_TEST", "accesos_piloto_prueba");
         c = Reemplazar(config, c, "CAF_DB_USUARIO", null);
         c = Reemplazar(config, c, "CAF_DB_CLAVE", null);
         // Toda fecha del servidor (CURRENT_DATE, CURRENT_TIMESTAMP) debe ser la de Lima, no la del servidor de la base (UTC).

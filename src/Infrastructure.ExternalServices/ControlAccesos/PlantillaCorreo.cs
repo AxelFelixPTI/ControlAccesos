@@ -34,6 +34,7 @@ public static class PlantillaCorreo
         ["SOLICITUD_EDITADA"]   = "Solicitud modificada",
         ["SOLICITUD_DECISION"]  = "Actualización de la solicitud",
         ["PERSONA_POR_APROBAR"] = "Personas por aprobar",
+        ["SOLICITUD_CORRECCION"] = "Corrección de emergencia",
         ["SOLICITUD_CANCELADA"] = "Solicitud cancelada",
     };
 
