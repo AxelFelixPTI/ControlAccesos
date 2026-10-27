@@ -151,6 +151,14 @@ public sealed class CoordinacionController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> PersonasBuscar(string? q, CancellationToken ct)
+    {
+        var r = await _externas.BuscarAsync(q ?? string.Empty, ct);
+        if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
+        return Json(new { success = true, data = r.Data!.Select(p => new { id = p.ID_Persona_Externa, tipoDocId = p.ID_Catalogo_Tipo_Documento, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento, apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres, nombreCompleto = p.Nombre_Completo }) });
+    }
+
+    [HttpGet]
     public async Task<IActionResult> PersonaPorDocumento(long tipoDocId, string? doc, CancellationToken ct)
     {
         var r = await _externas.PorDocumentoAsync(tipoDocId, doc ?? string.Empty, ct);

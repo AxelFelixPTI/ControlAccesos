@@ -461,6 +461,12 @@ BEGIN
     PERFORM pg_temp.chk('Sin aprobación: las personas nacen APROBADAS', 'APROBADA', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_d), 'no hay a quién esperar');
     PERFORM pg_temp.chk('Sin aprobación: la solicitud queda APROBADA', 'APROBADA', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_d), '');
     PERFORM pg_temp.chk('Sin aprobación: no se pide aprobación a nadie por correo', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_d), '');
+
+    -- ===================================================== L. AUTOCOMPLETAR EMPRESA
+    PERFORM pg_temp.chk('Empresas: encuentra "Reutilizada" sin distinguir mayúsculas', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(''reutiliz'')'), '');
+    PERFORM pg_temp.chk('Empresas: texto sin coincidencias devuelve vacío', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(''zzzzqq'')'), '');
+    PERFORM pg_temp.chk('Empresas: máximo 10 resultados', 'true', pg_temp.q('SELECT (COUNT(*) <= 10)::TEXT FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(NULL)'), '');
+    PERFORM pg_temp.chk('Empresas: sin repetidos aunque cambie la mayúscula', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(''interno'')'), '');
 END;
 $$;
 

@@ -10,6 +10,8 @@ namespace Application.Contracts.ControlAccesos;
 
 public interface ISrv_Persona_Externa
 {
+    /// <summary>Personas ya registradas cuyo nombre contiene el texto (máx. 8), para autocompletar.</summary>
+    Task<Result<List<Dto_Persona_Externa>>> BuscarAsync(string texto, CancellationToken ct = default);
     /// <summary>Busca una persona ya registrada por tipo y número de documento. Data nulo = no existe.</summary>
     Task<Result<Dto_Persona_Externa?>> PorDocumentoAsync(long tipoDocumentoId, string numeroDocumento, CancellationToken ct = default);
     Task<Result<long>> CrearAsync(Dto_Persona_Externa dto, long usuarioId, CancellationToken ct = default);

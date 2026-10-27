@@ -119,7 +119,7 @@ public sealed class ReportesController : Controller
     private static string Resultado(string r) => r switch
     {
         "INGRESA" => "Ingresa", "INGRESA_RESTRINGIDO" => "Ingresa restringido a la zona administrativa", "NO_INGRESA" => "No ingresa",
-        "SALE" => "Sale", "SALE_RETIENE_ELEMENTO" => "Sale y se retiene el elemento", _ => r,
+        "SALE" => "Salió", "SALE_RETIENE_ELEMENTO" => "Salió y se retuvo el elemento", _ => r,
     };
 
     private static string? EstadoDesv(string? e) => e switch { "POR_REVISAR" => "Por revisar", "REVISADA" => "Revisada", _ => e };

@@ -290,6 +290,22 @@
 ## Pendientes para `PENDIENTES_VALIDACION.md`
 - **P-92** — El límite de un enlace por minuto se guarda en memoria: se pierde al reiniciar la web y no sirve con varias instancias. Si hace falta, moverlo a la base.
 - **P-93** — El enlace de restablecer queda en el cuerpo del correo en la cola (`CAF_Correo_Pendiente`). El token es de un solo uso y vence en 60 minutos, pero conviene decidir si se borra el cuerpo al enviarlo.
-- **P-94** — El botón «Contraseña» de la parte superior sigue existiendo para cambiar la clave dentro de la aplicación. En los puntos de mejora se pidió quitarlo; confirmar si se retira ahora que existe el enlace por correo.
-- **P-95 a P-104** — Puntos de mejora recibidos el 2026-10-25: ver el grupo A de `PENDIENTES_VALIDACION.md`.
+- ~~**P-94** — Botón «Contraseña» de la parte superior.~~ **Resuelto el 2026-10-26 (D-163).**
+- **P-95 a P-99 y P-101 a P-104** — Puntos de mejora recibidos el 2026-10-25. Se resuelven por entregas (A a E); P-100 a P-104 quedaron resueltos el 2026-10-26 (D-160 a D-164). Ver `PENDIENTES_VALIDACION.md`.
 
+
+
+---
+
+# Puntos de mejora · Entrega A (2026-10-26)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-160 | **Reporte de accesos:** «Sale» pasa a **«Salió»** y «Sale y se retiene el elemento» a **«Salió y se retuvo el elemento»**, en pantalla, en el CSV y al imprimir. Las opciones de tratamiento de una desviación no cambian (son acciones, no hechos). | Construido |
+| D-161 | **Asistente, paso Personas:** si los nombres se autocompletaron al encontrar un documento y luego se cambia el número, esos nombres se **limpian al instante** (antes de buscar otra vez). Si el nuevo documento tampoco existe, se escriben a mano. Al **editar** una persona ya cargada no se limpia nada. | Construido |
+| D-162 | **Autocompletar empresa:** `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR(texto)` devuelve las empresas ya escritas en solicitudes (sin distinguir mayúsculas ni tildes, agrupadas, las más usadas primero, máximo 10). El campo «Empresa o procedencia» muestra sugerencias desde 2 letras; se puede escribir una nueva. **Autocompletar persona:** al escribir 3 letras en «Apellido paterno» aparecen hasta 8 personas ya registradas (nombre y documento); al elegir una se llenan tipo, número y nombres. Usa `ERP_CAF_PERSONA_EXTERNA_LISTAR`. Disponible también en la ventana de Coordinación para agregar personas. | Construido |
+| D-163 | **Se quita el botón «Contraseña»** de la barra superior. La clave se cambia con «¿Olvidó su contraseña?» (enlace por correo, D-159); el cambio obligatorio del primer ingreso sigue funcionando igual. | Construido |
+| D-164 | **Correos en copia (P-103):** el campo del asistente **sí se envía** (la prueba de base lo comprueba en cada tipo de correo). En **modo prueba** (`Correo__RedirigirA` con valor) todo el correo sale a esa única dirección, así que la copia no se entrega y el aviso del correo lo dice («Habría llegado a… / Copia a…»). Para ver llegar la copia real hay que **vaciar `RedirigirA`** y usar usuarios con buzones reales. | Aclarado |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **T-24** — En HANA `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR`: `LIMIT 10` pasa a `TOP 10` (o `LIMIT` fijo), `::` no existe (se usa `CAST`) y el agrupado por minúsculas se calcula igual con `LOWER`.

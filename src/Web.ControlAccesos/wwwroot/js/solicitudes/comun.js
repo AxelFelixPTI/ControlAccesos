@@ -37,6 +37,35 @@ var SOL = (function () {
     }
 
     // ── Datos de la visita ───────────────────────────────────────────────────────────────────
+    // Lista de sugerencias bajo un campo de texto. cargar(q) devuelve una promesa con [{t: texto, s: subtexto, v: valor}]; alElegir(v) recibe el valor.
+    function sugerencias(input, minimo, cargar, alElegir) {
+        var caja = el('div', { class: 'sug' }), temp = null, ult = '';
+        caja.hidden = true;
+        function ocultar() { caja.hidden = true; caja.textContent = ''; }
+        input.addEventListener('input', function () {
+            clearTimeout(temp);
+            var q = input.value.trim();
+            if (q.length < minimo) { ocultar(); return; }
+            temp = setTimeout(function () {
+                ult = q;
+                cargar(q).then(function (items) {
+                    if (q !== ult) return;
+                    caja.textContent = '';
+                    if (!items || !items.length) { caja.hidden = true; return; }
+                    caja.hidden = false;
+                    items.forEach(function (it) {
+                        var b = el('button', { type: 'button' }, [el('span', { text: it.t })]);
+                        if (it.s) b.appendChild(el('small', { class: 'sug-sub', text: ' ' + it.s }));
+                        b.addEventListener('mousedown', function (e) { e.preventDefault(); ocultar(); alElegir(it.v); });
+                        caja.appendChild(b);
+                    });
+                });
+            }, 250);
+        });
+        input.addEventListener('blur', function () { setTimeout(ocultar, 150); });
+        return caja;
+    }
+
     // v: valores iniciales {fecha,hora,empresa,responsableId,responsable,motivoId,motivoDetalle,observaciones,zonasIds,copias}
     function formDatos(op, urlResp, v) {
         v = v || {};
@@ -49,6 +78,11 @@ var SOL = (function () {
         var detalle = texto(v.motivoDetalle, 250, 'Describa el motivo');
         var detalleCampo = campo('Detalle del motivo *', detalle);
         var obs = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Opcional. Se incluye en el correo que reciben Coordinación, Vigilancia y las personas en copia' }); obs.value = v.observaciones || '';
+        var sugEmpresa = sugerencias(empresa, 2, function (q) {
+            return CAF.pedir(urlResp.replace(/Responsables$/, 'Empresas') + '?q=' + encodeURIComponent(q)).then(function (r) {
+                return r.success ? r.data.map(function (e) { return { t: e, v: e }; }) : [];
+            });
+        }, function (e) { empresa.value = e; });
         var copias = texto(v.copias, 500, 'correo1@empresa.com; correo2@empresa.com');
 
         function sincMotivo() {
@@ -104,7 +138,7 @@ var SOL = (function () {
 
         var nodo = el('div', { class: 'stack' }, [
             el('div', { class: 'grid g3' }, [campo('Sede', el('input', { type: 'text', value: op.sede.texto, disabled: true })), campo('Fecha de la visita *', fecha), campo('Hora prevista *', hora)]),
-            campo('Empresa o procedencia *', empresa),
+            campo('Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])),
             el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]),
             el('div', { class: 'grid g2' }, [campo('Motivo de la visita *', motivo), detalleCampo]),
             zonasNodo, aviso,
@@ -145,22 +179,39 @@ var SOL = (function () {
         var ap = texto(ini.apellidoPaterno, 100), am = texto(ini.apellidoMaterno, 100), nom = texto(ini.nombres, 200);
         var nota = el('p', { class: 'field-h' });
         var hallada = null;
+        var auto = false; // true cuando los nombres vinieron de una persona ya registrada
 
+        // Si cambia el documento tras un autocompletado, esos nombres ya no corresponden: se limpian.
+        function limpiarAuto() {
+            if (!auto) return;
+            auto = false; hallada = null; ap.value = ''; am.value = ''; nom.value = ''; nota.textContent = '';
+        }
         function buscar() {
-            hallada = null; nota.textContent = '';
+            limpiarAuto(); hallada = null; nota.textContent = '';
             if (doc.value.trim().length < 4) return;
             CAF.pedir(urlBuscar + '?tipoDocId=' + encodeURIComponent(tipo.value) + '&doc=' + encodeURIComponent(doc.value.trim())).then(function (r) {
                 if (!r.success || !r.data) { if (r.success) nota.textContent = 'No está registrada: complete sus datos y quedará registrada.'; return; }
-                hallada = r.data; ap.value = r.data.apellidoPaterno || ''; am.value = r.data.apellidoMaterno || ''; nom.value = r.data.nombres || '';
+                hallada = r.data; auto = true; ap.value = r.data.apellidoPaterno || ''; am.value = r.data.apellidoMaterno || ''; nom.value = r.data.nombres || '';
                 nota.textContent = 'Ya está registrada. Si su nombre está mal, corríjalo aquí y se actualizará.';
             });
         }
-        doc.addEventListener('change', buscar); tipo.addEventListener('change', buscar);
+        doc.addEventListener('input', limpiarAuto); doc.addEventListener('change', buscar); tipo.addEventListener('change', buscar);
         if (ini.doc) hallada = { id: ini.id || 0 };
 
+        // Autocompletar por nombre: al elegir una persona registrada se llenan documento y nombres.
+        var sugPersona = sugerencias(ap, 3, function (q) {
+            return CAF.pedir(urlBuscar.replace(/PersonaPorDocumento$/, 'PersonasBuscar') + '?q=' + encodeURIComponent(q)).then(function (r) {
+                return r.success ? r.data.map(function (p) { return { t: p.nombreCompleto, s: (p.tipoDoc || '') + ' ' + p.doc, v: p }; }) : [];
+            });
+        }, function (p) {
+            tipo.value = String(p.tipoDocId); doc.value = p.doc;
+            hallada = { id: p.id, apellidoPaterno: p.apellidoPaterno, apellidoMaterno: p.apellidoMaterno, nombres: p.nombres, nombreCompleto: p.nombreCompleto };
+            auto = true; ap.value = p.apellidoPaterno || ''; am.value = p.apellidoMaterno || ''; nom.value = p.nombres || '';
+            nota.textContent = 'Ya está registrada. Si su nombre está mal, corríjalo aquí y se actualizará.';
+        });
         var nodo = el('div', { class: 'stack pform' }, [
             el('div', { class: 'grid g2' }, [campo('Tipo de documento', tipo), campo('Número *', doc)]),
-            el('div', { class: 'grid g3' }, [campo('Apellido paterno *', ap), campo('Apellido materno', am), campo('Nombres *', nom)]),
+            el('div', { class: 'grid g3' }, [campo('Apellido paterno *', el('div', { class: 'sug-wrap' }, [ap, sugPersona]), 'Escriba 3 letras para ver personas ya registradas.'), campo('Apellido materno', am), campo('Nombres *', nom)]),
             nota
         ]);
 
@@ -177,7 +228,7 @@ var SOL = (function () {
             return CAF.pedir(urlBuscar + '?tipoDocId=' + encodeURIComponent(tipo.value) + '&doc=' + encodeURIComponent(doc.value.trim())).then(function (r) {
                 if (r.success && r.data) {
                     hallada = r.data;
-                    if (!ap.value.trim() && !nom.value.trim()) { ap.value = r.data.apellidoPaterno || ''; am.value = r.data.apellidoMaterno || ''; nom.value = r.data.nombres || ''; }
+                    if (!ap.value.trim() && !nom.value.trim()) { auto = true; ap.value = r.data.apellidoPaterno || ''; am.value = r.data.apellidoMaterno || ''; nom.value = r.data.nombres || ''; }
                 }
                 return guardar();
             });

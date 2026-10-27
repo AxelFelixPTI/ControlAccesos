@@ -27,6 +27,24 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
 
     public Repo_Solicitud(EjecutorSp exec) => _exec = exec;
 
+    public async Task<Result<List<string>>> EmpresasBuscarAsync(string? texto, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR",
+                bind: p => AddStr(p, "HV_Texto", texto),
+                map: rd => RdStr(rd, "Empresa"),
+                ct: ct);
+            return Result<List<string>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<string>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
         try

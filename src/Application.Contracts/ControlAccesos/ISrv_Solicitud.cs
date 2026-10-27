@@ -16,6 +16,8 @@ namespace Application.Contracts.ControlAccesos;
 
 public interface ISrv_Solicitud
 {
+    /// <summary>Empresas ya escritas en solicitudes, para autocompletar (máx. 10).</summary>
+    Task<Result<List<string>>> EmpresasBuscarAsync(string? texto, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Bandeja>>> BandejaListarAsync(long usuarioId, Dto_Filtro_Bandeja? f = null, CancellationToken ct = default);
     Task<Result<Dto_Solicitud_Contadores>> ContadoresAsync(long usuarioId, long? sedeId = null, CancellationToken ct = default);

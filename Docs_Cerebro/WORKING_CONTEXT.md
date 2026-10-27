@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-25
+Actualizado: 2026-10-26
 
 ## Dónde estamos
 
+- **2026-10-26 · Puntos de mejora, entrega A.** «Salió» en el reporte (D-160), limpieza de nombres al cambiar el DNI (D-161), autocompletar empresa y persona (D-162, `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR`, `Empresas` y `PersonasBuscar`), botón «Contraseña» quitado (D-163), copia de correos aclarada (D-164). Quedan por entregar B (incidencias), C (modificar personas tras aprobar), D (móvil y cambio de rol), E (hilo de correo). Decisión del usuario: no se archivan en pendientes, se resuelven antes de presentar el prototipo.
 - **2026-10-25 · Correo funcionando con Gmail + recuperar contraseña.** Se resolvió el envío real: el `Local.json` pisaba las variables de entorno (D-156) y `System.Net.Mail` fallaba con Gmail (cambio a MailKit, D-157). Login: ojito en todos los campos de contraseña (D-158) y «¿Olvidó su contraseña?» con enlace por correo (D-159, `ISrv_Restablecer`). El usuario entregó 10 puntos de mejora: P-95 a P-104 en el grupo A.
 - **2026-10-24 (noche) · Integración de correo hecha (candidata).** Flujo Para/CC por estado (D-150), hilo con `Message-ID`/`In-Reply-To` (D-151), plantilla HTML sobria + texto (D-152) alimentada por `ERP_CAF_CORREO_SOLICITUD_DATOS/_PERSONAS` (`SP_CAF_CORREO_PLANTILLA_ALL.sql`) y `ERP_CAF_FN_COPIA_CORREO`; «Observaciones» → «Detalles adicionales» (D-153); `UrlBase`, `RedirigirA` (modo prueba) y envío dentro de la web (D-154). Pruebas Hito 2 escritura: 190 de 190. Cabeceras del hilo verificadas contra un SMTP local; falta probar con Gmail real (P-89). Guías: `GUIA_CORREO.md` y `GUIA_DESPLIEGUE_RED.md` (primer despliegue en la red del usuario).
 - **2026-10-24 · Reporte de accesos hecho (candidato).** `ReportesController` + vista + `reportes.js`: filtros, resumen del rango, exportar CSV, imprimir (D-143..D-145, P-84..P-86, T-22). Además, botón «Registrar incidencia» en Control de accesos (D-146). Sin cambios de base de datos.
@@ -48,7 +49,7 @@ Actualizado: 2026-10-25
 
 ## Siguiente paso literal
 
-Usuario prueba el login (ojito y «¿Olvidó su contraseña?»). Luego se trabaja la lista P-95 a P-104 en este orden sugerido: P-100 y P-102 (rápidos), P-99 (incidencias fusionadas), P-98 (modificar personas tras aprobar), P-101, P-96 (móvil), P-97 y P-95 (requieren decidir con Sandra). Después: «No se presentó» automático (P-72) y PDF del reporte (P-85).
+Usuario prueba la entrega A (autocompletar empresa/persona, limpieza de nombres, «Salió», sin botón «Contraseña»). Luego, en este orden: B = P-99 (incidencias fusionadas, la del coordinador queda aprobada), C = P-98 (Corregir/Modificar personas tras aprobar), D = P-96 y P-97 (móvil y cambio de rol), E = P-95 (hilo y «responder a todos»). Después:
 
 ## Decisiones vigentes que más condicionan
 

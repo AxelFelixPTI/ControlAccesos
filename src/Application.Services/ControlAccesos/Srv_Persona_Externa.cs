@@ -19,6 +19,22 @@ public sealed class Srv_Persona_Externa : ISrv_Persona_Externa
 
     public Srv_Persona_Externa(IRepo_Persona_Externa repo, ILogger<Srv_Persona_Externa> logger) { _repo = repo; _logger = logger; }
 
+    public async Task<Result<List<Dto_Persona_Externa>>> BuscarAsync(string texto, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Trim().Length < 3) return Result<List<Dto_Persona_Externa>>.Ok(new List<Dto_Persona_Externa>());
+        try
+        {
+            var r = await _repo.BuscarAsync(texto.Trim(), ct).ConfigureAwait(false);
+            if (!r.Success) return r;
+            return Result<List<Dto_Persona_Externa>>.Ok(r.Data!.Take(8).ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BUSCAR Persona_Externa ERROR");
+            return Result<List<Dto_Persona_Externa>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result<Dto_Persona_Externa?>> PorDocumentoAsync(long tipoDocumentoId, string numeroDocumento, CancellationToken ct = default)
     {
         if (tipoDocumentoId <= 0 || string.IsNullOrWhiteSpace(numeroDocumento))

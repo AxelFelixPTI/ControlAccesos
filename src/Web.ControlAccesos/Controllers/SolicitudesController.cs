@@ -110,6 +110,24 @@ public sealed class SolicitudesController : Controller
         });
     }
 
+    /// <summary>Autocompletar «Empresa o procedencia» con las ya escritas en otras solicitudes.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Empresas(string? q, CancellationToken ct)
+    {
+        var r = await _sol.EmpresasBuscarAsync(q, ct);
+        if (!r.Success) return Falla(r.Message);
+        return Json(new { success = true, data = r.Data });
+    }
+
+    /// <summary>Autocompletar al escribir nombre o apellido de una persona externa ya registrada.</summary>
+    [HttpGet]
+    public async Task<IActionResult> PersonasBuscar(string? q, CancellationToken ct)
+    {
+        var r = await _externas.BuscarAsync(q ?? string.Empty, ct);
+        if (!r.Success) return Falla(r.Message);
+        return Json(new { success = true, data = r.Data!.Select(p => new { id = p.ID_Persona_Externa, tipoDocId = p.ID_Catalogo_Tipo_Documento, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento, apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres, nombreCompleto = p.Nombre_Completo }) });
+    }
+
     // ── Personas externas ──────────────────────────────────────────────────────────────────────
     [HttpGet]
     public async Task<IActionResult> PersonaPorDocumento(long tipoDocId, string? doc, CancellationToken ct)

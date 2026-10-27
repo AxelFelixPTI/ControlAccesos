@@ -117,6 +117,7 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
 .sel-box{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:1px solid var(--teal);border-radius:8px;background:var(--teal-soft);font-size:14px}
 .sug{border:1px solid var(--line2);border-radius:8px;overflow:hidden;margin-top:4px}
 .sug button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid var(--line);background:var(--sf);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}.sug button:hover{background:var(--teal-soft)}
+.sug-wrap{position:relative;display:block}.sug-wrap .sug{position:absolute;left:0;right:0;z-index:30;background:var(--sf);box-shadow:0 6px 18px rgba(0,0,0,.12);margin-top:2px;max-height:260px;overflow:auto}.sug .sug-sub{color:var(--muted);font-size:12px;margin-left:6px}
 .copias,.chips-x{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.inline{display:flex;gap:8px}
 .pform .row-end{margin-top:8px}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}

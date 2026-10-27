@@ -31,6 +31,16 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         _logger = logger;
     }
 
+    public async Task<Result<List<string>>> EmpresasBuscarAsync(string? texto, CancellationToken ct = default)
+    {
+        try { return await _repo.EmpresasBuscarAsync(texto, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "EMPRESAS_BUSCAR Solicitud ERROR");
+            return Result<List<string>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
         try { return await _repo.MisListarAsync(usuarioId, f, ct).ConfigureAwait(false); }

@@ -10,6 +10,7 @@ namespace Infrastructure.Contracts.ControlAccesos;
 
 public interface IRepo_Persona_Externa
 {
+    Task<Result<List<Dto_Persona_Externa>>> BuscarAsync(string texto, CancellationToken ct = default);
     Task<Result<Dto_Persona_Externa?>> PorDocumentoAsync(long tipoDocumentoId, string numeroDocumento, CancellationToken ct = default);
     Task<ResultSp<long>> CrearAsync(Dto_Persona_Externa dto, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> ActualizarAsync(long id, Dto_Persona_Externa dto, long usuarioId, CancellationToken ct = default);

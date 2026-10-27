@@ -18,6 +18,21 @@ public sealed class Repo_Persona_Externa : RepoHelpers, IRepo_Persona_Externa
 
     public Repo_Persona_Externa(EjecutorSp exec) => _exec = exec;
 
+    public async Task<Result<List<Dto_Persona_Externa>>> BuscarAsync(string texto, CancellationToken ct = default)
+    {
+        try
+        {
+            var l = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_PERSONA_EXTERNA_LISTAR",
+                bind: p => { AddStr(p, "HV_Filtro_Nombre", texto); AddStr(p, "HV_Incluir_Eliminados", "N"); },
+                map: Mapear,
+                ct: ct);
+            return Result<List<Dto_Persona_Externa>>.Ok(l);
+        }
+        catch (Exception ex) { return Result<List<Dto_Persona_Externa>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
     public async Task<Result<Dto_Persona_Externa?>> PorDocumentoAsync(long tipoDocumentoId, string numeroDocumento, CancellationToken ct = default)
     {
         try

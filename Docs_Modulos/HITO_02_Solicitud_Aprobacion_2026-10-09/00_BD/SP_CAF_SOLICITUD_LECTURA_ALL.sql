@@ -801,3 +801,30 @@ BEGIN
 END;
 $$;
 -- Prueba: SELECT * FROM "ERP_CAF_SOLICITUD_VIGILANCIA_NO_AUTORIZADA_BUSCAR"(4, 1, CURRENT_DATE, 'torres');
+
+-- -----------------------------------------------------------------------------
+-- 15. ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR  (autocompletar «Empresa o procedencia»)
+--     Empresas ya escritas en solicitudes (sin distinguir mayúsculas ni tildes), las más usadas primero.
+--     Sin texto devuelve las más usadas. Máximo 10.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"("HV_Texto" VARCHAR DEFAULT NULL)
+RETURNS TABLE ("Empresa" VARCHAR, "Veces" INT)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+#variable_conflict use_column
+DECLARE
+    lv_txt VARCHAR := LOWER(COALESCE(TRIM("HV_Texto"), ''));
+BEGIN
+    -- V1.0 2026-10-26
+    RETURN QUERY
+    SELECT X."Empresa", X."Veces"
+      FROM (SELECT CAST(MIN(TRIM(S."Empresa_Visitante")) AS VARCHAR) AS "Empresa", CAST(COUNT(*) AS INT) AS "Veces",
+                   LOWER(TRIM(S."Empresa_Visitante")) AS "Clave"
+              FROM "CAF_Solicitud" S
+             WHERE S."Eliminado" = 'N' AND TRIM(S."Empresa_Visitante") <> ''
+             GROUP BY LOWER(TRIM(S."Empresa_Visitante"))) X
+     WHERE lv_txt = '' OR "ERP_CAF_FN_NORMALIZAR"(X."Empresa") LIKE '%' || "ERP_CAF_FN_NORMALIZAR"(lv_txt) || '%'
+     ORDER BY X."Veces" DESC, X."Empresa"
+     LIMIT 10;
+END;
+$$;
+-- Prueba: SELECT * FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"('tri');

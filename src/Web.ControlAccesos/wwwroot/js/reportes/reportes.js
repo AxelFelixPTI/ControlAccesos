@@ -6,7 +6,7 @@
     var el = CAF.el, d = raiz.dataset;
     var RESULTADO = {
         INGRESA: ['Ingresa', 'c-ok'], INGRESA_RESTRINGIDO: ['Ingresa restringido a la zona administrativa', 'c-obs'], NO_INGRESA: ['No ingresa', 'c-rec'],
-        SALE: ['Sale', 'c-ok'], SALE_RETIENE_ELEMENTO: ['Sale y se retiene el elemento', 'c-obs']
+        SALE: ['Salió', 'c-ok'], SALE_RETIENE_ELEMENTO: ['Salió y se retuvo el elemento', 'c-obs']
     };
     var f = { desde: document.getElementById('r-desde'), hasta: document.getElementById('r-hasta'), texto: document.getElementById('r-texto'),
               tipo: document.getElementById('r-tipo'), desv: document.getElementById('r-desv') };

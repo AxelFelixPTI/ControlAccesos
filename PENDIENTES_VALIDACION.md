@@ -1,6 +1,6 @@
 # Pendientes de validación · Control de Accesos
 
-Actualizado: 2026-10-25 · ordenado por relevancia para el MVP
+Actualizado: 2026-10-26 · ordenado por relevancia para el MVP
 
 Este archivo reúne lo que el sistema necesita que **una persona del negocio confirme o decida**, y lo que queda por construir. Está ordenado de lo más importante a lo menos: primero lo que hay que resolver para usar el sistema con datos reales, y al final lo que puede esperar. Dentro de cada grupo, de lo más antiguo a lo más nuevo cuando tienen la misma importancia.
 
@@ -20,7 +20,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | Grupo | Qué contiene | Puntos |
 | --- | --- | --- |
-| A | Por construir antes de cerrar el MVP | 1 |
+| A | Por construir antes de cerrar el MVP | 6 |
 | B | Necesario para operar con datos reales | 12 |
 | C | Reglas de portería e incidencias a confirmar | 21 |
 | D | Mejoras del prototipo que pueden esperar | 11 |
@@ -41,11 +41,6 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-97 | **Varios roles:** cambiar de rol desde el perfil (como en el prototipo). El selector existe en el prototipo; confirmar qué falta en la aplicación. | 2026-10-25 | Equipo | Piloto con usuarios | Por analizar |
 | P-98 | **Coordinador: agregar o quitar personas después de aprobar la solicitud** (acción de emergencia «Corregir/Modificar»), reflejada en Vigilancia. Hoy «agregar con aprobación automática» convive con aprobar a las personas indicadas; no debería. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
 | P-99 | **Incidencias:** fusionar «Incidencias» (Coordinador) e «Incidencias del día» (Vigilancia) en una sola; si la registra el Coordinador, queda **aprobada automáticamente**; desde Control de accesos, su botón debe ir a su pantalla con la persona enlazada. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
-| P-100 | **Reporte de accesos:** la etiqueta «Sale» debe decir «Salió». | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
-| P-101 | **Autocompletado de empresa** (con las ya registradas) y mejora del buscador de personas al crear la solicitud. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
-| P-102 | **Asistente, paso Personas:** al cambiar un DNI autocompletado por otro no registrado, limpiar automáticamente nombres y apellidos. | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
-| P-103 | **Correos en copia del asistente:** se reportó que no llegaba la copia, solo el aviso al coordinador. Revisar con la prueba de correos reales (ya se envía el CC según D-150). | 2026-10-25 | Equipo | Piloto con usuarios | Por probar |
-| P-104 | **Quitar el botón «Contraseña»** de la parte superior (ver P-94), ahora que existe «¿Olvidó su contraseña?». | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
 
 ### B. Necesario para operar con datos reales
 
@@ -230,5 +225,10 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | # | Tema | Registrado | Resolución |
 | --- | --- | --- | --- |
+| P-100 | Reporte de accesos: «Sale» → «Salió». | 2026-10-25 | Construido (D-160) |
+| P-101 | Autocompletado de empresa y de personas al crear la solicitud. | 2026-10-25 | Construido (D-162) |
+| P-102 | Limpiar nombres al cambiar un DNI autocompletado. | 2026-10-25 | Construido (D-161) |
+| P-103 | Correos en copia del asistente: sí se envían; en modo prueba salen todos a una sola dirección. | 2026-10-25 | Aclarado (D-164) |
+| P-104 y P-94 | Quitar el botón «Contraseña» de la barra superior. | 2026-10-25 | Construido (D-163) |
 | P-70 y P-82 | Botón «Registrar incidencia» en cada persona de Control de accesos (como el prototipo). | 2026-10-24 | Construido (D-146) |
 | P-56 | Estilo de la web: se construyó con el diseño del prototipo aprobado. | 2026-10-19 | Construido (según prototipo) |
