@@ -60,11 +60,13 @@ Usuario prueba las entregas A y B. Luego, en este orden: C = P-98 (Corregir/Modi
 - Seguridad de cuentas y login (D-26, D-29); bitácora con un único escritor (D-23).
 - `_DETALLE` repite el SELECT de `_LISTAR` (D-27); `search_path` por rutina (D-28).
 
-## Reglas de entrega del usuario (vigentes desde 2026-10-11)
+## Reglas de entrega del usuario (vigentes; actualizadas 2026-10-26)
 
-- **Toda entrega va en un ZIP `ControlAccesos.zip` COMPLETO** (todo el proyecto, no solo lo cambiado), y además se presenta cada archivo. Con el último ZIP se reconstruye todo. Para volver a un estado anterior se usa git o se conserva el ZIP de ese momento. (Corregido 2026-10-12: el ZIP del 2026-10-11 salió parcial por error.)
-- **Toda entrega trae un mensaje de commit** (git, gestión desde 2026-10-12): una línea de resumen que diga el hito, la fase y el estado de verificación, seguida de viñetas con lo agregado, lo modificado y lo que falta. Se entrega en el chat junto al ZIP. El usuario pega el contenido del ZIP sobre el proyecto y hace `git add .` y `git commit`.
-- **Toda entrega incluye `PENDIENTES_VALIDACION.md` actualizado**, en la raíz del proyecto (al lado del README, fuera de `Docs_BD`, `Docs_Modulos` y `Docs_Cerebro`). Por cada punto: código P-xx, D-* relacionado, qué significa en lenguaje no técnico, pregunta sugerida, con quién validarlo y cuándo hace falta. Un punto nuevo se agrega; uno resuelto se mueve a *Resueltos*, nunca se borra.
+- **Cada entrega es un ZIP con SOLO los archivos nuevos o modificados**, completos y con la estructura del repo (`src/...`, `Docs_Modulos/...`, `Docs_Cerebro/...`). (Antes, 2026-10-11, se pedía el ZIP completo del proyecto: **derogado**; el estado completo vive en GitHub, rama `main-remoto`.)
+- **Siempre** incluye: `restaurar_bd.ps1`, `LEEME_ENTREGA.md` (qué trae, pasos, qué revisar, siguiente; avisa si hay archivos que borrar), `DECISIONES_ARRANQUE.md` actualizado (D-/P-/T-), `WORKING_CONTEXT.md` actualizado y `COMMIT_MESSAGE.txt`. `PENDIENTES_VALIDACION.md` cuando cambia (un punto resuelto se mueve a «Resueltos», nunca se borra).
+- `COMMIT_MESSAGE.txt`: una línea de resumen + viñetas, y al final `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` y `Claude-Session: <enlace de la sesión>`.
+- Ruta de trabajo: tablas → SP → .NET → web. La BD se reconstruye en una base vacía con `restaurar_bd.ps1 -Database <nueva> -Crear`.
+- Las claves van en variables de entorno; nunca se piden por chat.
 
 ## Pendientes que no bloquean
 
@@ -81,6 +83,7 @@ Usuario prueba las entregas A y B. Luego, en este orden: C = P-98 (Corregir/Modi
 
 ## Qué leer al retomar (en este orden)
 
+0. `HANDOFF_NUEVA_SESION.md` (traslado completo del 2026-10-26) e `INDICE_CODIGO.md`.
 1. Este archivo.
 2. `Docs_Modulos/HITO_00_01_Base_y_Catalogos_2026-10-09/00_PAQUETE_DISENO.md` (decisiones D-01 a D-30).
 3. `Docs_Modulos/MODELO_DATOS_ETAPA1.md` (las 31 tablas y D-13 a D-23).
