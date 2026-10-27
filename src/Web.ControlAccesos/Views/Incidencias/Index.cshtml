@@ -1,19 +1,25 @@
-@{ ViewData["Titulo"] = "Incidencias"; ViewData["Migas"] = "Coordinador"; var puedeRegistrar = (bool)(ViewData["PuedeRegistrar"] ?? false); }
-<div class="stack" id="caf-inc" data-modo="coord" data-puede-registrar="@(puedeRegistrar ? "Y" : "N")"
+@{ var puedeRegistrar = (bool)(ViewData["PuedeRegistrar"] ?? false); var puedeDecidir = (bool)(ViewData["PuedeDecidir"] ?? false); ViewData["Titulo"] = "Incidencias"; ViewData["Migas"] = puedeDecidir ? "Coordinador" : "Vigilancia"; }
+<div class="stack" id="caf-inc" data-modo="@(puedeDecidir ? "coord" : "dia")" data-puede-registrar="@(puedeRegistrar ? "Y" : "N")"
      data-url-lista="@Url.Action("Lista", "Incidencias")" data-url-detalle="@Url.Action("Detalle", "Incidencias")" data-url-opciones="@Url.Action("Opciones", "Incidencias")"
      data-url-personas="@Url.Action("Personas", "Incidencias")" data-url-registrar="@Url.Action("Registrar", "Incidencias")" data-url-decidir="@Url.Action("Decidir", "Incidencias")">
     @Html.AntiForgeryToken()
-    <div class="row-sp"><p class="lead">Faltas de personas que ingresaron. Las de Vigilancia esperan su decisión; las suyas quedan confirmadas.</p><button type="button" class="btn btn-danger" id="i-nueva" hidden>+ Registrar incidencia</button></div>
-    <div class="pills" id="i-tabs"></div>
-    <section class="card filtros">
-        <label class="field"><span class="field-l">Persona, tipo o código</span><input type="search" id="i-texto" autocomplete="off" placeholder="Buscar" /></label>
-        <label class="field"><span class="field-l">Estado</span>
-            <select id="i-estado"><option value="">Todos</option><option value="REGISTRADA">Registrada</option><option value="CONFIRMADA">Confirmada</option><option value="DESESTIMADA">Desestimada</option></select></label>
-        <label class="field"><span class="field-l">Registrada por</span>
-            <select id="i-origen"><option value="">Todos</option><option value="VIGILANCIA">Vigilancia</option><option value="COORDINADOR">Coordinador</option></select></label>
-        <label class="field"><span class="field-l">Desde</span><input type="date" id="i-desde" /></label>
-        <label class="field"><span class="field-l">Hasta</span><input type="date" id="i-hasta" /></label>
-    </section>
+    <div class="row-sp">
+        <p class="lead">@(puedeDecidir ? "Faltas de personas que ingresaron. Las de Vigilancia esperan su decisión; las que usted registra quedan confirmadas." : "Faltas de personas que ingresaron hoy. Su registro es informativo: el Coordinador la confirma o la desestima.")</p>
+        <button type="button" class="btn btn-danger" id="i-nueva" hidden>+ Registrar incidencia</button>
+    </div>
+    @if (puedeDecidir)
+    {
+        <div class="pills" id="i-tabs"></div>
+        <section class="card filtros">
+            <label class="field"><span class="field-l">Persona, tipo o código</span><input type="search" id="i-texto" autocomplete="off" placeholder="Buscar" /></label>
+            <label class="field"><span class="field-l">Estado</span>
+                <select id="i-estado"><option value="">Todos</option><option value="REGISTRADA">Registrada</option><option value="CONFIRMADA">Confirmada</option><option value="DESESTIMADA">Desestimada</option></select></label>
+            <label class="field"><span class="field-l">Registrada por</span>
+                <select id="i-origen"><option value="">Todos</option><option value="VIGILANCIA">Vigilancia</option><option value="COORDINADOR">Coordinador</option></select></label>
+            <label class="field"><span class="field-l">Desde</span><input type="date" id="i-desde" /></label>
+            <label class="field"><span class="field-l">Hasta</span><input type="date" id="i-hasta" /></label>
+        </section>
+    }
     <section class="card">
         <div class="tw">
             <table class="tabla">

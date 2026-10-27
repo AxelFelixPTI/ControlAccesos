@@ -105,11 +105,13 @@ var INC = (function () {
     var f = coord ? { texto: document.getElementById('i-texto'), estado: document.getElementById('i-estado'), origen: document.getElementById('i-origen'),
                       desde: document.getElementById('i-desde'), hasta: document.getElementById('i-hasta') } : null;
     var tabs = document.getElementById('i-tabs'), pestana = 'REGISTRADA';
+    // Llega desde Control de accesos con ?persona=<id>&nombre=<texto>: abre el formulario con esa persona ya elegida.
+    var qs = new URLSearchParams(window.location.search), previaId = Number(qs.get('persona')) || 0;
 
     if (puede) { btnNueva.hidden = false; btnNueva.addEventListener('click', function () { registrar(urlsDe(d), coord, null, cargar); }); }
 
     function pintar() {
-        if (coord) {
+        if (coord && tabs) {
             tabs.textContent = '';
             [['REGISTRADA', 'Por decidir (' + registradas + ')'], ['', 'Todas']].forEach(function (t) {
                 tabs.appendChild(el('button', { type: 'button', class: 'pill' + (pestana === t[0] ? ' on' : ''), text: t[1], onclick: function () { pestana = t[0]; f.estado.value = t[0]; cargar(); } }));
@@ -200,5 +202,9 @@ var INC = (function () {
     }
 
     cargar();
+    if (puede && previaId) {
+        registrar(urlsDe(d), coord, { id: previaId, nombre: qs.get('nombre') || 'Persona elegida' }, cargar);
+        try { window.history.replaceState(null, '', window.location.pathname); } catch (e) { /* sin historial */ }
+    }
     return { registrar: registrar };
 })();

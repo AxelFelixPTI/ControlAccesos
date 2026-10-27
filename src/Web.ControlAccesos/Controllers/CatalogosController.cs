@@ -30,11 +30,14 @@ public sealed class CatalogosController : Controller
     private readonly ISrv_Catalogo_Motivo_Visita _motivos;
     private readonly ISrv_Catalogo_Tratamiento_Desviacion _tratamientos;
     private readonly ISrv_Catalogo_Tipo_Incidencia _incidencias;
+    private readonly ISrv_Catalogo_Area _areas;
+    private readonly ISrv_Catalogo_Cargo _cargos;
 
     public CatalogosController(ISrv_Catalogo_Sede sedes, ISrv_Catalogo_Zona_Acceso zonas, ISrv_Catalogo_Motivo_Visita motivos,
-        ISrv_Catalogo_Tratamiento_Desviacion tratamientos, ISrv_Catalogo_Tipo_Incidencia incidencias)
+        ISrv_Catalogo_Tratamiento_Desviacion tratamientos, ISrv_Catalogo_Tipo_Incidencia incidencias,
+        ISrv_Catalogo_Area areas, ISrv_Catalogo_Cargo cargos)
     {
-        _sedes = sedes; _zonas = zonas; _motivos = motivos; _tratamientos = tratamientos; _incidencias = incidencias;
+        _sedes = sedes; _zonas = zonas; _motivos = motivos; _tratamientos = tratamientos; _incidencias = incidencias; _areas = areas; _cargos = cargos;
     }
 
     [HttpGet]
@@ -141,6 +144,8 @@ public sealed class CatalogosController : Controller
             case "motivo": return await _motivos.ListarAsync(incluirTodos, ct);
             case "tratamiento": return await _tratamientos.ListarAsync(incluirTodos, ct);
             case "incidencia": return await _incidencias.ListarAsync(incluirTodos, ct);
+            case "area": return await _areas.ListarAsync(incluirTodos, ct);
+            case "cargo": return await _cargos.ListarAsync(incluirTodos, ct);
             default: return Result<List<Dto_Catalogo_Universal>>.Fail("Tipo de catálogo no válido.");
         }
     }
@@ -150,6 +155,8 @@ public sealed class CatalogosController : Controller
         "zona" => _zonas.CrearAsync(d, u, ct),
         "motivo" => _motivos.CrearAsync(d, u, ct),
         "tratamiento" => _tratamientos.CrearAsync(d, u, ct),
+        "area" => _areas.CrearAsync(d, u, ct),
+        "cargo" => _cargos.CrearAsync(d, u, ct),
         _ => _incidencias.CrearAsync(d, u, ct),
     };
 
@@ -158,6 +165,8 @@ public sealed class CatalogosController : Controller
         "zona" => await _zonas.ActualizarAsync(id, d, u, ct),
         "motivo" => await _motivos.ActualizarAsync(id, d, u, ct),
         "tratamiento" => await _tratamientos.ActualizarAsync(id, d, u, ct),
+        "area" => await _areas.ActualizarAsync(id, d, u, ct),
+        "cargo" => await _cargos.ActualizarAsync(id, d, u, ct),
         _ => await _incidencias.ActualizarAsync(id, d, u, ct),
     };
 

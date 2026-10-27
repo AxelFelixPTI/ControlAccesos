@@ -116,6 +116,8 @@
         if (puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
         if (puede && !soloLectura && p.estado === 'DENTRO') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
         if (puedeInc && !soloLectura && (p.estado === 'DENTRO' || p.estado === 'SALIO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger', text: 'Registrar incidencia', onclick: function () {
+            // El Coordinador registra en la pantalla única de Incidencias, con la persona ya elegida (queda confirmada directamente).
+            if (d.esCoordinador === 'Y') { window.location.href = d.urlIncidencias + '?persona=' + encodeURIComponent(p.id) + '&nombre=' + encodeURIComponent(p.nombre); return; }
             INC.registrar({ opciones: d.urlIncOpciones, personas: d.urlIncPersonas, registrar: d.urlIncRegistrar }, false, { id: p.id, nombre: p.nombre }, function () { cargar(); });
         } }));
         if (p.estado !== 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Detalle', onclick: function () { detalle(p); } }));

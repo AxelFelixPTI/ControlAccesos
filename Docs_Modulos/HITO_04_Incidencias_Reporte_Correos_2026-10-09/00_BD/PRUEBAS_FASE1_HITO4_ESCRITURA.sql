@@ -239,6 +239,13 @@ BEGIN
     PERFORM pg_temp.chk('Decidir: ni se cambia después de confirmar', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_i1, 'DESESTIMAR', 'Sustento de prueba.', v_u_vig, v_cod, v_msg);
     PERFORM pg_temp.chk('Decidir: sin permiso gana sobre «ya decidida»', '101', v_cod::TEXT, v_msg);
+    -- D-165: lo que registra el Coordinador nace CONFIRMADA, con su propia decisión
+    PERFORM pg_temp.chk('Coordinador: su incidencia nace CONFIRMADA', 'CONFIRMADA', pg_temp.q('SELECT "Estado" FROM "CAF_Incidencia" WHERE "ID_Incidencia" = ' || COALESCE(v_i2::TEXT, 'NULL')), '');
+    PERFORM pg_temp.chk('Coordinador: queda como decisor', 'si', CASE WHEN pg_temp.q('SELECT "ID_Usuario_Decision" FROM "CAF_Incidencia" WHERE "ID_Incidencia" = ' || COALESCE(v_i2::TEXT, 'NULL')) = v_u_coo::TEXT THEN 'si' ELSE 'no' END, '');
+    CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_i2, 'DESESTIMAR', 'No hubo tal hurto.', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Coordinador: su incidencia confirmada no se vuelve a decidir', '409', v_cod::TEXT, v_msg);
+    -- para seguir probando «desestimar» se devuelve a REGISTRADA (como las anteriores a D-165)
+    UPDATE "CAF_Incidencia" SET "Estado" = 'REGISTRADA', "ID_Usuario_Decision" = NULL, "Fecha_Decision" = NULL, "Sustento_Decision" = NULL WHERE "ID_Incidencia" = v_i2;
     CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_i2, 'DESESTIMAR', 'No hubo tal hurto.', v_u_coo, v_cod, v_msg);
     PERFORM pg_temp.chk('Decidir: desestimar', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Decidir: queda DESESTIMADA', 'DESESTIMADA', pg_temp.q('SELECT "Estado" FROM "CAF_Incidencia" WHERE "ID_Incidencia" = ' || COALESCE(v_i2::TEXT, 'NULL')), '');

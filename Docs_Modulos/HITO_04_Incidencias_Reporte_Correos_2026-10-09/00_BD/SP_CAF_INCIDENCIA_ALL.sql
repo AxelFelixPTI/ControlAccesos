@@ -21,6 +21,7 @@
 -- o varias personas (en esa visita, D-22).
 -- Origen: lo fija el SP según el permiso de quien registra (con PER_CAF_INCIDENCIA_DECIDIR
 -- es COORDINADOR; si no, VIGILANCIA). La pantalla no lo envía.
+-- Estado inicial: COORDINADOR -> CONFIRMADA (con su decisión); VIGILANCIA -> REGISTRADA.
 -- =============================================================================
 
 SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
@@ -170,10 +171,15 @@ BEGIN
 
         INSERT INTO "CAF_Incidencia" ("ID_Catalogo_Sede","ID_Catalogo_Tipo_Incidencia","Tipo_Detalle","Fecha_Hora_Hecho",
                                       "ID_Catalogo_Zona_Acceso","Lugar_Detalle","Descripcion","Origen","ID_Usuario_Registro",
-                                      "Estado","UsuarioID_Create")
+                                      "Estado","ID_Usuario_Decision","Fecha_Decision","Sustento_Decision","UsuarioID_Create")
         VALUES ("HV_ID_Catalogo_Sede","HV_ID_Catalogo_Tipo_Incidencia", lv_detalle, "HV_Fecha_Hora_Hecho",
                 "HV_ID_Catalogo_Zona_Acceso", lv_lugar, TRIM("HV_Descripcion"), lv_origen, "HV_UsuarioID",
-                'REGISTRADA', "HV_UsuarioID")
+                -- D-165: lo que registra el Coordinador nace CONFIRMADA (él mismo es quien decide); lo de Vigilancia espera su decisión.
+                CASE WHEN lv_origen = 'COORDINADOR' THEN 'CONFIRMADA' ELSE 'REGISTRADA' END,
+                CASE WHEN lv_origen = 'COORDINADOR' THEN "HV_UsuarioID" END,
+                CASE WHEN lv_origen = 'COORDINADOR' THEN CURRENT_TIMESTAMP END,
+                CASE WHEN lv_origen = 'COORDINADOR' THEN 'Registrada por el Coordinador: confirmada directamente.' END,
+                "HV_UsuarioID")
         RETURNING "ID_Incidencia" INTO lv_inc;
 
         lv_cod := 'INC-' || LPAD(CAST(lv_inc AS VARCHAR), 5, '0');

@@ -37,6 +37,7 @@ public sealed class VigilanciaController : Controller
     {
         ViewData["PuedeRegistrar"] = User.TienePermiso(PermRegistrar);
         ViewData["PuedeIncidencia"] = User.TienePermiso("PER_CAF_INCIDENCIA_REGISTRAR");
+        ViewData["EsCoordinador"] = User.TienePermiso("PER_CAF_INCIDENCIA_DECIDIR");
         return View();
     }
 

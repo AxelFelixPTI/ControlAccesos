@@ -4,6 +4,7 @@ Actualizado: 2026-10-26
 
 ## Dónde estamos
 
+- **2026-10-26 · Puntos de mejora, entrega B.** Incidencias en una sola pantalla (D-166), la del Coordinador nace confirmada (D-165, SP cambiado), botón de Control de accesos lleva a ella con la persona (D-167), Áreas y Cargos editables en Catálogos (D-168). Pruebas SQL: Hito 4 escritura 138/138.
 - **2026-10-26 · Puntos de mejora, entrega A.** «Salió» en el reporte (D-160), limpieza de nombres al cambiar el DNI (D-161), autocompletar empresa y persona (D-162, `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR`, `Empresas` y `PersonasBuscar`), botón «Contraseña» quitado (D-163), copia de correos aclarada (D-164). Quedan por entregar B (incidencias), C (modificar personas tras aprobar), D (móvil y cambio de rol), E (hilo de correo). Decisión del usuario: no se archivan en pendientes, se resuelven antes de presentar el prototipo.
 - **2026-10-25 · Correo funcionando con Gmail + recuperar contraseña.** Se resolvió el envío real: el `Local.json` pisaba las variables de entorno (D-156) y `System.Net.Mail` fallaba con Gmail (cambio a MailKit, D-157). Login: ojito en todos los campos de contraseña (D-158) y «¿Olvidó su contraseña?» con enlace por correo (D-159, `ISrv_Restablecer`). El usuario entregó 10 puntos de mejora: P-95 a P-104 en el grupo A.
 - **2026-10-24 (noche) · Integración de correo hecha (candidata).** Flujo Para/CC por estado (D-150), hilo con `Message-ID`/`In-Reply-To` (D-151), plantilla HTML sobria + texto (D-152) alimentada por `ERP_CAF_CORREO_SOLICITUD_DATOS/_PERSONAS` (`SP_CAF_CORREO_PLANTILLA_ALL.sql`) y `ERP_CAF_FN_COPIA_CORREO`; «Observaciones» → «Detalles adicionales» (D-153); `UrlBase`, `RedirigirA` (modo prueba) y envío dentro de la web (D-154). Pruebas Hito 2 escritura: 190 de 190. Cabeceras del hilo verificadas contra un SMTP local; falta probar con Gmail real (P-89). Guías: `GUIA_CORREO.md` y `GUIA_DESPLIEGUE_RED.md` (primer despliegue en la red del usuario).
@@ -49,7 +50,7 @@ Actualizado: 2026-10-26
 
 ## Siguiente paso literal
 
-Usuario prueba la entrega A (autocompletar empresa/persona, limpieza de nombres, «Salió», sin botón «Contraseña»). Luego, en este orden: B = P-99 (incidencias fusionadas, la del coordinador queda aprobada), C = P-98 (Corregir/Modificar personas tras aprobar), D = P-96 y P-97 (móvil y cambio de rol), E = P-95 (hilo y «responder a todos»). Después:
+Usuario prueba las entregas A y B. Luego, en este orden: C = P-98 (Corregir/Modificar personas tras aprobar, emergencia), D = P-96 y P-97 (móvil y cambio de rol), E = P-95 (hilo y «responder a todos»). Después:
 
 ## Decisiones vigentes que más condicionan
 

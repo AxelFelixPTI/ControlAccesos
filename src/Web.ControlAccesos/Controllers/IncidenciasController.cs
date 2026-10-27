@@ -32,11 +32,18 @@ public sealed class IncidenciasController : Controller
     }
 
     // ── pantallas ──────────────────────────────────────────────────────────────────────────────
-    [HttpGet, ExigirPermiso("PER_CAF_INCIDENCIA_DECIDIR")]
-    public IActionResult Index() { ViewData["PuedeRegistrar"] = User.TienePermiso("PER_CAF_INCIDENCIA_REGISTRAR"); return View(); }
+    /// <summary>Pantalla única de Incidencias. Con permiso de decidir (Coordinador) ve todas y decide; con solo registrar (Vigilancia) ve las de hoy.</summary>
+    [HttpGet]
+    public IActionResult Index()
+    {
+        ViewData["PuedeRegistrar"] = User.TienePermiso("PER_CAF_INCIDENCIA_REGISTRAR");
+        ViewData["PuedeDecidir"] = User.TienePermiso("PER_CAF_INCIDENCIA_DECIDIR");
+        return View();
+    }
 
-    [HttpGet, ExigirPermiso("PER_CAF_INCIDENCIA_REGISTRAR")]
-    public IActionResult Dia() => View();
+    /// <summary>Ruta anterior de «Incidencias del día»: ahora es la misma pantalla.</summary>
+    [HttpGet]
+    public IActionResult Dia() => RedirectToAction(nameof(Index));
 
     // ── datos ──────────────────────────────────────────────────────────────────────────────────
     /// <summary>hoy=true: solo las de hoy (pantalla de Vigilancia). Si no, se filtra por estado, texto y fechas.</summary>
@@ -47,6 +54,7 @@ public sealed class IncidenciasController : Controller
         if (sede is null) return Falla("No se encontró la sede " + SedeCodigo + ".");
         var u = User.UsuarioId();
         var f = new Dto_Filtro_Incidencias { ID_Catalogo_Sede = sede.Value, Texto = Vacio(texto), Estado = Estado(estado) };
+        if (!User.TienePermiso("PER_CAF_INCIDENCIA_DECIDIR")) hoy = true;   // Vigilancia solo ve las de hoy
         if (hoy) { f.Fecha_Desde = DateTime.Today; f.Fecha_Hasta = DateTime.Today; }
         else { f.Fecha_Desde = Fecha(desde); f.Fecha_Hasta = Fecha(hasta); }
         var r = await _inc.ListarAsync(u, f, ct);

@@ -6,9 +6,9 @@
     var urlListar = raiz.getAttribute('data-url-listar');
     var urlGuardar = raiz.getAttribute('data-url-guardar');
     var el = CAF.el;
-    var datos = { zona: [], motivo: [], tratamiento: [], incidencia: [] };
+    var datos = { zona: [], motivo: [], tratamiento: [], incidencia: [], area: [], cargo: [] };
 
-    var NOMBRES = { zona: 'zona', motivo: 'motivo de visita', tratamiento: 'tratamiento de desviación', incidencia: 'tipo de incidencia' };
+    var NOMBRES = { zona: 'zona', motivo: 'motivo de visita', tratamiento: 'tratamiento de desviación', incidencia: 'tipo de incidencia', area: 'área', cargo: 'cargo' };
     var EFECTO = {
         INGRESA: 'Ingresa', INGRESA_RESTRINGIDO: 'Ingresa restringido a zona administrativa', NO_INGRESA: 'No ingresa',
         SALE: 'Sale', SALE_RETIENE_ELEMENTO: 'Sale; el elemento queda retenido'
@@ -122,5 +122,5 @@
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-nuevo]'), function (b) {
         b.addEventListener('click', function () { formulario(b.getAttribute('data-nuevo'), null); });
     });
-    ['zona', 'motivo', 'tratamiento', 'incidencia'].forEach(cargar);
+    ['zona', 'motivo', 'tratamiento', 'incidencia', 'area', 'cargo'].forEach(cargar);
 })();

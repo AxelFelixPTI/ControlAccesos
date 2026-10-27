@@ -20,7 +20,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | Grupo | Qué contiene | Puntos |
 | --- | --- | --- |
-| A | Por construir antes de cerrar el MVP | 6 |
+| A | Por construir antes de cerrar el MVP | 5 |
 | B | Necesario para operar con datos reales | 12 |
 | C | Reglas de portería e incidencias a confirmar | 21 |
 | D | Mejoras del prototipo que pueden esperar | 11 |
@@ -40,7 +40,6 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-96 | **Móvil (responsive):** las pantallas se ven justas en celular; revisar cada una. | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
 | P-97 | **Varios roles:** cambiar de rol desde el perfil (como en el prototipo). El selector existe en el prototipo; confirmar qué falta en la aplicación. | 2026-10-25 | Equipo | Piloto con usuarios | Por analizar |
 | P-98 | **Coordinador: agregar o quitar personas después de aprobar la solicitud** (acción de emergencia «Corregir/Modificar»), reflejada en Vigilancia. Hoy «agregar con aprobación automática» convive con aprobar a las personas indicadas; no debería. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
-| P-99 | **Incidencias:** fusionar «Incidencias» (Coordinador) e «Incidencias del día» (Vigilancia) en una sola; si la registra el Coordinador, queda **aprobada automáticamente**; desde Control de accesos, su botón debe ir a su pantalla con la persona enlazada. | 2026-10-25 | Sandra | Piloto con usuarios | Por hacer |
 
 ### B. Necesario para operar con datos reales
 
@@ -225,6 +224,8 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | # | Tema | Registrado | Resolución |
 | --- | --- | --- | --- |
+| P-99 | Incidencias: una sola pantalla; lo que registra el Coordinador queda confirmado; botón de Control de accesos lleva a ella con la persona. | 2026-10-25 | Construido (D-165 a D-167) |
+| P-105 | Catálogos de Área y Cargo editables desde la aplicación. | 2026-10-26 | Construido (D-168) |
 | P-100 | Reporte de accesos: «Sale» → «Salió». | 2026-10-25 | Construido (D-160) |
 | P-101 | Autocompletado de empresa y de personas al crear la solicitud. | 2026-10-25 | Construido (D-162) |
 | P-102 | Limpiar nombres al cambiar un DNI autocompletado. | 2026-10-25 | Construido (D-161) |

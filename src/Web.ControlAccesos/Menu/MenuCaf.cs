@@ -9,7 +9,7 @@ using Web.ControlAccesos.Seguridad;
 
 namespace Web.ControlAccesos;
 
-public sealed record EntradaMenu(string Titulo, string Grupo, string[] Permisos, bool Disponible, string? Controlador = null, string? Accion = null);
+public sealed record EntradaMenu(string Titulo, string Grupo, string[] Permisos, bool Disponible, string? Controlador = null, string? Accion = null, string[]? OcultarSiTiene = null);
 
 public sealed class MenuCaf
 {
@@ -22,12 +22,13 @@ public sealed class MenuCaf
         new("Incidencias", "Coordinador", new[] { "PER_CAF_INCIDENCIA_DECIDIR" }, true, "Incidencias", "Index"),
         new("Reporte de accesos", "Coordinador", new[] { "PER_CAF_REPORTE_VER" }, true, "Reportes", "Index"),
         new("Control de accesos",         "Vigilancia",     new[] { "PER_CAF_PORTERIA_VER", "PER_CAF_PORTERIA_REGISTRAR" }, true, "Vigilancia", "Index"),
-        new("Incidencias del día", "Vigilancia", new[] { "PER_CAF_INCIDENCIA_REGISTRAR" }, true, "Incidencias", "Dia"),
+        // Misma pantalla que la del Coordinador; quien puede decidir la ve en su grupo y no se repite en Vigilancia.
+        new("Incidencias", "Vigilancia", new[] { "PER_CAF_INCIDENCIA_REGISTRAR" }, true, "Incidencias", "Index", new[] { "PER_CAF_INCIDENCIA_DECIDIR" }),
         new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, true, "Usuarios", "Index"),
         new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS" }, true, "Catalogos", "Index"),
         new("Personal",                   "Administración", new[] { "PER_CAF_ADMIN_TRABAJADORES" }, true, "Personal", "Index"),
     };
 
     public IReadOnlyList<IGrouping<string, EntradaMenu>> Para(ClaimsPrincipal usuario)
-        => Todas.Where(e => usuario.TieneAlgunPermiso(e.Permisos)).GroupBy(e => e.Grupo).ToList();
+        => Todas.Where(e => usuario.TieneAlgunPermiso(e.Permisos) && (e.OcultarSiTiene is null || !usuario.TieneAlgunPermiso(e.OcultarSiTiene))).GroupBy(e => e.Grupo).ToList();
 }

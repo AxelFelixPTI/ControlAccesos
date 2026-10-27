@@ -309,3 +309,15 @@
 
 ## Pendientes para `PENDIENTES_VALIDACION.md`
 - **T-24** — En HANA `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR`: `LIMIT 10` pasa a `TOP 10` (o `LIMIT` fijo), `::` no existe (se usa `CAST`) y el agrupado por minúsculas se calcula igual con `LOWER`.
+
+
+---
+
+# Puntos de mejora · Entrega B (2026-10-26): incidencias y catálogos de área y cargo
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-165 | **Lo que registra el Coordinador nace CONFIRMADO.** `ERP_CAF_INCIDENCIA_REGISTRAR` fija el estado según el origen: Coordinador → `CONFIRMADA` (con él como decisor, fecha y sustento «Registrada por el Coordinador: confirmada directamente.»); Vigilancia → `REGISTRADA` (espera decisión). Antes el SP la dejaba siempre «Registrada» aunque la pantalla decía lo contrario. `12_ALTER_INCIDENCIA_COORD_CONFIRMADA.sql` confirma las antiguas. | Construido |
+| D-166 | **Una sola pantalla de Incidencias.** Quien tiene `PER_CAF_INCIDENCIA_DECIDIR` (Coordinador) ve todas con filtros, decide y registra; quien solo tiene `PER_CAF_INCIDENCIA_REGISTRAR` (Vigilancia) ve las de hoy y registra. El menú muestra una sola entrada «Incidencias» (en Coordinador, o en Vigilancia si no puede decidir). La ruta `/Incidencias/Dia` redirige a `/Incidencias`; la vista `Dia.cshtml` se elimina. El servidor limita a Vigilancia a las de hoy aunque pida otras fechas. | Construido |
+| D-167 | **Control de accesos, botón «Registrar incidencia» del Coordinador:** lleva a `/Incidencias?persona=<id>&nombre=<texto>` y abre el formulario con esa persona ya elegida; al guardar queda confirmada. Vigilancia sigue registrando desde la misma ventana (queda «Registrada»). | Construido |
+| D-168 | **Áreas y Cargos editables desde Catálogos** (`CatalogosController`, tipos `area` y `cargo`), con el mismo comportamiento que los otros catálogos: crear, editar, activar/desactivar (no se eliminan), código automático, no repetir nombre. Se usan al registrar Personal y Usuarios. Reutiliza `ISrv_Catalogo_Area/Cargo` ya existentes: sin SQL nuevo. | Construido |
