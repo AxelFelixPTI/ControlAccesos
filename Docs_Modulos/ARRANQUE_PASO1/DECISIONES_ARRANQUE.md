@@ -341,3 +341,16 @@
 - **P-106** — Confirmar con Sandra: (a) ¿quién va en copia del correo de emergencia? (hoy aprobadores + correos del asistente); (b) ¿`APROBADA_PARCIAL` también admite corrección? (hoy sí); (c) si es la única persona, ¿debe poder cancelar el Coordinador? (hoy solo el solicitante cancela); (d) ¿se permite quitar a quien ya salió? (hoy no: solo `ESPERADA`).
 - **T-25** — En HANA: los dos procedimientos nuevos usan `DROP PROCEDURE IF EXISTS` (ver la forma admitida en esa instancia), parámetros `INOUT`, `CHR(10)` → `CHAR(10)`, concatenación `||` con `COALESCE`, y `13_ALTER_CORREOS_CORRECCION.sql` cambia un CHECK (en HANA, `ALTER TABLE ... DROP CONSTRAINT` y volver a crear).
 
+
+---
+
+# Puntos de mejora · Entrega D (2026-10-28): rol activo y celular
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-176 | **Rol activo (P-97).** Quien tiene más de un grupo (Solicitante, Coordinador, Vigilancia, Administración) ve en la barra superior un selector «Todos mis roles / <grupo>». Elegir uno **solo filtra el menú** (`MenuCaf.Para(usuario, rol)`); no concede ni quita permisos: cada pantalla y cada procedimiento siguen validando por permiso, y la URL de otra pantalla sigue abriendo si el usuario tiene el permiso. Se guarda en la cookie `caf_rol` (1 año, HttpOnly, SameSite Lax) para entrar con el último rol usado; la primera vez entra con «Todos». Solo se acepta un rol que el usuario tiene; una cookie inválida se ignora. Acción `Cuenta/CambiarRol` (POST con token anti-falsificación) y luego va a Inicio. Con un rol elegido se muestran todas las entradas de ese grupo (p. ej. «Incidencias» en Vigilancia aunque el usuario también decida incidencias). Sin SQL. | Construido |
+| D-177 | **Celular, 360 a 414 px (P-96), todas las pantallas.** Un solo bloque de CSS (`site.css`, `@media (max-width:860px)`) y un pequeño script en `layout.js`: (a) las tablas `.tabla` pasan a **tarjetas**, con la etiqueta de cada dato tomada del encabezado (`data-label` que pone el script al cargar y cada vez que una pantalla redibuja filas); (b) las ventanas ocupan **toda la pantalla** con título y botones fijos; (c) botones, pestañas, selectores y menú de **44 px** mínimo; letra de campos de 16 px (evita el zoom de iOS); (d) filtros en dos columnas; (e) barra superior apilada; (f) se corrige el desborde de «Usuarios y roles». No se tocó ninguna vista ni JS de pantalla. En escritorio no cambia nada. | Construido |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-107** — Probar en celulares reales (Android y iPhone) las pantallas de Vigilancia, Coordinación y Mis solicitudes; yo las probé con un navegador simulado a 360, 390 y 414 px, no en un teléfono. Confirmar además si el selector de rol debe ir en la barra superior (como ahora) o en una página de perfil.
+

@@ -1,6 +1,6 @@
 # Pendientes de validación · Control de Accesos
 
-Actualizado: 2026-10-27 · ordenado por relevancia para el MVP
+Actualizado: 2026-10-28 · ordenado por relevancia para el MVP
 
 Este archivo reúne lo que el sistema necesita que **una persona del negocio confirme o decida**, y lo que queda por construir. Está ordenado de lo más importante a lo menos: primero lo que hay que resolver para usar el sistema con datos reales, y al final lo que puede esperar. Dentro de cada grupo, de lo más antiguo a lo más nuevo cuando tienen la misma importancia.
 
@@ -20,7 +20,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | Grupo | Qué contiene | Puntos |
 | --- | --- | --- |
-| A | Por construir antes de cerrar el MVP | 5 |
+| A | Por construir antes de cerrar el MVP | 4 |
 | B | Necesario para operar con datos reales | 12 |
 | C | Reglas de portería e incidencias a confirmar | 21 |
 | D | Mejoras del prototipo que pueden esperar | 11 |
@@ -37,8 +37,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | --- | --- | --- | --- | --- | --- |
 | P-72 | **«No se presentó» automático:** hoy la rutina existe pero ningún proceso la dispara. Hay que programar un proceso diario que marque, después de medianoche (hora de Lima), a las personas aprobadas de ayer que no ingresaron. Con P-44 se confirma si es al cierre del mismo día o a primera hora del siguiente. | 2026-10-21 | Equipo (construir) y Sandra (P-44) | Piloto con usuarios | Por construir |
 | P-95 | **Hilo con días de diferencia:** si la aprobación llega días después, Gmail puede no agrupar el correo con el original; y se quiere que la respuesta use «Responder a todos» (que los copiados desde el asistente, por ejemplo gerencia, sigan al tanto) y que el hilo permita seguir conversando (proveedores, almacén…). Hoy los correos llevan `In-Reply-To`; falta definir cómo mantener la conversación y quién puede escribir en ella. | 2026-10-25 | Sandra | Piloto con usuarios | Por analizar |
-| P-96 | **Móvil (responsive):** las pantallas se ven justas en celular; revisar cada una. | 2026-10-25 | Equipo | Piloto con usuarios | Por hacer |
-| P-97 | **Varios roles:** cambiar de rol desde el perfil (como en el prototipo). El selector existe en el prototipo; confirmar qué falta en la aplicación. | 2026-10-25 | Equipo | Piloto con usuarios | Por analizar |
+| P-107 | **Celular y rol activo (revisar en teléfonos reales):** probar Vigilancia, Coordinación y Mis solicitudes en Android e iPhone; confirmar si el selector de rol va en la barra superior (como ahora) o en una página de perfil. | 2026-10-28 | Equipo | Piloto con usuarios | Por confirmar |
 | P-106 | **Corrección de emergencia (revisar con Sandra):** quién va en copia del correo; si `APROBADA_PARCIAL` también admite corrección; qué hacer cuando es la única persona de la solicitud; si se puede quitar a quien ya salió. Hoy: aprobadores + correos del asistente; sí; solo el solicitante cancela; no. | 2026-10-27 | Sandra | Piloto con usuarios | Por confirmar |
 
 ### B. Necesario para operar con datos reales
@@ -224,6 +223,8 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 
 | # | Tema | Registrado | Resolución |
 | --- | --- | --- | --- |
+| P-96 | Móvil (responsive): revisar cada pantalla en celular. | 2026-10-25 | Construido (D-177); falta probar en teléfonos reales (P-107) |
+| P-97 | Varios roles: cambiar de rol desde la aplicación. | 2026-10-25 | Construido (D-176) |
 | P-98 | Coordinador: agregar o quitar personas después de aprobar (corrección de emergencia con sustento, reflejada en Vigilancia). | 2026-10-25 | Construido (D-169 a D-175); ver P-106 |
 | P-99 | Incidencias: una sola pantalla; lo que registra el Coordinador queda confirmado; botón de Control de accesos lleva a ella con la persona. | 2026-10-25 | Construido (D-165 a D-167) |
 | P-105 | Catálogos de Área y Cargo editables desde la aplicación. | 2026-10-26 | Construido (D-168) |

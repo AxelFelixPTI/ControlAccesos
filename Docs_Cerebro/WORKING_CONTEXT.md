@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-27
+Actualizado: 2026-10-28
 
 ## Dónde estamos
 
+- **2026-10-28 · Puntos de mejora, entrega D (P-96 y P-97).** Rol activo desde la barra superior: solo filtra el menú, se recuerda en la cookie `caf_rol`, la seguridad sigue por permisos (D-176, `Cuenta/CambiarRol`). Celular a 360–414 px en todas las pantallas: tablas a tarjetas (`data-label` puesto por `layout.js`), ventanas a pantalla completa, botones de 44 px, sin desbordes (D-177). Sin cambios de base de datos ni de SQL. Verificado con Playwright (11 pantallas a 360, 390 y 414 px: sin desborde horizontal ni controles menores de 40 px; escritorio sin regresión; selector de rol y modal móvil). **No probado:** teléfonos reales (P-107).
 - **2026-10-27 · Puntos de mejora, entrega C (P-98).** Corrección de emergencia del Coordinador sobre solicitudes `APROBADA`/`APROBADA_PARCIAL` hasta el día de la visita, con sustento obligatorio (D-169 a D-175). SP nuevos `ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA` y `_RETIRAR_EMERGENCIA` (reemplazan a `_AGREGAR_APROBADA`); no se quita a quien ya ingresó ni a la última persona; correo `SOLICITUD_CORRECCION` (script `13_ALTER_CORREOS_CORRECCION.sql`, se ejecuta una sola vez en base vacía con `restaurar_bd.ps1`). Pruebas SQL en PostgreSQL 16: Hito 2 escritura 227/227 (+33), Hito 1 143/143, Hito 2 lectura 202/202, Hito 3 140/140 y 100/100, Hito 4 138/138 y 113/113, permisos 43/43; Hito 0: 60 de 65 (5 fallos conocidos por el seed demo 11). Compilación completa con 0 errores y 0 avisos; navegador (Playwright, 1280 y 390 px) sobre la pantalla con servicios simulados. **No probado:** C# contra PostgreSQL real, Gmail, HANA.
 - **2026-10-26 · Puntos de mejora, entrega B.** Incidencias en una sola pantalla (D-166), la del Coordinador nace confirmada (D-165, SP cambiado), botón de Control de accesos lleva a ella con la persona (D-167), Áreas y Cargos editables en Catálogos (D-168). Pruebas SQL: Hito 4 escritura 138/138.
 - **2026-10-26 · Puntos de mejora, entrega A.** «Salió» en el reporte (D-160), limpieza de nombres al cambiar el DNI (D-161), autocompletar empresa y persona (D-162, `ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR`, `Empresas` y `PersonasBuscar`), botón «Contraseña» quitado (D-163), copia de correos aclarada (D-164). Quedan por entregar B (incidencias), C (modificar personas tras aprobar), D (móvil y cambio de rol), E (hilo de correo). Decisión del usuario: no se archivan en pendientes, se resuelven antes de presentar el prototipo.
@@ -51,7 +52,7 @@ Actualizado: 2026-10-27
 
 ## Siguiente paso literal
 
-Usuario prueba la entrega C (aplicar con `restaurar_bd.ps1 -Database <nueva> -Crear`, porque trae el script 13). Luego, en este orden: **D = P-96 y P-97** (móvil a 360–414 px y cambio de rol desde el perfil), **E = P-95** (hilo de correo y «responder a todos»). Después:
+Usuario prueba las entregas C y D. Luego **E = P-95** (hilo de correo y «responder a todos», Reply-To al Coordinador, prueba con Gmail). Después:
 
 ## Decisiones vigentes que más condicionan
 

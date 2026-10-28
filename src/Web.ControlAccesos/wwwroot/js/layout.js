@@ -4,6 +4,10 @@
     var boton = document.getElementById('menu-t');
     if (lateral && boton) boton.addEventListener('click', function () { lateral.classList.toggle('open'); });
 
+    // Rol activo: al elegir otro rol se envía el formulario (solo cambia el menú; D-176).
+    var rolSel = document.getElementById('rol-sel');
+    if (rolSel && rolSel.form) rolSel.addEventListener('change', function () { rolSel.form.submit(); });
+
     var tema = document.getElementById('btn-tema');
     if (tema) tema.addEventListener('click', function () {
         var nuevo = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -37,3 +41,27 @@
         envoltura.appendChild(b);
     });
 })();
+
+// Tablas en celular: pone en cada celda su «data-label» (el texto de su encabezado) para que el CSS la muestre como tarjeta (D-177).
+// Se vuelve a aplicar cuando el JS de cada pantalla redibuja las filas. Solo escribe textContent/atributos, nunca HTML.
+(function () {
+    function etiquetar(tabla) {
+        var cab = tabla.querySelectorAll('thead th');
+        if (!cab.length) return;
+        var nombres = Array.prototype.map.call(cab, function (th) { return (th.textContent || '').trim(); });
+        Array.prototype.forEach.call(tabla.querySelectorAll('tbody tr'), function (tr) {
+            var col = 0;
+            Array.prototype.forEach.call(tr.children, function (td) {
+                var n = nombres[col] || '';
+                if (td.getAttribute('data-label') !== n) td.setAttribute('data-label', n);
+                col += td.colSpan || 1;
+            });
+        });
+    }
+    function todas() { Array.prototype.forEach.call(document.querySelectorAll('table.tabla'), etiquetar); }
+    var pendiente = false;
+    function programar() { if (pendiente) return; pendiente = true; requestAnimationFrame(function () { pendiente = false; todas(); }); }
+    todas();
+    if (window.MutationObserver) new MutationObserver(programar).observe(document.body, { childList: true, subtree: true });
+})();
+

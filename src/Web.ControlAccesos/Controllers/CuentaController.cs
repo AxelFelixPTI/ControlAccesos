@@ -19,9 +19,10 @@ public sealed class CuentaController : Controller
     private readonly ISrv_Auth _auth;
     private readonly ISrv_Restablecer _restablecer;
     private readonly IConfiguration _config;
-    public CuentaController(ISrv_Auth auth, ISrv_Restablecer restablecer, IConfiguration config)
+    private readonly MenuCaf _menu;
+    public CuentaController(ISrv_Auth auth, ISrv_Restablecer restablecer, IConfiguration config, MenuCaf menu)
     {
-        _auth = auth; _restablecer = restablecer; _config = config;
+        _auth = auth; _restablecer = restablecer; _config = config; _menu = menu;
     }
 
     [HttpGet, AllowAnonymous]
@@ -80,6 +81,24 @@ public sealed class CuentaController : Controller
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Ingresar));
+    }
+
+    /// <summary>
+    /// Rol activo (D-176): solo decide qué grupos del menú se muestran. No concede ni quita permisos: cada pantalla y cada
+    /// procedimiento siguen validando por permiso. Se recuerda en una cookie para entrar con el último rol usado.
+    /// Solo se acepta un rol que el usuario realmente tiene; vacío = todos sus roles.
+    /// </summary>
+    [HttpPost, Authorize, ValidateAntiForgeryToken]
+    public IActionResult CambiarRol(string? rol)
+    {
+        if (!string.IsNullOrEmpty(rol) && _menu.Roles(User).Contains(rol))
+            Response.Cookies.Append(MenuCaf.CookieRol, rol, new CookieOptions
+            {
+                HttpOnly = true, SameSite = SameSiteMode.Lax, Secure = Request.IsHttps, IsEssential = true, Expires = DateTimeOffset.UtcNow.AddYears(1),
+            });
+        else
+            Response.Cookies.Delete(MenuCaf.CookieRol);
+        return RedirectToAction("Index", "Inicio");
     }
 
     [HttpGet, Authorize]

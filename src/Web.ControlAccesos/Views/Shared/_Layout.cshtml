@@ -7,6 +7,8 @@
     var migas = ViewData["Migas"] as string ?? "";
     var titulo = ViewData["Titulo"] as string ?? "Control de Accesos";
     var nombre = User.Identity?.Name ?? "";
+    var roles = autenticado ? Menu.Roles(User) : new List<string>();
+    var rolActivo = autenticado ? Menu.RolActivo(User, Context.Request.Cookies[MenuCaf.CookieRol]) : null;
     var iniciales = string.Concat(nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
 }
 <!doctype html>
@@ -28,7 +30,7 @@
                 <div class="brand"><span class="logo"><i></i></span><span><b>TRIANON</b><small>Control de Accesos · VES</small></span><button type="button" class="menu-t" id="menu-t" aria-label="Menú">&#9776;</button></div>
                 <nav aria-label="Menú principal">
                     <a class="nav-i @(controlador == "Inicio" ? "on" : "")" asp-controller="Inicio" asp-action="Index"><span>Inicio</span></a>
-                    @foreach (var grupo in Menu.Para(User))
+                    @foreach (var grupo in Menu.Para(User, rolActivo))
                     {
                         <p class="nav-r">@grupo.Key</p>
                         @foreach (var e in grupo)
@@ -51,7 +53,21 @@
             <header class="top">
                 <div><p class="crumb">@migas</p><h1>@titulo</h1></div>
                 <div class="who">
-                    <div class="who-t"><b>@nombre</b><small>@User.Correo()</small></div>
+                    <div class="who-t"><b>@nombre</b><small>@User.Correo()</small>
+                        @if (roles.Count > 1)
+                        {
+                            <form asp-controller="Cuenta" asp-action="CambiarRol" method="post" class="en-linea" id="rol-f">
+                                <select name="rol" id="rol-sel" aria-label="Rol activo">
+                                    <option value="" selected="@(rolActivo is null)">Todos mis roles</option>
+                                    @foreach (var r in roles)
+                                    {
+                                        <option value="@r" selected="@(r == rolActivo)">@r</option>
+                                    }
+                                </select>
+                                <noscript><button type="submit" class="btn btn-sm">Cambiar</button></noscript>
+                            </form>
+                        }
+                    </div>
                     <span class="avatar">@iniciales</span>
                     <button type="button" class="btn btn-sm btn-tema" id="btn-tema" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro">
                         <svg class="i-luna" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
