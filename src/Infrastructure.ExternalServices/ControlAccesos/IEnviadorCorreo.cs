@@ -12,7 +12,9 @@ public sealed record MensajeCorreo(
     string Html,
     string Texto,
     string MessageId,
-    string? EnRespuestaA);
+    string? EnRespuestaA,
+    string? ResponderA = null,
+    string? ResponderANombre = null);
 
 public interface IEnviadorCorreo
 {

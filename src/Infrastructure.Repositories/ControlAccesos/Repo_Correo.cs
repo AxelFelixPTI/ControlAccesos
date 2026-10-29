@@ -190,6 +190,8 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Asunto              = RdStr(rd, "Asunto"),
         Cuerpo              = RdStr(rd, "Cuerpo"),
         Intentos            = RdLong(rd, "Intentos"),
+        Responder_A         = RdStrN(rd, "Responder_A"),
+        Responder_A_Nombre  = RdStrN(rd, "Responder_A_Nombre"),
     };
 
     private static Dto_Correo_Solicitud MapCorreo_Solicitud(DbDataReader rd) => new()
@@ -222,6 +224,7 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Motivo_Cancelacion      = RdStrN(rd, "Motivo_Cancelacion"),
         Version                 = RdLong(rd, "Version"),
         Fecha_Envio             = RdDtN(rd, "Fecha_Envio"),
+        Asunto_Hilo             = RdStrN(rd, "Asunto_Hilo"),
     };
 
     private static Dto_Correo_Solicitud_Persona MapCorreo_Solicitud_Persona(DbDataReader rd) => new()

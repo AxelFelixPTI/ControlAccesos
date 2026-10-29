@@ -1,7 +1,7 @@
 // ============================================================
 // Envío real por SMTP con MailKit. Multipart: texto plano + HTML.
 // Lleva Message-ID propio y, si es una respuesta, In-Reply-To/References hacia el correo raíz
-// de la solicitud para que el cliente de correo lo agrupe en un hilo.
+// de la solicitud para que el cliente de correo lo agrupe en un hilo. Reply-To y nombre del remitente: ver CabecerasCorreo.
 // Puerto 587 = STARTTLS (UsarSsl=true); puerto 465 = SSL directo; UsarSsl=false = sin cifrado.
 // ============================================================
 
@@ -25,17 +25,21 @@ public sealed class EnviadorSmtp : IEnviadorCorreo
         if (m.Para.Count == 0) throw new InvalidOperationException("El correo no tiene destinatarios.");
 
         var msg = new MimeMessage();
-        msg.From.Add(new MailboxAddress(_op.NombreRemitente, _op.Remitente));
+        var cab = CabecerasCorreo.Armar(m, _op.NombreRemitente);
+        msg.From.Add(new MailboxAddress(cab.NombreRemitente, _op.Remitente));
+        // «Responder» llega a quien realizó la acción; «Responder a todos» suma Para y Cc (D-180)
+        if (cab.ResponderA is not null && MailboxAddress.TryParse(cab.ResponderA, out var responder))
+            msg.ReplyTo.Add(responder);
         foreach (var d in m.Para) msg.To.Add(MailboxAddress.Parse(d));
         foreach (var d in m.Cc) msg.Cc.Add(MailboxAddress.Parse(d));
         msg.Subject = m.Asunto;
         msg.MessageId = m.MessageId.Trim('<', '>');
-        if (!string.IsNullOrWhiteSpace(m.EnRespuestaA))
+        if (cab.InReplyTo is not null)
         {
-            var raiz = m.EnRespuestaA.Trim('<', '>');
-            msg.InReplyTo = raiz;
-            msg.References.Add(raiz);
+            msg.InReplyTo = cab.InReplyTo;
+            foreach (var r in cab.References) msg.References.Add(r);
         }
+        msg.Headers.Add("Thread-Topic", cab.ThreadTopic);
         msg.Headers.Add("Auto-Submitted", "auto-generated");
         msg.Body = new BodyBuilder { TextBody = m.Texto, HtmlBody = m.Html }.ToMessageBody();
 

@@ -53,7 +53,7 @@ Actualizado: 2026-10-29
 
 ## Siguiente paso literal
 
-Usuario prueba las entregas C y D. Luego **E = P-95** (hilo de correo y «responder a todos», Reply-To al Coordinador, prueba con Gmail). Después:
+Usuario prueba las entregas C, D, D1 y E (E = P-95: asunto estable, Reply-To a quien actuó, «Responder a todos»; probar con Gmail según `GUIA_CORREO.md`). Entregas A a E completas; después, lo que el usuario priorice (P-106, P-107, P-108 esperan respuesta o prueba real). Después:
 
 ## Decisiones vigentes que más condicionan
 

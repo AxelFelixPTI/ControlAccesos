@@ -362,3 +362,17 @@
 |---|---|---|
 | D-178 | **«Control de accesos» está en el menú del Coordinador** (grupo Coordinador, entre sus pantallas) para consultar lo del día y registrar incidencias; le basta `PER_CAF_PORTERIA_VER`, **sin** el rol de Vigilancia (que queda para el personal de portería). En «Todos mis roles» no se repite en el grupo Vigilancia. **«Vigilancia» como rol del selector (D-176) solo lo tiene quien puede REGISTRAR en portería** (`PER_CAF_PORTERIA_REGISTRAR`): ver el control de accesos ya no convierte a nadie en Vigilancia. Con el rol Vigilancia activo se ven Control de accesos e Incidencias; con el rol Coordinador activo, Control de accesos junto a sus pantallas. Solo cambia `MenuCaf` (nuevo campo `ExigirAlguno`); la pantalla ya mostraba al Coordinador sin botones de ingreso/salida y con «Registrar incidencia». Sin SQL. | Construido |
 
+---
+
+# Puntos de mejora · Entrega E (2026-10-29): hilo de correo y «responder a todos» (P-95)
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-179 | **Asunto estable del hilo.** El aviso de solicitud nueva sale con `Solicitud SOL-xxxxx · Empresa` (la empresa **de la creación**). Los demás correos de esa solicitud usan ese mismo asunto con «Re: » delante, aunque después se edite la empresa. `ERP_CAF_CORREO_SOLICITUD_DATOS` devuelve la columna nueva `Asunto_Hilo` (el asunto del correo `SOLICITUD_NUEVA` ya encolado). Las solicitudes anteriores a esta entrega no lo tienen: usan la empresa actual. Así Gmail agrupa los correos aunque pasen días. | Construido |
+| D-180 | **«Responder» y «Responder a todos».** Cada correo de una solicitud lleva `Reply-To` = **quien actuó**: el solicitante en nueva, editada y cancelada; el Coordinador en decisión y corrección (`Responder_A` y `Responder_A_Nombre` salen de `UsuarioID_Create` del correo en `ERP_CAF_CORREO_PENDIENTES_LISTAR`). «Responder a todos» = Reply-To + Para + Copia, así que los copiados desde el asistente (p. ej. gerencia) siguen al tanto y proveedores o almacén pueden sumarse a la conversación. El remitente visible pasa a «Nombre · Control de Accesos» (la dirección real sigue siendo la casilla del sistema). El pie ya no dice «no se monitorea» en los correos con quien actuó: explica qué hace cada botón. Se agrega `Thread-Topic` (asunto sin «Re: »). Un `Responder_A` inválido se ignora y el correo vuelve al pie anterior. Los correos sin solicitud (p. ej. definir contraseña) no llevan Reply-To. En modo prueba (`Correo__RedirigirA`) el Reply-To se conserva. **Alcance:** `In-Reply-To` y `References` apuntan solo a la **raíz** del hilo (correo de solicitud nueva), no a toda la cadena. Lógica pura en `CabecerasCorreo.cs`; `EnviadorSmtp` solo la aplica. | Construido |
+
+## Pendientes para `PENDIENTES_VALIDACION.md`
+- **P-95 / P-89** — Probar con Gmail real (ver `Docs_Modulos/HITO_04_Incidencias_Reporte_Correos_2026-10-09/GUIA_CORREO.md`): un solo hilo; «Responder» va a quien actuó; «Responder a todos» incluye la copia. No se pudo probar aquí.
+- **P-108** — Decidir si quien responde por correo debe quedar registrado en el sistema (hoy la conversación vive solo en el correo) y si hace falta una cadena `References` completa.
+- **T-26** — En HANA: `ERP_CAF_CORREO_SOLICITUD_DATOS` y `ERP_CAF_CORREO_PENDIENTES_LISTAR` cambian de columnas, por eso llevan `DROP FUNCTION IF EXISTS` antes de crear (forma admitida en esa instancia); `LIMIT 1` → `TOP 1` en la subconsulta de `Asunto_Hilo`; el `LEFT JOIN` a `Usuario` es entre schemas.
+

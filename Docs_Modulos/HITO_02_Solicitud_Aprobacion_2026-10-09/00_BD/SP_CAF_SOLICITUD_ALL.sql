@@ -216,7 +216,8 @@ BEGIN
             -- Para: quien decide el primer paso. Copia: el solicitante y los correos adicionales del asistente
             CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_NUEVA', lv_id, lv_dest,
                  "ERP_CAF_FN_COPIA_CORREO"(lv_id, 'Y', 'N', 'N', 'Y'),
-                 'Nueva solicitud ' || lv_codsol || ' por aprobar',
+                 -- Asunto del hilo (D-179): queda guardado y se usa en todos los correos de la solicitud aunque luego cambie la empresa
+                 'Solicitud ' || lv_codsol || ' · ' || TRIM("HV_Empresa_Visitante"),
                  'Se registró una nueva solicitud de acceso y está por aprobar: ' || lv_cntP || ' persona(s) de '
                  || TRIM("HV_Empresa_Visitante") || ', visita prevista el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '.',
                  "HV_UsuarioID", lv_c, lv_m);

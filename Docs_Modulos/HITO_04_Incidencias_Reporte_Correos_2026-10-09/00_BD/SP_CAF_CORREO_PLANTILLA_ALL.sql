@@ -3,7 +3,7 @@
 -- Proyecto: Control de Accesos (piloto PostgreSQL, destino SAP HANA)
 -- Schema  : TRIANONSATELITAL_CAF_PRODD
 -- Hito    : 4 - Correos | datos para armar la plantilla del correo
--- Versión : V1.0 2026-10-24
+-- Versión : V1.1 2026-10-29 (D-179: Asunto_Hilo)
 -- Estado  : CANDIDATO - probado en PostgreSQL 16 (ver PRUEBAS_FASE1_HITO4_CORREO_PLANTILLA.sql)
 -- Requiere: SP_CAF_SOLICITUD_LECTURA_ALL.sql (usa ERP_CAF_SOLICITUD_INDICADORES)
 -- =============================================================================
@@ -15,6 +15,8 @@
 
 SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 
+-- V1.1: se agrega la columna "Asunto_Hilo" y por eso se borra la función anterior (cambia el tipo de retorno)
+DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_SOLICITUD_DATOS"(BIGINT, BIGINT);
 CREATE OR REPLACE FUNCTION "ERP_CAF_CORREO_SOLICITUD_DATOS"("HV_UsuarioID" BIGINT, "HV_ID_Solicitud" BIGINT)
 RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Estado" VARCHAR, "Fecha_Hora_Prevista" TIMESTAMP,
                "Sede" VARCHAR, "Tipo_Acceso" VARCHAR, "Empresa_Visitante" VARCHAR,
@@ -23,11 +25,12 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Estado" VARCHAR, "Fecha
                "Solicitante_Nombre" VARCHAR, "Solicitante_Correo" VARCHAR,
                "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1),
                "Total_Personas" INT, "Autorizadas" INT, "Observadas" INT, "Pendientes" INT, "Rechazadas" INT, "Retiradas" INT,
-               "Observacion_Coordinador" VARCHAR, "Motivo_Cancelacion" VARCHAR, "Version" BIGINT, "Fecha_Envio" TIMESTAMP)
+               "Observacion_Coordinador" VARCHAR, "Motivo_Cancelacion" VARCHAR, "Version" BIGINT, "Fecha_Envio" TIMESTAMP,
+               "Asunto_Hilo" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 BEGIN
-    -- V1.0 2026-10-24
+    -- V1.1 2026-10-29
     IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <> 0 THEN RETURN; END IF;
     RETURN QUERY
     SELECT S."ID_Solicitud", S."Codigo", S."Estado", S."Fecha_Hora_Prevista",
@@ -43,7 +46,12 @@ BEGIN
            US."Correo",
            S."Exige_SCTR", S."Exige_EPP",
            I."Total_Personas", I."Autorizadas", I."Observadas", I."Pendientes", I."Rechazadas", I."Retiradas",
-           S."Observacion_Coordinador", S."Motivo_Cancelacion", S."Version", S."Fecha_Envio"
+           S."Observacion_Coordinador", S."Motivo_Cancelacion", S."Version", S."Fecha_Envio",
+           -- Asunto con el que salió el aviso de solicitud nueva (código + empresa de la creación). Vacío en solicitudes anteriores a D-179.
+           CAST((SELECT C."Asunto" FROM "CAF_Correo_Pendiente" C
+                  WHERE C."ID_Solicitud" = S."ID_Solicitud" AND C."Tipo" = 'SOLICITUD_NUEVA' AND C."Eliminado" = 'N'
+                    AND C."Asunto" LIKE 'Solicitud ' || S."Codigo" || ' · %'
+                  ORDER BY C."ID_Correo_Pendiente" LIMIT 1) AS VARCHAR)
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"

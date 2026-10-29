@@ -35,6 +35,8 @@ public sealed class Dto_Correo_Solicitud
     public string? Motivo_Cancelacion { get; set; }
     public long Version { get; set; }
     public DateTime? Fecha_Envio { get; set; }
+    /// <summary>Asunto del aviso de solicitud nueva (código + empresa de la creación): se usa en todo el hilo. Vacío en solicitudes anteriores.</summary>
+    public string? Asunto_Hilo { get; set; }
 }
 
 public sealed class Dto_Correo_Solicitud_Persona

@@ -114,9 +114,17 @@ public sealed class ProcesadorCorreos
         if (!pers.Success)
             throw new InvalidOperationException("No se pudieron leer las personas de la solicitud: " + pers.Message);
 
-        var a = PlantillaCorreo.Armar(c.Tipo, c.Cuerpo, datos.Data, pers.Data ?? new(), _op.UrlBase, !esRaiz, aviso);
-        return new MensajeCorreo(para, cc, a.Asunto, a.Html, a.Texto, id, respuestaA);
+        var responder = ResponderValido(c.Responder_A);
+        var a = PlantillaCorreo.Armar(c.Tipo, c.Cuerpo, datos.Data, pers.Data ?? new(), _op.UrlBase, !esRaiz, aviso, responder is null ? null : NombreVisible(c));
+        return new MensajeCorreo(para, cc, a.Asunto, a.Html, a.Texto, id, respuestaA, responder, responder is null ? null : NombreVisible(c));
     }
+
+    /// <summary>Correo de «Responder»: solo si es una dirección válida (D-180).</summary>
+    internal static string? ResponderValido(string? correo)
+        => !string.IsNullOrWhiteSpace(correo) && correo.Contains('@') && !correo.Contains(' ') && !correo.Contains(';') && !correo.Contains(',') ? correo.Trim() : null;
+
+    private static string NombreVisible(Dto_Correo_Pendiente c)
+        => string.IsNullOrWhiteSpace(c.Responder_A_Nombre) ? c.Responder_A!.Trim() : c.Responder_A_Nombre.Trim();
 
     private string Dominio()
     {

@@ -76,16 +76,30 @@ public static class PlantillaCorreo
         return new CorreoArmado(asunto, h.ToString(), x.ToString());
     }
 
+    /// <summary>
+    /// Asunto del hilo (D-179): el que salió en el aviso de solicitud nueva, para que no cambie aunque luego se edite la empresa.
+    /// Las solicitudes anteriores a D-179 no lo tienen y usan la empresa actual.
+    /// </summary>
+    public static string AsuntoHilo(Dto_Correo_Solicitud d)
+        => string.IsNullOrWhiteSpace(d.Asunto_Hilo) ? $"Solicitud {d.Codigo} · {d.Empresa_Visitante}" : d.Asunto_Hilo.Trim();
+
     public static string Asunto(Dto_Correo_Solicitud d, bool esRespuesta)
-        => (esRespuesta ? "Re: " : "") + $"Solicitud {d.Codigo} · {d.Empresa_Visitante}";
+        => (esRespuesta ? "Re: " : "") + AsuntoHilo(d);
+
+    /// <summary>Pie del correo de una solicitud. Con quien actuó: invita a responder; sin él, pide actuar desde el sistema.</summary>
+    internal static string PieHtml(string? responderANombre)
+        => string.IsNullOrWhiteSpace(responderANombre)
+            ? "Mensaje automático del sistema Control de Accesos. Esta casilla no se monitorea: no responda a este correo; para actuar sobre la solicitud ingrese al sistema."
+            : $"Mensaje del sistema Control de Accesos. Puede responder a este correo: «Responder» escribe a {responderANombre.Trim()} y «Responder a todos» incluye también a quienes están en copia. Para actuar sobre la solicitud ingrese al sistema.";
 
     public static string EtiquetaEstado(string estado)
         => Estados.TryGetValue(estado, out var e) ? e.Texto : estado.Replace('_', ' ');
 
     /// <param name="mensaje">Texto plano que dejó la rutina (líneas separadas por salto de línea).</param>
     /// <param name="aviso">Texto opcional arriba de todo (modo prueba).</param>
+    /// <param name="responderANombre">Quién recibe «Responder» (D-180). Vacío = el correo dice que no se responda.</param>
     public static CorreoArmado Armar(string tipo, string mensaje, Dto_Correo_Solicitud d,
-        IReadOnlyList<Dto_Correo_Solicitud_Persona> personas, string urlBase, bool esRespuesta, string? aviso = null)
+        IReadOnlyList<Dto_Correo_Solicitud_Persona> personas, string urlBase, bool esRespuesta, string? aviso = null, string? responderANombre = null)
     {
         var titulo = Titulos.TryGetValue(tipo, out var t) ? t : "Solicitud de acceso";
         var lineas = (mensaje ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -167,7 +181,7 @@ public static class PlantillaCorreo
 
         if (url is not null)
             h.Append($"<tr><td style=\"padding:18px 22px 6px 22px;\"><a href=\"{Esc(url)}\" style=\"display:inline-block;background:{Azul};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-size:14px;\">Ver solicitud</a></td></tr>");
-        h.Append($"<tr><td style=\"padding:20px 22px;font-size:11px;color:{Gris};line-height:1.5;\">Mensaje automático del sistema Control de Accesos. Esta casilla no se monitorea: no responda a este correo; para actuar sobre la solicitud ingrese al sistema.</td></tr>");
+        h.Append($"<tr><td style=\"padding:20px 22px;font-size:11px;color:{Gris};line-height:1.5;\">{Esc(PieHtml(responderANombre))}</td></tr>");
         h.Append("</table></td></tr></table></body></html>");
 
         // ── Texto plano ───────────────────────────────────────
@@ -185,7 +199,7 @@ public static class PlantillaCorreo
                 x.AppendLine($" - {p.Nombre_Completo} · {p.Tipo_Documento} {p.Numero_Documento} · {EtiquetaPersona(p.Aprobacion)}");
         }
         if (url is not null) x.AppendLine().AppendLine($"Ver solicitud: {url}");
-        x.AppendLine().AppendLine("Mensaje automático. Esta casilla no se monitorea.");
+        x.AppendLine().AppendLine(PieHtml(responderANombre));
 
         return new CorreoArmado(Asunto(d, esRespuesta), h.ToString(), x.ToString());
     }

@@ -24,4 +24,7 @@ public sealed class Dto_Correo_Pendiente
     public string Asunto { get; set; } = string.Empty;
     public string Cuerpo { get; set; } = string.Empty;
     public long Intentos { get; set; }
+    /// <summary>Correo de quien realizó la acción (a quien llega «Responder»). Vacío en correos sin solicitud.</summary>
+    public string? Responder_A { get; set; }
+    public string? Responder_A_Nombre { get; set; }
 }
