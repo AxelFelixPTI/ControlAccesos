@@ -354,3 +354,11 @@
 ## Pendientes para `PENDIENTES_VALIDACION.md`
 - **P-107** — Probar en celulares reales (Android y iPhone) las pantallas de Vigilancia, Coordinación y Mis solicitudes; yo las probé con un navegador simulado a 360, 390 y 414 px, no en un teléfono. Confirmar además si el selector de rol debe ir en la barra superior (como ahora) o en una página de perfil.
 
+---
+
+# Corrección a la Entrega D (2026-10-29): Control de accesos también es del Coordinador
+
+| N.º | Decisión | Estado |
+|---|---|---|
+| D-178 | **«Control de accesos» está en el menú del Coordinador** (grupo Coordinador, entre sus pantallas) para consultar lo del día y registrar incidencias; le basta `PER_CAF_PORTERIA_VER`, **sin** el rol de Vigilancia (que queda para el personal de portería). En «Todos mis roles» no se repite en el grupo Vigilancia. **«Vigilancia» como rol del selector (D-176) solo lo tiene quien puede REGISTRAR en portería** (`PER_CAF_PORTERIA_REGISTRAR`): ver el control de accesos ya no convierte a nadie en Vigilancia. Con el rol Vigilancia activo se ven Control de accesos e Incidencias; con el rol Coordinador activo, Control de accesos junto a sus pantallas. Solo cambia `MenuCaf` (nuevo campo `ExigirAlguno`); la pantalla ya mostraba al Coordinador sin botones de ingreso/salida y con «Registrar incidencia». Sin SQL. | Construido |
+
