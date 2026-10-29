@@ -12,6 +12,7 @@ Estado: **BORRADOR para revisión**. Todos los scripts (01 a 08) están probados
 | `TRIANONSATELITAL_CAF_PRODD` | 2 | 06 | `CAF_Solicitud`, `CAF_Solicitud_Version`, `CAF_Solicitud_Zona`, `CAF_Solicitud_Persona`, `CAF_Solicitud_Copia_Correo`, `CAF_Evento` (6) |
 | `TRIANONSATELITAL_CAF_PRODD` | 3 | 07 | `CAF_Registro_Acceso`, `CAF_Registro_Checklist`, `CAF_Respaldo`, `CAF_Respaldo_Persona`, `CAF_Desviacion` (5) |
 | `TRIANONSATELITAL_CAF_PRODD` | 4 | 08 | `CAF_Incidencia`, `CAF_Incidencia_Persona`, `CAF_Correo_Pendiente` (3) |
+| `TRIANONSATELITAL_CAF_PRODD` | 2 (Entrega J) | 15 | `CAF_Solicitud_Adjunto` (1): documentos de la solicitud, máx. 2 de 5 MB, en la BD |
 
 ## 2. Cómo se relacionan las tablas transaccionales
 

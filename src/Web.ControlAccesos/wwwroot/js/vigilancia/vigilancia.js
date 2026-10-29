@@ -98,13 +98,19 @@
             var exige = [s.exigeSctr ? 'SCTR' : null, s.exigeEpp ? 'EPP' : null].filter(Boolean).join(' y ');
             var cab = el('div', { class: 'blk-h' }, [
                 el('div', {}, [el('strong', { text: s.empresa || '(sin empresa)' }), el('div', { class: 'field-h', text: s.codigo + ' · ' + (soloLectura ? 'visita ' + SOL.fechaLarga(s.fecha) + ' ' + s.hora : 'hora prevista ' + s.hora) + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
-                el('div', { class: 'vrow-e' }, [s.zonas ? el('span', { class: 'field-h', text: 'Zonas: ' + s.zonas }) : null, exige ? chip('Exige ' + exige, 'c-obs') : null])
+                el('div', { class: 'vrow-e' }, [s.zonas ? el('span', { class: 'field-h', text: 'Zonas: ' + s.zonas }) : null, exige ? chip('Exige ' + exige, 'c-obs') : null,
+                    el('button', { type: 'button', class: 'btn btn-sm', text: 'Documentos', onclick: function () { documentos(s); } })])
             ]);
             var blk = el('section', { class: 'card blk' }, [cab]);
             l.forEach(function (p) { blk.appendChild(fila(p, soloLectura)); });
             bloques.appendChild(blk);
         });
         if (soloLectura && hayLimite) bloques.appendChild(el('div', { class: 'aviso a-warn', text: 'Se muestran las primeras 500 personas. Acote con la búsqueda o con las fechas.' }));
+    }
+
+    // Documentos adjuntos de la solicitud (Entrega J): disponibles desde la primera persona aprobada.
+    function documentos(s) {
+        CAF.modal('Documentos · ' + s.codigo, ADJ.panel({ solicitudId: s.solicitudId, urlListar: d.urlAdj, puedeAdjuntar: false, titulo: 'Documentos de la solicitud' }).nodo, [{ texto: 'Cerrar', onclick: function (c) { c(); } }], 'ancho');
     }
 
     function fila(p, soloLectura) {

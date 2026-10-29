@@ -9,6 +9,7 @@
     var origen = Number(d.reutilizar) || 0;
     var op = null, formDatos = null, formPer = null, paso = 1, enviando = false;
     var personas = [];            // [{id, nombre, doc}]
+    var adj = null;               // selector de documentos adjuntos (Entrega J): vive en memoria y sobrevive al cambio de paso
     var cuerpo = document.getElementById('w-cuerpo'), pasos = document.getElementById('w-pasos'), ayuda = document.getElementById('w-ayuda');
     var atras = document.getElementById('w-atras'), sigue = document.getElementById('w-sigue');
     var TITULOS = ['Datos de la visita', 'Personas', 'Revisión y envío'];
@@ -55,7 +56,8 @@
         });
         var caja = el('div'); caja.appendChild(formPer.nodo);
         pintarLista();
-        return el('div', { class: 'stack' }, [titulo, lista, el('hr'), el('h4', { text: 'Agregar persona' }), caja, error, el('div', { class: 'row-end' }, [agregar])]);
+        if (!adj) adj = ADJ.selector(d.urlAdj);
+        return el('div', { class: 'stack' }, [titulo, lista, el('hr'), el('h4', { text: 'Agregar persona' }), caja, error, el('div', { class: 'row-end' }, [agregar]), el('hr'), adj.nodo]);
     }
 
     function paso3() {
@@ -69,8 +71,12 @@
         var lista = el('ul', { class: 'plist' }, personas.map(function (p) {
             return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: p.nombre }), el('div', { class: 'field-h', text: p.doc })])]);
         }));
+        var docs = adj ? adj.archivos() : [];
         var tipo = el('div', { class: 'aviso a-info', text: 'Tipo de acceso: ' + op.tipo.texto + '. Coordinación revisará la solicitud y decidirá persona por persona.' });
-        return el('div', { class: 'stack' }, [dl, el('h3', { text: 'Personas (' + personas.length + ')' }), lista, tipo, el('p', { class: 'field-e', id: 'w-error' })]);
+        return el('div', { class: 'stack' }, [dl, el('h3', { text: 'Personas (' + personas.length + ')' }), lista,
+            el('h3', { text: 'Documentos adjuntos (' + docs.length + ')' }),
+            docs.length ? el('ul', { class: 'plist' }, docs.map(function (f) { return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: f.name }), el('div', { class: 'field-h', text: (f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB') })])]); })) : el('p', { class: 'field-h', text: 'Sin documentos adjuntos.' }),
+            tipo, el('p', { class: 'field-e', id: 'w-error' })]);
     }
 
     function mostrar() {
@@ -99,7 +105,18 @@
         CAF.pedir(d.urlCrear, { method: 'POST', body: Object.assign({}, v, { personasIds: personas.map(function (p) { return p.id; }), origenId: origen || null }) }).then(function (r) {
             enviando = false; sigue.disabled = false;
             if (!r.success) { err.textContent = SOL.errores(r); return; }
-            location.href = d.urlDetalle.replace('__ID__', r.data.id) + '?nueva=1';
+            var destino = d.urlDetalle.replace('__ID__', r.data.id) + '?nueva=1';
+            if (!adj || !adj.archivos().length) { location.href = destino; return; }
+            // La solicitud ya existe: se suben los documentos. Si alguno falla no se pierde la solicitud; se avisa y se puede adjuntar desde su detalle.
+            enviando = true; sigue.disabled = true; sigue.textContent = 'Subiendo documentos...';
+            adj.subirTodos(r.data.id).then(function (fallos) {
+                enviando = false; sigue.disabled = false;
+                if (!fallos.length) { location.href = destino; return; }
+                err.textContent = 'La solicitud ' + r.data.codigo + ' se creó, pero no se pudo adjuntar: ' + fallos.map(function (f) { return f.nombre + ' (' + f.mensaje + ')'; }).join('; ') + ' Puede adjuntarlo desde el detalle de la solicitud.';
+                sigue.textContent = 'Ir a la solicitud'; atras.hidden = true;
+                var nuevo = sigue.cloneNode(true); sigue.parentNode.replaceChild(nuevo, sigue); sigue = nuevo;
+                sigue.addEventListener('click', function () { location.href = destino; });
+            });
         });
     });
 

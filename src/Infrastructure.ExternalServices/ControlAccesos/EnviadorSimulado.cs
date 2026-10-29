@@ -10,8 +10,9 @@ public sealed class EnviadorSimulado : IEnviadorCorreo
 
     public Task EnviarAsync(MensajeCorreo m, CancellationToken ct = default)
     {
-        _log.LogInformation("CORREO SIMULADO → {Para} (cc: {Cc}) | {Asunto} | id {Id} responde a {Resp} | responder a {RT} | {Largo} caracteres",
-            string.Join("; ", m.Para), m.Cc.Count == 0 ? "-" : string.Join("; ", m.Cc), m.Asunto, m.MessageId, m.EnRespuestaA ?? "-", m.ResponderA ?? "-", m.Html.Length);
+        _log.LogInformation("CORREO SIMULADO → {Para} (cc: {Cc}) | {Asunto} | id {Id} responde a {Resp} | responder a {RT} | {Largo} caracteres | adjuntos: {Adj}",
+            string.Join("; ", m.Para), m.Cc.Count == 0 ? "-" : string.Join("; ", m.Cc), m.Asunto, m.MessageId, m.EnRespuestaA ?? "-", m.ResponderA ?? "-", m.Html.Length,
+            m.Adjuntos is { Count: > 0 } ? string.Join(", ", m.Adjuntos.Select(a => a.Nombre + " (" + a.Contenido.Length + " bytes)")) : "-");
         return Task.CompletedTask;
     }
 }

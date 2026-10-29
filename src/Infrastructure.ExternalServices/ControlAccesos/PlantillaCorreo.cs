@@ -100,7 +100,7 @@ public static class PlantillaCorreo
     /// <param name="aviso">Texto opcional arriba de todo (modo prueba).</param>
     /// <param name="responderANombre">Quién recibe «Responder» (D-180). Vacío = el correo dice que no se responda.</param>
     public static CorreoArmado Armar(string tipo, string mensaje, Dto_Correo_Solicitud d,
-        IReadOnlyList<Dto_Correo_Solicitud_Persona> personas, string urlBase, bool esRespuesta, string? aviso = null, string? responderANombre = null)
+        IReadOnlyList<Dto_Correo_Solicitud_Persona> personas, string urlBase, bool esRespuesta, string? aviso = null, string? responderANombre = null, IReadOnlyList<string>? adjuntos = null)
     {
         var titulo = Titulos.TryGetValue(tipo, out var t) ? t : "Solicitud de acceso";
         // D-181: el aviso a Vigilancia solo habla de personas autorizadas: no muestra estado de la solicitud, conteos ni observaciones.
@@ -125,6 +125,7 @@ public static class PlantillaCorreo
         if (d.Exige_SCTR) requisitos.Add("SCTR");
         if (d.Exige_EPP) requisitos.Add("EPP");
         datos.Add(("Requisitos", requisitos.Count == 0 ? "Ninguno" : string.Join(" y ", requisitos)));
+        if (adjuntos is { Count: > 0 }) datos.Add(("Documentos adjuntos", string.Join(", ", adjuntos)));
         if (!vig && !string.IsNullOrWhiteSpace(d.Observacion_Coordinador)) datos.Add(("Observación del coordinador", d.Observacion_Coordinador!));
         if (!vig && !string.IsNullOrWhiteSpace(d.Motivo_Cancelacion)) datos.Add(("Motivo de cancelación", d.Motivo_Cancelacion!));
 

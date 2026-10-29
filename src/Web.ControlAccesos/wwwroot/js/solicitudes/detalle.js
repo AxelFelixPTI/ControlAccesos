@@ -161,10 +161,17 @@
         })));
     }
 
+    // Documentos adjuntos (Entrega J): el dueño puede adjuntar y retirar mientras puede editar los datos.
+    function pintarAdjuntos() {
+        var c = document.getElementById('d-adj');
+        c.textContent = '';
+        c.appendChild(ADJ.panel({ solicitudId: id, urlListar: d.urlAdj, puedeAdjuntar: !!s.puedeEditar && s.esPropia !== false }).nodo);
+    }
+
     function cargar() {
         return CAF.pedir(d.urlDatos + '?id=' + id).then(function (r) {
             if (!r.success) { cab.textContent = ''; cab.appendChild(el('p', { class: 'vacio', text: r.message || 'No se pudo cargar la solicitud.' })); caja.textContent = ''; hist.textContent = ''; return; }
-            s = r.data; pintarCab(); pintarPersonas(); pintarHistorial();
+            s = r.data; pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial();
         });
     }
 

@@ -83,6 +83,7 @@
              ['Solicitante', (s.solicitante || '—') + (s.solicitanteCorreo ? ' · ' + s.solicitanteCorreo : '')], ['Observaciones', s.observaciones || '—']]
                 .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
             cont.appendChild(dl);
+            cont.appendChild(ADJ.panel({ solicitudId: id, urlListar: d.urlAdj, puedeAdjuntar: false }).nodo);
             if (s.exigeSctr || s.exigeEpp) cont.appendChild(el('div', { class: 'aviso a-warn', text: 'Las zonas exigen ' + [s.exigeSctr ? 'SCTR' : '', s.exigeEpp ? 'EPP' : ''].filter(Boolean).join(' y ') + ': Vigilancia lo verifica al ingreso.' }));
             cont.appendChild(el('div', { class: 'pills' }, [['personas', 'Personas (' + s.personas.filter(function (p) { return p.aprobacion !== 'RETIRADA'; }).length + ')'], ['historial', 'Historial']].map(function (x) {
                 return el('button', { type: 'button', class: 'pill' + (tab === x[0] ? ' on' : ''), text: x[1], onclick: function () { tab = x[0]; pintar(); } });

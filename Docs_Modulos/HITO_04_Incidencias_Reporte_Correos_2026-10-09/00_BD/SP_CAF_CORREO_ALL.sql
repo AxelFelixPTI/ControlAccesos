@@ -24,13 +24,17 @@ SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 -- 1. ERP_CAF_CORREO_PENDIENTES_LISTAR
 --    Los más antiguos primero. HV_Maximo: entre 1 y 100 (por defecto 20).
 -- -----------------------------------------------------------------------------
+-- V1.3 2026-10-29 (D-185): HV_Retener_Segundos: no entrega correos creados hace menos de N segundos (0 = sin espera).
+--   Da tiempo a que se carguen los documentos adjuntos y a fusionar los avisos de decisión.
 -- V1.2 2026-10-29 (D-181): agrega "IDs_Personas" (las personas que autoriza un aviso a Vigilancia).
 -- V1.1 2026-10-29 (D-180): agrega "Responder_A" y "Responder_A_Nombre" (quien realizó la acción) y por eso
 -- se borra la función anterior (cambia el tipo de retorno). Solo los correos de una solicitud los llevan.
 DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_PENDIENTES_LISTAR"(BIGINT, INT);
+DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_PENDIENTES_LISTAR"(BIGINT, INT, INT);
 CREATE OR REPLACE FUNCTION "ERP_CAF_CORREO_PENDIENTES_LISTAR"(
     "HV_UsuarioID" BIGINT,
-    "HV_Maximo"    INT DEFAULT 20
+    "HV_Maximo"    INT DEFAULT 20,
+    "HV_Retener_Segundos" INT DEFAULT 0
 )
 RETURNS TABLE ("ID_Correo_Pendiente" BIGINT, "Tipo" VARCHAR, "ID_Solicitud" BIGINT, "Destinatarios" VARCHAR,
                "Copia" VARCHAR, "Asunto" VARCHAR, "Cuerpo" TEXT, "Intentos" BIGINT,
@@ -53,6 +57,7 @@ BEGIN
       LEFT JOIN "CAF_GOVERNANCE"."Usuario" U
              ON U."ID_Usuario" = C."UsuarioID_Create" AND C."ID_Solicitud" IS NOT NULL AND C."UsuarioID_Create" > 0
      WHERE C."Eliminado" = 'N' AND C."Estado" = 'PENDIENTE'
+       AND (COALESCE("HV_Retener_Segundos", 0) <= 0 OR C."CreateDate" <= CURRENT_TIMESTAMP - COALESCE("HV_Retener_Segundos", 0) * INTERVAL '1 second')
      ORDER BY C."CreateDate", C."ID_Correo_Pendiente"
      LIMIT lv_max;
 END;

@@ -2,7 +2,7 @@
 <div class="stack" id="caf-coord" data-url-lista="@Url.Action("Lista", "Coordinacion")" data-url-revisar="@Url.Action("Revisar", "Coordinacion")"
      data-url-decidir="@Url.Action("Decidir", "Coordinacion")" data-url-agregar="@Url.Action("AgregarEmergencia", "Coordinacion")" data-url-quitar="@Url.Action("RetirarEmergencia", "Coordinacion")"
      data-url-opciones="@Url.Action("Opciones", "Coordinacion")" data-url-buscar="@Url.Action("PersonaPorDocumento", "Coordinacion")"
-     data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")">
+     data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")" data-url-adj="@Url.Action("Listar", "Adjuntos")">
     @Html.AntiForgeryToken()
     <p class="lead">Revise las solicitudes y decida persona por persona: aprobar, observar (pedir una corrección) o rechazar.</p>
     <div class="pills" id="c-tabs"></div>
@@ -30,5 +30,6 @@
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/adjuntos.js" asp-append-version="true"></script>
 <script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
 <script src="~/js/coordinacion/coordinacion.js" asp-append-version="true"></script>

@@ -42,6 +42,12 @@ public sealed class OpcionesCorreo
     /// <summary>Correos por vuelta del proceso.</summary>
     public int Lote { get; set; } = 20;
 
+    /// <summary>
+    /// Segundos que un correo espera en la cola antes de enviarse (D-185): da tiempo a que se carguen los documentos
+    /// adjuntos recién creados y a que se fusionen los avisos de una misma revisión. 0 = sin espera.
+    /// </summary>
+    public int RetencionSegundos { get; set; } = 15;
+
     /// <summary>Espera entre vueltas del servicio en segundo plano.</summary>
     public int IntervaloSegundos { get; set; } = 30;
 }

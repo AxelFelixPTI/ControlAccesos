@@ -22,13 +22,15 @@ public sealed class ProcesadorCorreos
     public const long UsuarioSistema = 0;
 
     private readonly ISrv_Correo _correos;
+    private readonly ISrv_Solicitud_Adjunto _adjuntos;
     private readonly IEnviadorCorreo _enviador;
     private readonly OpcionesCorreo _op;
     private readonly ILogger<ProcesadorCorreos> _log;
 
-    public ProcesadorCorreos(ISrv_Correo correos, IEnviadorCorreo enviador, IOptions<OpcionesCorreo> op, ILogger<ProcesadorCorreos> log)
+    public ProcesadorCorreos(ISrv_Correo correos, ISrv_Solicitud_Adjunto adjuntos, IEnviadorCorreo enviador, IOptions<OpcionesCorreo> op, ILogger<ProcesadorCorreos> log)
     {
         _correos = correos;
+        _adjuntos = adjuntos;
         _enviador = enviador;
         _op = op.Value;
         _log = log;
@@ -36,7 +38,7 @@ public sealed class ProcesadorCorreos
 
     public async Task<ResumenEnvio> ProcesarLoteAsync(CancellationToken ct = default)
     {
-        var lectura = await _correos.PendientesListarAsync(UsuarioSistema, _op.Lote, ct).ConfigureAwait(false);
+        var lectura = await _correos.PendientesListarAsync(UsuarioSistema, _op.Lote, _op.RetencionSegundos, ct).ConfigureAwait(false);
         if (!lectura.Success)
         {
             _log.LogError("No se pudo leer la cola de correos: {Msg}", lectura.Message);
@@ -123,10 +125,32 @@ public sealed class ProcesadorCorreos
                 throw new InvalidOperationException("El aviso a Vigilancia no tiene personas aprobadas: no se envía.");
         }
 
+        // D-183: documentos de la solicitud como adjuntos REALES, solo en los avisos a quien los necesita para decidir o para
+        // dejar ingresar (solicitud nueva a los aprobadores, ingreso autorizado y corrección de emergencia a Vigilancia).
+        // Si no se pueden leer, el correo NO sale sin ellos: se reintenta y, agotados los intentos, queda con el error.
+        var docs = new List<AdjuntoCorreo>();
+        if (LlevaAdjuntos(c.Tipo))
+        {
+            var lectura = await _adjuntos.CorreoAsync(UsuarioSistema, c.ID_Solicitud.Value, ct).ConfigureAwait(false);
+            if (!lectura.Success)
+                throw new InvalidOperationException("No se pudieron leer los documentos de la solicitud: " + lectura.Message);
+            foreach (var d in lectura.Data ?? new())
+                docs.Add(new AdjuntoCorreo(d.Nombre_Archivo, ValidadorAdjuntos.TipoContenido(d.Extension), d.Contenido));
+            var total = docs.Sum(x => (long)x.Contenido.Length);
+            if (total > MaxBytesAdjuntos)
+                throw new InvalidOperationException($"Los documentos suman {total / (1024 * 1024)} MB y superan el máximo de {MaxBytesAdjuntos / (1024 * 1024)} MB por correo.");
+        }
+
         var responder = ResponderValido(c.Responder_A);
-        var a = PlantillaCorreo.Armar(c.Tipo, c.Cuerpo, datos.Data, personas, _op.UrlBase, !esRaiz, aviso, responder is null ? null : NombreVisible(c));
-        return new MensajeCorreo(para, cc, a.Asunto, a.Html, a.Texto, id, respuestaA, responder, responder is null ? null : NombreVisible(c));
+        var a = PlantillaCorreo.Armar(c.Tipo, c.Cuerpo, datos.Data, personas, _op.UrlBase, !esRaiz, aviso, responder is null ? null : NombreVisible(c), docs.Select(x => x.Nombre).ToList());
+        return new MensajeCorreo(para, cc, a.Asunto, a.Html, a.Texto, id, respuestaA, responder, responder is null ? null : NombreVisible(c), docs.Count > 0 ? docs : null);
     }
+
+    /// <summary>Máximo de adjuntos por correo (Gmail admite 25 MB en total; el límite del sistema es 2 × 5 MB).</summary>
+    internal const long MaxBytesAdjuntos = 20L * 1024 * 1024;
+
+    /// <summary>Avisos que llevan los documentos de la solicitud como adjuntos (D-183).</summary>
+    internal static bool LlevaAdjuntos(string tipo) => tipo is "SOLICITUD_NUEVA" or "SOLICITUD_VIGILANCIA" or "SOLICITUD_CORRECCION";
 
     /// <summary>Personas de la lista del aviso que siguen APROBADAS (D-181).</summary>
     internal static List<Dto_Correo_Solicitud_Persona> PersonasAutorizadas(string? ids, IEnumerable<Dto_Correo_Solicitud_Persona> todas)

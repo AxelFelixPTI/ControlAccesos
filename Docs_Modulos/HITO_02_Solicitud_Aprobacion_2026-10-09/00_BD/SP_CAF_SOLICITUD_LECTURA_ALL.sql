@@ -627,6 +627,8 @@ BEGIN
                 WHEN 'SOLICITUD:CREAR'                      THEN 'Creó y envió la solicitud'
                 WHEN 'SOLICITUD:EDITAR'                     THEN 'Editó los datos de la solicitud'
                 WHEN 'SOLICITUD:CANCELAR'                   THEN 'Canceló la solicitud'
+                WHEN 'SOLICITUD:ADJUNTO_AGREGAR'            THEN 'Adjuntó un documento'
+                WHEN 'SOLICITUD:ADJUNTO_QUITAR'             THEN 'Retiró un documento'
                 WHEN 'SOLICITUD_PERSONA:AGREGAR'            THEN 'Agregó a una persona'
                 WHEN 'SOLICITUD_PERSONA:AGREGAR_APROBADA'   THEN 'Agregó a una persona ya aprobada'
                 WHEN 'SOLICITUD_PERSONA:RETIRAR'            THEN 'Retiró a una persona'

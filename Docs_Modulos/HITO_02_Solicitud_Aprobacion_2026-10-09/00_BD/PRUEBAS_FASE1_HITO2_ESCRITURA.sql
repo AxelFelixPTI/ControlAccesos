@@ -41,6 +41,7 @@ DECLARE
     v_a BIGINT; v_b BIGINT; v_c BIGINT; v_d BIGINT;
     v_p1 BIGINT; v_p2 BIGINT; v_p3 BIGINT; v_p4 BIGINT; v_p5 BIGINT;
     v_paso_doc BIGINT; v_paso_serv BIGINT; v_paso_cierre BIGINT; v_dummy BIGINT;
+    v_ad BIGINT; v_ad1 BIGINT; v_ad2 BIGINT; v_ad3 BIGINT; v_adsp BIGINT;
 BEGIN
     -- ===================================================== PREPARACIÓN
     SELECT "ID_Catalogo_Sede" INTO v_ves FROM "Catalogo_Sede" WHERE "Codigo" = 'VES';
@@ -553,6 +554,73 @@ BEGIN
     PERFORM pg_temp.chk('Empresas: texto sin coincidencias devuelve vacío', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(''zzzzqq'')'), '');
     PERFORM pg_temp.chk('Empresas: máximo 10 resultados', 'true', pg_temp.q('SELECT (COUNT(*) <= 10)::TEXT FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(NULL)'), '');
     PERFORM pg_temp.chk('Empresas: sin repetidos aunque cambie la mayúscula', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"(''interno'')'), '');
+
+    -- ===================================================== M. DOCUMENTOS ADJUNTOS (Entrega J, D-183 y D-184)
+    UPDATE "Catalogo_Tipo_Acceso" SET "Disponible" = 'Y', "Requiere_Aprobacion" = 'Y' WHERE "ID_Catalogo_Tipo_Acceso" = v_ext;
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Con documentos S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT || ',' || v_e2::TEXT, NULL, NULL, v_u_sol, v_ad, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: se prepara una solicitud nueva', '100', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'C:\Users\ana\SCTR vigente.PDF', 'application/pdf', convert_to('%PDF-1.4 sctr', 'UTF8'), v_u_sol, v_ad1, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: el solicitante adjunta un PDF', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: se guarda solo el nombre del archivo, sin carpetas, y la extensión en minúsculas', 'SCTR vigente.PDF|pdf', pg_temp.q('SELECT "Nombre_Archivo" || ''|'' || "Extension" FROM "CAF_Solicitud_Adjunto" WHERE "ID_Solicitud_Adjunto" = ' || v_ad1), '');
+    PERFORM pg_temp.chk('Adjuntos: se guarda el tamaño y la huella SHA-256', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Adjunto" WHERE "ID_Solicitud_Adjunto" = ' || v_ad1 || ' AND "Tamano_Bytes" = 13 AND LENGTH("Hash_SHA256") = 64'), '');
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'otro.pdf', 'application/pdf', convert_to('%PDF-1.4 sctr', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: no se adjunta dos veces el mismo contenido', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'virus.exe', 'application/octet-stream', convert_to('MZ binario', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: una extensión no permitida se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'sin_extension', 'application/pdf', convert_to('%PDF', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: un archivo sin extensión se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'vacio.pdf', 'application/pdf', ''::bytea, v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: un archivo vacío se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'grande.pdf', 'application/pdf', convert_to(REPEAT('a', 5242881), 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: más de 5 MB se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'otro_usuario.pdf', 'application/pdf', convert_to('%PDF otro', 'UTF8'), v_u_sol2, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: otro solicitante no puede adjuntar a una solicitud ajena', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(999999, 'x.pdf', 'application/pdf', convert_to('%PDF x', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: solicitud inexistente', '404', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'planilla.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', convert_to('PK planilla', 'UTF8'), v_u_sol, v_ad2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: el segundo documento se acepta', '100', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'tercero.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', convert_to('PK tercero', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: el tercero se rechaza (máximo 2 por solicitud)', '409', v_cod::TEXT, v_msg);
+
+    PERFORM pg_temp.chk('Adjuntos: el solicitante ve sus 2 documentos', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_sol || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: el solicitante puede retirarlos mientras edita', 'Y', pg_temp.q('SELECT DISTINCT "Puede_Quitar" FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_sol || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: Coordinación ve los documentos para revisar', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_coo || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: Coordinación no puede retirarlos', 'N', pg_temp.q('SELECT DISTINCT "Puede_Quitar" FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_coo || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: otro solicitante no ve documentos ajenos', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_sol2 || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: un usuario sin permisos no los ve', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_nada || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: no se pueden obtener sin permiso', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_OBTENER"(' || v_u_sol2 || ', ' || v_ad1 || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: el solicitante obtiene el contenido', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_OBTENER"(' || v_u_sol || ', ' || v_ad1 || ') WHERE LENGTH("Contenido") = 13'), '');
+
+    PERFORM pg_temp.chk('Adjuntos: Vigilancia NO ve documentos si aún no hay personas aprobadas', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_vig || ', ' || v_ad || ')'), '');
+    v_adsp := pg_temp.sp(v_ad, v_e1);
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_ad, v_paso_ext, 'APROBADA', NULL, v_adsp::TEXT, v_u_coo, v_cant, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: se aprueba una de las dos personas (aprobación parcial)', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: la otra persona sigue pendiente', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || pg_temp.sp(v_ad, v_e2)), '');
+    PERFORM pg_temp.chk('Adjuntos: Vigilancia ve los 2 documentos desde la primera aprobación parcial', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_vig || ', ' || v_ad || ')'), 'no espera a que toda la solicitud esté aprobada');
+    PERFORM pg_temp.chk('Adjuntos: Vigilancia puede obtener el contenido', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_OBTENER"(' || v_u_vig || ', ' || v_ad2 || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: Vigilancia no puede retirarlos', 'N', pg_temp.q('SELECT DISTINCT "Puede_Quitar" FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_vig || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: la rutina del correo entrega los 2 documentos con contenido', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_CORREO"(0, ' || v_ad || ') WHERE LENGTH("Contenido") > 0'), '');
+    PERFORM pg_temp.chk('Adjuntos: la rutina del correo solo la usa el sistema', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_CORREO"(' || v_u_coo || ', ' || v_ad || ')'), '');
+    PERFORM pg_temp.chk('Adjuntos: el aviso a Vigilancia queda en la cola para esa solicitud', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_ad || ' AND "Tipo" = ''SOLICITUD_VIGILANCIA'''), 'el envío adjunta los documentos');
+
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_QUITAR"(v_ad2, v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: Coordinación no puede retirar un documento', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_QUITAR"(v_ad2, v_u_sol, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: el solicitante retira un documento', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: el retiro es lógico: el contenido se conserva como evidencia', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Adjunto" WHERE "ID_Solicitud_Adjunto" = ' || v_ad2 || ' AND "Eliminado" = ''Y'' AND LENGTH("Contenido") > 0'), '');
+    PERFORM pg_temp.chk('Adjuntos: lo retirado ya no se lista', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_sol || ', ' || v_ad || ')'), '');
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_QUITAR"(v_ad2, v_u_sol, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: retirar dos veces el mismo documento da 404', '404', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'tercero.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', convert_to('PK tercero', 'UTF8'), v_u_sol, v_ad3, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: al retirar uno se puede adjuntar otro', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: la bitácora registra los documentos agregados y retirados', '4', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_ad || ' AND "Accion" IN (''ADJUNTO_AGREGAR'',''ADJUNTO_QUITAR'')'), '3 agregados y 1 retirado');
+    CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_ad, 'prueba', v_u_sol, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'tarde.pdf', 'application/pdf', convert_to('%PDF tarde', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: en una solicitud cancelada ya no se agregan documentos', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: Vigilancia no ve documentos de una solicitud cancelada', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_vig || ', ' || v_ad || ')'), '');
+    -- Correos: retención para dar tiempo a cargar los documentos (D-185)
+    PERFORM pg_temp.chk('Correos: con retención de 60 s no sale un aviso recién creado', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 100, 60) WHERE "ID_Solicitud" = ' || v_ad), '');
+    PERFORM pg_temp.chk('Correos: sin retención sí sale', 'true', pg_temp.q('SELECT (COUNT(*) > 0)::TEXT FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 100) WHERE "ID_Solicitud" = ' || v_ad), '');
 END;
 $$;
 

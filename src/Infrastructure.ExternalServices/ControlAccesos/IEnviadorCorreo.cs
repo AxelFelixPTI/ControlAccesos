@@ -14,7 +14,11 @@ public sealed record MensajeCorreo(
     string MessageId,
     string? EnRespuestaA,
     string? ResponderA = null,
-    string? ResponderANombre = null);
+    string? ResponderANombre = null,
+    IReadOnlyList<AdjuntoCorreo>? Adjuntos = null);
+
+/// <summary>Documento que viaja como adjunto real del correo (D-183).</summary>
+public sealed record AdjuntoCorreo(string Nombre, string TipoContenido, byte[] Contenido);
 
 public interface IEnviadorCorreo
 {

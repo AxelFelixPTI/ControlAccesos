@@ -37,6 +37,10 @@ public abstract class RepoHelpers
     protected static void AddLongReq(ParametrosSp p, string name, long value)
         => p.Agregar(name, DbType.Int64, value);
 
+    /// <summary>Contenido binario (bytea/BLOB). Entrega J.</summary>
+    protected static void AddBytesReq(ParametrosSp p, string name, byte[] value)
+        => p.Agregar(name, DbType.Binary, value ?? throw new ArgumentNullException(name, $"El parámetro {name} es requerido."));
+
     protected static void AddInt(ParametrosSp p, string name, int? value)
         => p.Agregar(name, DbType.Int32, value);
 
@@ -55,6 +59,12 @@ public abstract class RepoHelpers
     {
         var i = rd.GetOrdinal(col);
         return rd.IsDBNull(i) ? null : rd.GetString(i);
+    }
+
+    protected static byte[] RdBytes(DbDataReader rd, string col)
+    {
+        var i = rd.GetOrdinal(col);
+        return rd.IsDBNull(i) ? Array.Empty<byte>() : (byte[])rd.GetValue(i);
     }
 
     protected static long RdLong(DbDataReader rd, string col)

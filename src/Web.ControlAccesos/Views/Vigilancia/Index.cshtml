@@ -5,7 +5,7 @@
      data-url-ficha="@Url.Action("Ficha", "Vigilancia")" data-url-checklist="@Url.Action("Checklist", "Vigilancia")"
      data-url-opdesv="@Url.Action("OpcionesDesviacion", "Vigilancia")" data-url-detalle="@Url.Action("Detalle", "Vigilancia")"
      data-url-respaldo="@Url.Action("RespaldoRegistrar", "Vigilancia")" data-url-ingreso="@Url.Action("Ingreso", "Vigilancia")"
-     data-url-salida="@Url.Action("Salida", "Vigilancia")">
+     data-url-salida="@Url.Action("Salida", "Vigilancia")" data-url-adj="@Url.Action("Listar", "Adjuntos")">
     @Html.AntiForgeryToken()
     <p class="lead">Personas autorizadas para hoy. Busque por documento, nombre o empresa; valide el ingreso con el checklist y registre la salida.</p>
     <div class="seg" id="v-modos"></div>
@@ -21,6 +21,7 @@
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/adjuntos.js" asp-append-version="true"></script>
 <script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
 <script src="~/js/incidencias/incidencias.js" asp-append-version="true"></script>
 <script src="~/js/vigilancia/vigilancia.js" asp-append-version="true"></script>

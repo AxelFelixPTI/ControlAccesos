@@ -28,7 +28,7 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
 
     public Repo_Correo(EjecutorSp exec) => _exec = exec;
 
-    public async Task<Result<List<Dto_Correo_Pendiente>>> PendientesListarAsync(long usuarioId, int? maximo = null, CancellationToken ct = default)
+    public async Task<Result<List<Dto_Correo_Pendiente>>> PendientesListarAsync(long usuarioId, int? maximo = null, int? retenerSegundos = null, CancellationToken ct = default)
     {
         try
         {
@@ -39,6 +39,7 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
                 {
                     AddLongReq(p, "HV_UsuarioID", usuarioId);
                     AddInt(p, "HV_Maximo", maximo);
+                    AddInt(p, "HV_Retener_Segundos", retenerSegundos);
                 },
                 map: MapCorreo_Pendiente,
                 ct: ct);

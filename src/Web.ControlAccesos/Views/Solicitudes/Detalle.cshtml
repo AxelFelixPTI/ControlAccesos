@@ -5,15 +5,17 @@
      data-url-editar="@Url.Action("Editar", "Solicitudes")" data-url-cancelar="@Url.Action("Cancelar", "Solicitudes")"
      data-url-agregar="@Url.Action("PersonaAgregar", "Solicitudes")" data-url-retirar="@Url.Action("PersonaRetirar", "Solicitudes")"
      data-url-corregir="@Url.Action("PersonaCorregir", "Solicitudes")" data-url-nueva="@Url.Action("Nueva", "Solicitudes")"
-     data-url-mis="@Url.Action("Index", "Solicitudes")">
+     data-url-mis="@Url.Action("Index", "Solicitudes")" data-url-adj="@Url.Action("Listar", "Adjuntos")">
     @Html.AntiForgeryToken()
     <div id="d-aviso"></div>
     <section class="card" id="d-cab"><p class="vacio">Cargando...</p></section>
+    <div id="d-adj"></div>
     <section class="card" id="d-personas"></section>
     <section class="card" id="d-historial"></section>
     <p><a class="link" href="@Url.Action("Index", "Solicitudes")">← Volver a Mis solicitudes</a></p>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/adjuntos.js" asp-append-version="true"></script>
 <script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
 <script src="~/js/solicitudes/detalle.js" asp-append-version="true"></script>

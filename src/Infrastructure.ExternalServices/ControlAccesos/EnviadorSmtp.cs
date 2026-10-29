@@ -41,7 +41,11 @@ public sealed class EnviadorSmtp : IEnviadorCorreo
         }
         msg.Headers.Add("Thread-Topic", cab.ThreadTopic);
         msg.Headers.Add("Auto-Submitted", "auto-generated");
-        msg.Body = new BodyBuilder { TextBody = m.Texto, HtmlBody = m.Html }.ToMessageBody();
+        var cuerpo = new BodyBuilder { TextBody = m.Texto, HtmlBody = m.Html };
+        // D-183: documentos de la solicitud como adjuntos reales (no solo el nombre en el cuerpo)
+        foreach (var a in m.Adjuntos ?? Array.Empty<AdjuntoCorreo>())
+            cuerpo.Attachments.Add(a.Nombre, a.Contenido, ContentType.Parse(a.TipoContenido));
+        msg.Body = cuerpo.ToMessageBody();
 
         var seguridad = !_op.UsarSsl ? SecureSocketOptions.None
                       : _op.Puerto == 465 ? SecureSocketOptions.SslOnConnect

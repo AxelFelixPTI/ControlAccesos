@@ -31,9 +31,9 @@ public sealed class Srv_Correo : ISrv_Correo
         _logger = logger;
     }
 
-    public async Task<Result<List<Dto_Correo_Pendiente>>> PendientesListarAsync(long usuarioId, int? maximo = null, CancellationToken ct = default)
+    public async Task<Result<List<Dto_Correo_Pendiente>>> PendientesListarAsync(long usuarioId, int? maximo = null, int? retenerSegundos = null, CancellationToken ct = default)
     {
-        try { return await _repo.PendientesListarAsync(usuarioId, maximo, ct).ConfigureAwait(false); }
+        try { return await _repo.PendientesListarAsync(usuarioId, maximo, retenerSegundos, ct).ConfigureAwait(false); }
         catch (Exception ex)
         {
             _logger.LogError(ex, "PENDIENTES Correo ERROR");
