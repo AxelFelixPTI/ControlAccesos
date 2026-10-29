@@ -35,6 +35,7 @@ public static class PlantillaCorreo
         ["SOLICITUD_DECISION"]  = "Actualización de la solicitud",
         ["PERSONA_POR_APROBAR"] = "Personas por aprobar",
         ["SOLICITUD_CORRECCION"] = "Corrección de emergencia",
+        ["SOLICITUD_VIGILANCIA"] = "Ingreso autorizado",
         ["SOLICITUD_CANCELADA"] = "Solicitud cancelada",
     };
 
@@ -102,13 +103,14 @@ public static class PlantillaCorreo
         IReadOnlyList<Dto_Correo_Solicitud_Persona> personas, string urlBase, bool esRespuesta, string? aviso = null, string? responderANombre = null)
     {
         var titulo = Titulos.TryGetValue(tipo, out var t) ? t : "Solicitud de acceso";
+        // D-181: el aviso a Vigilancia solo habla de personas autorizadas: no muestra estado de la solicitud, conteos ni observaciones.
+        var vig = tipo == "SOLICITUD_VIGILANCIA";
         var lineas = (mensaje ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var url = string.IsNullOrWhiteSpace(urlBase) ? null : $"{urlBase.TrimEnd('/')}/Solicitudes/Detalle/{d.ID_Solicitud}";
 
         var datos = new List<(string, string)>
         {
             ("Código", d.Codigo),
-            ("Estado", EtiquetaEstado(d.Estado)),
             ("Sede", d.Sede ?? "-"),
             ("Tipo de acceso", d.Tipo_Acceso ?? "-"),
             ("Visita prevista", d.Fecha_Hora_Prevista.ToString("dd/MM/yyyy HH:mm")),
@@ -117,14 +119,14 @@ public static class PlantillaCorreo
             ("Motivo", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? (d.Motivo ?? "-") : $"{d.Motivo} — {d.Motivo_Detalle}"),
             ("Zonas", d.Zonas_Nombres ?? "-"),
             ("Solicitante", string.IsNullOrWhiteSpace(d.Solicitante_Correo) ? (d.Solicitante_Nombre ?? "-") : $"{d.Solicitante_Nombre} ({d.Solicitante_Correo})"),
-            ("Personas", Resumen(d)),
         };
+        if (!vig) { datos.Insert(1, ("Estado", EtiquetaEstado(d.Estado))); datos.Add(("Personas", Resumen(d))); }
         var requisitos = new List<string>();
         if (d.Exige_SCTR) requisitos.Add("SCTR");
         if (d.Exige_EPP) requisitos.Add("EPP");
         datos.Add(("Requisitos", requisitos.Count == 0 ? "Ninguno" : string.Join(" y ", requisitos)));
-        if (!string.IsNullOrWhiteSpace(d.Observacion_Coordinador)) datos.Add(("Observación del coordinador", d.Observacion_Coordinador!));
-        if (!string.IsNullOrWhiteSpace(d.Motivo_Cancelacion)) datos.Add(("Motivo de cancelación", d.Motivo_Cancelacion!));
+        if (!vig && !string.IsNullOrWhiteSpace(d.Observacion_Coordinador)) datos.Add(("Observación del coordinador", d.Observacion_Coordinador!));
+        if (!vig && !string.IsNullOrWhiteSpace(d.Motivo_Cancelacion)) datos.Add(("Motivo de cancelación", d.Motivo_Cancelacion!));
 
         var est = Estados.TryGetValue(d.Estado, out var e) ? e : ("", "#e7e9ec", "#4a5360");
 
@@ -139,7 +141,7 @@ public static class PlantillaCorreo
             h.Append($"<tr><td style=\"background:#fff8e1;border-bottom:1px solid #f0d98a;padding:10px 22px;font-size:12px;color:#6b5400;\">{Esc(aviso).Replace("\n", "<br>")}</td></tr>");
         h.Append("<tr><td style=\"padding:22px 22px 6px 22px;\">");
         h.Append($"<div style=\"font-size:19px;font-weight:600;color:{Azul};margin-bottom:8px;\">{Esc(titulo)}</div>");
-        h.Append($"<span style=\"display:inline-block;padding:3px 10px;border-radius:10px;font-size:12px;background:{est.Item2};color:{est.Item3};\">{Esc(EtiquetaEstado(d.Estado))}</span>");
+        if (!vig) h.Append($"<span style=\"display:inline-block;padding:3px 10px;border-radius:10px;font-size:12px;background:{est.Item2};color:{est.Item3};\">{Esc(EtiquetaEstado(d.Estado))}</span>");
         h.Append("</td></tr>");
         h.Append("<tr><td style=\"padding:12px 22px 4px 22px;font-size:14px;line-height:1.5;\">");
         foreach (var l in lineas) h.Append($"<p style=\"margin:0 0 8px 0;\">{Esc(l)}</p>");
@@ -161,7 +163,7 @@ public static class PlantillaCorreo
         if (personas.Count > 0)
         {
             h.Append("<tr><td style=\"padding:14px 22px 4px 22px;\">");
-            h.Append($"<div style=\"font-size:12px;color:{Gris};margin-bottom:6px;\">Personas ({personas.Count})</div>");
+            h.Append($"<div style=\"font-size:12px;color:{Gris};margin-bottom:6px;\">{(vig ? "Personas autorizadas" : "Personas")} ({personas.Count})</div>");
             h.Append($"<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid {Borde};font-size:12px;\">");
             h.Append($"<tr style=\"background:#f3f5f8;color:{Gris};\"><td style=\"padding:6px 8px;\">Nombre</td><td style=\"padding:6px 8px;\">Documento</td><td style=\"padding:6px 8px;\">Aprobación</td></tr>");
             foreach (var p in personas)
@@ -194,7 +196,7 @@ public static class PlantillaCorreo
         if (!string.IsNullOrWhiteSpace(d.Observaciones)) x.AppendLine().AppendLine("Detalles adicionales del solicitante:").AppendLine(d.Observaciones);
         if (personas.Count > 0)
         {
-            x.AppendLine().AppendLine($"Personas ({personas.Count}):");
+            x.AppendLine().AppendLine($"{(vig ? "Personas autorizadas" : "Personas")} ({personas.Count}):");
             foreach (var p in personas)
                 x.AppendLine($" - {p.Nombre_Completo} · {p.Tipo_Documento} {p.Numero_Documento} · {EtiquetaPersona(p.Aprobacion)}");
         }

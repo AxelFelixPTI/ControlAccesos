@@ -192,6 +192,7 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Intentos            = RdLong(rd, "Intentos"),
         Responder_A         = RdStrN(rd, "Responder_A"),
         Responder_A_Nombre  = RdStrN(rd, "Responder_A_Nombre"),
+        IDs_Personas        = RdStrN(rd, "IDs_Personas"),
     };
 
     private static Dto_Correo_Solicitud MapCorreo_Solicitud(DbDataReader rd) => new()

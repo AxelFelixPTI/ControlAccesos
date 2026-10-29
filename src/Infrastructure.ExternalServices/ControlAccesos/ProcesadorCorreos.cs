@@ -114,9 +114,27 @@ public sealed class ProcesadorCorreos
         if (!pers.Success)
             throw new InvalidOperationException("No se pudieron leer las personas de la solicitud: " + pers.Message);
 
+        var personas = pers.Data ?? new();
+        if (c.Tipo == "SOLICITUD_VIGILANCIA")
+        {
+            // D-181: solo las personas que ese aviso autoriza y que SIGUEN aprobadas al enviar. Nunca un aviso vacío.
+            personas = PersonasAutorizadas(c.IDs_Personas, personas);
+            if (personas.Count == 0)
+                throw new InvalidOperationException("El aviso a Vigilancia no tiene personas aprobadas: no se envía.");
+        }
+
         var responder = ResponderValido(c.Responder_A);
-        var a = PlantillaCorreo.Armar(c.Tipo, c.Cuerpo, datos.Data, pers.Data ?? new(), _op.UrlBase, !esRaiz, aviso, responder is null ? null : NombreVisible(c));
+        var a = PlantillaCorreo.Armar(c.Tipo, c.Cuerpo, datos.Data, personas, _op.UrlBase, !esRaiz, aviso, responder is null ? null : NombreVisible(c));
         return new MensajeCorreo(para, cc, a.Asunto, a.Html, a.Texto, id, respuestaA, responder, responder is null ? null : NombreVisible(c));
+    }
+
+    /// <summary>Personas de la lista del aviso que siguen APROBADAS (D-181).</summary>
+    internal static List<Dto_Correo_Solicitud_Persona> PersonasAutorizadas(string? ids, IEnumerable<Dto_Correo_Solicitud_Persona> todas)
+    {
+        var set = new HashSet<long>();
+        foreach (var t in (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            if (long.TryParse(t, out var n)) set.Add(n);
+        return todas.Where(p => set.Contains(p.ID_Solicitud_Persona) && p.Aprobacion == "APROBADA").ToList();
     }
 
     /// <summary>Correo de «Responder»: solo si es una dirección válida (D-180).</summary>

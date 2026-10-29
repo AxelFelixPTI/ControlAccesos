@@ -27,4 +27,6 @@ public sealed class Dto_Correo_Pendiente
     /// <summary>Correo de quien realizó la acción (a quien llega «Responder»). Vacío en correos sin solicitud.</summary>
     public string? Responder_A { get; set; }
     public string? Responder_A_Nombre { get; set; }
+    /// <summary>Solo SOLICITUD_VIGILANCIA: las personas (ID_Solicitud_Persona, separadas por coma) que ese aviso autoriza.</summary>
+    public string? IDs_Personas { get; set; }
 }

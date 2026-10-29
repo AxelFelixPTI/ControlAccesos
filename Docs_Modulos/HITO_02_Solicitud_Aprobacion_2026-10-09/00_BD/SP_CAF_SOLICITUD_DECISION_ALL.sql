@@ -76,6 +76,8 @@ DECLARE
     lv_dest     VARCHAR(2000);
     lv_pend     INT := 0;
     lv_texto    VARCHAR(500);
+    lv_apr      INT := 0;
+    lv_apr_ids  VARCHAR(2000);
 BEGIN
     -- V1.0 2026-10-16
     "HV_Codigo_Resp" := 500;
@@ -215,15 +217,62 @@ BEGIN
         -- Aviso al solicitante con el resumen de lo decidido
         lv_texto := lv_cnt || CASE WHEN lv_cnt = 1 THEN ' persona ' ELSE ' personas ' END
                     || CASE "HV_Decision" WHEN 'APROBADA' THEN 'aprobada(s)' WHEN 'OBSERVADA' THEN 'observada(s)' ELSE 'rechazada(s)' END;
-        -- Para: el solicitante. Copia: aprobadores y correos adicionales; Vigilancia solo si quedó APROBADA
-        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'SOLICITANTE', NULL, lv_dest, lv_c, lv_m);
-        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_DECISION', "HV_ID_Solicitud", lv_dest,
-             "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'N', 'Y', CASE WHEN lv_est2 = 'APROBADA' THEN 'Y' ELSE 'N' END, 'Y'),
-             'Decisión sobre ' || lv_codsol || ': ' || lv_texto,
-             'Sobre la solicitud: ' || lv_texto || '.'
-             || CASE WHEN "HV_Decision" = 'APROBADA' THEN '' ELSE CHR(10) || TRIM("HV_Mensaje_Decision") END
-             ,
-             "HV_UsuarioID", lv_c, lv_m);
+        -- V1.1 (D-181): Vigilancia ya NO va en copia de este aviso (recibe el suyo, solo con las aprobadas).
+        -- V1.1 (D-182): si el mismo usuario decide otro grupo de la misma solicitud en los últimos 2 minutos y el
+        -- aviso anterior sigue PENDIENTE y sin intentos, se agrega una línea a ese aviso en vez de encolar otro.
+        lv_n := 0;
+        UPDATE "CAF_Correo_Pendiente"
+           SET "Cuerpo" = "Cuerpo" || CHR(10) || 'Además: ' || lv_texto || '.'
+                          || CASE WHEN "HV_Decision" = 'APROBADA' THEN '' ELSE CHR(10) || TRIM("HV_Mensaje_Decision") END,
+               "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "Tipo" = 'SOLICITUD_DECISION' AND "ID_Solicitud" = "HV_ID_Solicitud" AND "Estado" = 'PENDIENTE'
+           AND "Intentos" = 0 AND "Eliminado" = 'N' AND "UsuarioID_Create" = "HV_UsuarioID"
+           AND "CreateDate" > CURRENT_TIMESTAMP - INTERVAL '2 minutes';
+        GET DIAGNOSTICS lv_n = ROW_COUNT;
+        IF lv_n = 0 THEN
+            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'SOLICITANTE', NULL, lv_dest, lv_c, lv_m);
+            CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_DECISION', "HV_ID_Solicitud", lv_dest,
+                 "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'N', 'Y', 'N', 'Y'),
+                 'Decisión sobre ' || lv_codsol || ': ' || lv_texto,
+                 'Sobre la solicitud: ' || lv_texto || '.'
+                 || CASE WHEN "HV_Decision" = 'APROBADA' THEN '' ELSE CHR(10) || TRIM("HV_Mensaje_Decision") END
+                 ,
+                 "HV_UsuarioID", lv_c, lv_m);
+        END IF;
+
+        -- V1.1 (D-181): aviso a Vigilancia con SOLO las personas que esta decisión dejó APROBADAS
+        -- (aprobación completa, es decir, sin pasos pendientes). No depende del estado de la solicitud.
+        IF "HV_Decision" = 'APROBADA' THEN
+            SELECT COUNT(*), STRING_AGG(CAST(P."ID_Solicitud_Persona" AS VARCHAR), ',' ORDER BY P."ID_Solicitud_Persona")
+              INTO lv_apr, lv_apr_ids
+              FROM "CAF_Solicitud_Persona" P
+             WHERE lv_lista LIKE '%,' || CAST(P."ID_Solicitud_Persona" AS VARCHAR) || ',%'
+               AND P."Aprobacion" = 'APROBADA' AND P."Eliminado" = 'N';
+            IF lv_apr > 0 THEN
+                CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'PORTERIA', NULL, lv_dest, lv_c, lv_m);
+                IF lv_dest IS NOT NULL THEN
+                    lv_n := 0;
+                    UPDATE "CAF_Correo_Pendiente"
+                       SET "IDs_Personas" = LEFT("IDs_Personas" || ',' || lv_apr_ids, 2000), "UpdateDate" = CURRENT_TIMESTAMP
+                     WHERE "Tipo" = 'SOLICITUD_VIGILANCIA' AND "ID_Solicitud" = "HV_ID_Solicitud" AND "Estado" = 'PENDIENTE'
+                       AND "Intentos" = 0 AND "Eliminado" = 'N' AND "UsuarioID_Create" = "HV_UsuarioID"
+                       AND "CreateDate" > CURRENT_TIMESTAMP - INTERVAL '2 minutes';
+                    GET DIAGNOSTICS lv_n = ROW_COUNT;
+                    IF lv_n = 0 THEN
+                        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_VIGILANCIA', "HV_ID_Solicitud", lv_dest, NULL,
+                             'Ingreso autorizado ' || lv_codsol,
+                             'Personas autorizadas para ingresar según la última revisión.',
+                             "HV_UsuarioID", lv_c, lv_m);
+                        IF lv_c = 100 THEN
+                            UPDATE "CAF_Correo_Pendiente" SET "IDs_Personas" = lv_apr_ids
+                             WHERE "ID_Correo_Pendiente" = (SELECT MAX(X."ID_Correo_Pendiente") FROM "CAF_Correo_Pendiente" X
+                                                             WHERE X."Tipo" = 'SOLICITUD_VIGILANCIA' AND X."ID_Solicitud" = "HV_ID_Solicitud"
+                                                               AND X."UsuarioID_Create" = "HV_UsuarioID");
+                        END IF;
+                    END IF;
+                END IF;
+            END IF;
+        END IF;
 
         -- Si aprobó y todavía faltan pasos, se avisa a quienes deciden el siguiente
         IF "HV_Decision" = 'APROBADA' THEN

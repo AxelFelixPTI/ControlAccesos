@@ -24,6 +24,7 @@ SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 -- 1. ERP_CAF_CORREO_PENDIENTES_LISTAR
 --    Los más antiguos primero. HV_Maximo: entre 1 y 100 (por defecto 20).
 -- -----------------------------------------------------------------------------
+-- V1.2 2026-10-29 (D-181): agrega "IDs_Personas" (las personas que autoriza un aviso a Vigilancia).
 -- V1.1 2026-10-29 (D-180): agrega "Responder_A" y "Responder_A_Nombre" (quien realizó la acción) y por eso
 -- se borra la función anterior (cambia el tipo de retorno). Solo los correos de una solicitud los llevan.
 DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_PENDIENTES_LISTAR"(BIGINT, INT);
@@ -33,7 +34,7 @@ CREATE OR REPLACE FUNCTION "ERP_CAF_CORREO_PENDIENTES_LISTAR"(
 )
 RETURNS TABLE ("ID_Correo_Pendiente" BIGINT, "Tipo" VARCHAR, "ID_Solicitud" BIGINT, "Destinatarios" VARCHAR,
                "Copia" VARCHAR, "Asunto" VARCHAR, "Cuerpo" TEXT, "Intentos" BIGINT,
-               "Responder_A" VARCHAR, "Responder_A_Nombre" VARCHAR)
+               "Responder_A" VARCHAR, "Responder_A_Nombre" VARCHAR, "IDs_Personas" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -46,7 +47,8 @@ BEGIN
     RETURN QUERY
     SELECT C."ID_Correo_Pendiente", C."Tipo", C."ID_Solicitud", C."Destinatarios", C."Copia", C."Asunto", C."Cuerpo", C."Intentos",
            CAST(U."Correo" AS VARCHAR),
-           CAST(U."Nombres" || ' ' || U."Apellido_Paterno" AS VARCHAR)
+           CAST(U."Nombres" || ' ' || U."Apellido_Paterno" AS VARCHAR),
+           CAST(C."IDs_Personas" AS VARCHAR)
       FROM "CAF_Correo_Pendiente" C
       LEFT JOIN "CAF_GOVERNANCE"."Usuario" U
              ON U."ID_Usuario" = C."UsuarioID_Create" AND C."ID_Solicitud" IS NOT NULL AND C."UsuarioID_Create" > 0

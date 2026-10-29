@@ -36,7 +36,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | # | Tema | Registrado | Con quién | Se necesita antes de | Estado |
 | --- | --- | --- | --- | --- | --- |
 | P-72 | **«No se presentó» automático:** hoy la rutina existe pero ningún proceso la dispara. Hay que programar un proceso diario que marque, después de medianoche (hora de Lima), a las personas aprobadas de ayer que no ingresaron. Con P-44 se confirma si es al cierre del mismo día o a primera hora del siguiente. | 2026-10-21 | Equipo (construir) y Sandra (P-44) | Piloto con usuarios | Por construir |
-| P-95 | **Hilo con días de diferencia:** si la aprobación llega días después, Gmail puede no agrupar el correo con el original; y se quiere que la respuesta use «Responder a todos» (que los copiados desde el asistente, por ejemplo gerencia, sigan al tanto) y que el hilo permita seguir conversando (proveedores, almacén…). Hoy los correos llevan `In-Reply-To`; falta definir cómo mantener la conversación y quién puede escribir en ella. | 2026-10-25 | Sandra | Piloto con usuarios | Por analizar |
+| P-95 | **Hilo con días de diferencia:** si la aprobación llega días después, Gmail puede no agrupar el correo con el original; y se quiere que la respuesta use «Responder a todos» (que los copiados desde el asistente, por ejemplo gerencia, sigan al tanto) y que el hilo permita seguir conversando (proveedores, almacén…). Hoy los correos llevan `In-Reply-To`; falta definir cómo mantener la conversación y quién puede escribir en ella. | 2026-10-25 | Sandra | Piloto con usuarios | Construido en la entrega E (D-179, D-180); falta probar con Gmail real |
 | P-107 | **Celular y rol activo (revisar en teléfonos reales):** probar Vigilancia, Coordinación y Mis solicitudes en Android e iPhone; confirmar si el selector de rol va en la barra superior (como ahora) o en una página de perfil. | 2026-10-28 | Equipo | Piloto con usuarios | Por confirmar |
 | P-106 | **Corrección de emergencia (revisar con Sandra):** quién va en copia del correo; si `APROBADA_PARCIAL` también admite corrección; qué hacer cuando es la única persona de la solicitud; si se puede quitar a quien ya salió. Hoy: aprobadores + correos del asistente; sí; solo el solicitante cancela; no. | 2026-10-27 | Sandra | Piloto con usuarios | Por confirmar |
 
@@ -57,7 +57,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-50 | Correos: máximo de reintentos (propuesta: 5) y espera entre intentos (propuesta: 5 minutos). | 2026-10-18 | TI | Piloto con usuarios | Pendiente |
 | P-47 | ¿Una incidencia confirmada debe avisar por correo y a quién? Hoy no se envía ninguno; agregarlo requiere un tipo de correo nuevo. | 2026-10-18 | Sandra | Piloto con usuarios | Pendiente |
 | P-88 | **Destinatarios de cada aviso (D-150):** confirmar que Vigilancia solo recibe copia cuando la solicitud queda Aprobada. | 2026-10-24 | Sandra | Piloto con usuarios | Pendiente |
-| P-89 | **Hilo de correos en Gmail:** probar en un envío real que los avisos de una solicitud se agrupan en una conversación. | 2026-10-24 | Equipo | Piloto con usuarios | Pendiente |
+| P-89 | **Hilo de correos en Gmail:** probar en un envío real que los avisos de una solicitud se agrupan en una conversación (asunto estable y «Responder a todos»: ver `GUIA_CORREO.md`). | 2026-10-24 | Equipo | Piloto con usuarios | Pendiente |
 | P-90 | **Respuestas al correo:** la casilla del sistema no se lee; decidir si se agrega «Responder a» o basta el aviso del pie. | 2026-10-24 | Sandra | Piloto con usuarios | Pendiente |
 | P-91 | **Dirección real de la web** (`UrlBase`) y cuenta de correo corporativa definitiva. | 2026-10-24 | TI | Publicar en internet | Pendiente |
 
@@ -235,3 +235,5 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-104 y P-94 | Quitar el botón «Contraseña» de la barra superior. | 2026-10-25 | Construido (D-163) |
 | P-70 y P-82 | Botón «Registrar incidencia» en cada persona de Control de accesos (como el prototipo). | 2026-10-24 | Construido (D-146) |
 | P-56 | Estilo de la web: se construyó con el diseño del prototipo aprobado. | 2026-10-19 | Construido (según prototipo) |
+| P-108 | **Conversación por correo:** quien responde por correo no deja rastro en el sistema, y `References` apunta solo a la raíz del hilo. Decidir si hace falta registro o cadena completa. | 2026-10-29 | Equipo | Piloto con usuarios | Pendiente |
+| P-109 | **Aviso a Vigilancia en aprobación parcial:** confirmar si lista solo a las personas que esa decisión autoriza (hoy) o a todas las aprobadas hasta el momento, y si 2 minutos bastan para fusionar los avisos de decisión. | 2026-10-29 | Sandra | Piloto con usuarios | Pendiente |

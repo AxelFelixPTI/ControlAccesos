@@ -53,7 +53,7 @@ Actualizado: 2026-10-29
 
 ## Siguiente paso literal
 
-Usuario prueba las entregas C, D, D1 y E (E = P-95: asunto estable, Reply-To a quien actuó, «Responder a todos»; probar con Gmail según `GUIA_CORREO.md`). Entregas A a E completas; después, lo que el usuario priorice (P-106, P-107, P-108 esperan respuesta o prueba real). Después:
+Usuario prueba las entregas C, D, D1 y E (E = P-95: asunto estable, Reply-To a quien actuó, «Responder a todos»; probar con Gmail según `GUIA_CORREO.md`). Entregas A a F completas (F = Vigilancia recibe aviso con solo las aprobadas en aprobación parcial, y un solo aviso de decisión por revisión). **Siguiente: Entrega J (adjuntos de la solicitud: tabla, almacenamiento en la BD, 2 adjuntos por solicitud sin separar por persona, adjuntos reales en el correo SMTP y para Vigilancia desde la primera aprobación parcial)**, luego G/H/I (observación general, tipo de ingreso Contratista/Proveedor, catálogo de checklist por tipo con ítems compartidos). Pendientes que esperan al usuario (P-106, P-107, P-108 esperan respuesta o prueba real). Después:
 
 ## Decisiones vigentes que más condicionan
 
