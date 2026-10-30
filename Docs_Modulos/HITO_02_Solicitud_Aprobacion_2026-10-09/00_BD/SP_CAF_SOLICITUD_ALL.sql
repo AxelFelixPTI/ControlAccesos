@@ -36,6 +36,8 @@ SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 --    HV_ID_Solicitud_Origen: solo si nace de «Reutilizar» otra solicitud suya.
 --    Es trazabilidad («Basada en SOL-xxx»): NO agrupa visitas ni cuenta aparte.
 -- -----------------------------------------------------------------------------
+-- Entrega H: se agregan parámetros (HANA no admite dos procedimientos con el mismo nombre). Se retira la firma anterior.
+DROP PROCEDURE IF EXISTS "ERP_CAF_SOLICITUD_CREAR"(BIGINT, BIGINT, BIGINT, TIMESTAMP, VARCHAR, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BIGINT, BIGINT, BIGINT, VARCHAR, INT, VARCHAR);
 CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_CREAR"(
     IN    "HV_ID_Catalogo_Sede"         BIGINT,
     IN    "HV_ID_Catalogo_Tipo_Acceso"  BIGINT,
@@ -49,6 +51,12 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_CREAR"(
     IN    "HV_IDs_Persona_Externa"      VARCHAR(2000),
     IN    "HV_Copias"                   VARCHAR(2000),
     IN    "HV_ID_Solicitud_Origen"      BIGINT,
+    IN    "HV_Requiere_Cochera"         CHAR(1),
+    IN    "HV_Placa_Vehiculo"           VARCHAR(15),
+    IN    "HV_Area_Detalle"             VARCHAR(300),
+    IN    "HV_Contacto_Nombre"          VARCHAR(200),
+    IN    "HV_Contacto_Telefonos"       VARCHAR(100),
+    IN    "HV_Contacto_Correos"         VARCHAR(500),
     IN    "HV_UsuarioID"                BIGINT,
     INOUT "HV_ID_Solicitud_Result"      BIGINT DEFAULT NULL,
     INOUT "HV_Codigo_Solicitud_Result"  VARCHAR(20) DEFAULT NULL,
@@ -77,8 +85,15 @@ DECLARE
     lv_dest    VARCHAR(2000);
     lv_copia   VARCHAR(2000);
     lv_detalle VARCHAR(500);
+    lv_tcod    VARCHAR(50);
+    lv_motid   BIGINT;
+    lv_motcod  VARCHAR(50);
+    lv_coch    CHAR(1);
+    lv_placa   VARCHAR(15);
+    lv_err     VARCHAR(250);
+    lv_txt     VARCHAR(500);
 BEGIN
-    -- V1.0 2026-10-16
+    -- V1.1 2026-10-29 (Entrega H: tipo de ingreso, cochera y datos del contratista)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_CREAR';
     "HV_ID_Solicitud_Result" := 0;
@@ -91,7 +106,7 @@ BEGIN
         END IF;
 
         -- Tipo de acceso: debe estar habilitado y tener pasos de aprobación
-        SELECT COUNT(*), MAX("Disponible"), MAX("Requiere_Aprobacion") INTO lv_n, lv_disp, lv_req
+        SELECT COUNT(*), MAX("Disponible"), MAX("Requiere_Aprobacion"), MAX("Codigo") INTO lv_n, lv_disp, lv_req, lv_tcod
           FROM "Catalogo_Tipo_Acceso" WHERE "ID_Catalogo_Tipo_Acceso" = "HV_ID_Catalogo_Tipo_Acceso" AND "Eliminado" = 'N' AND "Activo" = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El tipo de acceso no existe o está inactivo.'; RETURN;
@@ -115,31 +130,57 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La fecha de la visita no puede ser anterior a hoy.'; RETURN;
         END IF;
         IF "HV_Empresa_Visitante" IS NULL OR LENGTH(TRIM("HV_Empresa_Visitante")) = 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La empresa o procedencia es obligatoria.'; RETURN;
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'La empresa contratista es obligatoria.' ELSE 'La empresa o procedencia es obligatoria.' END; RETURN;
         END IF;
         SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Personal"
          WHERE "ID_Personal" = "HV_ID_Personal_Responsable" AND "Eliminado" = 'N' AND "Activo" = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El responsable de atención no existe o está inactivo.'; RETURN;
         END IF;
-        SELECT COUNT(*), MAX("Es_Otro") INTO lv_n, lv_otro FROM "Catalogo_Motivo_Visita"
-         WHERE "ID_Catalogo_Motivo_Visita" = "HV_ID_Catalogo_Motivo_Visita" AND "Eliminado" = 'N' AND "Activo" = 'Y';
+
+        -- Motivo: el contratista tiene uno fijo («Servicio o trabajo de contratista») y describe sus actividades en el detalle;
+        -- ese motivo no se admite en los demás tipos.
+        lv_motid := "HV_ID_Catalogo_Motivo_Visita";
+        IF lv_tcod = 'CONTRATISTA' THEN
+            SELECT MAX("ID_Catalogo_Motivo_Visita") INTO lv_motid FROM "Catalogo_Motivo_Visita"
+             WHERE "Codigo" = 'SERVICIO_CONTRATISTA' AND "Eliminado" = 'N' AND "Activo" = 'Y';
+        END IF;
+        SELECT COUNT(*), MAX("Es_Otro"), MAX("Codigo") INTO lv_n, lv_otro, lv_motcod FROM "Catalogo_Motivo_Visita"
+         WHERE "ID_Catalogo_Motivo_Visita" = lv_motid AND "Eliminado" = 'N' AND "Activo" = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El motivo no existe o está inactivo.'; RETURN;
         END IF;
-        IF lv_otro = 'Y' AND ("HV_Motivo_Detalle" IS NULL OR LENGTH(TRIM("HV_Motivo_Detalle")) = 0) THEN
+        IF lv_tcod <> 'CONTRATISTA' AND lv_motcod = 'SERVICIO_CONTRATISTA' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Ese motivo es solo para contratistas.'; RETURN;
+        END IF;
+        IF lv_tcod = 'CONTRATISTA' THEN
+            IF "HV_Motivo_Detalle" IS NULL OR LENGTH(TRIM("HV_Motivo_Detalle")) = 0 THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique la actividad o actividades que se realizarán.'; RETURN;
+            END IF;
+        ELSIF lv_otro = 'Y' AND ("HV_Motivo_Detalle" IS NULL OR LENGTH(TRIM("HV_Motivo_Detalle")) = 0) THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Describa el motivo de la visita.'; RETURN;
         END IF;
         IF "ERP_CAF_FN_COPIAS_VALIDAS"("HV_Copias") <> 'Y' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La lista de correos en copia no es válida.'; RETURN;
         END IF;
 
-        -- Zonas: al menos una, todas activas y de esa sede
+        -- Cochera, placa y datos propios del tipo de ingreso
+        lv_err := "ERP_CAF_FN_TIPO_INGRESO_VALIDAR"(lv_tcod, "HV_ID_Catalogo_Sede", "HV_Requiere_Cochera", "HV_Placa_Vehiculo",
+                                                    "HV_Area_Detalle", "HV_Contacto_Nombre", "HV_Contacto_Telefonos", "HV_Contacto_Correos");
+        IF lv_err <> '' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := lv_err; RETURN;
+        END IF;
+        lv_coch  := COALESCE(NULLIF(UPPER(TRIM("HV_Requiere_Cochera")), ''), 'N');
+        lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa_Vehiculo");
+
+        -- Zonas (para el contratista son el área donde se ejecuta el trabajo): al menos una, todas activas y de esa sede
         lv_z := REPLACE(REPLACE(COALESCE("HV_IDs_Zona", ''), ' ', ''), ';', ',');
         lv_cntZ := CASE WHEN LENGTH(lv_z) = 0 THEN 0 ELSE LENGTH(lv_z) - LENGTH(REPLACE(lv_z, ',', '')) + 1 END;
         lv_listaZ := ',' || lv_z || ',';
         IF lv_cntZ = 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Marque al menos una zona.'; RETURN;
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'Marque al menos un área de trabajo.' ELSE 'Marque al menos una zona.' END; RETURN;
         END IF;
         SELECT COUNT(*) INTO lv_n FROM "Catalogo_Zona_Acceso" Z
          WHERE Z."Eliminado" = 'N' AND Z."Activo" = 'Y' AND Z."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
@@ -177,14 +218,17 @@ BEGIN
           FROM "Catalogo_Zona_Acceso" Z
          WHERE lv_listaZ LIKE '%,' || CAST(Z."ID_Catalogo_Zona_Acceso" AS VARCHAR) || ',%';
 
-        lv_detalle := CASE WHEN lv_otro = 'Y' THEN TRIM("HV_Motivo_Detalle") ELSE NULL END;
+        lv_detalle := CASE WHEN lv_tcod = 'CONTRATISTA' OR lv_otro = 'Y' THEN TRIM("HV_Motivo_Detalle") ELSE NULL END;
 
         INSERT INTO "CAF_Solicitud" ("ID_Catalogo_Sede","ID_Catalogo_Tipo_Acceso","ID_Usuario_Solicitante","ID_Personal_Responsable",
                                      "Fecha_Hora_Prevista","Empresa_Visitante","ID_Catalogo_Motivo_Visita","Motivo_Detalle","Observaciones",
-                                     "Exige_SCTR","Exige_EPP","Estado","Version","Fecha_Envio","ID_Solicitud_Origen","UsuarioID_Create")
+                                     "Exige_SCTR","Exige_EPP","Estado","Version","Fecha_Envio","ID_Solicitud_Origen",
+                                     "Requiere_Cochera","Placa_Vehiculo","Area_Detalle","Contacto_Nombre","Contacto_Telefonos","Contacto_Correos","UsuarioID_Create")
         VALUES ("HV_ID_Catalogo_Sede", "HV_ID_Catalogo_Tipo_Acceso", "HV_UsuarioID", "HV_ID_Personal_Responsable",
-                "HV_Fecha_Hora_Prevista", TRIM("HV_Empresa_Visitante"), "HV_ID_Catalogo_Motivo_Visita", lv_detalle, NULLIF(TRIM("HV_Observaciones"), ''),
-                lv_sctr, lv_epp, 'PENDIENTE', 1, CURRENT_TIMESTAMP, "HV_ID_Solicitud_Origen", "HV_UsuarioID")
+                "HV_Fecha_Hora_Prevista", TRIM("HV_Empresa_Visitante"), lv_motid, lv_detalle, NULLIF(TRIM("HV_Observaciones"), ''),
+                lv_sctr, lv_epp, 'PENDIENTE', 1, CURRENT_TIMESTAMP, "HV_ID_Solicitud_Origen",
+                lv_coch, lv_placa, NULLIF(TRIM("HV_Area_Detalle"), ''), NULLIF(TRIM("HV_Contacto_Nombre"), ''),
+                NULLIF(TRIM("HV_Contacto_Telefonos"), ''), NULLIF(TRIM("HV_Contacto_Correos"), ''), "HV_UsuarioID")
         RETURNING "ID_Solicitud" INTO lv_id;
 
         -- El código visible se deriva del identificador (D-15)
@@ -218,8 +262,13 @@ BEGIN
                  "ERP_CAF_FN_COPIA_CORREO"(lv_id, 'Y', 'N', 'N', 'Y'),
                  -- Asunto del hilo (D-179): queda guardado y se usa en todos los correos de la solicitud aunque luego cambie la empresa
                  'Solicitud ' || lv_codsol || ' · ' || TRIM("HV_Empresa_Visitante"),
-                 'Se registró una nueva solicitud de acceso y está por aprobar: ' || lv_cntP || ' persona(s) de '
-                 || TRIM("HV_Empresa_Visitante") || ', visita prevista el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '.',
+                 CASE WHEN lv_tcod = 'CONTRATISTA'
+                      THEN 'Se registró una solicitud de ingreso de contratista y está por aprobar: ' || lv_cntP || ' persona(s) de '
+                           || TRIM("HV_Empresa_Visitante") || ', servicio previsto el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '.'
+                      ELSE 'Se registró una nueva solicitud de acceso y está por aprobar: ' || lv_cntP || ' persona(s) de '
+                           || TRIM("HV_Empresa_Visitante") || ', visita prevista el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '.'
+                 END
+                 || CASE WHEN lv_coch = 'Y' THEN ' Requiere cochera (placa ' || lv_placa || ').' ELSE '' END,
                  "HV_UsuarioID", lv_c, lv_m);
         END IF;
 
@@ -248,6 +297,7 @@ $$;
 --        copias de correo, lo aprobado NO se toca (no cambia lo que se autorizó).
 --    El personal se modifica con los procedimientos de persona, no aquí.
 -- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS "ERP_CAF_SOLICITUD_EDITAR_DATOS"(BIGINT, TIMESTAMP, VARCHAR, BIGINT, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BIGINT, CHAR, INT, VARCHAR);
 CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_EDITAR_DATOS"(
     IN    "HV_ID_Solicitud"             BIGINT,
     IN    "HV_Fecha_Hora_Prevista"      TIMESTAMP,
@@ -258,6 +308,12 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_EDITAR_DATOS"(
     IN    "HV_Observaciones"            VARCHAR(2000),
     IN    "HV_IDs_Zona"                 VARCHAR(2000),
     IN    "HV_Copias"                   VARCHAR(2000),
+    IN    "HV_Requiere_Cochera"         CHAR(1),
+    IN    "HV_Placa_Vehiculo"           VARCHAR(15),
+    IN    "HV_Area_Detalle"             VARCHAR(300),
+    IN    "HV_Contacto_Nombre"          VARCHAR(200),
+    IN    "HV_Contacto_Telefonos"       VARCHAR(100),
+    IN    "HV_Contacto_Correos"         VARCHAR(500),
     IN    "HV_UsuarioID"                BIGINT,
     INOUT "HV_Reabierta_Result"         CHAR(1) DEFAULT NULL,
     INOUT "HV_Codigo_Resp"              INT DEFAULT NULL,
@@ -291,8 +347,19 @@ DECLARE
     lv_dest     VARCHAR(2000);
     lv_copia    VARCHAR(2000);
     lv_desc     VARCHAR(2000) := '';
+    lv_tcod     VARCHAR(50);
+    lv_motid    BIGINT;
+    lv_err      VARCHAR(250);
+    lv_coch     CHAR(1);
+    lv_placa    VARCHAR(15);
+    lv_coch_old  CHAR(1);
+    lv_placa_old VARCHAR(15);
+    lv_area_old  VARCHAR(300);
+    lv_cn_old    VARCHAR(200);
+    lv_ct_old    VARCHAR(100);
+    lv_cc_old    VARCHAR(500);
 BEGIN
-    -- V1.0 2026-10-16
+    -- V1.1 2026-10-29 (Entrega H: tipo de ingreso, cochera y datos del contratista)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_EDITAR_DATOS';
     "HV_Reabierta_Result" := 'N';
@@ -305,8 +372,10 @@ BEGIN
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         SELECT COUNT(*), MAX("ID_Catalogo_Sede"), MAX("ID_Catalogo_Tipo_Acceso"), MAX("ID_Usuario_Solicitante"), MAX("Estado"),
                MAX("Fecha_Hora_Prevista"), MAX("Empresa_Visitante"), MAX("ID_Catalogo_Motivo_Visita"), MAX("Motivo_Detalle"),
-               MAX("ID_Personal_Responsable"), MAX("Codigo")
-          INTO lv_n, lv_sede, lv_tipo, lv_owner, lv_estado, lv_fecha, lv_emp, lv_mot, lv_det_old, lv_resp_old, lv_codsol
+               MAX("ID_Personal_Responsable"), MAX("Codigo"),
+               MAX("Requiere_Cochera"), MAX("Placa_Vehiculo"), MAX("Area_Detalle"), MAX("Contacto_Nombre"), MAX("Contacto_Telefonos"), MAX("Contacto_Correos")
+          INTO lv_n, lv_sede, lv_tipo, lv_owner, lv_estado, lv_fecha, lv_emp, lv_mot, lv_det_old, lv_resp_old, lv_codsol,
+               lv_coch_old, lv_placa_old, lv_area_old, lv_cn_old, lv_ct_old, lv_cc_old
           FROM "CAF_Solicitud" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud no existe.'; RETURN;
@@ -334,31 +403,51 @@ BEGIN
         IF "HV_Fecha_Hora_Prevista" IS NULL OR CAST("HV_Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique una fecha y hora de visita que no sea anterior a hoy.'; RETURN;
         END IF;
+        SELECT "Codigo" INTO lv_tcod FROM "Catalogo_Tipo_Acceso" WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo;
         IF "HV_Empresa_Visitante" IS NULL OR LENGTH(TRIM("HV_Empresa_Visitante")) = 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La empresa o procedencia es obligatoria.'; RETURN;
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'La empresa contratista es obligatoria.' ELSE 'La empresa o procedencia es obligatoria.' END; RETURN;
         END IF;
         SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Personal"
          WHERE "ID_Personal" = "HV_ID_Personal_Responsable" AND "Eliminado" = 'N' AND "Activo" = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El responsable de atención no existe o está inactivo.'; RETURN;
         END IF;
+        -- El tipo de ingreso no se cambia al editar; el motivo del contratista es fijo y sus actividades van en el detalle
+        lv_motid := CASE WHEN lv_tcod = 'CONTRATISTA' THEN lv_mot ELSE "HV_ID_Catalogo_Motivo_Visita" END;
         SELECT COUNT(*), MAX("Es_Otro") INTO lv_n, lv_otro FROM "Catalogo_Motivo_Visita"
-         WHERE "ID_Catalogo_Motivo_Visita" = "HV_ID_Catalogo_Motivo_Visita" AND "Eliminado" = 'N' AND ("Activo" = 'Y' OR "ID_Catalogo_Motivo_Visita" = lv_mot);
+         WHERE "ID_Catalogo_Motivo_Visita" = lv_motid AND "Eliminado" = 'N' AND ("Activo" = 'Y' OR "ID_Catalogo_Motivo_Visita" = lv_mot);
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El motivo no existe.'; RETURN;
         END IF;
-        IF lv_otro = 'Y' AND ("HV_Motivo_Detalle" IS NULL OR LENGTH(TRIM("HV_Motivo_Detalle")) = 0) THEN
+        IF lv_tcod <> 'CONTRATISTA' AND lv_motid <> lv_mot AND
+           (SELECT "Codigo" FROM "Catalogo_Motivo_Visita" WHERE "ID_Catalogo_Motivo_Visita" = lv_motid) = 'SERVICIO_CONTRATISTA' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Ese motivo es solo para contratistas.'; RETURN;
+        END IF;
+        IF lv_tcod = 'CONTRATISTA' THEN
+            IF "HV_Motivo_Detalle" IS NULL OR LENGTH(TRIM("HV_Motivo_Detalle")) = 0 THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique la actividad o actividades que se realizarán.'; RETURN;
+            END IF;
+        ELSIF lv_otro = 'Y' AND ("HV_Motivo_Detalle" IS NULL OR LENGTH(TRIM("HV_Motivo_Detalle")) = 0) THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Describa el motivo de la visita.'; RETURN;
         END IF;
         IF "ERP_CAF_FN_COPIAS_VALIDAS"("HV_Copias") <> 'Y' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La lista de correos en copia no es válida.'; RETURN;
         END IF;
+        lv_err := "ERP_CAF_FN_TIPO_INGRESO_VALIDAR"(lv_tcod, lv_sede, "HV_Requiere_Cochera", "HV_Placa_Vehiculo",
+                                                    "HV_Area_Detalle", "HV_Contacto_Nombre", "HV_Contacto_Telefonos", "HV_Contacto_Correos");
+        IF lv_err <> '' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := lv_err; RETURN;
+        END IF;
+        lv_coch  := COALESCE(NULLIF(UPPER(TRIM("HV_Requiere_Cochera")), ''), 'N');
+        lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa_Vehiculo");
 
         lv_z := REPLACE(REPLACE(COALESCE("HV_IDs_Zona", ''), ' ', ''), ';', ',');
         lv_cntZ := CASE WHEN LENGTH(lv_z) = 0 THEN 0 ELSE LENGTH(lv_z) - LENGTH(REPLACE(lv_z, ',', '')) + 1 END;
         lv_listaZ := ',' || lv_z || ',';
         IF lv_cntZ = 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Marque al menos una zona.'; RETURN;
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'Marque al menos un área de trabajo.' ELSE 'Marque al menos una zona.' END; RETURN;
         END IF;
         SELECT COUNT(*) INTO lv_n FROM "Catalogo_Zona_Acceso" Z
          WHERE Z."Eliminado" = 'N' AND Z."ID_Catalogo_Sede" = lv_sede
@@ -371,7 +460,7 @@ BEGIN
         END IF;
 
         -- ¿Cambió algo que obligue a volver a aprobar?
-        lv_detalle := CASE WHEN lv_otro = 'Y' THEN TRIM("HV_Motivo_Detalle") ELSE NULL END;
+        lv_detalle := CASE WHEN lv_tcod = 'CONTRATISTA' OR lv_otro = 'Y' THEN TRIM("HV_Motivo_Detalle") ELSE NULL END;
         IF "HV_Fecha_Hora_Prevista" <> lv_fecha THEN
             lv_cambia := 'Y';
             lv_desc := lv_desc || 'Visita ' || TO_CHAR(lv_fecha, 'DD/MM/YYYY HH24:MI') || ' → ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '. ';
@@ -379,8 +468,8 @@ BEGIN
         IF TRIM("HV_Empresa_Visitante") <> lv_emp THEN
             lv_cambia := 'Y'; lv_desc := lv_desc || 'Empresa: ' || lv_emp || ' → ' || TRIM("HV_Empresa_Visitante") || '. ';
         END IF;
-        IF "HV_ID_Catalogo_Motivo_Visita" <> lv_mot OR COALESCE(lv_detalle, '') <> COALESCE(lv_det_old, '') THEN
-            lv_cambia := 'Y'; lv_desc := lv_desc || 'Motivo modificado. ';
+        IF lv_motid <> lv_mot OR COALESCE(lv_detalle, '') <> COALESCE(lv_det_old, '') THEN
+            lv_cambia := 'Y'; lv_desc := lv_desc || CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'Actividades modificadas. ' ELSE 'Motivo modificado. ' END;
         END IF;
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Zona" W
          WHERE W."ID_Solicitud" = "HV_ID_Solicitud" AND W."Eliminado" = 'N'
@@ -395,6 +484,14 @@ BEGIN
         END IF;
         IF "HV_ID_Personal_Responsable" <> lv_resp_old THEN
             lv_desc := lv_desc || 'Responsable de atención cambiado. ';
+        END IF;
+        -- Cochera, placa, detalle del área y contacto: se registran pero no obligan a volver a aprobar
+        IF lv_coch <> lv_coch_old OR COALESCE(lv_placa, '') <> COALESCE(lv_placa_old, '')
+           OR COALESCE(NULLIF(TRIM("HV_Area_Detalle"), ''), '') <> COALESCE(lv_area_old, '')
+           OR COALESCE(NULLIF(TRIM("HV_Contacto_Nombre"), ''), '') <> COALESCE(lv_cn_old, '')
+           OR COALESCE(NULLIF(TRIM("HV_Contacto_Telefonos"), ''), '') <> COALESCE(lv_ct_old, '')
+           OR COALESCE(NULLIF(TRIM("HV_Contacto_Correos"), ''), '') <> COALESCE(lv_cc_old, '') THEN
+            lv_desc := lv_desc || 'Estacionamiento o datos de contacto modificados. ';
         END IF;
         IF lv_desc = '' THEN lv_desc := 'Observaciones o copias de correo.'; END IF;
 
@@ -421,9 +518,12 @@ BEGIN
 
         UPDATE "CAF_Solicitud"
            SET "Fecha_Hora_Prevista" = "HV_Fecha_Hora_Prevista", "Empresa_Visitante" = TRIM("HV_Empresa_Visitante"),
-               "ID_Personal_Responsable" = "HV_ID_Personal_Responsable", "ID_Catalogo_Motivo_Visita" = "HV_ID_Catalogo_Motivo_Visita",
+               "ID_Personal_Responsable" = "HV_ID_Personal_Responsable", "ID_Catalogo_Motivo_Visita" = lv_motid,
                "Motivo_Detalle" = lv_detalle, "Observaciones" = NULLIF(TRIM("HV_Observaciones"), ''),
                "Exige_SCTR" = lv_sctr, "Exige_EPP" = lv_epp,
+               "Requiere_Cochera" = lv_coch, "Placa_Vehiculo" = lv_placa, "Area_Detalle" = NULLIF(TRIM("HV_Area_Detalle"), ''),
+               "Contacto_Nombre" = NULLIF(TRIM("HV_Contacto_Nombre"), ''), "Contacto_Telefonos" = NULLIF(TRIM("HV_Contacto_Telefonos"), ''),
+               "Contacto_Correos" = NULLIF(TRIM("HV_Contacto_Correos"), ''),
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud" = "HV_ID_Solicitud";
 

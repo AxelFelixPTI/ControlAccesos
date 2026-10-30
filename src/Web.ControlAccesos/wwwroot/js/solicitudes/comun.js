@@ -66,16 +66,44 @@ var SOL = (function () {
         return caja;
     }
 
-    // v: valores iniciales {fecha,hora,empresa,responsableId,responsable,motivoId,motivoDetalle,observaciones,zonasIds,copias}
-    function formDatos(op, urlResp, v) {
+    // v: valores iniciales {fecha,hora,empresa,responsableId,responsable,motivoId,motivoDetalle,observaciones,zonasIds,copias,
+    //    tipoId,sedeId,cochera,placa,areaDetalle,contactoNombre,contactoTelefonos,contactoCorreos}
+    // modo: 'crear' (tipo y sede se eligen) | 'editar' (tipo y sede quedan fijos, solo se muestran).
+    // El tipo de ingreso decide qué campos se muestran y cuáles se envían (Entrega H): los datos de un tipo no pasan al otro.
+    function formDatos(op, urlResp, v, modo) {
         v = v || {};
+        var editar = modo === 'editar';
+        var CONTRATISTA = 'CONTRATISTA';
+
+        // ── Tipo de ingreso y sede ──
+        var usables = op.tipos.filter(function (t) { return t.usable; });
+        var tipoSel = el('select');
+        op.tipos.forEach(function (t) {
+            var o = el('option', { value: String(t.id), text: t.texto + (t.usable ? '' : ' — ' + (t.leyenda || 'Próximamente')) });
+            if (!t.usable) o.disabled = true;
+            tipoSel.appendChild(o);
+        });
+        var tipoIni = op.tipos.filter(function (t) { return t.id === v.tipoId && (t.usable || editar); })[0] || usables[0];
+        tipoSel.value = tipoIni ? String(tipoIni.id) : '';
+        var tipoAyuda = el('span', { class: 'field-h' });
+        var sedeSel = el('select');
+        op.sedes.forEach(function (s) { sedeSel.appendChild(el('option', { value: String(s.id), text: s.texto })); });
+        var sedeIni = op.sedes.filter(function (s) { return s.id === v.sedeId; })[0] || (editar ? { id: v.sedeId, texto: v.sede || '', cochera: !!v.cochera, zonas: [] } : op.sedes[0]);
+        if (!op.sedes.some(function (s) { return s.id === sedeIni.id; })) { op.sedes.push(sedeIni); sedeSel.appendChild(el('option', { value: String(sedeIni.id), text: sedeIni.texto })); }
+        sedeSel.value = String(sedeIni.id);
+        if (editar) { tipoSel.disabled = true; sedeSel.disabled = true; }
+        function tipoActual() { return op.tipos.filter(function (t) { return String(t.id) === tipoSel.value; })[0] || { id: 0, codigo: '', texto: '' }; }
+        function sedeActual() { return op.sedes.filter(function (s) { return String(s.id) === sedeSel.value; })[0] || { id: 0, texto: '', cochera: false, zonas: [] }; }
+        function esContratista() { return tipoActual().codigo === CONTRATISTA; }
+
+        // ── Campos comunes ──
         var fecha = el('input', { type: 'date', min: hoy() }); fecha.value = v.fecha || '';
         var hora = el('input', { type: 'time' }); hora.value = v.hora || '';
-        var empresa = texto(v.empresa, 250, 'Empresa o procedencia de los visitantes');
+        var empresa = texto(v.empresa, 250, '');
         var motivo = el('select'); motivo.appendChild(el('option', { value: '', text: 'Elija el motivo' }));
         op.motivos.forEach(function (m) { motivo.appendChild(el('option', { value: String(m.id), text: m.texto })); });
-        motivo.value = v.motivoId ? String(v.motivoId) : '';
-        var detalle = texto(v.motivoDetalle, 250, 'Describa el motivo');
+        motivo.value = v.motivoId && op.motivos.some(function (m) { return m.id === v.motivoId; }) ? String(v.motivoId) : '';
+        var detalle = texto(esContratista() ? '' : v.motivoDetalle, 250, 'Describa el motivo');
         var detalleCampo = campo('Detalle del motivo *', detalle);
         var obs = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Opcional. Se incluye en el correo que reciben Coordinación, Vigilancia y las personas en copia' }); obs.value = v.observaciones || '';
         var sugEmpresa = sugerencias(empresa, 2, function (q) {
@@ -91,7 +119,23 @@ var SOL = (function () {
         }
         motivo.addEventListener('change', sincMotivo); sincMotivo();
 
-        // Responsable de atención: se busca desde 2 letras.
+        // ── Campos del contratista ──
+        var actividades = el('textarea', { rows: '3', maxlength: '250', placeholder: 'Ej.: mantenimiento de aire acondicionado, cableado de red…' }); actividades.value = esContratista() ? (v.motivoDetalle || '') : '';
+        var areaDetalle = texto(v.areaDetalle, 300, 'Opcional. Ej.: sala de servidores, segundo piso');
+        var cNombre = texto(v.contactoNombre, 200, 'Persona de contacto de la empresa contratista');
+        var cTel = texto(v.contactoTelefonos, 100, '999 111 222; 01 555 0000');
+        var cCorreos = texto(v.contactoCorreos, 500, 'contacto@contratista.com; otro@contratista.com');
+
+        // ── Cochera ──
+        var cochera = el('select', {}, [el('option', { value: 'N', text: 'No' }), el('option', { value: 'Y', text: 'Sí' })]);
+        cochera.value = v.cochera ? 'Y' : 'N';
+        var placa = texto(v.placa, 8, 'Ej.: ABC123'); placa.style.textTransform = 'uppercase';
+        var placaCampo = campo('Placa del vehículo *', placa, 'De 5 a 8 letras o números.');
+        var cocheraBloque = el('div', { class: 'grid g2' }, [campo('¿Requiere cochera?', cochera), placaCampo]);
+        function sincCochera() { placaCampo.hidden = cochera.value !== 'Y'; }
+        cochera.addEventListener('change', sincCochera); sincCochera();
+
+        // ── Responsable de atención: se busca desde 2 letras ──
         var resp = { id: v.responsableId || 0, nombre: v.responsable || '' };
         var caja = el('div'), busca = texto('', 80, 'Escriba 2 letras del nombre'), sug = el('div', { class: 'sug' }), temp = null;
         sug.hidden = true;
@@ -118,51 +162,97 @@ var SOL = (function () {
         });
         pintarResp();
 
-        // Zonas
+        // ── Zonas (dependen de la sede) ──
         var zonasSel = {}; (v.zonasIds || []).forEach(function (id) { zonasSel[id] = true; });
         var aviso = el('div', { class: 'aviso a-warn' }); aviso.hidden = true;
-        var zonasNodo = el('fieldset', { class: 'zonas' }, [el('legend', { text: 'Zonas que visitarán *' })]);
+        var zonasLegend = el('legend');
+        var zonasNodo = el('fieldset', { class: 'zonas' }, [zonasLegend]);
         function sincZonas() {
             var sctr = false, epp = false;
-            op.zonas.forEach(function (z) { if (zonasSel[z.id]) { sctr = sctr || z.sctr; epp = epp || z.epp; } });
+            sedeActual().zonas.forEach(function (z) { if (zonasSel[z.id]) { sctr = sctr || z.sctr; epp = epp || z.epp; } });
             aviso.hidden = !(sctr || epp);
             aviso.textContent = (sctr || epp) ? 'Para estas zonas Vigilancia verificará ' + [sctr ? 'el SCTR' : '', epp ? 'el uso de EPP' : ''].filter(Boolean).join(' y ') + ' al ingreso.' : '';
         }
-        op.zonas.forEach(function (z) {
-            var chk = el('input', { type: 'checkbox' }); chk.checked = !!zonasSel[z.id];
-            var fila = el('label', { class: 'zona' + (chk.checked ? ' on' : '') }, [chk, el('span', { text: z.texto })]);
-            chk.addEventListener('change', function () { zonasSel[z.id] = chk.checked; fila.classList.toggle('on', chk.checked); sincZonas(); });
-            zonasNodo.appendChild(fila);
-        });
-        sincZonas();
+        function pintarZonas() {
+            while (zonasNodo.childNodes.length > 1) zonasNodo.removeChild(zonasNodo.lastChild);
+            zonasLegend.textContent = esContratista() ? 'Área donde se ejecutará el trabajo *' : 'Zonas que visitarán *';
+            var zs = sedeActual().zonas;
+            Object.keys(zonasSel).forEach(function (k) { if (!zs.some(function (z) { return String(z.id) === k; })) delete zonasSel[k]; });
+            zs.forEach(function (z) {
+                var chk = el('input', { type: 'checkbox' }); chk.checked = !!zonasSel[z.id];
+                var fila = el('label', { class: 'zona' + (chk.checked ? ' on' : '') }, [chk, el('span', { text: z.texto })]);
+                chk.addEventListener('change', function () { zonasSel[z.id] = chk.checked; fila.classList.toggle('on', chk.checked); sincZonas(); });
+                zonasNodo.appendChild(fila);
+            });
+            if (!zs.length) zonasNodo.appendChild(el('p', { class: 'vacio', text: 'Esta sede no tiene zonas configuradas. Pida al administrador que las agregue en Catálogos.' }));
+            sincZonas();
+        }
 
-        var nodo = el('div', { class: 'stack' }, [
-            el('div', { class: 'grid g3' }, [campo('Sede', el('input', { type: 'text', value: op.sede.texto, disabled: true })), campo('Fecha de la visita *', fecha), campo('Hora prevista *', hora)]),
-            campo('Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])),
-            el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]),
-            el('div', { class: 'grid g2' }, [campo('Motivo de la visita *', motivo), detalleCampo]),
-            zonasNodo, aviso,
-            campo('Detalles adicionales (opcional)', obs),
-            campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud (nueva, decisiones, cancelación). Sepárelos con «;».')
-        ]);
+        // ── Diseño según el tipo ──
+        var nodo = el('div', { class: 'stack' });
+        function armar() {
+            var c = esContratista(), t = tipoActual();
+            tipoAyuda.textContent = editar ? 'El tipo de ingreso y la sede no se pueden cambiar. Si se equivocó, cancele y cree otra solicitud.' : '';
+            nodo.textContent = '';
+            nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Tipo de ingreso *', tipoSel, editar ? null : (t.codigo ? null : 'Elija el tipo de ingreso.')), campo('Sede *', sedeSel)]));
+            if (editar) nodo.appendChild(tipoAyuda);
+            nodo.appendChild(el('div', { class: 'grid g2' }, [campo(c ? 'Fecha del servicio *' : 'Fecha de la visita *', fecha), campo(c ? 'Hora prevista del servicio *' : 'Hora prevista *', hora)]));
+            empresa.placeholder = c ? 'Nombre de la empresa contratista' : 'Empresa o procedencia de los visitantes';
+            nodo.appendChild(campo(c ? 'Empresa contratista *' : 'Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])));
+            nodo.appendChild(el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]));
+            if (c) {
+                nodo.appendChild(campo('Actividad(es) a realizar *', actividades));
+                nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
+                nodo.appendChild(campo('Detalle del área (opcional)', areaDetalle));
+                nodo.appendChild(el('h4', { text: 'Contacto de la empresa contratista' }));
+                nodo.appendChild(el('div', { class: 'grid g3' }, [campo('Nombre del contacto *', cNombre), campo('Teléfonos *', cTel, 'Varios, separados por «;».'), campo('Correos *', cCorreos, 'Varios, separados por «;». No se copian solos a los avisos.')]));
+            } else {
+                nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Motivo de la visita *', motivo), detalleCampo]));
+                nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
+            }
+            if (sedeActual().cochera) nodo.appendChild(cocheraBloque);
+            nodo.appendChild(campo('Detalles adicionales (opcional)', obs));
+            nodo.appendChild(campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud (nueva, decisiones, cancelación). Sepárelos con «;».'));
+            pintarZonas();
+        }
+        tipoSel.addEventListener('change', armar);
+        sedeSel.addEventListener('change', armar);
+        armar();
 
         function leer() {
+            var c = esContratista(), conCochera = sedeActual().cochera && cochera.value === 'Y';
             return {
+                tipoId: Number(tipoSel.value) || 0, tipoCodigo: tipoActual().codigo, tipoTexto: tipoActual().texto, sedeId: Number(sedeSel.value) || 0, sedeTexto: sedeActual().texto,
                 fecha: fecha.value, hora: hora.value, empresa: empresa.value, responsableId: resp.id, responsable: resp.nombre,
-                motivoId: motivo.value ? Number(motivo.value) : null, motivoDetalle: detalle.value, observaciones: obs.value,
-                zonasIds: op.zonas.filter(function (z) { return zonasSel[z.id]; }).map(function (z) { return z.id; }), copias: copias.value
+                motivoId: c ? null : (motivo.value ? Number(motivo.value) : null),
+                motivoDetalle: c ? actividades.value : detalle.value, observaciones: obs.value,
+                zonasIds: sedeActual().zonas.filter(function (z) { return zonasSel[z.id]; }).map(function (z) { return z.id; }), copias: copias.value,
+                cochera: conCochera, placa: conCochera ? placa.value.toUpperCase().replace(/[\s-]/g, '') : '',
+                areaDetalle: c ? areaDetalle.value : '', contactoNombre: c ? cNombre.value : '', contactoTelefonos: c ? cTel.value : '', contactoCorreos: c ? cCorreos.value : ''
             };
         }
         // Validación mínima de formulario; las reglas de fondo las valida el servidor.
         function validar() {
-            var d = leer();
-            if (!d.fecha || !d.hora) return 'Indique la fecha y la hora de la visita.';
-            if (d.fecha < hoy()) return 'La fecha de la visita no puede ser anterior a hoy.';
-            if (!d.empresa.trim()) return 'Indique la empresa o procedencia.';
+            var d = leer(), c = esContratista();
+            if (!d.tipoId) return 'Elija el tipo de ingreso.';
+            if (!d.sedeId) return 'Elija la sede.';
+            if (!d.fecha || !d.hora) return c ? 'Indique la fecha y la hora del servicio.' : 'Indique la fecha y la hora de la visita.';
+            if (d.fecha < hoy()) return c ? 'La fecha del servicio no puede ser anterior a hoy.' : 'La fecha de la visita no puede ser anterior a hoy.';
+            if (!d.empresa.trim()) return c ? 'Indique la empresa contratista.' : 'Indique la empresa o procedencia.';
             if (!d.responsableId) return 'Elija al responsable de atención.';
-            if (!d.motivoId) return 'Elija el motivo de la visita.';
-            if (!detalleCampo.hidden && !d.motivoDetalle.trim()) return 'Describa el motivo de la visita.';
-            if (!d.zonasIds.length) return 'Marque al menos una zona.';
+            if (c) {
+                if (!d.motivoDetalle.trim()) return 'Describa la(s) actividad(es) a realizar.';
+            } else {
+                if (!d.motivoId) return 'Elija el motivo de la visita.';
+                if (!detalleCampo.hidden && !d.motivoDetalle.trim()) return 'Describa el motivo de la visita.';
+            }
+            if (!d.zonasIds.length) return c ? 'Marque al menos un área de trabajo.' : 'Marque al menos una zona.';
+            if (c) {
+                if (!d.contactoNombre.trim()) return 'Indique el nombre del contacto de la empresa contratista.';
+                if (d.contactoTelefonos.replace(/\D/g, '').length < 6) return 'Indique al menos un teléfono de contacto.';
+                if (!d.contactoCorreos.trim()) return 'Indique al menos un correo de contacto.';
+            }
+            if (d.cochera && d.placa.length < 5) return 'Indique la placa del vehículo (de 5 a 8 letras o números).';
             return '';
         }
         return { nodo: nodo, leer: leer, validar: validar };

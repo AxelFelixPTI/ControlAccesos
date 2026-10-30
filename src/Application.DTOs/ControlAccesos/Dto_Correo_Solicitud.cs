@@ -37,6 +37,14 @@ public sealed class Dto_Correo_Solicitud
     public DateTime? Fecha_Envio { get; set; }
     /// <summary>Asunto del aviso de solicitud nueva (código + empresa de la creación): se usa en todo el hilo. Vacío en solicitudes anteriores.</summary>
     public string? Asunto_Hilo { get; set; }
+    // Entrega H
+    public string? Tipo_Acceso_Codigo { get; set; }
+    public bool Requiere_Cochera { get; set; }
+    public string? Placa_Vehiculo { get; set; }
+    public string? Area_Detalle { get; set; }
+    public string? Contacto_Nombre { get; set; }
+    public string? Contacto_Telefonos { get; set; }
+    public string? Contacto_Correos { get; set; }
 }
 
 public sealed class Dto_Correo_Solicitud_Persona

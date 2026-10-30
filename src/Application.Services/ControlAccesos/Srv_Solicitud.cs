@@ -135,6 +135,26 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
+    public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(CancellationToken ct = default)
+    {
+        try { return await _repo.TiposOpcionesAsync(ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TIPOS_OPCIONES Solicitud ERROR");
+            return Result<List<Dto_Solicitud_Tipo_Opcion>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Solicitud_Sede_Opcion>>> SedesOpcionesAsync(long usuarioId, CancellationToken ct = default)
+    {
+        try { return await _repo.SedesOpcionesAsync(usuarioId, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SEDES_OPCIONES Solicitud ERROR");
+            return Result<List<Dto_Solicitud_Sede_Opcion>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result<Dto_Solicitud_Creada>> CrearAsync(Dto_Solicitud_Crear dto, long usuarioId, CancellationToken ct = default)
     {
         var errors = new List<ResultError>();

@@ -34,10 +34,19 @@
         if (s.estado === 'CANCELADA' && s.motivoCancelacion) cab.appendChild(el('div', { class: 'aviso a-info', text: 'Motivo de la cancelación: ' + s.motivoCancelacion }));
         if (s.observacionCoordinador && s.observadas) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Coordinación: ' + s.observacionCoordinador }));
         var dl = el('dl', { class: 'dl' });
-        [['Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], ['Empresa', s.empresa || '—'],
-         ['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—'],
-         ['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')],
-         ['Detalles adicionales', s.observaciones || '—'], ['Correos en copia', s.copias || '—']]
+        var c = s.tipoCodigo === 'CONTRATISTA';
+        var filas = [['Tipo de ingreso', s.tipo || '—'], [c ? 'Servicio' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede],
+            [c ? 'Empresa contratista' : 'Empresa', s.empresa || '—']];
+        if (c) {
+            filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
+                ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
+        } else {
+            filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
+        }
+        filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+        if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
+        filas.push(['Detalles adicionales', s.observaciones || '—'], ['Correos en copia', s.copias || '—']);
+        filas
             .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
         cab.appendChild(dl);
         if (s.exigeSctr || s.exigeEpp) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Vigilancia verificará ' + [s.exigeSctr ? 'el SCTR' : '', s.exigeEpp ? 'el uso de EPP' : ''].filter(Boolean).join(' y ') + ' al ingreso.' }));
@@ -46,7 +55,7 @@
     function editarDatos() {
         opciones().then(function (o) {
             if (!o) return;
-            var f = SOL.formDatos(o, d.urlResponsables, s), error = el('p', { class: 'field-e' });
+            var f = SOL.formDatos(o, d.urlResponsables, s, 'editar'), error = el('p', { class: 'field-e' });
             var cuerpoM = el('div', { class: 'stack' }, [
                 s.autorizadas ? el('div', { class: 'aviso a-warn', text: 'Si cambia la fecha, la hora, la empresa, el motivo o las zonas, las personas ya autorizadas vuelven a quedar pendientes de aprobación.' }) : null,
                 f.nodo, error]);

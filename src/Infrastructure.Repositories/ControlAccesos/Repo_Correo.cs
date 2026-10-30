@@ -227,6 +227,13 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Version                 = RdLong(rd, "Version"),
         Fecha_Envio             = RdDtN(rd, "Fecha_Envio"),
         Asunto_Hilo             = RdStrN(rd, "Asunto_Hilo"),
+        Tipo_Acceso_Codigo      = RdStrN(rd, "Tipo_Acceso_Codigo"),
+        Requiere_Cochera        = RdBool(rd, "Requiere_Cochera"),
+        Placa_Vehiculo          = RdStrN(rd, "Placa_Vehiculo"),
+        Area_Detalle            = RdStrN(rd, "Area_Detalle"),
+        Contacto_Nombre         = RdStrN(rd, "Contacto_Nombre"),
+        Contacto_Telefonos      = RdStrN(rd, "Contacto_Telefonos"),
+        Contacto_Correos        = RdStrN(rd, "Contacto_Correos"),
     };
 
     private static Dto_Correo_Solicitud_Persona MapCorreo_Solicitud_Persona(DbDataReader rd) => new()

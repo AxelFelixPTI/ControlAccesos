@@ -51,7 +51,7 @@ BEGIN
     SELECT "ID_Catalogo_Zona_Acceso" INTO v_z_pt  FROM "Catalogo_Zona_Acceso" WHERE "Codigo" = 'PRODUCTO_TERMINADO' AND "ID_Catalogo_Sede" = v_ves;
     SELECT "ID_Catalogo_Motivo_Visita" INTO v_mot FROM "Catalogo_Motivo_Visita" WHERE "Codigo" = 'REUNION_COORDINACION';
     SELECT "ID_Catalogo_Tipo_Acceso" INTO v_ext FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'VISITA_EXTERNA';
-    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_con FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'CONTRATISTA';
+    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_con FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'PROVEEDOR';
     SELECT "ID_Tipo_Acceso_Paso_Aprobacion" INTO v_paso_ext FROM "Tipo_Acceso_Paso_Aprobacion" WHERE "ID_Catalogo_Tipo_Acceso" = v_ext LIMIT 1;
 
     v_fut := CURRENT_TIMESTAMP + INTERVAL '2 days';
@@ -91,20 +91,20 @@ BEGIN
 
     -- S1: visita externa de Carlos, 3 personas, 2 zonas, 2 copias
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, 'Traerán un proyector.',
-                                   v_z_adm || ',' || v_z_pt, v_e1 || ',' || v_e2 || ',' || v_e3, 'almacen@ejemplo.pe; gerencia@ejemplo.pe', NULL, v_u_sol, v_s1, v_cs1, v_cod, v_msg);
+                                   v_z_adm || ',' || v_z_pt, v_e1 || ',' || v_e2 || ',' || v_e3, 'almacen@ejemplo.pe; gerencia@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s1, v_cs1, v_cod, v_msg);
     PERFORM pg_temp.chk('Preparación: S1 creada', '100', v_cod::TEXT, v_msg);
     -- S2: contratista de Carlos, 3 personas, flujo de 3 pasos
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Contratista S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1 || ',' || v_e2 || ',' || v_e3, NULL, NULL, v_u_sol, v_s2, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Contratista S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1 || ',' || v_e2 || ',' || v_e3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s2, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Preparación: S2 creada', '100', v_cod::TEXT, v_msg);
     -- S3: visita de HOY de Ana, 3 personas
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_hoy, 'Hoy Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e4 || ',' || v_e5 || ',' || v_e6, NULL, NULL, v_u_sol2, v_s3, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_hoy, 'Hoy Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e4 || ',' || v_e5 || ',' || v_e6, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_s3, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Preparación: S3 creada', '100', v_cod::TEXT, v_msg);
     -- S4: de HOY de Carlos, cancelada
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_hoy, 'Cancelada S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e6::TEXT, NULL, NULL, v_u_sol, v_s4, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_hoy, 'Cancelada S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e6::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s4, v_cs, v_cod, v_msg);
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_s4, 'Reprogramada', v_u_sol, v_cod, v_msg);
     PERFORM pg_temp.chk('Preparación: S4 cancelada', '100', v_cod::TEXT, v_msg);
     -- S5: de Carlos, de una fecha ya pasada (se retrasa a mano) y «basada en» S1
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Pasada S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_s5, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Pasada S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s5, v_cs, v_cod, v_msg);
     UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = CURRENT_TIMESTAMP - INTERVAL '3 days', "ID_Solicitud_Origen" = v_s1 WHERE "ID_Solicitud" = v_s5;
 
     v_p1 := pg_temp.sp(v_s1, v_e1); v_p2 := pg_temp.sp(v_s1, v_e2); v_p3 := pg_temp.sp(v_s1, v_e3);
@@ -180,17 +180,17 @@ BEGIN
     UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'ESPERADA' WHERE "ID_Solicitud_Persona" = v_q5;
 
     -- Los botones coinciden con lo que de verdad permite el procedimiento de escritura
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s3, v_fut, 'Hoy Visitas S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, v_u_sol2, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s3, v_fut, 'Hoy Visitas S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Coincide S3: «no editar» = el SP rechaza (409)', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_s3, NULL, v_u_sol2, v_cod, v_msg);
     PERFORM pg_temp.chk('Coincide S3: «no cancelar» = el SP rechaza (409)', '409', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s5, v_fut, 'Pasada S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s5, v_fut, 'Pasada S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Coincide S5: «no editar» (fecha pasada) = el SP rechaza (409)', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_s5, NULL, v_u_sol, v_cod, v_msg);
     PERFORM pg_temp.chk('Coincide S5: «no cancelar» = el SP rechaza (409)', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR"(v_s5, v_e2, v_u_sol, v_spr, v_cod, v_msg);
     PERFORM pg_temp.chk('Coincide S5: «no modificar personal» = el SP rechaza (409)', '409', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s4, v_fut, 'Cancelada S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s4, v_fut, 'Cancelada S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Coincide S4: «no editar» (cancelada) = el SP rechaza (409)', '409', v_cod::TEXT, v_msg);
 
     -- ===================================================== C. «MIS SOLICITUDES»

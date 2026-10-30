@@ -77,7 +77,9 @@ public sealed class CoordinacionController : Controller
             success = true,
             data = new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, estado = s.Estado, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
+                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
+                areaDetalle = s.Area_Detalle, contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos,
+                estado = s.Estado, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = s.Empresa_Visitante, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, zonas = s.Zonas_Nombres, observaciones = s.Observaciones,
                 responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area, solicitante = s.Solicitante_Nombre, solicitanteCorreo = s.Solicitante_Correo,
                 exigeSctr = s.Exige_SCTR, exigeEpp = s.Exige_EPP, motivoCancelacion = s.Motivo_Cancelacion, codigoOrigen = s.Codigo_Origen,

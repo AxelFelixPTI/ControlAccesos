@@ -42,6 +42,7 @@ DECLARE
     v_p1 BIGINT; v_p2 BIGINT; v_p3 BIGINT; v_p4 BIGINT; v_p5 BIGINT;
     v_paso_doc BIGINT; v_paso_serv BIGINT; v_paso_cierre BIGINT; v_dummy BIGINT;
     v_ad BIGINT; v_ad1 BIGINT; v_ad2 BIGINT; v_ad3 BIGINT; v_adsp BIGINT;
+    v_mag BIGINT; v_zmag BIGINT; v_ctr BIGINT; v_sc BIGINT; v_sm BIGINT; v_sk BIGINT; v_mcon BIGINT; v_pctr BIGINT;
 BEGIN
     -- ===================================================== PREPARACIÓN
     SELECT "ID_Catalogo_Sede" INTO v_ves FROM "Catalogo_Sede" WHERE "Codigo" = 'VES';
@@ -57,8 +58,14 @@ BEGIN
     SELECT "ID_Catalogo_Motivo_Visita" INTO v_mot FROM "Catalogo_Motivo_Visita" WHERE "Codigo" = 'REUNION_COORDINACION';
     SELECT "ID_Catalogo_Motivo_Visita" INTO v_mot_otro FROM "Catalogo_Motivo_Visita" WHERE "Codigo" = 'OTRO';
     SELECT "ID_Catalogo_Tipo_Acceso" INTO v_ext FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'VISITA_EXTERNA';
-    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_con FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'CONTRATISTA';
+    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_con FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'PROVEEDOR';
     SELECT "ID_Catalogo_Tipo_Acceso" INTO v_int FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'INTERNO_VISITANTE';
+    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_ctr FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'CONTRATISTA';
+    SELECT "ID_Catalogo_Sede" INTO v_mag FROM "Catalogo_Sede" WHERE "Codigo" = 'MAG';
+    SELECT "ID_Catalogo_Zona_Acceso" INTO v_zmag FROM "Catalogo_Zona_Acceso" WHERE "Codigo" = 'OFICINAS_ADM' AND "ID_Catalogo_Sede" = v_mag;
+    -- Estado de fábrica de los tipos de ingreso (script 16), antes de que otras secciones los cambien
+    PERFORM pg_temp.chk('Tipos: «Personal interno visitante» queda oculto (Activo = N)', 'N', pg_temp.q('SELECT "Activo" FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = ''INTERNO_VISITANTE'''), '');
+    PERFORM pg_temp.chk('Tipos: Proveedor (de fábrica) se ve pero no se puede usar, con su leyenda', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_TIPOS_OPCIONES"() WHERE "Codigo" = ''PROVEEDOR'' AND "Usable" = ''N'' AND "Leyenda" LIKE ''Próximamente%'''), '');
     SELECT "ID_Tipo_Acceso_Paso_Aprobacion" INTO v_paso_ext FROM "Tipo_Acceso_Paso_Aprobacion" WHERE "ID_Catalogo_Tipo_Acceso" = v_ext LIMIT 1;
 
     v_fut := CURRENT_TIMESTAMP + INTERVAL '2 days';
@@ -106,38 +113,38 @@ BEGIN
     PERFORM pg_temp.chk('Bitácora: usuario no válido', '400', v_cod::TEXT, v_msg);
 
     -- ===================================================== B. CREAR
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_nada, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_nada, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: sin permiso', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_vig, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: Vigilancia no crea solicitudes', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: tipo de acceso no disponible', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_pas, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_pas, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: fecha anterior a hoy', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, NULL, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, NULL, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: sin fecha', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, '   ', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, '   ', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: empresa vacía', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, 999999, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, 999999, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: responsable inexistente', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot_otro, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot_otro, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: motivo «Otro» exige describirlo', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, NULL, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, NULL, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: sin zonas', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, '999999', v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, '999999', v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: zona inexistente', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm || ',' || v_z_adm, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm || ',' || v_z_adm, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: zona repetida', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: sin personas', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, '888888', NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, '888888', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: persona no registrada', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, 'sin-arroba', NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, 'sin-arroba', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: correo en copia inválido', '400', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Crear: lo rechazado no dejó nada escrito', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud"'), 'ninguna solicitud');
 
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Energía Verde S.A.C.', v_mot, NULL, 'Traerán un proyector.',
-                                   v_z_adm || ',' || v_z_pt, v_e1 || ',' || v_e2 || ',' || v_e3, 'Almacen@Ejemplo.pe; gerencia@ejemplo.pe', NULL, v_u_sol, v_s1, v_cs, v_cod, v_msg);
+                                   v_z_adm || ',' || v_z_pt, v_e1 || ',' || v_e2 || ',' || v_e3, 'Almacen@Ejemplo.pe; gerencia@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s1, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: correcta', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Crear: código SOL-nnnnn derivado del identificador', 'SOL-' || LPAD(v_s1::TEXT, 5, '0'), v_cs, '');
     PERFORM pg_temp.chk('Crear: estado PENDIENTE', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s1), '');
@@ -151,7 +158,7 @@ BEGIN
     PERFORM pg_temp.chk('Crear: avisa al Coordinador', 'roberto@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), 'solo el rol del primer paso');
     PERFORM pg_temp.chk('Crear: en Copia van el solicitante y los correos del asistente', 'carlos@ejemplo.pe; almacen@ejemplo.pe; gerencia@ejemplo.pe', pg_temp.q('SELECT "Copia" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), '');
 
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Otra S.A.C.', v_mot_otro, 'Entrega de planos', NULL, v_z_adm::TEXT, v_e4::TEXT, NULL, NULL, v_u_sol, v_a, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Otra S.A.C.', v_mot_otro, 'Entrega de planos', NULL, v_z_adm::TEXT, v_e4::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_a, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Crear: con motivo «Otro» y su detalle', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Crear: guarda el detalle del motivo', 'Entrega de planos', pg_temp.q('SELECT "Motivo_Detalle" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_a), '');
     PERFORM pg_temp.chk('Crear: zona administrativa no exige SCTR', 'NN', pg_temp.q('SELECT "Exige_SCTR" || "Exige_EPP" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_a), '');
@@ -365,29 +372,29 @@ BEGIN
     PERFORM pg_temp.chk('Emergencia quitar: no se quita a la única persona de la solicitud', '101', v_cod::TEXT, v_msg);
 
     -- ===================================================== G. EDITAR los datos de la visita
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Editable S.A.C.', v_mot, NULL, 'Primera versión', v_z_adm::TEXT, v_e1 || ',' || v_e2, 'a@ejemplo.pe', NULL, v_u_sol, v_s2, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Editable S.A.C.', v_mot, NULL, 'Primera versión', v_z_adm::TEXT, v_e1 || ',' || v_e2, 'a@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s2, v_cs, v_cod, v_msg);
     v_a := pg_temp.sp(v_s2, v_e1); v_b := pg_temp.sp(v_s2, v_e2);
     CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_s2, v_paso_ext, 'APROBADA', NULL, v_a || ',' || v_b, v_u_coo, v_cant, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: preparación, solicitud aprobada', 'APROBADA', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s2), 'las 2 personas aprobadas');
 
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, v_u_sol2, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: otro solicitante no puede', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_pas, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_pas, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: la nueva fecha no puede ser anterior a hoy', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot_otro, NULL, 'x', v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot_otro, NULL, 'x', v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: motivo «Otro» sin describir', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: sin zonas', '400', v_cod::TEXT, v_msg);
 
     SELECT "Fecha_Hora_Prevista" INTO v_fut FROM "CAF_Solicitud" WHERE "ID_Solicitud" = v_s2;
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'Segunda versión de las observaciones', v_z_adm::TEXT, 'a@ejemplo.pe, b@ejemplo.pe', v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'Segunda versión de las observaciones', v_z_adm::TEXT, 'a@ejemplo.pe, b@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: solo observaciones y copias', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Editar: eso NO reabre la aprobación', 'N', v_reab::TEXT, 'no cambia lo autorizado');
     PERFORM pg_temp.chk('Editar: las personas siguen APROBADAS', '2', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Aprobacion" = ''APROBADA'''), '');
     PERFORM pg_temp.chk('Editar: la versión no sube', '1', pg_temp.q('SELECT "Version" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s2), '');
     PERFORM pg_temp.chk('Editar: las copias quedan como se indicó', 'a@ejemplo.pe,b@ejemplo.pe', pg_temp.q('SELECT STRING_AGG("Correo", '','' ORDER BY "Correo") FROM "CAF_Solicitud_Copia_Correo" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Eliminado" = ''N'''), '');
 
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut + INTERVAL '90 minutes', 'Editable S.A.C.', v_per, v_mot, NULL, 'Segunda versión de las observaciones', v_z_adm::TEXT, 'a@ejemplo.pe', v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut + INTERVAL '90 minutes', 'Editable S.A.C.', v_per, v_mot, NULL, 'Segunda versión de las observaciones', v_z_adm::TEXT, 'a@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: cambiar la hora', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Editar: cambiar la hora SÍ reabre la aprobación', 'Y', v_reab::TEXT, '');
     PERFORM pg_temp.chk('Editar: la versión sube a 2', '2', pg_temp.q('SELECT "Version" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s2), '');
@@ -412,25 +419,25 @@ BEGIN
     PERFORM pg_temp.chk('Observaciones: la persona aprobada no hereda la observación', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_a || ' AND "Aprobacion" = ''APROBADA'' AND "Aprobacion_Mensaje" IS NULL'), '');
     UPDATE "CAF_Correo_Pendiente" SET "Estado" = 'ENVIADO', "Fecha_Envio" = CURRENT_TIMESTAMP WHERE "ID_Solicitud" = v_s2 AND "Tipo" IN ('SOLICITUD_DECISION','SOLICITUD_VIGILANCIA');
     SELECT "Fecha_Hora_Prevista" INTO v_fut FROM "CAF_Solicitud" WHERE "ID_Solicitud" = v_s2;
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm || ',' || v_z_pt, 'a@ejemplo.pe', v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm || ',' || v_z_pt, 'a@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: agregar una zona reabre', 'Y', v_reab::TEXT, '');
     PERFORM pg_temp.chk('Editar: la aprobada vuelve a PENDIENTE', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_a), '');
     PERFORM pg_temp.chk('Editar: la observada CONSERVA su observación', 'OBSERVADA|Falta el nombre completo.', pg_temp.q('SELECT "Aprobacion" || ''|'' || "Aprobacion_Mensaje" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_b), 'depende del solicitante, no se reabre');
     PERFORM pg_temp.chk('Editar: ahora la solicitud exige SCTR', 'Y', pg_temp.q('SELECT "Exige_SCTR" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s2), 'se recalcula desde las zonas');
     PERFORM pg_temp.chk('Editar: la zona nueva quedó asociada', '2', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Zona" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Eliminado" = ''N'''), '');
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_1p::TEXT, 'a@ejemplo.pe', v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_1p::TEXT, 'a@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: cambiar de zona (se retira una y entra otra)', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Editar: queda una sola zona vigente', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Zona" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Eliminado" = ''N'''), '');
     PERFORM pg_temp.chk('Editar: la zona retirada se conserva marcada, no se borra', '2', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Zona" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Eliminado" = ''Y'''), '');
     PERFORM pg_temp.chk('Editar: sin zonas operativas ya no exige SCTR', 'N', pg_temp.q('SELECT "Exige_SCTR" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s2), '');
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm || ',' || v_z_1p, 'a@ejemplo.pe', v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm || ',' || v_z_1p, 'a@ejemplo.pe', NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: volver a una zona retirada la reactiva', '2', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Zona" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Eliminado" = ''N'''), 'misma fila, sin duplicar');
 
     -- Con alguien dentro, los datos de la visita no se cambian
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_hoy, 'Hoy S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1 || ',' || v_e2, NULL, NULL, v_u_sol, v_s3, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_hoy, 'Hoy S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1 || ',' || v_e2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_s3, v_cs, v_cod, v_msg);
     CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_s3, v_paso_ext, 'APROBADA', NULL, pg_temp.sp(v_s3, v_e1) || ',' || pg_temp.sp(v_s3, v_e2), v_u_coo, v_cant, v_cod, v_msg);
     UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'DENTRO', "Fecha_Hora_Ingreso" = CURRENT_TIMESTAMP WHERE "ID_Solicitud_Persona" = pg_temp.sp(v_s3, v_e1);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s3, v_hoy, 'Hoy S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s3, v_hoy, 'Hoy S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: con alguien dentro no se editan los datos', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_s3, 'x', v_u_sol, v_cod, v_msg);
     PERFORM pg_temp.chk('Cancelar: con alguien dentro no se cancela', '409', v_cod::TEXT, v_msg);
@@ -441,7 +448,7 @@ BEGIN
 
     -- Fecha pasada: nada se modifica
     UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_pas WHERE "ID_Solicitud" = v_s2;
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Editar: la fecha de la visita ya pasó', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR"(v_s2, v_e5, v_u_sol, v_dummy, v_cod, v_msg);
     PERFORM pg_temp.chk('Agregar: la fecha de la visita ya pasó', '409', v_cod::TEXT, v_msg);
@@ -465,7 +472,7 @@ BEGIN
     PERFORM pg_temp.chk('Cancelar: con una persona autorizada avisa a aprobadores y Vigilancia', 'roberto@ejemplo.pe; maria@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_s2 || ' AND "Tipo" = ''SOLICITUD_CANCELADA'''), 'primero los aprobadores, luego portería');
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_s2, 'x', v_u_sol, v_cod, v_msg);
     PERFORM pg_temp.chk('Cancelar: dos veces', '409', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_s2, v_fut, 'Editable S.A.C.', v_per, v_mot, NULL, 'x', v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Cancelada: no se edita', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR"(v_s2, v_e5, v_u_sol, v_dummy, v_cod, v_msg);
     PERFORM pg_temp.chk('Cancelada: no se agregan personas', '409', v_cod::TEXT, v_msg);
@@ -476,13 +483,13 @@ BEGIN
 
     -- ===================================================== I. FLUJO DE VARIOS PASOS (contratista, solo con datos)
     UPDATE "Catalogo_Tipo_Acceso" SET "Disponible" = 'Y' WHERE "ID_Catalogo_Tipo_Acceso" = v_con;
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Contratista S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Contratista S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_id, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: un tipo sin pasos configurados no admite solicitudes', '101', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_TIPO_ACCESO_PASO_AGREGAR"(v_con, 1, 'DOCUMENTOS', 'Revisión de documentos', 'PERSONA',   'ROL', v_lic_coo, 'SIEMPRE', 'Y', 0, v_paso_doc,    v_cod, v_msg);
     CALL "ERP_CAF_TIPO_ACCESO_PASO_AGREGAR"(v_con, 1, 'SERVICIO',   'Aprobación del servicio', 'SOLICITUD', 'ROL', v_lic_alm, 'SIEMPRE', 'Y', 0, v_paso_serv,   v_cod, v_msg);
     CALL "ERP_CAF_TIPO_ACCESO_PASO_AGREGAR"(v_con, 2, 'CIERRE',     'Visto bueno final',       'PERSONA',   'ROL', v_lic_coo, 'SIEMPRE', 'Y', 0, v_paso_cierre, v_cod, v_msg);
 
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Contratista S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1 || ',' || v_e2 || ',' || v_e3, NULL, NULL, v_u_sol, v_c, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_con, v_per, v_fut, 'Contratista S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1 || ',' || v_e2 || ',' || v_e3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_c, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: se crea el flujo de 3 pasos', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Varios pasos: avisa a los DOS roles del primer orden (en paralelo)', 'jorge@ejemplo.pe; roberto@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_c || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), '');
     v_p1 := pg_temp.sp(v_c, v_e1); v_p2 := pg_temp.sp(v_c, v_e2); v_p3 := pg_temp.sp(v_c, v_e3);
@@ -527,23 +534,23 @@ BEGIN
     PERFORM pg_temp.chk('Varios pasos: y le faltan los pasos de otros roles', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_d), '');
 
     SELECT "Fecha_Hora_Prevista" INTO v_fut FROM "CAF_Solicitud" WHERE "ID_Solicitud" = v_c;
-    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_c, v_fut + INTERVAL '1 hour', 'Contratista S.A.C.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_c, v_fut + INTERVAL '1 hour', 'Contratista S.A.C.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: cambiar la hora reabre TAMBIÉN los pasos por solicitud', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Decision" WHERE "ID_Tipo_Acceso_Paso_Aprobacion" = ' || v_paso_serv || ' AND "Vigente" = ''Y'' AND "ID_Solicitud_Persona" IN (SELECT "ID_Solicitud_Persona" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_c || ')'), 'el área vuelve a aprobar el servicio');
     PERFORM pg_temp.chk('Varios pasos: todas las personas vuelven a PENDIENTE', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_c || ' AND "Aprobacion" = ''APROBADA'''), '');
 
     -- ===================================================== J. REUTILIZAR («Basada en SOL-xxx»)
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Reutilizada S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, v_s1, v_u_sol, v_a, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Reutilizada S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, v_s1, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_a, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Reutilizar: nace como solicitud nueva, pendiente', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Reutilizar: guarda de cuál se tomó', v_s1::TEXT, pg_temp.q('SELECT "ID_Solicitud_Origen" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_a), 'solo trazabilidad');
     PERFORM pg_temp.chk('Reutilizar: tiene su propio código y su propia aprobación', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_a), '');
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Reutilizada S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, v_s1, v_u_sol2, v_b, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Reutilizada S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, v_s1, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_b, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Reutilizar: no se puede tomar la solicitud de otro usuario', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Reutilizada S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, 999999, v_u_sol, v_b, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Reutilizada S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, 999999, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_b, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Reutilizar: origen inexistente', '101', v_cod::TEXT, v_msg);
 
     -- ===================================================== K. FLUJO QUE NO REQUIERE APROBACIÓN
-    UPDATE "Catalogo_Tipo_Acceso" SET "Disponible" = 'Y', "Requiere_Aprobacion" = 'N' WHERE "ID_Catalogo_Tipo_Acceso" = v_int;
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_int, v_per, v_fut, 'Interno', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, v_u_sol, v_d, v_cs, v_cod, v_msg);
+    UPDATE "Catalogo_Tipo_Acceso" SET "Disponible" = 'Y', "Activo" = 'Y', "Requiere_Aprobacion" = 'N' WHERE "ID_Catalogo_Tipo_Acceso" = v_int;
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_int, v_per, v_fut, 'Interno', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_d, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Sin aprobación: se crea', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Sin aprobación: las personas nacen APROBADAS', 'APROBADA', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_d), 'no hay a quién esperar');
     PERFORM pg_temp.chk('Sin aprobación: la solicitud queda APROBADA', 'APROBADA', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_d), '');
@@ -557,7 +564,7 @@ BEGIN
 
     -- ===================================================== M. DOCUMENTOS ADJUNTOS (Entrega J, D-183 y D-184)
     UPDATE "Catalogo_Tipo_Acceso" SET "Disponible" = 'Y', "Requiere_Aprobacion" = 'Y' WHERE "ID_Catalogo_Tipo_Acceso" = v_ext;
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Con documentos S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT || ',' || v_e2::TEXT, NULL, NULL, v_u_sol, v_ad, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Con documentos S.A.C.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT || ',' || v_e2::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_ad, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Adjuntos: se prepara una solicitud nueva', '100', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'C:\Users\ana\SCTR vigente.PDF', 'application/pdf', convert_to('%PDF-1.4 sctr', 'UTF8'), v_u_sol, v_ad1, v_cod, v_msg);
     PERFORM pg_temp.chk('Adjuntos: el solicitante adjunta un PDF', '100', v_cod::TEXT, v_msg);
@@ -621,6 +628,103 @@ BEGIN
     -- Correos: retención para dar tiempo a cargar los documentos (D-185)
     PERFORM pg_temp.chk('Correos: con retención de 60 s no sale un aviso recién creado', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 100, 60) WHERE "ID_Solicitud" = ' || v_ad), '');
     PERFORM pg_temp.chk('Correos: sin retención sí sale', 'true', pg_temp.q('SELECT (COUNT(*) > 0)::TEXT FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 100) WHERE "ID_Solicitud" = ' || v_ad), '');
+
+    -- ===================================================== N. TIPO DE INGRESO, COCHERA Y CONTRATISTA (Entrega H, D-187 a D-192)
+    PERFORM pg_temp.chk('Tipos: Visitante externo y Contratista se pueden usar', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_TIPOS_OPCIONES"() WHERE "Codigo" IN (''VISITA_EXTERNA'',''CONTRATISTA'') AND "Usable" = ''Y'''), '');
+
+    CALL "ERP_USUARIO_LICENCIA_AGREGAR"(v_u_sol2, v_lic_sol, v_mag, 0, v_ul, v_cod, v_msg);
+    CALL "ERP_USUARIO_LICENCIA_AGREGAR"(v_u_coo, v_lic_coo, v_mag, 0, v_ul, v_cod, v_msg);
+    PERFORM pg_temp.chk('Sedes: quien solo tiene VES ve una sola sede', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_SEDES_OPCIONES"(' || v_u_sol || ')'), '');
+    PERFORM pg_temp.chk('Sedes: con licencia en Magdalena ve las dos', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_SEDES_OPCIONES"(' || v_u_sol2 || ')'), '');
+    PERFORM pg_temp.chk('Sedes: solo Magdalena ofrece cochera', 'MAG', pg_temp.q('SELECT STRING_AGG("Codigo", '','') FROM "ERP_CAF_SOLICITUD_SEDES_OPCIONES"(' || v_u_sol2 || ') WHERE "Aplica_Cochera" = ''Y'''), '');
+    PERFORM pg_temp.chk('Sedes: sin ningún permiso no ve sedes', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_SEDES_OPCIONES"(' || v_u_nada || ')'), '');
+
+    -- Contratista (en VES)
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero eléctrico', NULL, v_z_adm::TEXT, v_e1::TEXT || ',' || v_e2::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe; ops@montajes.pe', v_u_sol, v_sc, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: se crea con sus actividades, área y contacto', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Contratista: queda el motivo fijo y las actividades en el detalle', 'SERVICIO_CONTRATISTA|Cambio del tablero eléctrico', pg_temp.q('SELECT M."Codigo" || ''|'' || S."Motivo_Detalle" FROM "CAF_Solicitud" S JOIN "Catalogo_Motivo_Visita" M ON M."ID_Catalogo_Motivo_Visita" = S."ID_Catalogo_Motivo_Visita" WHERE S."ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Contratista: el contacto y el detalle del área quedan en la solicitud', 'Juan Pérez|999 888 777|juan@montajes.pe; ops@montajes.pe|Sala de tableros', pg_temp.q('SELECT "Contacto_Nombre" || ''|'' || "Contacto_Telefonos" || ''|'' || "Contacto_Correos" || ''|'' || "Area_Detalle" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Contratista: el área son las zonas elegidas', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Zona" WHERE "ID_Solicitud" = ' || v_sc || ' AND "Eliminado" = ''N'''), '');
+    PERFORM pg_temp.chk('Contratista: sin cochera por defecto', 'N|', pg_temp.q('SELECT "Requiere_Cochera" || ''|'' || COALESCE("Placa_Vehiculo", '''') FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Contratista: entra al flujo de aprobación (pendiente)', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Contratista: el aviso a quien aprueba habla de contratista', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_sc || ' AND "Tipo" = ''SOLICITUD_NUEVA'' AND "Cuerpo" LIKE ''%ingreso de contratista%'''), '');
+    PERFORM pg_temp.chk('Contratista: el detalle trae el código del tipo y el contacto', 'CONTRATISTA|Juan Pérez', pg_temp.q('SELECT "Tipo_Acceso_Codigo" || ''|'' || "Contacto_Nombre" FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_u_sol || ', ' || v_sc || ')'), '');
+    PERFORM pg_temp.chk('Contratista: los datos del correo traen el tipo y el contacto', 'CONTRATISTA|Juan Pérez', pg_temp.q('SELECT "Tipo_Acceso_Codigo" || ''|'' || "Contacto_Nombre" FROM "ERP_CAF_CORREO_SOLICITUD_DATOS"(0, ' || v_sc || ')'), '');
+    PERFORM pg_temp.chk('Contratista: lo ve el Coordinador', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_u_coo || ', ' || v_sc || ')'), '');
+
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, '  ', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, 'Juan Pérez', '999 888 777', 'juan@montajes.pe', v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: sin actividades se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, '999 888 777', 'juan@montajes.pe', v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: sin nombre de contacto se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, 'Juan', '12-3', 'juan@montajes.pe', v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: un teléfono de menos de 6 dígitos se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, 'Juan', '999888777', 'esto-no-es-un-correo', v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: un correo de contacto inválido se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, 'Juan', '999888777', NULL, v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: sin correo de contacto se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero', NULL, '', v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, 'Juan', '999888777', 'juan@montajes.pe', v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: sin área de trabajo se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Cambio del tablero', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, 'Y', 'ABC123', NULL, 'Juan', '999888777', 'juan@montajes.pe', v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cochera: en VES no se ofrece, se rechaza', '400', v_cod::TEXT, v_msg);
+
+    -- Visitante externo: conserva su formulario y no admite datos de contratista
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, 'Juan', NULL, NULL, v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Visitante: no admite contacto de contratista', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, 'Taller', NULL, NULL, NULL, v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Visitante: no admite detalle de área de contratista', '400', v_cod::TEXT, v_msg);
+    SELECT "ID_Catalogo_Motivo_Visita" INTO v_mcon FROM "Catalogo_Motivo_Visita" WHERE "Codigo" = 'SERVICIO_CONTRATISTA';
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Visitas S.A.', v_mcon, 'x', NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Visitante: no puede usar el motivo exclusivo del contratista', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, 'ABC123', NULL, NULL, NULL, NULL, v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Placa: sin cochera no se admite una placa', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, 'N', NULL, NULL, NULL, NULL, NULL, v_u_sol, v_sk, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Visitante: «No requiere cochera» crea normalmente', '100', v_cod::TEXT, v_msg);
+
+    -- Magdalena: cochera y placa
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_z_adm::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: una zona de VES no vale para esa sede', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_zmag::TEXT, v_e1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_sol, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: sin licencia en esa sede no se puede crear', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_zmag::TEXT, v_e1::TEXT, NULL, NULL, 'Y', NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: con cochera la placa es obligatoria', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_zmag::TEXT, v_e1::TEXT, NULL, NULL, 'Y', 'A1', NULL, NULL, NULL, NULL, v_u_sol2, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: una placa demasiado corta se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_zmag::TEXT, v_e1::TEXT, NULL, NULL, 'X', NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: un valor de cochera distinto de Sí/No se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ext, v_per, v_fut, 'Visitas S.A.', v_mot, NULL, NULL, v_zmag::TEXT, v_e1::TEXT, NULL, NULL, 'Y', ' abc-123 ', NULL, NULL, NULL, NULL, v_u_sol2, v_sm, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: visitante con cochera y placa se crea', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Magdalena: la placa se guarda normalizada (mayúsculas, sin espacios ni guiones)', 'Y|ABC123', pg_temp.q('SELECT "Requiere_Cochera" || ''|'' || "Placa_Vehiculo" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sm), '');
+    PERFORM pg_temp.chk('Magdalena: la solicitud queda en la sede Magdalena', v_mag::TEXT, pg_temp.q('SELECT "ID_Catalogo_Sede" FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_u_sol2 || ', ' || v_sm || ')'), '');
+    PERFORM pg_temp.chk('Magdalena: el aviso menciona la cochera y la placa', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_sm || ' AND "Tipo" = ''SOLICITUD_NUEVA'' AND "Cuerpo" LIKE ''%Requiere cochera (placa ABC123)%'''), '');
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_mag, v_ctr, v_per, v_fut, 'Montajes Andinos S.A.C.', NULL, 'Mantenimiento de aire acondicionado', NULL, v_zmag::TEXT, v_e1::TEXT, NULL, NULL, 'Y', 'xyz789', NULL, 'Ana Ruiz', '987654321', 'ana@montajes.pe', v_u_sol2, v_dummy, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Magdalena: el Coordinador con licencia en esa sede ve la solicitud', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_u_coo || ', ' || v_sm || ')'), '');
+    PERFORM pg_temp.chk('Magdalena: el Coordinador de VES solo (sin licencia en Magdalena) no la vería', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_u_alm || ', ' || v_sm || ')'), '');
+    PERFORM pg_temp.chk('Magdalena: un contratista también puede pedir cochera', '100', v_cod::TEXT, v_msg);
+
+    -- Editar
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_sc, v_fut, 'Montajes Andinos S.A.C.', v_per, NULL, 'Cambio del tablero eléctrico', NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, 'Juan Pérez', '999 111 222', 'juan@montajes.pe', v_u_sol, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Editar contratista: cambiar solo el teléfono no reabre la aprobación', 'N', v_reab::TEXT, v_msg);
+    PERFORM pg_temp.chk('Editar contratista: el teléfono queda actualizado', '999 111 222', pg_temp.q('SELECT "Contacto_Telefonos" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Editar contratista: el cambio de contacto queda en el historial', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_sc || ' AND "Accion" = ''EDITAR'' AND "Detalle" LIKE ''%contacto%'''), '');
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_sc, v_fut, 'Montajes Andinos S.A.C.', v_per, v_mot, 'Cambio del tablero y cableado', NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, 'Juan Pérez', '999 111 222', 'juan@montajes.pe', v_u_sol, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Editar contratista: cambiar las actividades reabre la aprobación', 'Y', v_reab::TEXT, v_msg);
+    PERFORM pg_temp.chk('Editar contratista: el motivo sigue siendo el fijo aunque se envíe otro', 'SERVICIO_CONTRATISTA', pg_temp.q('SELECT M."Codigo" FROM "CAF_Solicitud" S JOIN "Catalogo_Motivo_Visita" M ON M."ID_Catalogo_Motivo_Visita" = S."ID_Catalogo_Motivo_Visita" WHERE S."ID_Solicitud" = ' || v_sc), '');
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_sc, v_fut, 'Montajes Andinos S.A.C.', v_per, NULL, 'Cambio del tablero y cableado', NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, NULL, '999 111 222', 'juan@montajes.pe', v_u_sol, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Editar contratista: no se puede dejar sin nombre de contacto', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_sk, v_fut, 'Visitas S.A.', v_per, v_mot, NULL, NULL, v_z_adm::TEXT, NULL, NULL, NULL, NULL, 'Juan', NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Editar visitante: no admite datos de contratista', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_sm, v_fut, 'Visitas S.A.', v_per, v_mot, NULL, NULL, v_zmag::TEXT, NULL, 'Y', 'qwe-456', NULL, NULL, NULL, NULL, v_u_sol2, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Editar visitante en Magdalena: cambiar la placa no reabre la aprobación', 'N', v_reab::TEXT, v_msg);
+    PERFORM pg_temp.chk('Editar visitante en Magdalena: la placa nueva queda normalizada', 'QWE456', pg_temp.q('SELECT "Placa_Vehiculo" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sm), '');
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_sm, v_fut, 'Visitas S.A.', v_per, v_mot, NULL, NULL, v_zmag::TEXT, NULL, 'N', NULL, NULL, NULL, NULL, NULL, v_u_sol2, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Editar visitante en Magdalena: quitar la cochera borra la placa', 'N|', pg_temp.q('SELECT "Requiere_Cochera" || ''|'' || COALESCE("Placa_Vehiculo", '''') FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sm), '');
+
+    -- Aprobar un contratista: la foto de lo aprobado incluye el tipo y sus datos
+    SELECT MIN("ID_Solicitud_Persona") INTO v_b FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_sc AND "Eliminado" = 'N';
+    SELECT MIN("ID_Tipo_Acceso_Paso_Aprobacion") INTO v_pctr FROM "Tipo_Acceso_Paso_Aprobacion" WHERE "ID_Catalogo_Tipo_Acceso" = v_ctr AND "Eliminado" = 'N';
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_sc, v_pctr, 'APROBADA', NULL, v_b::TEXT, v_u_coo, v_cant, v_cod, v_msg);
+    PERFORM pg_temp.chk('Contratista: el Coordinador aprueba con el mismo paso que el visitante', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Contratista: la foto aprobada incluye tipo, actividades y contacto', 'true', pg_temp.q('SELECT (V."Contenido_JSON" LIKE ''%"tipo":"CONTRATISTA"%'' AND V."Contenido_JSON" LIKE ''%Cambio del tablero y cableado%'' AND V."Contenido_JSON" LIKE ''%Juan Pérez%'')::TEXT FROM "CAF_Solicitud_Version" V WHERE V."ID_Solicitud" = ' || v_sc || ' ORDER BY V."Version" DESC LIMIT 1'), '');
 END;
 $$;
 

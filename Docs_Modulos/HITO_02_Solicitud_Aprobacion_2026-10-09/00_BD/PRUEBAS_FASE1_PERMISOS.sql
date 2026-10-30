@@ -30,7 +30,7 @@ BEGIN
     SELECT "ID_Catalogo_Licencia" INTO v_lic_vig FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_VIGILANCIA';
     SELECT "ID_Catalogo_Licencia" INTO v_lic_adm FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_ADMIN';
     SELECT "ID_Catalogo_Tipo_Acceso" INTO v_tipo_ext FROM "TRIANONSATELITAL_CAF_PRODD"."Catalogo_Tipo_Acceso" WHERE "Codigo" = 'VISITA_EXTERNA';
-    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_tipo_con FROM "TRIANONSATELITAL_CAF_PRODD"."Catalogo_Tipo_Acceso" WHERE "Codigo" = 'CONTRATISTA';
+    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_tipo_con FROM "TRIANONSATELITAL_CAF_PRODD"."Catalogo_Tipo_Acceso" WHERE "Codigo" = 'PROVEEDOR';
 
     -- ===================================================== CARGA INICIAL
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_CATALOGO_PERMISO_LISTAR"();

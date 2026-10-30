@@ -13,7 +13,7 @@
     var cuerpo = document.getElementById('w-cuerpo'), pasos = document.getElementById('w-pasos'), ayuda = document.getElementById('w-ayuda');
     var atras = document.getElementById('w-atras'), sigue = document.getElementById('w-sigue');
     var TITULOS = ['Datos de la visita', 'Personas', 'Revisión y envío'];
-    var AYUDAS = ['Indique cuándo, quién atiende y a qué zonas irán.', 'Agregue a cada persona que ingresará. Si ya la registró antes, se completa sola con su documento.', 'Revise y envíe. Coordinación decidirá persona por persona.'];
+    var AYUDAS = ['Elija el tipo de ingreso y la sede; indique cuándo, quién atiende y a qué zonas irán.', 'Agregue a cada persona que ingresará. Si ya la registró antes, se completa sola con su documento.', 'Revise y envíe. Coordinación decidirá persona por persona.'];
 
     function pintarPasos() {
         pasos.textContent = '';
@@ -62,17 +62,25 @@
 
     function paso3() {
         var v = formDatos.leer();
-        var zonas = op.zonas.filter(function (z) { return v.zonasIds.indexOf(z.id) >= 0; }).map(function (z) { return z.texto; }).join(', ');
+        var sede = op.sedes.filter(function (s) { return s.id === v.sedeId; })[0] || { texto: '', zonas: [] };
+        var zonas = sede.zonas.filter(function (z) { return v.zonasIds.indexOf(z.id) >= 0; }).map(function (z) { return z.texto; }).join(', ');
         var motivo = (op.motivos.filter(function (m) { return m.id === v.motivoId; })[0] || {}).texto || '';
+        var c = v.tipoCodigo === 'CONTRATISTA';
         var dl = el('dl', { class: 'dl' });
-        [['Sede', op.sede.texto], ['Visita', SOL.fechaLarga(v.fecha) + ' · ' + v.hora], ['Empresa', v.empresa], ['Responsable de atención', v.responsable],
-         ['Motivo', motivo + (v.motivoDetalle ? ' — ' + v.motivoDetalle : '')], ['Zonas', zonas], ['Detalles adicionales', v.observaciones || '—'], ['Correos en copia', v.copias || '—']]
+        var filas = [['Tipo de ingreso', v.tipoTexto], ['Sede', sede.texto], [c ? 'Servicio' : 'Visita', SOL.fechaLarga(v.fecha) + ' · ' + v.hora], [c ? 'Empresa contratista' : 'Empresa', v.empresa]];
+        if (c) filas.push(['Actividad(es)', v.motivoDetalle], ['Área de trabajo', zonas + (v.areaDetalle ? ' — ' + v.areaDetalle : '')],
+            ['Contacto', v.contactoNombre + ' · ' + v.contactoTelefonos], ['Correos de contacto', v.contactoCorreos]);
+        else filas.push(['Motivo', motivo + (v.motivoDetalle ? ' — ' + v.motivoDetalle : '')], ['Zonas', zonas]);
+        filas.push(['Responsable de atención', v.responsable]);
+        if (v.cochera) filas.push(['Cochera', 'Sí · placa ' + v.placa]);
+        filas.push(['Detalles adicionales', v.observaciones || '—'], ['Correos en copia', v.copias || '—']);
+        filas
             .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
         var lista = el('ul', { class: 'plist' }, personas.map(function (p) {
             return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: p.nombre }), el('div', { class: 'field-h', text: p.doc })])]);
         }));
         var docs = adj ? adj.archivos() : [];
-        var tipo = el('div', { class: 'aviso a-info', text: 'Tipo de acceso: ' + op.tipo.texto + '. Coordinación revisará la solicitud y decidirá persona por persona.' });
+        var tipo = el('div', { class: 'aviso a-info', text: 'Tipo de ingreso: ' + v.tipoTexto + '. Coordinación revisará la solicitud y decidirá persona por persona.' });
         return el('div', { class: 'stack' }, [dl, el('h3', { text: 'Personas (' + personas.length + ')' }), lista,
             el('h3', { text: 'Documentos adjuntos (' + docs.length + ')' }),
             docs.length ? el('ul', { class: 'plist' }, docs.map(function (f) { return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: f.name }), el('div', { class: 'field-h', text: (f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB') })])]); })) : el('p', { class: 'field-h', text: 'Sin documentos adjuntos.' }),
@@ -123,13 +131,15 @@
     SOL.cargarOpciones(d.urlOpciones).then(function (o) {
         if (!o) { cuerpo.textContent = ''; cuerpo.appendChild(el('p', { class: 'vacio', text: 'No se pudo preparar el formulario.' })); return; }
         op = o;
-        if (!origen) { formDatos = SOL.formDatos(op, d.urlResponsables, {}); mostrar(); return; }
+        if (!origen) { formDatos = SOL.formDatos(op, d.urlResponsables, {}, 'crear'); mostrar(); return; }
         CAF.pedir(d.urlDatos + '?id=' + origen).then(function (r) {
             var s = r.success ? r.data : {};
             formDatos = SOL.formDatos(op, d.urlResponsables, {
                 empresa: s.empresa, responsableId: s.responsableId, responsable: s.responsable, motivoId: s.motivoId, motivoDetalle: s.motivoDetalle,
-                observaciones: s.observaciones, zonasIds: s.zonasIds, copias: s.copias
-            });
+                observaciones: s.observaciones, zonasIds: s.zonasIds, copias: s.copias,
+                tipoId: s.tipoId, sedeId: s.sedeId, cochera: s.cochera, placa: s.placa, areaDetalle: s.areaDetalle,
+                contactoNombre: s.contactoNombre, contactoTelefonos: s.contactoTelefonos, contactoCorreos: s.contactoCorreos
+            }, 'crear');
             personas = (s.personas || []).filter(function (p) { return p.aprobacion !== 'RETIRADA'; }).map(function (p) { return { id: p.personaId, nombre: p.nombre, doc: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }; });
             if (r.success) CAF.aviso('Copiamos los datos de ' + s.codigo + '. Elija la nueva fecha y hora.');
             mostrar();

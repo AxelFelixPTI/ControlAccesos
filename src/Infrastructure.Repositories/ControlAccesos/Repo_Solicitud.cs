@@ -45,6 +45,55 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         }
     }
 
+    public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_TIPOS_OPCIONES",
+                bind: _ => { },
+                map: rd => new Dto_Solicitud_Tipo_Opcion
+                {
+                    ID_Catalogo_Tipo_Acceso = RdLong(rd, "ID_Catalogo_Tipo_Acceso"),
+                    Codigo = RdStr(rd, "Codigo"),
+                    Descripcion = RdStr(rd, "Descripcion"),
+                    Usable = RdBool(rd, "Usable"),
+                    Leyenda = RdStrN(rd, "Leyenda"),
+                },
+                ct: ct);
+            return Result<List<Dto_Solicitud_Tipo_Opcion>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Solicitud_Tipo_Opcion>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Solicitud_Sede_Opcion>>> SedesOpcionesAsync(long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_SEDES_OPCIONES",
+                bind: p => AddLongReq(p, "HV_UsuarioID", usuarioId),
+                map: rd => new Dto_Solicitud_Sede_Opcion
+                {
+                    ID_Catalogo_Sede = RdLong(rd, "ID_Catalogo_Sede"),
+                    Codigo = RdStr(rd, "Codigo"),
+                    Descripcion = RdStr(rd, "Descripcion"),
+                    Aplica_Cochera = RdBool(rd, "Aplica_Cochera"),
+                },
+                ct: ct);
+            return Result<List<Dto_Solicitud_Sede_Opcion>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Solicitud_Sede_Opcion>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
         try
@@ -251,6 +300,12 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                 AddStr(p, "HV_IDs_Persona_Externa", Ids(dto.IDs_Persona_Externa));
                 AddStr(p, "HV_Copias", dto.Copias);
                 AddLong(p, "HV_ID_Solicitud_Origen", dto.ID_Solicitud_Origen);
+                AddStr(p, "HV_Requiere_Cochera", dto.Requiere_Cochera ? "Y" : "N");
+                AddStr(p, "HV_Placa_Vehiculo", dto.Placa_Vehiculo);
+                AddStr(p, "HV_Area_Detalle", dto.Area_Detalle);
+                AddStr(p, "HV_Contacto_Nombre", dto.Contacto_Nombre);
+                AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
+                AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -279,6 +334,12 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                 AddStr(p, "HV_Observaciones", dto.Observaciones);
                 AddStr(p, "HV_IDs_Zona", Ids(dto.IDs_Zona));
                 AddStr(p, "HV_Copias", dto.Copias);
+                AddStr(p, "HV_Requiere_Cochera", dto.Requiere_Cochera ? "Y" : "N");
+                AddStr(p, "HV_Placa_Vehiculo", dto.Placa_Vehiculo);
+                AddStr(p, "HV_Area_Detalle", dto.Area_Detalle);
+                AddStr(p, "HV_Contacto_Nombre", dto.Contacto_Nombre);
+                AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
+                AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -406,6 +467,13 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Codigo_Origen                = RdStrN(rd, "Codigo_Origen"),
         Zonas_IDs                    = RdStrN(rd, "Zonas_IDs"),
         Zonas_Nombres                = RdStrN(rd, "Zonas_Nombres"),
+        Tipo_Acceso_Codigo           = RdStrN(rd, "Tipo_Acceso_Codigo"),
+        Requiere_Cochera             = RdBool(rd, "Requiere_Cochera"),
+        Placa_Vehiculo               = RdStrN(rd, "Placa_Vehiculo"),
+        Area_Detalle                 = RdStrN(rd, "Area_Detalle"),
+        Contacto_Nombre              = RdStrN(rd, "Contacto_Nombre"),
+        Contacto_Telefonos           = RdStrN(rd, "Contacto_Telefonos"),
+        Contacto_Correos             = RdStrN(rd, "Contacto_Correos"),
         Copias                       = RdStrN(rd, "Copias"),
         CreateDate                   = RdDtN(rd, "CreateDate"),
         Total_Personas               = RdInt(rd, "Total_Personas"),

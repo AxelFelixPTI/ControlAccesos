@@ -47,6 +47,16 @@ public sealed class Dto_Solicitud_Crear
 
     /// <summary>Solicitud de la que se reutilizan los datos («Reutilizar»), si hay.</summary>
     public long? ID_Solicitud_Origen { get; set; }
+
+    // ── Entrega H: estacionamiento y datos propios del tipo de ingreso (las reglas viven en la rutina, D-187) ──
+    /// <summary>¿Requiere cochera? Solo se admite en sedes que la ofrecen (Magdalena); exige placa.</summary>
+    public bool Requiere_Cochera { get; set; }
+    public string? Placa_Vehiculo { get; set; }
+    /// <summary>Contratista: detalle del área donde se ejecuta el trabajo (el área en sí son las zonas elegidas).</summary>
+    public string? Area_Detalle { get; set; }
+    public string? Contacto_Nombre { get; set; }
+    public string? Contacto_Telefonos { get; set; }
+    public string? Contacto_Correos { get; set; }
 }
 
 /// <summary>Resultado de crear: identificador y código visible (SOL-00001).</summary>
@@ -70,6 +80,16 @@ public sealed class Dto_Solicitud_Editar
     public string? Observaciones { get; set; }
     public List<long> IDs_Zona { get; set; } = new();
     public string? Copias { get; set; }
+
+    // ── Entrega H: estacionamiento y datos propios del tipo de ingreso (las reglas viven en la rutina, D-187) ──
+    /// <summary>¿Requiere cochera? Solo se admite en sedes que la ofrecen (Magdalena); exige placa.</summary>
+    public bool Requiere_Cochera { get; set; }
+    public string? Placa_Vehiculo { get; set; }
+    /// <summary>Contratista: detalle del área donde se ejecuta el trabajo (el área en sí son las zonas elegidas).</summary>
+    public string? Area_Detalle { get; set; }
+    public string? Contacto_Nombre { get; set; }
+    public string? Contacto_Telefonos { get; set; }
+    public string? Contacto_Correos { get; set; }
 }
 
 /// <summary>Decisión de quien aprueba (ERP_CAF_SOLICITUD_DECIDIR).</summary>

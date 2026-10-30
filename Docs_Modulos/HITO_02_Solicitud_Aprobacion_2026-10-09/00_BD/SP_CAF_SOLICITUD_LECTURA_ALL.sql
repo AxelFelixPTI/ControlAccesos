@@ -401,6 +401,8 @@ $$;
 --    modificar personal y reutilizar se ofrecen únicamente a él.
 --    Puede_Decidir / Por_Decidir_Mis: lo que este usuario puede decidir ahora.
 -- -----------------------------------------------------------------------------
+-- Entrega H: la consulta devuelve columnas nuevas, por eso se retira antes (HANA: DROP FUNCTION IF EXISTS).
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_DETALLE"(BIGINT, BIGINT);
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_DETALLE"("HV_UsuarioID" BIGINT, "HV_ID_Solicitud" BIGINT)
 RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGINT, "Sede" VARCHAR,
                "ID_Catalogo_Tipo_Acceso" BIGINT, "Tipo_Acceso" VARCHAR, "Fecha_Hora_Prevista" TIMESTAMP,
@@ -418,13 +420,15 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Puede_Editar_Datos" CHAR(1), "Motivo_No_Editar_Datos" VARCHAR,
                "Puede_Modificar_Personal" CHAR(1), "Motivo_No_Modificar_Personal" VARCHAR,
                "Puede_Cancelar" CHAR(1), "Motivo_No_Cancelar" VARCHAR, "Puede_Reutilizar" CHAR(1),
-               "Puede_Decidir" CHAR(1), "Por_Decidir_Mis" INT)
+               "Puede_Decidir" CHAR(1), "Por_Decidir_Mis" INT,
+               "Tipo_Acceso_Codigo" VARCHAR, "Requiere_Cochera" CHAR(1), "Placa_Vehiculo" VARCHAR, "Area_Detalle" VARCHAR,
+               "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_dec INT := 0;
 BEGIN
-    -- V1.0 2026-10-17
+    -- V1.1 2026-10-29 (Entrega H: tipo de ingreso, cochera y datos del contratista)
     IF "ERP_CAF_FN_SOLICITUD_VISIBLE"("HV_UsuarioID", "HV_ID_Solicitud") <> 'Y' THEN RETURN; END IF;
     SELECT CAST(COUNT(DISTINCT X."ID_Solicitud_Persona") AS INT) INTO lv_dec
       FROM "ERP_CAF_SOLICITUD_PASOS_DECIDIBLES"("HV_UsuarioID", "HV_ID_Solicitud") X;
@@ -479,7 +483,9 @@ BEGIN
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
                       AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
                      THEN 'Y' ELSE 'N' END AS CHAR(1)),
-           CAST(CASE WHEN lv_dec > 0 THEN 'Y' ELSE 'N' END AS CHAR(1)), lv_dec
+           CAST(CASE WHEN lv_dec > 0 THEN 'Y' ELSE 'N' END AS CHAR(1)), lv_dec,
+           TA."Codigo", S."Requiere_Cochera", S."Placa_Vehiculo", S."Area_Detalle",
+           S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos"
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"

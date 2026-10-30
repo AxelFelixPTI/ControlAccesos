@@ -67,4 +67,12 @@ public sealed class Dto_Solicitud_Detalle
     public bool Puede_Reutilizar { get; set; }
     public bool Puede_Decidir { get; set; }
     public int Por_Decidir_Mis { get; set; }
+    // Entrega H: tipo de ingreso, cochera y datos del contratista
+    public string? Tipo_Acceso_Codigo { get; set; }
+    public bool Requiere_Cochera { get; set; }
+    public string? Placa_Vehiculo { get; set; }
+    public string? Area_Detalle { get; set; }
+    public string? Contacto_Nombre { get; set; }
+    public string? Contacto_Telefonos { get; set; }
+    public string? Contacto_Correos { get; set; }
 }

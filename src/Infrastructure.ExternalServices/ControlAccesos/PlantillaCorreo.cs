@@ -108,19 +108,25 @@ public static class PlantillaCorreo
         var lineas = (mensaje ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var url = string.IsNullOrWhiteSpace(urlBase) ? null : $"{urlBase.TrimEnd('/')}/Solicitudes/Detalle/{d.ID_Solicitud}";
 
+        var contratista = d.Tipo_Acceso_Codigo == "CONTRATISTA";
         var datos = new List<(string, string)>
         {
             ("Código", d.Codigo),
             ("Sede", d.Sede ?? "-"),
             ("Tipo de acceso", d.Tipo_Acceso ?? "-"),
-            ("Visita prevista", d.Fecha_Hora_Prevista.ToString("dd/MM/yyyy HH:mm")),
-            ("Empresa visitante", d.Empresa_Visitante),
+            (contratista ? "Servicio previsto" : "Visita prevista", d.Fecha_Hora_Prevista.ToString("dd/MM/yyyy HH:mm")),
+            (contratista ? "Empresa contratista" : "Empresa visitante", d.Empresa_Visitante),
             ("Responsable", Responsable(d)),
-            ("Motivo", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? (d.Motivo ?? "-") : $"{d.Motivo} — {d.Motivo_Detalle}"),
-            ("Zonas", d.Zonas_Nombres ?? "-"),
+            contratista
+                ? ("Actividad(es)", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? "-" : d.Motivo_Detalle!)
+                : ("Motivo", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? (d.Motivo ?? "-") : $"{d.Motivo} — {d.Motivo_Detalle}"),
+            (contratista ? "Área de trabajo" : "Zonas", (d.Zonas_Nombres ?? "-") + (string.IsNullOrWhiteSpace(d.Area_Detalle) ? "" : $" — {d.Area_Detalle}")),
             ("Solicitante", string.IsNullOrWhiteSpace(d.Solicitante_Correo) ? (d.Solicitante_Nombre ?? "-") : $"{d.Solicitante_Nombre} ({d.Solicitante_Correo})"),
         };
         if (!vig) { datos.Insert(1, ("Estado", EtiquetaEstado(d.Estado))); datos.Add(("Personas", Resumen(d))); }
+        if (contratista && !string.IsNullOrWhiteSpace(d.Contacto_Nombre))
+            datos.Add(("Contacto", $"{d.Contacto_Nombre} · {d.Contacto_Telefonos} · {d.Contacto_Correos}"));
+        if (d.Requiere_Cochera) datos.Add(("Cochera", $"Sí · placa {d.Placa_Vehiculo}"));
         var requisitos = new List<string>();
         if (d.Exige_SCTR) requisitos.Add("SCTR");
         if (d.Exige_EPP) requisitos.Add("EPP");

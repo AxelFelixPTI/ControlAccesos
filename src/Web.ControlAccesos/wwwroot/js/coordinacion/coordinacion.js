@@ -78,9 +78,15 @@
             cont.appendChild(el('div', { class: 'det-h' }, [el('h3', { text: s.codigo }), SOL.chipEstado(s.estado), s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null]));
             if (s.estado === 'CANCELADA') cont.appendChild(el('div', { class: 'aviso a-info', text: 'Solicitud cancelada' + (s.motivoCancelacion ? ': ' + s.motivoCancelacion : '.') }));
             var dl = el('dl', { class: 'dl' });
-            [['Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], ['Empresa', s.empresa || '—'], ['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')],
-             ['Zonas', s.zonas || '—'], ['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')],
-             ['Solicitante', (s.solicitante || '—') + (s.solicitanteCorreo ? ' · ' + s.solicitanteCorreo : '')], ['Observaciones', s.observaciones || '—']]
+            var c = s.tipoCodigo === 'CONTRATISTA';
+            var filas = [['Tipo de ingreso', s.tipo || '—'], [c ? 'Servicio' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], [c ? 'Empresa contratista' : 'Empresa', s.empresa || '—']];
+            if (c) filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
+                ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
+            else filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
+            filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+            if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
+            filas.push(['Solicitante', (s.solicitante || '—') + (s.solicitanteCorreo ? ' · ' + s.solicitanteCorreo : '')], ['Observaciones', s.observaciones || '—']);
+            filas
                 .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
             cont.appendChild(dl);
             cont.appendChild(ADJ.panel({ solicitudId: id, urlListar: d.urlAdj, puedeAdjuntar: false }).nodo);

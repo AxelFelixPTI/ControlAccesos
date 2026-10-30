@@ -19,7 +19,7 @@ namespace Web.ControlAccesos.Controllers;
 public sealed class SolicitudesController : Controller
 {
     public const string Permiso = "PER_CAF_SOLICITUD_PROPIA";
-    private const string SedeCodigo = "VES";
+    private const string MotivoContratista = "SERVICIO_CONTRATISTA";
 
     private readonly ISrv_Solicitud _sol;
     private readonly ISrv_Solicitud_Persona _solPer;
@@ -70,26 +70,36 @@ public sealed class SolicitudesController : Controller
     [HttpGet]
     public async Task<IActionResult> Opciones(CancellationToken ct)
     {
-        var sede = await SedeAsync(ct);
-        if (sede is null) return Falla("No se encontró la sede " + SedeCodigo + ".");
-        var tipos = await _tipos.ListarAsync(false, ct);
+        var tipos = await _sol.TiposOpcionesAsync(ct);
+        var sedes = await _sol.SedesOpcionesAsync(User.UsuarioId(), ct);
         var motivos = await _motivos.ListarAsync(false, ct);
-        var zonas = await _zonas.ListarAsync(sede.Value.Id, false, ct);
         var td = await _tiposDoc.ObtenerDropdownAsync(ct);
-        var falla = new[] { tipos.Success ? null : tipos.Message, motivos.Success ? null : motivos.Message, zonas.Success ? null : zonas.Message, td.Success ? null : td.Message }.FirstOrDefault(x => x is not null);
+        var falla = new[] { tipos.Success ? null : tipos.Message, sedes.Success ? null : sedes.Message, motivos.Success ? null : motivos.Message, td.Success ? null : td.Message }.FirstOrDefault(x => x is not null);
         if (falla is not null) return Falla(falla);
+        if (!tipos.Data!.Any(t => t.Usable)) return Falla("No hay un tipo de ingreso disponible. Pida al administrador que lo habilite en Catálogos.");
+        if (sedes.Data!.Count == 0) return Falla("No tiene una sede habilitada para crear solicitudes. Pida al administrador que le asigne la licencia en su sede.");
 
-        var tipo = tipos.Data!.Where(t => t.Disponible == "Y" && t.Activo == "Y").OrderBy(t => t.Orden).FirstOrDefault();
-        if (tipo is null) return Falla("No hay un tipo de acceso disponible. Pida al administrador que lo habilite en Catálogos.");
+        // Zonas de cada sede ofrecida (la zona y la cochera dependen de la sede elegida).
+        var sedesJson = new List<object>();
+        foreach (var s in sedes.Data!)
+        {
+            var z = await _zonas.ListarAsync(s.ID_Catalogo_Sede, false, ct);
+            if (!z.Success) return Falla(z.Message);
+            sedesJson.Add(new
+            {
+                id = s.ID_Catalogo_Sede, codigo = s.Codigo, texto = s.Descripcion, cochera = s.Aplica_Cochera,
+                zonas = z.Data!.Where(x => x.Activo == "Y").OrderBy(x => x.Orden).Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion, sctr = x.Exige_SCTR == "Y", epp = x.Exige_EPP == "Y" }),
+            });
+        }
         return Json(new
         {
             success = true,
             data = new
             {
-                sede = new { id = sede.Value.Id, texto = sede.Value.Texto },
-                tipo = new { id = tipo.ID_Catalogo, texto = tipo.Descripcion },
-                motivos = motivos.Data!.Where(m => m.Activo == "Y").OrderBy(m => m.Orden).Select(m => new { id = m.ID_Catalogo, texto = m.Descripcion, esOtro = m.Es_Otro == "Y" }),
-                zonas = zonas.Data!.Where(z => z.Activo == "Y").OrderBy(z => z.Orden).Select(z => new { id = z.ID_Catalogo, texto = z.Descripcion, sctr = z.Exige_SCTR == "Y", epp = z.Exige_EPP == "Y" }),
+                tipos = tipos.Data!.Select(t => new { id = t.ID_Catalogo_Tipo_Acceso, codigo = t.Codigo, texto = t.Descripcion, usable = t.Usable, leyenda = t.Leyenda }),
+                sedes = sedesJson,
+                // El motivo fijo del contratista no se ofrece a los visitantes.
+                motivos = motivos.Data!.Where(m => m.Activo == "Y" && m.Codigo != MotivoContratista).OrderBy(m => m.Orden).Select(m => new { id = m.ID_Catalogo, texto = m.Descripcion, esOtro = m.Es_Otro == "Y" }),
                 tiposDoc = td.Data!.Select(x => new { id = x.ID_Catalogo, texto = x.Codigo }),
             }
         });
@@ -168,20 +178,19 @@ public sealed class SolicitudesController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Crear([FromBody] SolicitudGuardarVM m, CancellationToken ct)
     {
-        var sede = await SedeAsync(ct);
-        if (sede is null) return Falla("No se encontró la sede " + SedeCodigo + ".");
-        var tipos = await _tipos.ListarAsync(false, ct);
-        var tipo = tipos.Success ? tipos.Data!.Where(t => t.Disponible == "Y" && t.Activo == "Y").OrderBy(t => t.Orden).FirstOrDefault() : null;
-        if (tipo is null) return Falla("No hay un tipo de acceso disponible.");
+        if (m.SedeId <= 0) return Falla("Seleccione la sede.");
+        if (m.TipoId <= 0) return Falla("Seleccione el tipo de ingreso.");
         var fh = FechaHora(m);
         if (fh is null) return Falla("Indique la fecha y la hora de la visita.");
 
         var r = await _sol.CrearAsync(new Dto_Solicitud_Crear
         {
-            ID_Catalogo_Sede = sede.Value.Id, ID_Catalogo_Tipo_Acceso = tipo.ID_Catalogo, ID_Personal_Responsable = m.ResponsableId,
+            ID_Catalogo_Sede = m.SedeId, ID_Catalogo_Tipo_Acceso = m.TipoId, ID_Personal_Responsable = m.ResponsableId,
             Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null,
             Motivo_Detalle = Vacio(m.MotivoDetalle), Observaciones = Vacio(m.Observaciones), IDs_Zona = m.ZonasIds ?? new(),
             IDs_Persona_Externa = m.PersonasIds ?? new(), Copias = Vacio(m.Copias), ID_Solicitud_Origen = m.OrigenId is > 0 ? m.OrigenId : null,
+            Requiere_Cochera = m.Cochera, Placa_Vehiculo = Vacio(m.Placa), Area_Detalle = Vacio(m.AreaDetalle),
+            Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
         return Json(new { success = true, message = r.Message, data = new { id = r.Data!.ID_Solicitud, codigo = r.Data.Codigo } });
@@ -197,6 +206,8 @@ public sealed class SolicitudesController : Controller
             Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Personal_Responsable = m.ResponsableId,
             ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null, Motivo_Detalle = Vacio(m.MotivoDetalle),
             Observaciones = Vacio(m.Observaciones), IDs_Zona = m.ZonasIds ?? new(), Copias = Vacio(m.Copias),
+            Requiere_Cochera = m.Cochera, Placa_Vehiculo = Vacio(m.Placa), Area_Detalle = Vacio(m.AreaDetalle),
+            Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
         return Json(new { success = true, message = r.Message, data = new { reenviadas = r.Data } });
@@ -226,7 +237,9 @@ public sealed class SolicitudesController : Controller
             success = true,
             data = new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, estado = s.Estado, avance = s.Avance,
+                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, sedeId = s.ID_Catalogo_Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso,
+                tipoCodigo = s.Tipo_Acceso_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo, areaDetalle = s.Area_Detalle,
+                contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos, estado = s.Estado, avance = s.Avance,
                 fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"), empresa = s.Empresa_Visitante,
                 responsableId = s.ID_Personal_Responsable, responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area,
                 motivoId = s.ID_Catalogo_Motivo_Visita, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, observaciones = s.Observaciones,
@@ -279,11 +292,4 @@ public sealed class SolicitudesController : Controller
         => DateTime.TryParseExact((m.Fecha ?? "") + " " + (m.Hora ?? ""), "yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
     private static List<long> ListaIds(string? s)
         => (s ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => long.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
-
-    private async Task<(long Id, string Texto)?> SedeAsync(CancellationToken ct)
-    {
-        var l = await _sedes.ListarAsync(false, ct);
-        var s = l.Success ? l.Data!.FirstOrDefault(x => x.Codigo == SedeCodigo) : null;
-        return s is null ? null : (s.ID_Catalogo, s.Descripcion);
-    }
 }

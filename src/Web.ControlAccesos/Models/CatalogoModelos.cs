@@ -79,6 +79,14 @@ public sealed class SolicitudGuardarVM
     public List<long> PersonasIds { get; set; } = new();   // solo al crear
     public string? Copias { get; set; }
     public long? OrigenId { get; set; }                    // solo al crear («Reutilizar»)
+    public long SedeId { get; set; }                       // solo al crear (Entrega H)
+    public long TipoId { get; set; }                       // solo al crear (Entrega H)
+    public bool Cochera { get; set; }
+    public string? Placa { get; set; }
+    public string? AreaDetalle { get; set; }
+    public string? ContactoNombre { get; set; }
+    public string? ContactoTelefonos { get; set; }
+    public string? ContactoCorreos { get; set; }
 }
 
 public sealed class PersonaExternaVM

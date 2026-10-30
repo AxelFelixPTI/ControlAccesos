@@ -534,7 +534,7 @@ DECLARE
     lv_ver  BIGINT;
     lv_json TEXT;
 BEGIN
-    -- V1.0 2026-10-16
+    -- V1.1 2026-10-29 (Entrega H: la foto incluye tipo, cochera, actividad y contacto)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_VERSION_GUARDAR';
     BEGIN
@@ -548,6 +548,10 @@ BEGIN
                '{"codigo":"' || COALESCE(SO."Codigo",'') || '","version":' || SO."Version"
                || ',"fecha_hora":"' || TO_CHAR(SO."Fecha_Hora_Prevista", 'YYYY-MM-DD HH24:MI')
                || '","empresa":"' || REPLACE(REPLACE(SO."Empresa_Visitante", '\', '\\'), '"', '\"')
+               || '","tipo":"' || COALESCE((SELECT TA."Codigo" FROM "Catalogo_Tipo_Acceso" TA WHERE TA."ID_Catalogo_Tipo_Acceso" = SO."ID_Catalogo_Tipo_Acceso"), '')
+               || '","cochera":"' || SO."Requiere_Cochera" || '","placa":"' || COALESCE(SO."Placa_Vehiculo", '')
+               || '","detalle":"' || REPLACE(REPLACE(COALESCE(SO."Motivo_Detalle", ''), '\', '\\'), '"', '\"')
+               || '","contacto":"' || REPLACE(REPLACE(COALESCE(SO."Contacto_Nombre", '') || ' ' || COALESCE(SO."Contacto_Telefonos", '') || ' ' || COALESCE(SO."Contacto_Correos", ''), '\', '\\'), '"', '\"')
                || '","zonas":[' || COALESCE((SELECT STRING_AGG('"' || REPLACE(REPLACE(Z."Descripcion", '\', '\\'), '"', '\"') || '"', ',' ORDER BY Z."ID_Catalogo_Zona_Acceso")
                                                FROM "CAF_Solicitud_Zona" SZ
                                                JOIN "Catalogo_Zona_Acceso" Z ON Z."ID_Catalogo_Zona_Acceso" = SZ."ID_Catalogo_Zona_Acceso"
