@@ -1,0 +1,31 @@
+@{ ViewData["Titulo"] = "Entregas de proveedores"; ViewData["Migas"] = "Proveedores"; var almacen = (bool)(ViewData["PuedeAlmacen"] ?? false); }
+<link rel="stylesheet" href="~/css/proveedores.css" asp-append-version="true" />
+<div class="stack" id="caf-prov" data-puede-almacen="@(almacen ? "Y" : "N")"
+     data-url-datos="@Url.Action("Datos", "Proveedores")" data-url-responsables="@Url.Action("Responsables", "Proveedores")"
+     data-url-programar="@Url.Action("Programar", "Proveedores")" data-url-atender="@Url.Action("Atender", "Proveedores")"
+     data-url-terminar="@Url.Action("Terminar", "Proveedores")">
+    @Html.AntiForgeryToken()
+    <p class="lead">
+        Calendario de entregas aprobadas.
+        @if (almacen) { <text>Asigne con anticipación quién recibirá al proveedor e inicie o termine la atención cuando Vigilancia registre su ingreso.</text> }
+        else { <text>Consulta del estado de cada entrega. Solo Almacén puede asignar responsables o iniciar y terminar atenciones.</text> }
+    </p>
+    <section class="card pv-barra">
+        <div class="pv-nav">
+            <button type="button" class="btn btn-icon" id="pv-ant" aria-label="Anterior">‹</button>
+            <button type="button" class="btn btn-sm" id="pv-hoy">Hoy</button>
+            <button type="button" class="btn btn-icon" id="pv-sig" aria-label="Siguiente">›</button>
+            <h2 id="pv-titulo" aria-live="polite"></h2>
+        </div>
+        <div class="pv-der">
+            <div class="seg" id="pv-vistas"></div>
+            <button type="button" class="btn btn-sm" id="pv-act">Actualizar</button>
+            <span class="small muted" id="pv-hora" aria-live="polite"></span>
+        </div>
+    </section>
+    <div class="aviso" id="pv-exclusa"></div>
+    <div id="pv-cal"></div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/proveedores/proveedores.js" asp-append-version="true"></script>

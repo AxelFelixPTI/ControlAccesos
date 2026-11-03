@@ -891,14 +891,14 @@ BEGIN
 
     CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(v_sp1, '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor salida: el principal no sale antes de la recepción', '409', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sb, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sb, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor atender: Vigilancia no atiende por Almacén', '101', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_sb, 'CONFORME', NULL, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor recepción: antes de atender es 409', '409', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sb, NULL, v_ual, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sb, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor atender: Almacén inicia la atención', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Proveedor atender: pasa a EN_ATENCION', 'EN_ATENCION', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sb), '');
-    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sb, NULL, v_ual, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sb, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor atender: repetido es 409', '409', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_sb, 'CON_OBSERVACION', NULL, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor recepción: con observación exige la descripción', '400', v_cod::TEXT, v_msg);
@@ -945,6 +945,170 @@ BEGIN
     CALL "ERP_CAF_PROVEEDOR_LLEGADA"(v_sd, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor no se presentó: ya no se registra la llegada', '409', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Proveedor no se presentó: la entrega en curso (EN_ESPERA) no se marca por error', 'SALIO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sb), '');
+
+    -- ===================================================== P. CALENDARIO DE ENTREGAS DE ALMACÉN (Entrega 2)
+    DECLARE
+        v_lic_da BIGINT; v_ual2 BIGINT; v_ud BIGINT; v_pal1 BIGINT; v_pal2 BIGINT; v_palv BIGINT;
+        v_qa BIGINT; v_qb BIGINT; v_qc BIGINT; v_qd BIGINT; v_s1 BIGINT; v_s2 BIGINT; v_s3 BIGINT; v_spend BIGINT;
+        v_p1 BIGINT; v_p2 BIGINT; v_p3 BIGINT; v_cs3 VARCHAR(20); v_it3 TEXT; v_r3 BIGINT; v_d3 BIGINT; v_x3 VARCHAR(30); v_n3 INT;
+    BEGIN
+    SELECT "ID_Catalogo_Licencia" INTO v_lic_da FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_PROVEEDOR_DASHBOARD';
+    PERFORM pg_temp.chk('Dashboard: la licencia de solo lectura tiene un único permiso', 'PER_CAF_PROVEEDOR_DASHBOARD',
+        pg_temp.q('SELECT STRING_AGG(P."Codigo", '','') FROM "CAF_GOVERNANCE"."Licencia_Permiso" LP JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" WHERE LP."ID_Catalogo_Licencia" = ' || v_lic_da), '');
+    PERFORM pg_temp.chk('Dashboard: lo traen la licencia nueva y la de Almacén, ninguna otra', 'LIC_CAF_ALMACEN,LIC_CAF_PROVEEDOR_DASHBOARD',
+        pg_temp.q('SELECT STRING_AGG(L."Codigo", '','' ORDER BY L."Codigo") FROM "CAF_GOVERNANCE"."Licencia_Permiso" LP JOIN "CAF_GOVERNANCE"."Catalogo_Licencia" L ON L."ID_Catalogo_Licencia" = LP."ID_Catalogo_Licencia" JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" WHERE P."Codigo" = ''PER_CAF_PROVEEDOR_DASHBOARD'''), '');
+    PERFORM pg_temp.chk('Dashboard: la esclusa de VES existe y está libre', 'true',
+        pg_temp.q('SELECT (COUNT(*) = 1 AND MAX("ID_Solicitud_Actual") IS NULL)::TEXT FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
+
+    CALL "ERP_USUARIO_CREAR"('almacen2.prov@ejemplo.pe', v_dni,'30000006','Almacen','Dos','Ana',NULL,'Ejemplo','Y',0, v_ual2, v_cod, v_msg);
+    CALL "ERP_USUARIO_CREAR"('dash.prov@ejemplo.pe',    v_dni,'30000007','Lectura','Dash','Dora',NULL,'Ejemplo','Y',0, v_ud, v_cod, v_msg);
+    CALL "ERP_USUARIO_LICENCIA_AGREGAR"(v_ual2, v_lic_al, v_ves, 0, v_ul, v_cod, v_msg);
+    CALL "ERP_USUARIO_LICENCIA_AGREGAR"(v_ud, v_lic_da, v_ves, 0, v_ul, v_cod, v_msg);
+    -- Los usuarios de Almacén y de Vigilancia son personal de la empresa: se les crea su ficha y se vincula
+    INSERT INTO "CAF_GOVERNANCE"."Personal" ("ID_Catalogo_Tipo_Documento","Numero_Documento","Apellido_Paterno","Nombres","ID_Catalogo_Area","ID_Catalogo_Empresa_Grupo","ID_Catalogo_Sede","Correo","UsuarioID_Create")
+    VALUES (v_dni,'20000001','Almacen Uno','Alma',v_area,v_emp,v_ves,'almacen.prov@ejemplo.pe',0) RETURNING "ID_Personal" INTO v_pal1;
+    INSERT INTO "CAF_GOVERNANCE"."Personal" ("ID_Catalogo_Tipo_Documento","Numero_Documento","Apellido_Paterno","Nombres","ID_Catalogo_Area","ID_Catalogo_Empresa_Grupo","ID_Catalogo_Sede","Correo","UsuarioID_Create")
+    VALUES (v_dni,'20000002','Almacen Dos','Ana',v_area,v_emp,v_ves,'almacen2.prov@ejemplo.pe',0) RETURNING "ID_Personal" INTO v_pal2;
+    INSERT INTO "CAF_GOVERNANCE"."Personal" ("ID_Catalogo_Tipo_Documento","Numero_Documento","Apellido_Paterno","Nombres","ID_Catalogo_Area","ID_Catalogo_Empresa_Grupo","ID_Catalogo_Sede","Correo","UsuarioID_Create")
+    VALUES (v_dni,'20000003','Vigilancia Prov','Victor',v_area,v_emp,v_ves,'vigprov@ejemplo.pe',0) RETURNING "ID_Personal" INTO v_palv;
+    UPDATE "CAF_GOVERNANCE"."Usuario" SET "ID_Personal" = v_pal1 WHERE "ID_Usuario" = v_ual;
+    UPDATE "CAF_GOVERNANCE"."Usuario" SET "ID_Personal" = v_pal2 WHERE "ID_Usuario" = v_ual2;
+    UPDATE "CAF_GOVERNANCE"."Usuario" SET "ID_Personal" = v_palv WHERE "ID_Usuario" = v_uvp;
+
+    -- Responsables posibles
+    PERFORM pg_temp.chk('Responsables: Almacén ve solo al personal con licencia de Almacén (2)', '2|true',
+        pg_temp.q('SELECT COUNT(*) || ''|'' || BOOL_AND("ID_Personal" IN (' || v_pal1 || ',' || v_pal2 || ')) FROM "ERP_CAF_PROVEEDOR_RESPONSABLES"(' || v_ual || ',' || v_ves || ')'), '');
+    PERFORM pg_temp.chk('Responsables: quien solo lee el dashboard no recibe la lista', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_RESPONSABLES"(' || v_ud || ',' || v_ves || ')'), '');
+    PERFORM pg_temp.chk('Responsables: Vigilancia no recibe la lista', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_RESPONSABLES"(' || v_uvp || ',' || v_ves || ')'), '');
+
+    -- Entregas del calendario: tres de hoy en INGRESO y una pendiente sin aprobar
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000011','Chofer','Uno','Ulises',0, v_qa, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000012','Chofer','Dos','Dario',0,  v_qb, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000013','Chofer','Tres','Tomas',0, v_qc, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000014','Chofer','Cuatro','Quino',0, v_qd, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Pendiente S.A.', NULL, NULL, NULL, NULL, v_qd::TEXT, NULL, NULL, NULL, 'PEN111', NULL, NULL, '911222333', NULL, v_emp, '20333333333', 'Calle 3', 'Isuzu', 'Q33333333', v_qd, v_usp, v_spend, v_cs3, v_cod, v_msg);
+    PERFORM pg_temp.chk('Calendario: solicitud pendiente creada', '100', v_cod::TEXT, v_msg);
+    FOR v_n3 IN 1..3 LOOP
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Proveedor ' || v_n3 || ' S.A.', NULL, NULL, NULL, NULL,
+              (CASE v_n3 WHEN 1 THEN v_qa WHEN 2 THEN v_qb ELSE v_qc END)::TEXT, NULL, NULL, NULL, 'AAA10' || v_n3, NULL, NULL, '9112223' || v_n3 || '0', NULL, v_emp, '2044444444' || v_n3, 'Calle ' || v_n3, 'Volvo', 'Q4444444' || v_n3,
+              (CASE v_n3 WHEN 1 THEN v_qa WHEN 2 THEN v_qb ELSE v_qc END), v_usp, v_r3, v_cs3, v_cod, v_msg);
+        IF v_n3 = 1 THEN v_s1 := v_r3; ELSIF v_n3 = 2 THEN v_s2 := v_r3; ELSE v_s3 := v_r3; END IF;
+        v_p1 := pg_temp.sp(v_r3, (CASE v_n3 WHEN 1 THEN v_qa WHEN 2 THEN v_qb ELSE v_qc END));
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_r3, v_paso_p, 'APROBADA', NULL, v_p1::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_PROVEEDOR_LLEGADA"(v_r3, v_uvp, v_cod, v_msg);
+        v_it3 := pg_temp.q('SELECT STRING_AGG("ID_Catalogo_Item_Checklist" || '':Y'', '','') FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_p1 || ', ''INGRESO'', ''N'', ''N'')');
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_p1, v_it3, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_r3, v_d3, v_x3, v_cod, v_msg);
+    END LOOP;
+    PERFORM pg_temp.chk('Calendario: las tres entregas del día quedan en INGRESO', 'INGRESO,INGRESO,INGRESO',
+        pg_temp.q('SELECT STRING_AGG("Estado_Operativo", '','') FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" IN (' || v_s1 || ',' || v_s2 || ',' || v_s3 || ')'), '');
+
+    -- Visibilidad
+    PERFORM pg_temp.chk('Calendario: sin el permiso del dashboard no se ve nada (Vigilancia aún sin la licencia)', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_uvp || ',' || v_ves || ', NULL, NULL)'), '');
+    PERFORM pg_temp.chk('Calendario: Abastecimiento sin la licencia nueva no lo ve', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_usp || ',' || v_ves || ', NULL, NULL)'), '');
+    CALL "ERP_USUARIO_LICENCIA_AGREGAR"(v_uvp, v_lic_da, v_ves, 0, v_ul, v_cod, v_msg);
+    PERFORM pg_temp.chk('Calendario: Vigilancia con la licencia de lectura lo ve', 'true',
+        pg_temp.q('SELECT (COUNT(*) >= 3)::TEXT FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_uvp || ',' || v_ves || ', NULL, NULL)'), '');
+    PERFORM pg_temp.chk('Calendario: la solicitud pendiente no aparece', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_spend), '');
+    PERFORM pg_temp.chk('Calendario: la solicitud cancelada no aparece', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_sa), '');
+    PERFORM pg_temp.chk('Calendario: la entrega aprobada sí aparece, con su empresa y transportista principal', 'Proveedor 1 S.A.|Chofer Uno Ulises',
+        pg_temp.q('SELECT "Empresa_Proveedor" || ''|'' || SPLIT_PART("Transportista", '', '', 1) || '' '' || SPLIT_PART("Transportista", '', '', 2) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s1), '');
+    PERFORM pg_temp.chk('Calendario: el filtro por fechas excluye otros días', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', CURRENT_DATE + 30, CURRENT_DATE + 31)'), '');
+    PERFORM pg_temp.chk('Calendario: solo lectura, el usuario del dashboard no tiene ningún botón', 'N|N|N',
+        pg_temp.q('SELECT "Puede_Programar" || ''|'' || "Puede_Atender" || ''|'' || "Puede_Terminar" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s1), '');
+    PERFORM pg_temp.chk('Calendario: Almacén puede programar y atender una entrega en INGRESO', 'Y|Y|N',
+        pg_temp.q('SELECT "Puede_Programar" || ''|'' || "Puede_Atender" || ''|'' || "Puede_Terminar" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s1), '');
+
+    -- Responsable programado
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, v_pal1, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: Vigilancia (aunque lea el dashboard) no asigna', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, v_pal1, v_ud, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: quien solo lee el dashboard no asigna', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, v_palv, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: no se puede elegir a quien no es de Almacén', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(999999, v_pal1, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: solicitud inexistente', '404', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sa, v_pal1, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: una solicitud cancelada no tiene entrega activa', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, v_pal1, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: Almacén asigna con anticipación (entrega de otra fecha)', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Programar: queda el programado, quién lo asignó y cuándo', 'true|' || v_ual,
+        pg_temp.q('SELECT ("ID_Personal_Programado" = ' || v_pal1 || ' AND "Fecha_Programacion" IS NOT NULL)::TEXT || ''|'' || "ID_Usuario_Programacion" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sc2), '');
+    PERFORM pg_temp.chk('Programar: el estado operativo no cambia', 'PROGRAMADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sc2), '');
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, v_pal1, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: repetir lo mismo no cambia nada', '100|Sin cambios.', v_cod::TEXT || '|' || v_msg, '');
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, v_pal2, v_ual2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: otro trabajador de Almacén puede cambiarlo', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Programar: el historial conserva a ambos programados en orden', v_pal1 || '>' || v_pal2,
+        pg_temp.q('SELECT STRING_AGG("ID_Personal_Programado"::TEXT, ''>'' ORDER BY "ID_Operacion_Evento") FROM "CAF_Solicitud_Operacion_Evento" WHERE "ID_Solicitud" = ' || v_sc2 || ' AND "ID_Personal_Programado" IS NOT NULL'), '');
+    PERFORM pg_temp.chk('Programar: el calendario muestra al programado', 'true',
+        pg_temp.q('SELECT (POSITION(''Almacen Dos'' IN "Programado_Nombre") > 0)::TEXT FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_sc2), '');
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_sc2, NULL, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: se puede quitar', '100|true', v_cod::TEXT || '|' || pg_temp.q('SELECT ("ID_Personal_Programado" IS NULL)::TEXT FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sc2), v_msg);
+    PERFORM pg_temp.chk('Programar: quitarlo también queda en el historial', '3',
+        pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Operacion_Evento" WHERE "ID_Solicitud" = ' || v_sc2 || ' AND "Observacion" ILIKE ''%responsable programado%'''), '');
+
+    -- Atender: día programado
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'INGRESO' WHERE "ID_Solicitud" = v_sc2;
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_sc2, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: una entrega de otra fecha no se atiende hoy', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'PROGRAMADO' WHERE "ID_Solicitud" = v_sc2;
+
+    -- Atender: la esclusa es un recurso único
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_s1, v_pal2, v_ual, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s1, v_ud, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: quien solo lee el dashboard no atiende', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s1, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: Almacén inicia la atención de la primera', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Atender: programado y efectivo son personas distintas y ambos quedan', v_pal2 || '|' || v_ual || '|' || v_pal1,
+        pg_temp.q('SELECT "ID_Personal_Programado" || ''|'' || "ID_Usuario_Atencion" || ''|'' || "ID_Personal_Almacen" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_s1), '');
+    PERFORM pg_temp.chk('Atender: la esclusa queda ocupada por la primera', v_s1::TEXT, pg_temp.q('SELECT "ID_Solicitud_Actual" FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s2, v_ual2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: con la esclusa ocupada la segunda es 409', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Atender: el mensaje avisa de la otra atención', 'true', (POSITION('otra atención' IN v_msg) > 0)::TEXT, v_msg);
+    PERFORM pg_temp.chk('Atender: la segunda sigue en INGRESO', 'INGRESO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_s2), '');
+    CALL "ERP_CAF_PROVEEDOR_PROGRAMAR"(v_s1, v_pal1, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Programar: ya iniciada la atención no se cambia el programado', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Calendario: con la esclusa ocupada el Atender de la otra se deshabilita y dice por qué', 'N|Hay otra atención en curso',
+        pg_temp.q('SELECT "Puede_Atender" || ''|'' || "Motivo_No_Atender" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual2 || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s2), '');
+    PERFORM pg_temp.chk('Calendario: en atención ofrece Terminar solo a Almacén, no permite reprogramar y la tercera sigue bloqueada', 'N|Y|N|N',
+        pg_temp.q('SELECT (SELECT "Puede_Terminar" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s1 || ') || ''|'' || ' ||
+                  '(SELECT "Puede_Terminar" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual2 || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s1 || ') || ''|'' || ' ||
+                  '(SELECT "Puede_Programar" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual2 || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s1 || ') || ''|'' || ' ||
+                  '(SELECT "Puede_Atender" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual2 || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3 || ')'), '');
+    PERFORM pg_temp.chk('Esclusa estado: ocupada por la primera y por quién', 'Y|' || v_s1 || '|true',
+        pg_temp.q('SELECT "Ocupada" || ''|'' || "ID_Solicitud" || ''|'' || (POSITION(''Almacen Uno'' IN "Atiende") > 0)::TEXT FROM "ERP_CAF_PROVEEDOR_EXCLUSA_ESTADO"(' || v_ud || ',' || v_ves || ')'), '');
+    PERFORM pg_temp.chk('Esclusa estado: sin el permiso del dashboard no se informa', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_EXCLUSA_ESTADO"(' || v_usp || ',' || v_ves || ')'), '');
+
+    -- Terminar libera la esclusa; cualquiera de Almacén puede terminar
+    CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_s1, 'CONFORME', NULL, v_ud, v_cod, v_msg);
+    PERFORM pg_temp.chk('Terminar: quien solo lee el dashboard no termina', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_s1, 'CONFORME', NULL, v_ual2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Terminar: otro trabajador de Almacén culmina la atención', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Terminar: la esclusa queda libre', 'true', pg_temp.q('SELECT ("ID_Solicitud_Actual" IS NULL)::TEXT FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
+    PERFORM pg_temp.chk('Terminar: quién inició y quién terminó quedan por separado', v_ual || '|' || v_ual2,
+        pg_temp.q('SELECT "ID_Usuario_Atencion" || ''|'' || "ID_Usuario_Recepcion" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_s1), '');
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s2, v_ual2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: liberada la esclusa, la segunda se atiende', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Atender: la esclusa pasa a la segunda', v_s2::TEXT, pg_temp.q('SELECT "ID_Solicitud_Actual" FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
+    CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_s2, 'CONFORME', NULL, v_ual2, v_cod, v_msg);
+
+    -- Ocupación huérfana: la esclusa apunta a una solicitud que ya no está en atención
+    UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = v_sb WHERE "ID_Catalogo_Sede" = v_ves;
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s3, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: una ocupación huérfana de la esclusa no bloquea', '100|' || v_s3, v_cod::TEXT || '|' || pg_temp.q('SELECT "ID_Solicitud_Actual" FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), v_msg);
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s3, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Atender: repetir sobre la misma que ya está en atención es 409', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_s3, 'CONFORME', NULL, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Historial: cada entrega recorre sus pasos hasta RECEPCIONADO', 'PROGRAMADO>EN_ESPERA>INGRESO>EN_ATENCION>RECEPCIONADO',
+        pg_temp.q('SELECT STRING_AGG("Estado_Nuevo", ''>'' ORDER BY "ID_Operacion_Evento") FROM "CAF_Solicitud_Operacion_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Estado_Nuevo" <> COALESCE("Estado_Anterior", '''') '), '');
+    PERFORM pg_temp.chk('Vigilancia: tras terminar, la salida del principal ya se permite (regla existente)', 'RECEPCIONADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_s3), '');
+    END;
     END;
 END;
 $$;

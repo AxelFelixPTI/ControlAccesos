@@ -254,4 +254,10 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-124 | **«No se presentó» sin ejecutor en la web:** programarlo como servicio de fondo (Entrega 3). | 2026-11-02 | Equipo | Entrega 3 |
 | P-125 | **Tiempo real:** preguntar a TI instancias, IIS/proxy y WebSocket Protocol. | 2026-11-02 | TI | Entrega 4 |
 | P-126 | **Correos por hito a Almacén:** propuesta = solo tablero. Confirmar. | 2026-11-02 | Sandra | Entrega 3 |
-| P-127 | **No asignar las licencias de proveedor** hasta que exista el asistente del proveedor (Entrega 2). | 2026-11-02 | Administrador | Hasta Entrega 2 |
+| P-127 | **Licencias de proveedor:** solo para pruebas de la Entrega 2 puede asignarlas con `DATOS_DEMO_PROVEEDOR.sql` (opcional); en producción **esperar al asistente del proveedor (Entrega 2b)**. | 2026-11-02 | Administrador | Hasta Entrega 2b |
+| P-128 | **Alcance del calendario:** quien tiene la licencia de lectura ve todas las entregas. | 2026-11-03 | Sandra / Coordinación | Entrega 2 |
+| P-129 | **Responsables elegibles** = personal con usuario y `LIC_CAF_ALMACEN` en la sede. | 2026-11-03 | Almacén | Entrega 2 |
+| P-130 | **Atender desde el día programado** (no queda bloqueado pasada la medianoche si ya ingresó). | 2026-11-03 | Almacén | Entrega 2 |
+| P-131 | **Terminar con observación opcional** (vacía = conforme). | 2026-11-03 | Almacén | Entrega 2 |
+| P-132 | **El calendario muestra la entrega con el principal aprobado**, aunque un apoyo siga pendiente. | 2026-11-03 | Coordinación | Entrega 2 |
+| P-133 | **Cierre automático «no se presentó»:** sin ejecutor hasta la Entrega 3. | 2026-11-03 | Desarrollo | Entrega 3 |

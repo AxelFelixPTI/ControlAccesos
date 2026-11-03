@@ -34,11 +34,11 @@ BEGIN
 
     -- ===================================================== CARGA INICIAL
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_CATALOGO_PERMISO_LISTAR"();
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: 17 permisos', '17', v_n::TEXT, '');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: 18 permisos', '18', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_coo) WHERE "Asignado" = 'Y';
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: Coordinador con 7 permisos', '7', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_coo);
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Pantalla de roles: lista los 17 con su marca', '17', v_n::TEXT, 'asignados y no asignados');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Pantalla de roles: lista los 18 con su marca', '18', v_n::TEXT, 'asignados y no asignados');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_vig) WHERE "Asignado" = 'Y';
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: Vigilancia con 4 permisos', '4', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_LISTAR_POR_PADRE"(v_tipo_ext);

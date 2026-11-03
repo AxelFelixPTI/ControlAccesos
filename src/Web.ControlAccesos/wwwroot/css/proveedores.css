@@ -1,0 +1,45 @@
+/* Calendario de entregas de proveedores */
+.pv-barra{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px}
+.pv-nav,.pv-der{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pv-nav h2{margin-left:8px;text-transform:capitalize}
+.pv-der .seg{border-bottom:0}
+.pv-exc-on{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line)}
+.pv-exc-off{background:var(--ok-bg);color:var(--ok-ink)}
+.pv-semana{display:flex;flex-direction:column;gap:10px}
+.pv-rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;align-items:start}
+.pv-dia{background:var(--sf2);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pv-dia.hoy{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.pv-dia-h{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-weight:700;text-transform:capitalize}
+.pv-dia-h small{font-weight:600;color:var(--muted)}
+.pv-vacio{color:var(--faint);font-size:13px}
+.pv-card{background:var(--sf);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0;font-size:13px}
+.pv-card.e-atencion{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.pv-card-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.pv-card-h b{font-size:14px;overflow-wrap:anywhere}
+.pv-hora{font-weight:700;white-space:nowrap}
+.pv-linea{color:var(--muted);overflow-wrap:anywhere}
+.pv-linea b{color:var(--ink);font-weight:600}
+.pv-resp{display:flex;flex-direction:column;gap:2px;border-top:1px dashed var(--line);padding-top:6px}
+.pv-tiempos{color:var(--faint);font-size:12px}
+.pv-acc{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.pv-acc .btn{width:100%}
+.pv-motivo{font-size:12px;color:var(--warn-ink)}
+.pv-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.pv-mes-dow{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;text-align:center;padding:4px}
+.pv-celda{background:var(--sf2);border:1px solid var(--line);border-radius:10px;min-height:96px;padding:6px;display:flex;flex-direction:column;gap:3px;cursor:pointer;text-align:left;font:inherit;color:inherit;min-width:0}
+.pv-celda:hover{border-color:var(--faint)}
+.pv-celda.fuera{opacity:.5}
+.pv-celda.hoy{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.pv-celda-n{font-weight:700;font-size:13px}
+.pv-mini{display:flex;gap:4px;align-items:center;font-size:12px;min-width:0}
+.pv-mini span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-punto{width:8px;height:8px;border-radius:50%;flex:none;background:var(--faint)}
+.pv-punto.s-ok{background:#2A9D8F}.pv-punto.s-esp{background:#E0A526}.pv-punto.s-fin{background:#5B7DB1}.pv-punto.s-no{background:#C0504D}
+.pv-mas{font-size:12px;color:var(--muted)}
+.pv-modal-p{line-height:1.5}
+.pv-modal-p b{font-weight:700}
+@media (max-width:700px){
+  .pv-rejilla{grid-template-columns:minmax(0,1fr)}
+  .pv-celda{min-height:64px}.pv-mini span:last-child{display:none}
+  .pv-barra{padding:10px 12px}
+}

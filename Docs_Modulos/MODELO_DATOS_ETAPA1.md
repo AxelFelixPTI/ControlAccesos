@@ -160,3 +160,10 @@ Sobre la base donde ya ejecutaste 01 a 05:
 - ¿Algún estado o resultado no coincide con cómo trabaja Vigilancia?
 - `Empresa_Visitante` es texto libre. Un catálogo de empresas externas puede llegar con los contratistas (etapa 2).
 - Pendientes que no bloquean: listas reales de catálogos, longitudes de documentos y ajustes D-10 y D-11 del mockup.
+
+
+## Proveedor de abastecimiento, Entrega 2 (script 18)
+- `CAF_Solicitud_Operacion` + `ID_Personal_Programado`, `ID_Usuario_Programacion`, `Fecha_Programacion` (responsable programado; el efectivo sigue en `ID_Usuario_Atencion` / `ID_Personal_Almacen`).
+- `CAF_Solicitud_Operacion_Evento` + `ID_Personal_Programado` (historial de cada asignación o cambio).
+- `CAF_Exclusa` (nueva): una fila por sede con `ID_Solicitud_Actual` (NULL = libre), `Fecha_Ocupada`, `ID_Usuario_Ocupa`. Recurso único compartido de la esclusa.
+- Permiso `PER_CAF_PROVEEDOR_DASHBOARD` y licencia `LIC_CAF_PROVEEDOR_DASHBOARD` (la licencia de Almacén también incluye el permiso).

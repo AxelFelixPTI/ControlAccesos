@@ -61,6 +61,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<IRepo_Solicitud_Persona, Repo_Solicitud_Persona>();
         s.AddScoped<IRepo_Solicitud_Adjunto, Repo_Solicitud_Adjunto>();
         s.AddScoped<IRepo_Solicitud_Vigilancia, Repo_Solicitud_Vigilancia>();
+        s.AddScoped<IRepo_Proveedor, Repo_Proveedor>();
         s.AddScoped<IRepo_Tipo_Acceso_Paso, Repo_Tipo_Acceso_Paso>();
         s.AddScoped<IRepo_Usuario, Repo_Usuario>();
 
@@ -90,6 +91,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<ISrv_Solicitud_Persona, Srv_Solicitud_Persona>();
         s.AddScoped<ISrv_Solicitud_Adjunto, Srv_Solicitud_Adjunto>();
         s.AddScoped<ISrv_Solicitud_Vigilancia, Srv_Solicitud_Vigilancia>();
+        s.AddScoped<ISrv_Proveedor, Srv_Proveedor>();
         s.AddScoped<ISrv_Tipo_Acceso_Paso, Srv_Tipo_Acceso_Paso>();
         s.AddScoped<ISrv_Usuario, Srv_Usuario>();
         s.AddScoped<ISrv_Auth, Srv_Auth>();
@@ -124,7 +126,7 @@ public static class ServiciosControlAccesos
         if (string.IsNullOrWhiteSpace(c))
             throw new InvalidOperationException($"Falta ConnectionStrings:{clave} en la configuración.");
 
-        c = Reemplazar(config, c, "CAF_DB_BASE_TEST", null);
+        c = Reemplazar(config, c, "CAF_DB_BASE_TEST", "accesos_piloto_prueba");
         c = Reemplazar(config, c, "CAF_DB_USUARIO", null);
         c = Reemplazar(config, c, "CAF_DB_CLAVE", null);
         // Toda fecha del servidor (CURRENT_DATE, CURRENT_TIMESTAMP) debe ser la de Lima, no la del servidor de la base (UTC).

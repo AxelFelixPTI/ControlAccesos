@@ -6,7 +6,7 @@
 -- Entidad : CAF_Solicitud_Operacion / CAF_Solicitud_Operacion_Evento
 -- Versión : V1.0 2026-11-02
 -- Estado  : CANDIDATO - probado en PostgreSQL 16 (ver PRUEBAS_FASE1_HITO2_ESCRITURA.sql, sección O)
--- Requiere: scripts 01 a 17. Los demás SP_CAF_* lo invocan en tiempo de ejecución (no al crearse).
+-- Requiere: scripts 01 a 18. Los demás SP_CAF_* lo invocan en tiempo de ejecución (no al crearse).
 -- =============================================================================
 -- 1 ERP_CAF_FN_PERMISO_TIPO         permiso de solicitante según el tipo (proveedor o los demás)
 -- 2 ERP_CAF_FN_ES_PROVEEDOR         'Y' si la persona pertenece a una solicitud de proveedor
@@ -17,8 +17,8 @@
 -- 7 ERP_CAF_PROVEEDOR_REGLA         (interna) reglas operativas del ingreso y la salida
 -- 8 ERP_CAF_PROVEEDOR_PORTERIA_POST (interna) avanza el estado tras un ingreso o una salida
 -- 9 ERP_CAF_PROVEEDOR_LLEGADA       Vigilancia confirma que el vehículo llegó
--- 10 ERP_CAF_PROVEEDOR_ATENDER      Almacén empieza a atender
--- 11 ERP_CAF_PROVEEDOR_RECEPCION    Almacén registra la recepción (conforme o con observación)
+-- 10 ERP_CAF_PROVEEDOR_ATENDER      Almacén empieza a atender (ocupa la esclusa; V2.0 2026-11-03)
+-- 11 ERP_CAF_PROVEEDOR_RECEPCION    Almacén registra la recepción y libera la esclusa (V1.1 2026-11-03)
 --
 -- Estados operativos: PROGRAMADO -> EN_ESPERA -> INGRESO -> EN_ATENCION -> RECEPCIONADO -> SALIO
 --                     (y NO_SE_PRESENTO). Son independientes del estado de aprobación de la solicitud.
@@ -420,25 +420,32 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 10. ERP_CAF_PROVEEDOR_ATENDER   (Almacén; INGRESO -> EN_ATENCION; responsable de Almacén opcional)
+-- 10. ERP_CAF_PROVEEDOR_ATENDER   (Almacén; INGRESO -> EN_ATENCION)                      V2.0 2026-11-03
+--     El responsable EFECTIVO es quien ejecuta la acción (ID_Usuario_Atencion y, si su usuario tiene
+--     persona, ID_Personal_Almacen). El responsable PROGRAMADO no se toca ni condiciona quién atiende.
+--     La esclusa se ocupa con un UPDATE condicionado sobre CAF_Exclusa: si dos usuarios pulsan a la vez,
+--     solo uno obtiene la fila; el otro recibe 409. Antes se libera una ocupación huérfana (la solicitud
+--     que la ocupa ya no está EN_ATENCION).
 -- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS "ERP_CAF_PROVEEDOR_ATENDER"(BIGINT, BIGINT, BIGINT, INT, VARCHAR);
 CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_ATENDER"(
     IN    "HV_ID_Solicitud"        BIGINT,
-    IN    "HV_ID_Personal_Almacen" BIGINT,
     IN    "HV_UsuarioID"           BIGINT,
     INOUT "HV_Codigo_Resp"         INT DEFAULT NULL,
     INOUT "HV_Mensaje"             VARCHAR(250) DEFAULT NULL
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
-    lv_n    INT := 0;
-    lv_sede BIGINT;
-    lv_act  CHAR(1);
-    lv_eop  VARCHAR(20);
-    lv_c    INT;
-    lv_m    VARCHAR(250);
+    lv_n     INT := 0;
+    lv_sede  BIGINT;
+    lv_fecha TIMESTAMP;
+    lv_act   CHAR(1);
+    lv_eop   VARCHAR(20);
+    lv_per   BIGINT;
+    lv_c     INT;
+    lv_m     VARCHAR(250);
+    lv_otro  VARCHAR(20);
 BEGIN
-    -- V1.0 2026-11-02
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_ATENDER';
     BEGIN
@@ -446,7 +453,7 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
         END IF;
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
-        SELECT COUNT(*), MAX(S."ID_Catalogo_Sede") INTO lv_n, lv_sede
+        SELECT COUNT(*), MAX(S."ID_Catalogo_Sede"), MAX(S."Fecha_Hora_Prevista") INTO lv_n, lv_sede, lv_fecha
           FROM "CAF_Solicitud" S
           JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
@@ -455,13 +462,6 @@ BEGIN
         END IF;
         IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para atender proveedores.'; RETURN;
-        END IF;
-        IF "HV_ID_Personal_Almacen" IS NOT NULL THEN
-            SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Personal"
-             WHERE "ID_Personal" = "HV_ID_Personal_Almacen" AND "Eliminado" = 'N' AND "Activo" = 'Y';
-            IF lv_n = 0 THEN
-                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La persona de Almacén no existe o está inactiva.'; RETURN;
-            END IF;
         END IF;
         SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_n, lv_act, lv_eop
           FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
@@ -473,7 +473,39 @@ BEGIN
             "HV_Mensaje" := CASE WHEN lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN 'El transportista principal aún no ingresó.'
                                  ELSE 'La atención ya se inició o terminó.' END; RETURN;
         END IF;
-        CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'EN_ATENCION', "HV_UsuarioID", NULL, NULL, "HV_ID_Personal_Almacen", lv_c, lv_m);
+        -- Solo desde el día programado (el ingreso ya prueba la presencia; pasada la medianoche sigue pudiendo atenderse)
+        IF CAST(lv_fecha AS DATE) > CURRENT_DATE THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La atención solo puede iniciarse el día programado de la entrega.'; RETURN;
+        END IF;
+
+        -- Ocupación huérfana: la solicitud que figura en la esclusa ya no está en atención
+        UPDATE "CAF_Exclusa"
+           SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" O
+                            WHERE O."ID_Solicitud" = "CAF_Exclusa"."ID_Solicitud_Actual" AND O."Estado_Operativo" = 'EN_ATENCION' AND O."Activa" = 'Y');
+
+        -- Ocupar la esclusa: UPDATE condicionado (atómico). Solo uno gana.
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La esclusa de la sede no está configurada.'; RETURN;
+        END IF;
+        UPDATE "CAF_Exclusa"
+           SET "ID_Solicitud_Actual" = "HV_ID_Solicitud", "Fecha_Ocupada" = CURRENT_TIMESTAMP, "ID_Usuario_Ocupa" = "HV_UsuarioID",
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N' AND "ID_Solicitud_Actual" IS NULL;
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa"
+         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud";
+        IF lv_n = 0 THEN
+            SELECT S."Codigo" INTO lv_otro FROM "CAF_Exclusa" X JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = X."ID_Solicitud_Actual"
+             WHERE X."ID_Catalogo_Sede" = lv_sede;
+            "HV_Codigo_Resp" := 409;
+            "HV_Mensaje" := 'Hay otra atención en curso' || COALESCE(' (' || lv_otro || ')', '') || '. Termínela antes de iniciar esta.'; RETURN;
+        END IF;
+
+        SELECT MAX("ID_Personal") INTO lv_per FROM "CAF_GOVERNANCE"."Usuario" WHERE "ID_Usuario" = "HV_UsuarioID";
+        CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'EN_ATENCION', "HV_UsuarioID", NULL, NULL, lv_per, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
         "HV_Codigo_Resp" := 100;
         "HV_Mensaje"     := 'Atención iniciada.';
@@ -544,6 +576,11 @@ BEGIN
         END IF;
         CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'RECEPCIONADO', "HV_UsuarioID", lv_res, "HV_Observacion", NULL, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
+        -- Libera la esclusa: el siguiente proveedor ya puede atenderse
+        UPDATE "CAF_Exclusa"
+           SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Solicitud_Actual" = "HV_ID_Solicitud";
         "HV_Codigo_Resp" := 100;
         "HV_Mensaje"     := 'Recepción registrada.';
     EXCEPTION WHEN OTHERS THEN
