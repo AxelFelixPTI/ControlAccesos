@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Archivo : PRUEBAS_FASE1_HITO0.sql
--- Proyecto: Control de Accesos · Hito 0 · Fase 1 · V1.0 2026-10-11
+-- Proyecto: Control de Accesos · Hito 0 · Fase 1 · V1.1 2026-10-30
 -- Propósito: pruebas automáticas de los procedimientos de CAF_GOVERNANCE.
 --   Cada prueba llama un SP y compara el resultado con el esperado.
 --   Muestra una tabla con OK / FALLA por prueba y un resumen.
@@ -27,6 +27,17 @@ BEGIN
     SELECT "ID_Catalogo_Empresa_Grupo" INTO v_emp FROM "Catalogo_Empresa_Grupo" WHERE "Codigo" = 'TRIANON_ASCENSORES';
     SELECT "ID_Catalogo_Licencia" INTO v_lic_adm FROM "Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_ADMIN';
     SELECT "ID_Catalogo_Licencia" INTO v_lic_vig FROM "Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_VIGILANCIA';
+
+    -- V1.1 2026-10-30: estas pruebas suponen una base sin los usuarios y el personal de demostracion (script 11) y
+    -- sin las solicitudes de pruebas posteriores. Se retiran DENTRO de esta transaccion (termina en ROLLBACK), asi
+    -- las pruebas dan igual en una base completa. Si algun dato esta en uso, se deja y la prueba lo mostrara.
+    BEGIN
+        DELETE FROM "Usuario_Licencia";
+        DELETE FROM "Usuario";
+        DELETE FROM "Personal";
+    EXCEPTION WHEN foreign_key_violation THEN
+        RAISE NOTICE 'No se pudieron retirar los datos demo (estan en uso): algunas pruebas pueden marcar FALLA.';
+    END;
 
     -- ======================================================== CATÁLOGOS (sede como ejemplo)
     CALL "ERP_CATALOGO_SEDE_CREAR"('lim','Lima centro','Av. Ejemplo 123',5,'Y',0, v_lim, v_cod, v_msg);

@@ -57,6 +57,8 @@ Actualizado: 2026-10-29
 
 Usuario prueba las entregas C, D, D1, E, F, J y H (H = tipo de ingreso en el asistente: Visitante externo y Contratista activos, Proveedor visible y deshabilitado; sede elegible; cochera y placa solo en Magdalena; campos de contratista con contacto y área; correos, detalle y revisión del Coordinador adaptados. Requiere ejecutar `16_ALTER_TIPO_INGRESO.sql` una vez y re-ejecutar 5 archivos de procedimientos; ver `LEEME_ENTREGA.md`; el administrador debe asignar licencias en Magdalena). Entregas A a F, J y H completas. Siguiente: **I** (catálogo de checklist por tipo con ítems compartidos, orden y obligatorio; ya existen `Catalogo_Tipo_Acceso`, `Tipo_Acceso_Item_Checklist` y `CAF_Registro_Checklist`, así que es aditivo) y **G** (observación general y por persona, pospuesta por el usuario). Pendientes abiertos de decisión: P-106 a P-116.
 
+Nota 2026-10-30: `restaurar_bd.ps1` y `PRUEBAS_FASE1_HITO0.sql` corregidos (D-193); HITO0 ya da 65/65 sobre la base completa.
+
 ## Decisiones vigentes que más condicionan
 
 - Proyecto independiente con convenciones Trianon (D-01); PostgreSQL piloto, HANA destino (D-02).

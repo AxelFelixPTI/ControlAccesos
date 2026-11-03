@@ -66,6 +66,8 @@ if (-not $env:PGPASSWORD) {
         [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
 }
 $env:PGCLIENTENCODING = 'UTF8'
+# Los avisos NOTICE ("no existe, omitiendo" de los DROP IF EXISTS) son normales y confunden con errores: se silencian.
+$env:PGOPTIONS = '-c client_min_messages=warning'
 $conn = @('-h', $DbHost, '-p', "$Port", '-U', $DbUser)
 
 # Nota: las consultas no llevan comillas dobles (PowerShell 5.1 las pierde al llamar a psql).
@@ -80,6 +82,28 @@ function Invoke-File([System.IO.FileInfo]$f) {
     if ($LASTEXITCODE -ne 0) {
         throw "ERROR en $($f.FullName). Revisa el mensaje de arriba. El proceso se detuvo aqui."
     }
+}
+
+# Las pruebas se ejecutan capturando su salida: se muestra completa, se cuentan las filas FALLA y, si psql
+# se detiene por un error real, se imprime el mensaje de psql (no solo "revisa arriba").
+$script:fallas = 0
+function Invoke-Prueba([System.IO.FileInfo]$f) {
+    Write-Host ("  > " + $f.Directory.Parent.Name + "\" + $f.Name) -ForegroundColor Cyan
+    $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    $salida = & $Psql @conn -d $Database -v ON_ERROR_STOP=1 -q -f $f.FullName 2>&1 | ForEach-Object { "$_" }
+    $codigo = $LASTEXITCODE
+    $ErrorActionPreference = $eap
+    $n = 0
+    foreach ($linea in $salida) {
+        if ($linea -match '\|\s*FALLA\s*\|') { $n++; Write-Host $linea -ForegroundColor Red } else { Write-Host $linea }
+    }
+    $resumen = @($salida | Where-Object { $_ -match '^\s*\d+\s*\|\s*\d+\s*\|\s*\d+\s*$' }) | Select-Object -Last 1
+    if ($resumen) { Write-Host ("    total | ok | falla: " + ($resumen -replace '\s+', ' ')) }
+    if ($codigo -ne 0) {
+        $salida | Select-Object -Last 25 | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+        throw "ERROR de psql (codigo $codigo) en $($f.FullName). El mensaje esta justo arriba. El proceso se detuvo aqui."
+    }
+    $script:fallas += $n
 }
 
 # ---- 3. Descubrir archivos --------------------------------------------------
@@ -156,7 +180,9 @@ if (-not $SoloPruebas) {
 }
 if (-not $SinPruebas) {
     Write-Host "`n== C. Pruebas ==" -ForegroundColor Green
-    foreach ($f in $pruebas) { Invoke-File $f }
+    foreach ($f in $pruebas) { Invoke-Prueba $f }
+    if ($script:fallas -eq 0) { Write-Host "Pruebas: todas en OK." -ForegroundColor Green }
+    else { Write-Host ("Pruebas con FALLA: {0} (ver filas en rojo arriba)." -f $script:fallas) -ForegroundColor Red }
 }
 
 # ---- 6. Resumen -------------------------------------------------------------
@@ -164,4 +190,4 @@ $sqlRes = "SELECT n.nspname || ': ' || (SELECT count(*) FROM information_schema.
 Write-Host "`n== Resultado ==" -ForegroundColor Green
 Write-Host (Invoke-Sql $Database $sqlRes)
 Write-Host ("Base '{0}' lista en {1:N0} s." -f $Database, ((Get-Date) - $t0).TotalSeconds) -ForegroundColor Green
-Write-Host "Esperado a hoy (Hito 4 fase 1 completa): 11 + 24 tablas y 59 + 114 rutinas; pruebas 65, 143, 43, 186, 202, 140, 100, 135 y 113 en OK."
+Write-Host "Esperado a hoy (Hito 4 fase 1 completa): 11 + 24 tablas y 59 + 114 rutinas; todas las pruebas en OK (HITO0 65/65 desde la V1.1 del 2026-10-30)."
