@@ -258,7 +258,19 @@ BEGIN
                       FROM "CAF_GOVERNANCE"."Usuario_Licencia" UL
                       JOIN "CAF_GOVERNANCE"."Usuario" U ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
                       JOIN "CAF_GOVERNANCE"."Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
-                      JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Codigo" = 'PER_CAF_PORTERIA_REGISTRAR'
+                      JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
+                       AND P."Codigo" = CASE WHEN EXISTS (SELECT 1 FROM "Catalogo_Tipo_Acceso" TA
+                                                           WHERE TA."ID_Catalogo_Tipo_Acceso" = lv_tipo AND TA."Codigo" = 'PROVEEDOR')
+                                             THEN 'PER_CAF_PROVEEDOR_VIGILANCIA' ELSE 'PER_CAF_PORTERIA_REGISTRAR' END
+                     WHERE UL."Eliminado" = 'N' AND UL."ID_Catalogo_Sede" = lv_sede) X;
+
+        ELSIF "HV_Modo" = 'ALMACEN' THEN
+            SELECT STRING_AGG(X."Correo", '; ' ORDER BY X."Correo") INTO lv_dest
+              FROM (SELECT DISTINCT U."Correo"
+                      FROM "CAF_GOVERNANCE"."Usuario_Licencia" UL
+                      JOIN "CAF_GOVERNANCE"."Usuario" U ON U."ID_Usuario" = UL."ID_Usuario" AND U."Eliminado" = 'N' AND U."Activo" = 'Y'
+                      JOIN "CAF_GOVERNANCE"."Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
+                      JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso" AND P."Codigo" = 'PER_CAF_PROVEEDOR_ALMACEN'
                      WHERE UL."Eliminado" = 'N' AND UL."ID_Catalogo_Sede" = lv_sede) X;
 
         ELSE
@@ -403,8 +415,10 @@ DECLARE
     lv_pen      INT := 0;
     lv_obs      INT := 0;
     lv_rec      INT := 0;
+    lv_pc       INT;
+    lv_pm       VARCHAR(250);
 BEGIN
-    -- V1.0 2026-10-16
+    -- V1.1 2026-11-02 (sincroniza la operación del proveedor)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_RECALCULAR';
     BEGIN
@@ -504,6 +518,9 @@ BEGIN
                SET "Estado" = lv_estado, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
              WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Estado" <> lv_estado;
         END IF;
+
+        CALL "ERP_CAF_PROVEEDOR_SINCRONIZAR"("HV_ID_Solicitud", "HV_UsuarioID", lv_pc, lv_pm);
+        IF lv_pc <> 100 THEN RAISE EXCEPTION 'proveedor: %', lv_pm; END IF;
 
         "HV_Estado_Result" := lv_estado;
         "HV_Codigo_Resp"   := 100;
@@ -688,6 +705,14 @@ BEGIN
     END IF;
     IF "HV_Copias" = 'Y' THEN
         CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'COPIAS', NULL, lv_x, lv_c, lv_m);
+        IF lv_x IS NOT NULL THEN lv_res := CASE WHEN lv_res IS NULL THEN lv_x ELSE lv_res || '; ' || lv_x END; END IF;
+    END IF;
+    -- Proveedor: Almacén va en copia desde el registro hasta la salida (o hasta que figure como «no se presentó»)
+    IF EXISTS (SELECT 1 FROM "CAF_Solicitud" S JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
+                WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND T."Codigo" = 'PROVEEDOR')
+       AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" O
+                        WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Estado_Operativo" IN ('SALIO','NO_SE_PRESENTO')) THEN
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'ALMACEN', NULL, lv_x, lv_c, lv_m);
         IF lv_x IS NOT NULL THEN lv_res := CASE WHEN lv_res IS NULL THEN lv_x ELSE lv_res || '; ' || lv_x END; END IF;
     END IF;
     RETURN NULLIF(LEFT(lv_res, 2000), '');

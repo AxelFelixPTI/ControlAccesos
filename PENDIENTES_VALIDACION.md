@@ -241,6 +241,17 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-111 | **Seguridad de adjuntos:** la firma del archivo confirma su familia, no que esté sano ni libre de virus. Decidir si hace falta antivirus/escaneo antes de producción. | 2026-10-29 | Equipo / TI | Antes de producción | Pendiente |
 | P-112 | **Retención del correo `Correo:RetencionSegundos` (15 s):** ajustar con el tiempo real de subida; si se excede, el primer correo sale sin el archivo. | 2026-10-29 | Equipo | Piloto con usuarios | Pendiente |
 | P-113 | **Reglas de adjuntos:** ¿copiar documentos al «Reutilizar»?, ¿adjuntar también en decisión/cancelación?, ¿bastan 5 MB y 2 documentos? | 2026-10-29 | Sandra | Piloto con usuarios | Pendiente |
-| P-114 | **Tipos y sedes (Entrega H):** confirmar con Sandra: (a) ¿Proveedor sigue «Próximamente» hasta definir sus campos?; (b) ¿ocultar «Personal interno visitante»?; (c) ¿el Coordinador de Magdalena es el mismo de VES o hay otro?; (d) ¿la placa admite solo un vehículo? | 2026-10-29 | Sandra | Piloto |
+| P-114 | **Tipos y sedes (Entrega H):** confirmar con Sandra: (a) ¿Proveedor sigue «Próximamente» hasta definir sus campos? [superado por la Entrega 1 de Proveedor]; (b) ¿ocultar «Personal interno visitante»?; (c) ¿el Coordinador de Magdalena es el mismo de VES o hay otro?; (d) ¿la placa admite solo un vehículo? | 2026-10-29 | Sandra | Piloto |
 | P-115 | **Licencias por sede:** el administrador debe asignar licencias de solicitante y Coordinador en Magdalena (y Vigilancia solo ve VES). Definir quién lo hace y si Vigilancia necesita ver Magdalena. | 2026-10-29 | Administrador | Antes de usar Magdalena |
 | P-116 | **Contratista:** ¿los correos de contacto deben copiarse a los avisos?; ¿se exige SCTR/EPP al contratista según zona (hoy sí, por la zona elegida)?; ¿falta algún dato (p. ej. documento de la empresa)? | 2026-10-29 | Sandra | Piloto |
+| P-117 | **Proveedor — principal denegado o retirado tras la llegada:** hoy la entrega queda EN_ESPERA. Definir el desenlace. | 2026-11-02 | Sandra | Piloto |
+| P-118 | **Proveedor — cierre del día:** entregas en EN_ESPERA/INGRESO/EN_ATENCION/RECEPCIONADO sin salida no se tocan. Definir el cierre. | 2026-11-02 | Sandra | Piloto |
+| P-119 | **Proveedor — personal de apoyo:** ¿puede ingresar tras la recepción?, ¿sale antes que el principal? | 2026-11-02 | Sandra | Piloto |
+| P-120 | **Proveedor — principal desaprobado tras la llegada:** la entrega no se desactiva (solo en PROGRAMADO). | 2026-11-02 | Sandra | Piloto |
+| P-121 | **Proveedor — sin «responsable de atención»:** confirmar que no se pide. | 2026-11-02 | Sandra | Entrega 2 |
+| P-122 | **Proveedor — salida sin checklist (supuesto).** Confirmar. | 2026-11-02 | Sandra | Entrega 3 |
+| P-123 | **Proveedor — llegada solo el día programado; editar y cancelar solo antes de la llegada (supuestos).** Confirmar. | 2026-11-02 | Sandra | Entrega 3 |
+| P-124 | **«No se presentó» sin ejecutor en la web:** programarlo como servicio de fondo (Entrega 3). | 2026-11-02 | Equipo | Entrega 3 |
+| P-125 | **Tiempo real:** preguntar a TI instancias, IIS/proxy y WebSocket Protocol. | 2026-11-02 | TI | Entrega 4 |
+| P-126 | **Correos por hito a Almacén:** propuesta = solo tablero. Confirmar. | 2026-11-02 | Sandra | Entrega 3 |
+| P-127 | **No asignar las licencias de proveedor** hasta que exista el asistente del proveedor (Entrega 2). | 2026-11-02 | Administrador | Hasta Entrega 2 |

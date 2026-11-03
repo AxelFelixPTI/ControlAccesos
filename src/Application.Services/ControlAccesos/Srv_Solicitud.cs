@@ -135,9 +135,9 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
-    public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(CancellationToken ct = default)
+    public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(long usuarioId, CancellationToken ct = default)
     {
-        try { return await _repo.TiposOpcionesAsync(ct).ConfigureAwait(false); }
+        try { return await _repo.TiposOpcionesAsync(usuarioId, ct).ConfigureAwait(false); }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TIPOS_OPCIONES Solicitud ERROR");
@@ -162,7 +162,7 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
             errors.Add(new ResultError(nameof(dto.ID_Catalogo_Sede), "Seleccione la sede."));
         if (dto.ID_Catalogo_Tipo_Acceso <= 0)
             errors.Add(new ResultError(nameof(dto.ID_Catalogo_Tipo_Acceso), "Seleccione el tipo de acceso."));
-        if (dto.ID_Personal_Responsable <= 0)
+        if (dto.ID_Personal_Responsable is <= 0)
             errors.Add(new ResultError(nameof(dto.ID_Personal_Responsable), "Seleccione al responsable."));
         if (dto.Fecha_Hora_Prevista == default)
             errors.Add(new ResultError(nameof(dto.Fecha_Hora_Prevista), "Indique la fecha y hora de la visita."));
@@ -190,7 +190,7 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         var errors = new List<ResultError>();
         if (dto.Fecha_Hora_Prevista == default)
             errors.Add(new ResultError(nameof(dto.Fecha_Hora_Prevista), "Indique la fecha y hora de la visita."));
-        if (dto.ID_Personal_Responsable <= 0)
+        if (dto.ID_Personal_Responsable is <= 0)
             errors.Add(new ResultError(nameof(dto.ID_Personal_Responsable), "Seleccione al responsable."));
         if (errors.Count > 0)
             return Result<bool>.Validation("Datos inválidos.", errors);

@@ -27,4 +27,6 @@ public sealed class Dto_Solicitud_Sede_Opcion
     public string Codigo { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
     public bool Aplica_Cochera { get; set; }
+    /// <summary>Proveedor de abastecimiento: la sede lo recibe (hoy solo VES).</summary>
+    public bool Aplica_Proveedor { get; set; }
 }

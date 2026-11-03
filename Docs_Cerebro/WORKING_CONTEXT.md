@@ -55,9 +55,9 @@ Actualizado: 2026-10-29
 
 ## Siguiente paso literal
 
-Usuario prueba las entregas C, D, D1, E, F, J y H (H = tipo de ingreso en el asistente: Visitante externo y Contratista activos, Proveedor visible y deshabilitado; sede elegible; cochera y placa solo en Magdalena; campos de contratista con contacto y área; correos, detalle y revisión del Coordinador adaptados. Requiere ejecutar `16_ALTER_TIPO_INGRESO.sql` una vez y re-ejecutar 5 archivos de procedimientos; ver `LEEME_ENTREGA.md`; el administrador debe asignar licencias en Magdalena). Entregas A a F, J y H completas. Siguiente: **I** (catálogo de checklist por tipo con ítems compartidos, orden y obligatorio; ya existen `Catalogo_Tipo_Acceso`, `Tipo_Acceso_Item_Checklist` y `CAF_Registro_Checklist`, así que es aditivo) y **G** (observación general y por persona, pospuesta por el usuario). Pendientes abiertos de decisión: P-106 a P-116.
+Usuario prueba la **Entrega 1 de Proveedor de abastecimiento (solo base de datos y reglas; sin pantallas)**: ejecutar `17_ALTER_PROVEEDOR.sql` una vez y re-ejecutar los procedimientos (ver `LEEME_ENTREGA.md`); correr `restaurar_bd.ps1` (HITO2 escritura 430/430). **No asignar licencias de proveedor** hasta la Entrega 2 (P-127). Entregas A a F, J y H aplicadas o entregadas. Plan de Proveedor: **2** asistente del proveedor en `Nueva solicitud` (paso 1: solicitud + transportista principal + empresa + vehículo + entrega; paso 2: apoyo y adjuntos; paso 3: resumen), aprobación con la licencia nueva, visibilidad «cada solicitante ve solo lo suyo» y lista PROGRAMADO; **3** operación en Vigilancia y Almacén (llegada con modal de confirmación, atender, recepcionar), KPIs y filtros, servicio de fondo del «no se presentó» y consulta cada 60 s; **4** SignalR y calendario (agenda en celular), previa respuesta de TI (P-125); **5** checklist del proveedor administrable (junto con **I**). **G** (observaciones) sigue pospuesta. Pendientes abiertos de decisión: P-106 a P-127.
 
-Nota 2026-10-30: `restaurar_bd.ps1` y `PRUEBAS_FASE1_HITO0.sql` corregidos (D-193); HITO0 ya da 65/65 sobre la base completa.
+Nota 2026-10-30: `restaurar_bd.ps1` y `PRUEBAS_FASE1_HITO0.sql` corregidos (D-193); HITO0 da 65/65 sobre la base completa.
 
 ## Decisiones vigentes que más condicionan
 

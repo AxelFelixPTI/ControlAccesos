@@ -14,6 +14,7 @@ Estado: **BORRADOR para revisión**. Todos los scripts (01 a 08) están probados
 | `TRIANONSATELITAL_CAF_PRODD` | 4 | 08 | `CAF_Incidencia`, `CAF_Incidencia_Persona`, `CAF_Correo_Pendiente` (3) |
 | `TRIANONSATELITAL_CAF_PRODD` | 2 (Entrega J) | 15 | `CAF_Solicitud_Adjunto` (1): documentos de la solicitud, máx. 2 de 5 MB, en la BD |
 | `TRIANONSATELITAL_CAF_PRODD` | 2 (Entrega H) | 16 | Columnas nuevas en `CAF_Solicitud` (`Requiere_Cochera`, `Placa_Vehiculo`, `Area_Detalle`, `Contacto_Nombre`, `Contacto_Telefonos`, `Contacto_Correos`) y `Catalogo_Sede.Aplica_Cochera`; sin tablas nuevas |
+| `TRIANONSATELITAL_CAF_PRODD` | 2 (Proveedor, Entrega 1) | 17 | `CAF_Solicitud_Operacion` y `CAF_Solicitud_Operacion_Evento` (2): estado operativo del proveedor y su historial. Columnas nuevas: `CAF_Solicitud` (`ID_Catalogo_Empresa_Grupo_Destino`, `Proveedor_RUC`, `Proveedor_Direccion`, `Vehiculo_Marca`, `Licencia_Conducir`; `ID_Personal_Responsable` opcional), `CAF_Solicitud_Persona.Es_Principal`, `Catalogo_Sede.Aplica_Proveedor`; checklist con la condición `SOLO_PRINCIPAL`; 4 permisos y 4 licencias de proveedor |
 
 ## 2. Cómo se relacionan las tablas transaccionales
 

@@ -30,15 +30,15 @@ BEGIN
     SELECT "ID_Catalogo_Licencia" INTO v_lic_vig FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_VIGILANCIA';
     SELECT "ID_Catalogo_Licencia" INTO v_lic_adm FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_ADMIN';
     SELECT "ID_Catalogo_Tipo_Acceso" INTO v_tipo_ext FROM "TRIANONSATELITAL_CAF_PRODD"."Catalogo_Tipo_Acceso" WHERE "Codigo" = 'VISITA_EXTERNA';
-    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_tipo_con FROM "TRIANONSATELITAL_CAF_PRODD"."Catalogo_Tipo_Acceso" WHERE "Codigo" = 'PROVEEDOR';
+    SELECT "ID_Catalogo_Tipo_Acceso" INTO v_tipo_con FROM "TRIANONSATELITAL_CAF_PRODD"."Catalogo_Tipo_Acceso" WHERE "Codigo" = 'INTERNO_VISITANTE';
 
     -- ===================================================== CARGA INICIAL
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_CATALOGO_PERMISO_LISTAR"();
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: 13 permisos', '13', v_n::TEXT, '');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: 17 permisos', '17', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_coo) WHERE "Asignado" = 'Y';
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: Coordinador con 7 permisos', '7', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_coo);
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Pantalla de roles: lista los 13 con su marca', '13', v_n::TEXT, 'asignados y no asignados');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Pantalla de roles: lista los 17 con su marca', '17', v_n::TEXT, 'asignados y no asignados');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_vig) WHERE "Asignado" = 'Y';
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: Vigilancia con 4 permisos', '4', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_LISTAR_POR_PADRE"(v_tipo_ext);

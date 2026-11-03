@@ -70,7 +70,7 @@ public sealed class SolicitudesController : Controller
     [HttpGet]
     public async Task<IActionResult> Opciones(CancellationToken ct)
     {
-        var tipos = await _sol.TiposOpcionesAsync(ct);
+        var tipos = await _sol.TiposOpcionesAsync(User.UsuarioId(), ct);
         var sedes = await _sol.SedesOpcionesAsync(User.UsuarioId(), ct);
         var motivos = await _motivos.ListarAsync(false, ct);
         var td = await _tiposDoc.ObtenerDropdownAsync(ct);
@@ -87,7 +87,7 @@ public sealed class SolicitudesController : Controller
             if (!z.Success) return Falla(z.Message);
             sedesJson.Add(new
             {
-                id = s.ID_Catalogo_Sede, codigo = s.Codigo, texto = s.Descripcion, cochera = s.Aplica_Cochera,
+                id = s.ID_Catalogo_Sede, codigo = s.Codigo, texto = s.Descripcion, cochera = s.Aplica_Cochera, proveedor = s.Aplica_Proveedor,
                 zonas = z.Data!.Where(x => x.Activo == "Y").OrderBy(x => x.Orden).Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion, sctr = x.Exige_SCTR == "Y", epp = x.Exige_EPP == "Y" }),
             });
         }

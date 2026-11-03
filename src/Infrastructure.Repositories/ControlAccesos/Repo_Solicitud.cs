@@ -45,14 +45,14 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         }
     }
 
-    public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(CancellationToken ct = default)
+    public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(long usuarioId, CancellationToken ct = default)
     {
         try
         {
             var lista = await _exec.EjecutarLecturaAsync(
                 clave: Conn,
                 funcion: "ERP_CAF_SOLICITUD_TIPOS_OPCIONES",
-                bind: _ => { },
+                bind: p => AddLongReq(p, "HV_UsuarioID", usuarioId),
                 map: rd => new Dto_Solicitud_Tipo_Opcion
                 {
                     ID_Catalogo_Tipo_Acceso = RdLong(rd, "ID_Catalogo_Tipo_Acceso"),
@@ -84,6 +84,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                     Codigo = RdStr(rd, "Codigo"),
                     Descripcion = RdStr(rd, "Descripcion"),
                     Aplica_Cochera = RdBool(rd, "Aplica_Cochera"),
+                    Aplica_Proveedor = RdBool(rd, "Aplica_Proveedor"),
                 },
                 ct: ct);
             return Result<List<Dto_Solicitud_Sede_Opcion>>.Ok(lista);
@@ -290,7 +291,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
             {
                 AddLongReq(p, "HV_ID_Catalogo_Sede", dto.ID_Catalogo_Sede);
                 AddLongReq(p, "HV_ID_Catalogo_Tipo_Acceso", dto.ID_Catalogo_Tipo_Acceso);
-                AddLongReq(p, "HV_ID_Personal_Responsable", dto.ID_Personal_Responsable);
+                AddLong(p, "HV_ID_Personal_Responsable", dto.ID_Personal_Responsable);
                 AddTimestamp(p, "HV_Fecha_Hora_Prevista", dto.Fecha_Hora_Prevista);
                 AddStr(p, "HV_Empresa_Visitante", dto.Empresa_Visitante);
                 AddLong(p, "HV_ID_Catalogo_Motivo_Visita", dto.ID_Catalogo_Motivo_Visita);
@@ -306,6 +307,12 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                 AddStr(p, "HV_Contacto_Nombre", dto.Contacto_Nombre);
                 AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
                 AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
+                AddLong(p, "HV_ID_Empresa_Destino", dto.ID_Catalogo_Empresa_Destino);
+                AddStr(p, "HV_Proveedor_RUC", dto.Proveedor_RUC);
+                AddStr(p, "HV_Proveedor_Direccion", dto.Proveedor_Direccion);
+                AddStr(p, "HV_Vehiculo_Marca", dto.Vehiculo_Marca);
+                AddStr(p, "HV_Licencia_Conducir", dto.Licencia_Conducir);
+                AddLong(p, "HV_ID_Persona_Principal", dto.ID_Persona_Principal);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -328,7 +335,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                 AddLongReq(p, "HV_ID_Solicitud", solicitudId);
                 AddTimestamp(p, "HV_Fecha_Hora_Prevista", dto.Fecha_Hora_Prevista);
                 AddStr(p, "HV_Empresa_Visitante", dto.Empresa_Visitante);
-                AddLongReq(p, "HV_ID_Personal_Responsable", dto.ID_Personal_Responsable);
+                AddLong(p, "HV_ID_Personal_Responsable", dto.ID_Personal_Responsable);
                 AddLong(p, "HV_ID_Catalogo_Motivo_Visita", dto.ID_Catalogo_Motivo_Visita);
                 AddStr(p, "HV_Motivo_Detalle", dto.Motivo_Detalle);
                 AddStr(p, "HV_Observaciones", dto.Observaciones);
@@ -340,6 +347,11 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                 AddStr(p, "HV_Contacto_Nombre", dto.Contacto_Nombre);
                 AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
                 AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
+                AddLong(p, "HV_ID_Empresa_Destino", dto.ID_Catalogo_Empresa_Destino);
+                AddStr(p, "HV_Proveedor_RUC", dto.Proveedor_RUC);
+                AddStr(p, "HV_Proveedor_Direccion", dto.Proveedor_Direccion);
+                AddStr(p, "HV_Vehiculo_Marca", dto.Vehiculo_Marca);
+                AddStr(p, "HV_Licencia_Conducir", dto.Licencia_Conducir);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);

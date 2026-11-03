@@ -44,6 +44,8 @@ BEGIN
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
      WHERE S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
+       -- Las entregas de proveedores tienen su propio listado (Vigilancia de proveedores)
+       AND NOT EXISTS (SELECT 1 FROM "Catalogo_Tipo_Acceso" TA WHERE TA."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND TA."Codigo" = 'PROVEEDOR')
        AND ("HV_Fecha_Desde" IS NULL OR CAST(S."Fecha_Hora_Prevista" AS DATE) >= "HV_Fecha_Desde")
        AND ("HV_Fecha_Hasta" IS NULL OR CAST(S."Fecha_Hora_Prevista" AS DATE) <= "HV_Fecha_Hasta")
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")

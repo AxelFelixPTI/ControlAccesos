@@ -24,8 +24,8 @@ public sealed class Dto_Solicitud_Crear
     [Range(1, long.MaxValue, ErrorMessage = "Seleccione el tipo de acceso.")]
     public long ID_Catalogo_Tipo_Acceso { get; set; }
 
-    [Range(1, long.MaxValue, ErrorMessage = "Seleccione al responsable.")]
-    public long ID_Personal_Responsable { get; set; }
+    /// <summary>Responsable de atención. Nulo solo para proveedores (la rutina lo exige en los demás tipos).</summary>
+    public long? ID_Personal_Responsable { get; set; }
 
     public DateTime Fecha_Hora_Prevista { get; set; }
 
@@ -57,6 +57,16 @@ public sealed class Dto_Solicitud_Crear
     public string? Contacto_Nombre { get; set; }
     public string? Contacto_Telefonos { get; set; }
     public string? Contacto_Correos { get; set; }
+
+    // ── Proveedor de abastecimiento (Entrega 1): datos propios del tipo; las reglas viven en la rutina (D-194) ──
+    /// <summary>Empresa del grupo que recibe la entrega (Catalogo_Empresa_Grupo).</summary>
+    public long? ID_Catalogo_Empresa_Destino { get; set; }
+    public string? Proveedor_RUC { get; set; }
+    public string? Proveedor_Direccion { get; set; }
+    public string? Vehiculo_Marca { get; set; }
+    public string? Licencia_Conducir { get; set; }
+    /// <summary>Transportista principal (debe estar entre las personas); sin él no procede nadie.</summary>
+    public long? ID_Persona_Principal { get; set; }
 }
 
 /// <summary>Resultado de crear: identificador y código visible (SOL-00001).</summary>
@@ -72,8 +82,8 @@ public sealed class Dto_Solicitud_Editar
     public DateTime Fecha_Hora_Prevista { get; set; }
     public string? Empresa_Visitante { get; set; }
 
-    [Range(1, long.MaxValue, ErrorMessage = "Seleccione al responsable.")]
-    public long ID_Personal_Responsable { get; set; }
+    /// <summary>Responsable de atención. Nulo solo para proveedores (la rutina lo exige en los demás tipos).</summary>
+    public long? ID_Personal_Responsable { get; set; }
 
     public long? ID_Catalogo_Motivo_Visita { get; set; }
     public string? Motivo_Detalle { get; set; }
@@ -90,6 +100,14 @@ public sealed class Dto_Solicitud_Editar
     public string? Contacto_Nombre { get; set; }
     public string? Contacto_Telefonos { get; set; }
     public string? Contacto_Correos { get; set; }
+
+    // ── Proveedor de abastecimiento (Entrega 1): datos propios del tipo; las reglas viven en la rutina (D-194) ──
+    /// <summary>Empresa del grupo que recibe la entrega (Catalogo_Empresa_Grupo).</summary>
+    public long? ID_Catalogo_Empresa_Destino { get; set; }
+    public string? Proveedor_RUC { get; set; }
+    public string? Proveedor_Direccion { get; set; }
+    public string? Vehiculo_Marca { get; set; }
+    public string? Licencia_Conducir { get; set; }
 }
 
 /// <summary>Decisión de quien aprueba (ERP_CAF_SOLICITUD_DECIDIR).</summary>

@@ -69,7 +69,8 @@ BEGIN
             OR (I."Condicion" = 'ZONA_EXIGE_SCTR'   AND S."Exige_SCTR" = 'Y')
             OR (I."Condicion" = 'ZONA_EXIGE_EPP'    AND S."Exige_EPP" = 'Y')
             OR (I."Condicion" = 'TRAE_EQUIPOS'      AND COALESCE("HV_Trae_Equipos", 'N') = 'Y')
-            OR (I."Condicion" = 'TRAE_HERRAMIENTAS' AND COALESCE("HV_Trae_Herramientas", 'N') = 'Y'))
+            OR (I."Condicion" = 'TRAE_HERRAMIENTAS' AND COALESCE("HV_Trae_Herramientas", 'N') = 'Y')
+            OR (I."Condicion" = 'SOLO_PRINCIPAL'    AND P."Es_Principal" = 'Y'))
      ORDER BY I."Orden", I."ID_Catalogo_Item_Checklist";
 END;
 $$;
@@ -143,6 +144,13 @@ BEGIN
         ELSIF lv_est_p = 'NO_SE_PRESENTO' THEN
             lv_cod := 409; lv_msg := 'La persona figura como «no se presentó».';
         END IF;
+    END IF;
+
+    -- Proveedor de abastecimiento: llegada previa, principal primero, salida tras la recepción
+    IF lv_cod = 100 THEN
+        SELECT X."Codigo_Resp", X."Mensaje" INTO lv_cod, lv_msg
+          FROM "ERP_CAF_PROVEEDOR_REGLA"("HV_ID_Solicitud_Persona", lv_etapa, "HV_Tardio") X;
+        IF lv_cod = 100 THEN lv_msg := NULL; END IF;
     END IF;
 
     RETURN QUERY
@@ -232,7 +240,7 @@ BEGIN
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La persona no figura en ninguna solicitud.'; RETURN;
         END IF;
-        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_REGISTRAR', lv_sede) <> 'Y' THEN
+        IF "ERP_CAF_FN_PORTERIA_PERMISO"("HV_UsuarioID", "HV_ID_Solicitud_Persona", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para registrar ingresos en esta sede.'; RETURN;
         END IF;
 
@@ -347,6 +355,9 @@ BEGIN
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
 
+        CALL "ERP_CAF_PROVEEDOR_PORTERIA_POST"("HV_ID_Solicitud_Persona", 'INGRESO', "HV_UsuarioID", lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'proveedor: %', lv_m; END IF;
+
         CALL "ERP_CAF_EVENTO_REGISTRAR"('REGISTRO_ACCESO', lv_reg, lv_sol,
              CASE WHEN lv_res = 'NO_INGRESA' THEN 'DENEGAR' ELSE 'INGRESO' END,
              lv_nombre || ' · ' || lv_res || CASE WHEN lv_tardio = 'Y' THEN ' · registro tardío' ELSE '' END,
@@ -439,7 +450,7 @@ BEGIN
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La persona no figura en ninguna solicitud.'; RETURN;
         END IF;
-        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_REGISTRAR', lv_sede) <> 'Y' THEN
+        IF "ERP_CAF_FN_PORTERIA_PERMISO"("HV_UsuarioID", "HV_ID_Solicitud_Persona", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para registrar salidas en esta sede.'; RETURN;
         END IF;
 
@@ -478,7 +489,7 @@ BEGIN
           INTO lv_aplic, lv_cubre, lv_incumple
           FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"("HV_ID_Solicitud_Persona", 'SALIDA', lv_trae_eq, lv_trae_h) A;
         lv_cubre := COALESCE(lv_cubre, 0); lv_incumple := COALESCE(lv_incumple, 0);
-        IF lv_aplic = 0 THEN
+        IF lv_aplic = 0 AND "ERP_CAF_FN_ES_PROVEEDOR"("HV_ID_Solicitud_Persona") <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No hay ítems de checklist de salida configurados para este tipo de acceso.'; RETURN;
         END IF;
         IF lv_cubre <> lv_aplic OR lv_tokens <> lv_aplic THEN
@@ -522,6 +533,9 @@ BEGIN
            SET "Estado" = 'SALIO', "Fecha_Hora_Salida" = lv_hecho,
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
+
+        CALL "ERP_CAF_PROVEEDOR_PORTERIA_POST"("HV_ID_Solicitud_Persona", 'SALIDA', "HV_UsuarioID", lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'proveedor: %', lv_m; END IF;
 
         CALL "ERP_CAF_EVENTO_REGISTRAR"('REGISTRO_ACCESO', lv_reg, lv_sol, 'SALIDA',
              lv_nombre || ' · ' || lv_res || CASE WHEN lv_tardio = 'Y' THEN ' · registro tardío' ELSE '' END,
@@ -595,6 +609,20 @@ BEGIN
              WHERE P."ID_Solicitud_Persona" = lv_id;
             CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD_PERSONA', lv_id, lv_sol, 'NO_SE_PRESENTO', lv_nom, 0, lv_c, lv_m);
             IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
+            lv_cant := lv_cant + 1;
+        END LOOP;
+
+        -- Entregas de proveedor que siguen PROGRAMADAS con la fecha vencida (la llegada nunca se registró)
+        lv_id := 0;
+        LOOP
+            SELECT MIN(O."ID_Solicitud") INTO lv_id
+              FROM "CAF_Solicitud_Operacion" O
+              JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
+             WHERE O."ID_Solicitud" > lv_id AND O."Eliminado" = 'N' AND O."Activa" = 'Y' AND O."Estado_Operativo" = 'PROGRAMADO'
+               AND CAST(S."Fecha_Hora_Prevista" AS DATE) < lv_corte;
+            EXIT WHEN lv_id IS NULL;
+            CALL "ERP_CAF_PROVEEDOR_MOVER"(lv_id, 'NO_SE_PRESENTO', 0, NULL, 'La entrega no se presentó en el día programado', NULL, lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'proveedor: %', lv_m; END IF;
             lv_cant := lv_cant + 1;
         END LOOP;
 
