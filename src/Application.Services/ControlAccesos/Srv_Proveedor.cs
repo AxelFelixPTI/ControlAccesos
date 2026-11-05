@@ -52,6 +52,48 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         catch (Exception ex) { _logger.LogError(ex, "PROGRAMAR Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
+    public async Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.ConfirmarDisponibilidadAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "DISPONIBILIDAD Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> CancelarDisponibilidadAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(motivo)) return Result.Fail("Indique el motivo de la cancelación.", MapeoSp.Codigo(400));
+            var sp = await _repo.CancelarDisponibilidadAsync(solicitudId, motivo.Trim(), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "CANCELAR DISPONIBILIDAD Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.ValidarIngresoAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "VALIDAR INGRESO Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> RetiroSinIngresoAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(motivo)) return Result.Fail("Indique el motivo del retiro.", MapeoSp.Codigo(400));
+            var sp = await _repo.RetiroSinIngresoAsync(solicitudId, motivo.Trim(), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "RETIRO SIN INGRESO Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
     public async Task<Result> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
     {
         try

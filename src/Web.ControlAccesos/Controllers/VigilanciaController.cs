@@ -20,16 +20,18 @@ public sealed class VigilanciaController : Controller
 {
     private const string SedeCodigo = "VES";
     private const string PermRegistrar = "PER_CAF_PORTERIA_REGISTRAR";
+    private const string PermProveedor = "PER_CAF_PROVEEDOR_VIGILANCIA";
 
     private readonly ISrv_Solicitud_Vigilancia _vig;
     private readonly ISrv_Porteria _por;
     private readonly ISrv_Respaldo _res;
     private readonly ISrv_Desviacion _des;
     private readonly ISrv_Catalogo_Sede _sedes;
+    private readonly ISrv_Proveedor _prov;
 
-    public VigilanciaController(ISrv_Solicitud_Vigilancia vig, ISrv_Porteria por, ISrv_Respaldo res, ISrv_Desviacion des, ISrv_Catalogo_Sede sedes)
+    public VigilanciaController(ISrv_Solicitud_Vigilancia vig, ISrv_Porteria por, ISrv_Respaldo res, ISrv_Desviacion des, ISrv_Catalogo_Sede sedes, ISrv_Proveedor prov)
     {
-        _vig = vig; _por = por; _res = res; _des = des; _sedes = sedes;
+        _vig = vig; _por = por; _res = res; _des = des; _sedes = sedes; _prov = prov;
     }
 
     [HttpGet]
@@ -38,6 +40,7 @@ public sealed class VigilanciaController : Controller
         ViewData["PuedeRegistrar"] = User.TienePermiso(PermRegistrar);
         ViewData["PuedeIncidencia"] = User.TienePermiso("PER_CAF_INCIDENCIA_REGISTRAR");
         ViewData["EsCoordinador"] = User.TienePermiso("PER_CAF_INCIDENCIA_DECIDIR");
+        ViewData["PuedeProveedor"] = User.TienePermiso(PermProveedor);
         return View();
     }
 
@@ -57,6 +60,7 @@ public sealed class VigilanciaController : Controller
                 nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
                 exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
+                esProveedor = p.Es_Proveedor, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
             })
         });
     }
@@ -213,6 +217,22 @@ public sealed class VigilanciaController : Controller
             Observacion = Vacio(m.Observacion), Desviacion = Desv(m), Fecha_Hora_Hecho = fh,
         }, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r), data = r.Success ? new { registroId = r.Data!.ID_Registro_Acceso, desviacionId = r.Data.ID_Desviacion, resultado = r.Data.Resultado } : null });
+    }
+
+    /// <summary>Proveedor: ingreso físico (la verificación de datos es el «Ingreso» normal). Exige que Almacén ya haya confirmado.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermProveedor)]
+    public async Task<IActionResult> ValidarIngreso([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    {
+        var r = await _prov.ValidarIngresoAsync(m.SolicitudId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
+    /// <summary>Proveedor ya verificado que se retira sin ingresar; el motivo es obligatorio y libera la exclusa si estaba reservada.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermProveedor)]
+    public async Task<IActionResult> RetiroSinIngreso([FromBody] ProveedorCancelarDispVM m, CancellationToken ct)
+    {
+        var r = await _prov.RetiroSinIngresoAsync(m.SolicitudId, m.Motivo, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
     }
 
     [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermRegistrar)]

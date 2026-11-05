@@ -25,4 +25,17 @@ public sealed class CorreccionRetirarVM
 {
     public long SolicitudPersonaId { get; set; }
     public string? Sustento { get; set; }
+    /// <summary>D-215: true cuando el Coordinador confirmó que, al quitar a la única persona, la solicitud queda rechazada.</summary>
+    public bool ConfirmarRechazo { get; set; }
+}
+
+/// <summary>Corrección de emergencia (D-215): corregir tipo de documento, apellidos y nombres (nunca el número de documento).</summary>
+public sealed class CorreccionCorregirVM
+{
+    public long SolicitudPersonaId { get; set; }
+    public long TipoDocumentoId { get; set; }
+    public string? ApellidoPaterno { get; set; }
+    public string? ApellidoMaterno { get; set; }
+    public string? Nombres { get; set; }
+    public string? Sustento { get; set; }
 }

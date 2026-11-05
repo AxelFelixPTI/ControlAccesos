@@ -79,18 +79,39 @@ public sealed class Srv_Solicitud_Persona : ISrv_Solicitud_Persona
         }
     }
 
-    public async Task<Result> RetirarEmergenciaAsync(long solicitudPersonaId, string? sustento, long usuarioId, CancellationToken ct = default)
+    public async Task<Result> RetirarEmergenciaAsync(long solicitudPersonaId, string? sustento, bool confirmarRechazo, long usuarioId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sustento))
             return Result.Validation("Datos inválidos.", new[] { new ResultError("Sustento", "Escriba el sustento de la corrección de emergencia.") });
         try
         {
-            var sp = await _repo.RetirarEmergenciaAsync(solicitudPersonaId, sustento.Trim(), usuarioId, ct).ConfigureAwait(false);
+            var sp = await _repo.RetirarEmergenciaAsync(solicitudPersonaId, sustento.Trim(), confirmarRechazo, usuarioId, ct).ConfigureAwait(false);
             return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "RETIRAR_EMERGENCIA Persona ID={ID} ERROR", solicitudPersonaId);
+            return Result.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> CorregirEmergenciaAsync(long solicitudPersonaId, long tipoDocumentoId, string? apellidoPaterno, string? apellidoMaterno, string? nombres, string? sustento, long usuarioId, CancellationToken ct = default)
+    {
+        // Solo formulario (D-40): lo demás (permiso, estado, fecha, documento) lo valida la rutina.
+        var errores = new List<ResultError>();
+        if (string.IsNullOrWhiteSpace(apellidoPaterno)) errores.Add(new ResultError("ApellidoPaterno", "Escriba el apellido paterno."));
+        if (string.IsNullOrWhiteSpace(nombres)) errores.Add(new ResultError("Nombres", "Escriba los nombres."));
+        if (string.IsNullOrWhiteSpace(sustento)) errores.Add(new ResultError("Sustento", "Escriba el sustento de la corrección de emergencia."));
+        if (errores.Count > 0) return Result.Validation("Datos inválidos.", errores);
+        try
+        {
+            var sp = await _repo.CorregirEmergenciaAsync(solicitudPersonaId, tipoDocumentoId, apellidoPaterno!.Trim(),
+                string.IsNullOrWhiteSpace(apellidoMaterno) ? null : apellidoMaterno.Trim(), nombres!.Trim(), sustento!.Trim(), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CORREGIR_EMERGENCIA Persona ID={ID} ERROR", solicitudPersonaId);
             return Result.Fail(ex.Message);
         }
     }

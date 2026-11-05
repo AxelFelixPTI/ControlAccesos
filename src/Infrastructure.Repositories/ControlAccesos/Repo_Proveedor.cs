@@ -2,10 +2,10 @@
 // Archivo  : Repo_Proveedor.cs
 // Módulo   : ControlAccesos
 // Hito     : 2 — Solicitud y aprobación (Entrega 2 de Proveedor de abastecimiento)
-// Versión  : V1.0 — 2026-11-03
+// Versión  : V2.0 — 2026-11-03
 // Sistema  : ControlAccesos (piloto PostgreSQL, destino SAP HANA)
 // ============================================================
-// SP base  : ERP_CAF_PROVEEDOR_CALENDARIO / _RESPONSABLES / _EXCLUSA_ESTADO (lecturas) y _PROGRAMAR / _ATENDER / _RECEPCION (escrituras)
+// SP base  : ERP_CAF_PROVEEDOR_CALENDARIO / _RESPONSABLES / _EXCLUSA_ESTADO (lecturas) y _PROGRAMAR / _DISPONIBILIDAD_CONFIRMAR / _DISPONIBILIDAD_CANCELAR / _ATENDER / _RECEPCION (escrituras)
 // Conexión : ConexionesCaf.Modulo  (schema TRIANONSATELITAL_CAF_PRODD)
 // El orden de los parámetros de bind es el de las rutinas (los INOUT no se enlazan).
 
@@ -84,6 +84,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
                 map: rd => new Dto_Proveedor_Exclusa
                 {
                     Ocupada      = RdBool(rd, "Ocupada"),
+                    Estado       = RdStr(rd, "Estado"),
                     ID_Solicitud = RdLongN(rd, "ID_Solicitud"),
                     Codigo       = RdStrN(rd, "Codigo"),
                     Empresa      = RdStrN(rd, "Empresa"),
@@ -104,6 +105,52 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
             {
                 AddLongReq(p, "HV_ID_Solicitud", solicitudId);
                 AddLong(p, "HV_ID_Personal", personalId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> CancelarDisponibilidadAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CANCELAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStrReq(p, "HV_Motivo", motivo);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> RetiroSinIngresoAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_RETIRO_SIN_INGRESO",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStrReq(p, "HV_Motivo", motivo);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -140,6 +187,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Empresa_Proveedor      = RdStr(rd, "Empresa_Proveedor"),
         Proveedor_RUC          = RdStrN(rd, "Proveedor_RUC"),
         Empresa_Destino        = RdStrN(rd, "Empresa_Destino"),
+        Empresa_Destino_Codigo = RdStrN(rd, "Empresa_Destino_Codigo"),
         Transportista          = RdStr(rd, "Transportista"),
         Telefono               = RdStrN(rd, "Telefono"),
         Placa                  = RdStrN(rd, "Placa"),
@@ -147,6 +195,9 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Observaciones          = RdStrN(rd, "Observaciones"),
         Cantidad_Apoyo         = RdInt(rd, "Cantidad_Apoyo"),
         Estado_Operativo       = RdStr(rd, "Estado_Operativo"),
+        Con_Desviacion         = RdBool(rd, "Con_Desviacion"),
+        Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),
+        Fecha_Disponibilidad   = RdDtN(rd, "Fecha_Disponibilidad"),
         Fecha_Llegada          = RdDtN(rd, "Fecha_Llegada"),
         Fecha_Ingreso          = RdDtN(rd, "Fecha_Ingreso"),
         Fecha_Inicio_Atencion  = RdDtN(rd, "Fecha_Inicio_Atencion"),
@@ -157,8 +208,10 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Programado_Nombre      = RdStrN(rd, "Programado_Nombre"),
         Efectivo_Nombre        = RdStrN(rd, "Efectivo_Nombre"),
         Puede_Programar        = RdBool(rd, "Puede_Programar"),
+        Puede_Confirmar        = RdBool(rd, "Puede_Confirmar"),
+        Puede_Cancelar_Disp    = RdBool(rd, "Puede_Cancelar_Disp"),
         Puede_Atender          = RdBool(rd, "Puede_Atender"),
         Puede_Terminar         = RdBool(rd, "Puede_Terminar"),
-        Motivo_No_Atender      = RdStrN(rd, "Motivo_No_Atender"),
+        Motivo_Bloqueo         = RdStrN(rd, "Motivo_Bloqueo"),
     };
 }

@@ -167,3 +167,12 @@ Sobre la base donde ya ejecutaste 01 a 05:
 - `CAF_Solicitud_Operacion_Evento` + `ID_Personal_Programado` (historial de cada asignación o cambio).
 - `CAF_Exclusa` (nueva): una fila por sede con `ID_Solicitud_Actual` (NULL = libre), `Fecha_Ocupada`, `ID_Usuario_Ocupa`. Recurso único compartido de la esclusa.
 - Permiso `PER_CAF_PROVEEDOR_DASHBOARD` y licencia `LIC_CAF_PROVEEDOR_DASHBOARD` (la licencia de Almacén también incluye el permiso).
+
+## Proveedor de abastecimiento, Entrega 2 corregida (script 19)
+- `CAF_Solicitud_Operacion.Estado` admite además `INGRESO_DENEGADO`; sin estado «llegada» separado.
+- Columnas nuevas en `CAF_Solicitud_Operacion`: `Con_Desviacion` (S/N, por defecto N), `Fecha_Disponibilidad`, `ID_Usuario_Disponibilidad`, `Fecha_Cancelacion_Disp`, `ID_Usuario_Cancelacion_Disp`, `Motivo_Cancelacion_Disp`.
+- `Fecha_Llegada`/`ID_Usuario_Llegada` = hora y usuario de la verificación.
+- La reserva es `CAF_Exclusa.ID_Solicitud_Actual` (se toma al confirmar disponibilidad, no al atender).
+- Eventos con `Resultado` = `DISP_CONFIRMADA` / `DISP_CANCELADA`.
+- Migración: EN_ESPERA antiguos → PROGRAMADO; INGRESO antiguos: el primero por sede conserva la exclusa, los demás vuelven a EN_ESPERA.
+

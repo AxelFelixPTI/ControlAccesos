@@ -16,6 +16,10 @@ public interface IRepo_Proveedor
     Task<Result<List<Dto_Proveedor_Responsable>>> ResponsablesAsync(long usuarioId, long sedeId, CancellationToken ct = default);
     Task<Result<Dto_Proveedor_Exclusa?>> ExclusaEstadoAsync(long usuarioId, long sedeId, CancellationToken ct = default);
     Task<ResultSp> ProgramarAsync(long solicitudId, long? personalId, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> CancelarDisponibilidadAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> RetiroSinIngresoAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> RecepcionarAsync(long solicitudId, string resultado, string? observacion, long usuarioId, CancellationToken ct = default);
 }

@@ -53,16 +53,18 @@ public sealed class ProveedoresController : Controller
             ahora = DateTime.Now.ToString("HH:mm:ss"),
             exclusa = new
             {
-                ocupada = ex?.Ocupada ?? false, codigo = ex?.Codigo, empresa = ex?.Empresa, desde = Hora(ex?.Desde), atiende = ex?.Atiende,
+                ocupada = ex?.Ocupada ?? false, estado = ex?.Estado ?? "LIBRE", id = ex?.ID_Solicitud, codigo = ex?.Codigo, empresa = ex?.Empresa, desde = Hora(ex?.Desde), atiende = ex?.Atiende,
             },
             data = r.Data!.Select(e => new
             {
                 id = e.ID_Solicitud, codigo = e.Codigo, fecha = e.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = e.Fecha_Hora_Prevista.ToString("HH:mm"),
-                empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, transportista = e.Transportista, telefono = e.Telefono,
-                placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, estado = e.Estado_Operativo,
+                empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, telefono = e.Telefono,
+                placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,
+                disponible = e.Disponibilidad_Confirmada, disponibleDesde = Hora(e.Fecha_Disponibilidad),
                 llegada = Hora(e.Fecha_Llegada), ingreso = Hora(e.Fecha_Ingreso), inicio = Hora(e.Fecha_Inicio_Atencion), recepcion = Hora(e.Fecha_Recepcion), salida = Hora(e.Fecha_Salida),
                 resultado = e.Resultado_Recepcion, programadoId = e.ID_Personal_Programado, programado = e.Programado_Nombre, efectivo = e.Efectivo_Nombre,
-                puedeProgramar = e.Puede_Programar, puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, motivoNoAtender = e.Motivo_No_Atender,
+                puedeProgramar = e.Puede_Programar, puedeConfirmar = e.Puede_Confirmar, puedeCancelarDisp = e.Puede_Cancelar_Disp,
+                puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, motivoBloqueo = e.Motivo_Bloqueo,
             }),
         });
     }
@@ -82,6 +84,22 @@ public sealed class ProveedoresController : Controller
     public async Task<IActionResult> Programar([FromBody] ProveedorProgramarVM m, CancellationToken ct)
     {
         var r = await _prov.ProgramarAsync(m.SolicitudId, m.PersonalId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>Etapa 1 del botón de Almacén: confirma disponibilidad y reserva la esclusa.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> ConfirmarDisponibilidad([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    {
+        var r = await _prov.ConfirmarDisponibilidadAsync(m.SolicitudId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>Retira la disponibilidad (con motivo) y libera la esclusa; solo antes del ingreso.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> CancelarDisponibilidad([FromBody] ProveedorCancelarDispVM m, CancellationToken ct)
+    {
+        var r = await _prov.CancelarDisponibilidadAsync(m.SolicitudId, m.Motivo, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

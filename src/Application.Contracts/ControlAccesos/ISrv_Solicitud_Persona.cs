@@ -21,6 +21,9 @@ public interface ISrv_Solicitud_Persona
     Task<Result<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string? sustento, long usuarioId, CancellationToken ct = default);
     Task<Result> RetirarAsync(long solicitudPersonaId, long usuarioId, CancellationToken ct = default);
     /// <summary>Corrección de emergencia (D-169): el coordinador quita a una persona autorizada que aún no ingresó, con sustento.</summary>
-    Task<Result> RetirarEmergenciaAsync(long solicitudPersonaId, string? sustento, long usuarioId, CancellationToken ct = default);
+    /// <remarks>D-215: si es la única persona, exige confirmarRechazo y la solicitud queda RECHAZADA.</remarks>
+    Task<Result> RetirarEmergenciaAsync(long solicitudPersonaId, string? sustento, bool confirmarRechazo, long usuarioId, CancellationToken ct = default);
+    /// <summary>Corrección de emergencia (D-215): corrige tipo de documento, apellidos y nombres (no el número de documento), con sustento.</summary>
+    Task<Result> CorregirEmergenciaAsync(long solicitudPersonaId, long tipoDocumentoId, string? apellidoPaterno, string? apellidoMaterno, string? nombres, string? sustento, long usuarioId, CancellationToken ct = default);
     Task<Result<bool>> CorregirAsync(long solicitudPersonaId, long personaExternaNuevaId, long usuarioId, CancellationToken ct = default);
 }

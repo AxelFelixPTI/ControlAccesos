@@ -2,7 +2,7 @@
 // Archivo  : Dto_Proveedor_Entrega.cs
 // Módulo   : ControlAccesos
 // Hito     : 2 — Solicitud y aprobación (Entrega 2 de Proveedor de abastecimiento)
-// Versión  : V1.0 — 2026-11-03
+// Versión  : V2.0 — 2026-11-03 (flujo corregido: verificación, disponibilidad de Almacén, ingreso físico)
 // Sistema  : ControlAccesos (piloto PostgreSQL, destino SAP HANA)
 // ============================================================
 // Respuesta de ERP_CAF_PROVEEDOR_CALENDARIO: una entrega aprobada del calendario de Almacén.
@@ -18,6 +18,7 @@ public sealed class Dto_Proveedor_Entrega
     public string Empresa_Proveedor { get; set; } = string.Empty;
     public string? Proveedor_RUC { get; set; }
     public string? Empresa_Destino { get; set; }
+    public string? Empresa_Destino_Codigo { get; set; }       // TRIANON_SOSTENIBLE, TRIANON_ENERGO, POWER_TECHNOLOGY, TRIANON_ASCENSORES
     public string Transportista { get; set; } = string.Empty;
     public string? Telefono { get; set; }
     public string? Placa { get; set; }
@@ -25,7 +26,10 @@ public sealed class Dto_Proveedor_Entrega
     public string? Observaciones { get; set; }
     public int Cantidad_Apoyo { get; set; }
     public string Estado_Operativo { get; set; } = string.Empty;
-    public DateTime? Fecha_Llegada { get; set; }
+    public bool Con_Desviacion { get; set; }
+    public bool Disponibilidad_Confirmada { get; set; }       // «Almacén listo»: la esclusa está reservada para esta entrega
+    public DateTime? Fecha_Disponibilidad { get; set; }
+    public DateTime? Fecha_Llegada { get; set; }                // = hora de la verificación de datos
     public DateTime? Fecha_Ingreso { get; set; }
     public DateTime? Fecha_Inicio_Atencion { get; set; }
     public DateTime? Fecha_Recepcion { get; set; }
@@ -35,7 +39,9 @@ public sealed class Dto_Proveedor_Entrega
     public string? Programado_Nombre { get; set; }
     public string? Efectivo_Nombre { get; set; }
     public bool Puede_Programar { get; set; }
-    public bool Puede_Atender { get; set; }
-    public bool Puede_Terminar { get; set; }
-    public string? Motivo_No_Atender { get; set; }
+    public bool Puede_Confirmar { get; set; }                  // Confirmar disponibilidad (etapa 1 del botón de Almacén)
+    public bool Puede_Cancelar_Disp { get; set; }              // Cancelar la disponibilidad
+    public bool Puede_Atender { get; set; }                    // Iniciar atención (etapa 2)
+    public bool Puede_Terminar { get; set; }                   // Terminar atención (etapa 3)
+    public string? Motivo_Bloqueo { get; set; }
 }

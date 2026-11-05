@@ -122,7 +122,10 @@
             var ul = el('ul', { class: 'plist' });
             s.personas.forEach(function (p) {
                 var chk = null;
-                var quitable = p.puedeQuitar ? el('div', { class: 'plist-r' }, [el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Quitar (emergencia)', onclick: function () { quitar(p); } })]) : null;
+                var quitable = (p.puedeQuitar || p.puedeCorregirDatos) ? el('div', { class: 'plist-r' }, [
+                    p.puedeCorregirDatos ? el('button', { type: 'button', class: 'btn btn-sm', text: 'Corregir datos (emergencia)', onclick: function () { corregir(p); } }) : null,
+                    p.puedeQuitar ? el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: p.esUnica ? 'Quitar y rechazar (emergencia)' : 'Quitar (emergencia)', onclick: function () { quitar(p); } }) : null
+                ]) : null;
                 var yaIngreso = s.puedeCorregir && p.aprobacion === 'APROBADA' && p.estado === 'DENTRO';
                 if (p.puedeDecidir) {
                     chk = el('input', { type: 'checkbox', 'aria-label': 'Elegir a ' + p.nombre });
@@ -191,7 +194,7 @@
             caja.appendChild(error);
             if (s.puedeCorregir) {
                 caja.appendChild(el('div', { class: 'aviso a-warn' }, [
-                    el('span', { text: 'Corrección de emergencia: solo si la visita cambia el mismo día. Agregue a quien llegó sin estar en la solicitud o quite a quien ya no viene. Vigilancia lo ve al instante y el solicitante y Vigilancia reciben un correo con su sustento.' }),
+                    el('span', { text: 'Corrección de emergencia: solo si la visita cambia el mismo día. Agregue a quien llegó sin estar en la solicitud, corrija un dato mal escrito (menos el número de documento) o quite a quien ya no viene. Vigilancia lo ve al instante y el solicitante y Vigilancia reciben un correo con su sustento.' }),
                     el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona (emergencia)', onclick: agregar })
                 ]));
             }
@@ -230,24 +233,57 @@
         }
 
         function quitar(p) {
-            var err = el('p', { class: 'field-e' });
-            var sus = campoSustento('Por qué se quita a esta persona (por ejemplo: ya no viene, la reemplazó otra persona).');
-            CAF.modal('Quitar persona (emergencia)', el('div', { class: 'stack' }, [
+            var err = el('p', { class: 'field-e' }), unica = !!p.esUnica;
+            var sus = campoSustento(unica ? 'Por qué se rechaza la solicitud (por ejemplo: el transportista ya no viene y no hay reemplazo).' : 'Por qué se quita a esta persona (por ejemplo: ya no viene, la reemplazó otra persona).');
+            CAF.modal(unica ? 'Quitar y rechazar la solicitud (emergencia)' : 'Quitar persona (emergencia)', el('div', { class: 'stack' }, [
                 el('p', { text: '¿Quitar a ' + p.nombre + ' de esta solicitud? Ya no podrá ingresar.' }),
+                unica ? el('div', { class: 'aviso a-warn', text: 'Es la única persona de la solicitud. Si la quita, la solicitud quedará RECHAZADA y nadie podrá ingresar con ella. Si lo que quiere es otra cosa, el solicitante puede cancelarla desde sus solicitudes.' }) : null,
                 el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: Vigilancia lo verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
                 sus.nodo, err]), [
                 { texto: 'Volver', onclick: function (c) { c(); } },
                 {
-                    texto: 'Quitar', tipo: 'primary', onclick: function (c) {
+                    texto: unica ? 'Quitar y rechazar la solicitud' : 'Quitar', tipo: 'primary', onclick: function (c) {
                         err.textContent = '';
                         if (!sus.area.value.trim()) { err.textContent = 'Escriba el sustento de la corrección de emergencia.'; return; }
-                        CAF.pedir(d.urlQuitar, { method: 'POST', body: { solicitudPersonaId: p.id, sustento: sus.area.value } }).then(function (x) {
+                        CAF.pedir(d.urlQuitar, { method: 'POST', body: { solicitudPersonaId: p.id, sustento: sus.area.value, confirmarRechazo: unica } }).then(function (x) {
                             if (!x.success) { err.textContent = SOL.errores(x); return; }
                             c(); cargar(); refrescar(x.message || 'Persona retirada.');
                         });
                     }
                 }
             ]);
+        }
+
+        // D-215: corrige tipo de documento, apellidos y nombres. El número de documento se muestra fijo: si es otra persona, se quita y se agrega la otra.
+        function corregir(p) {
+            opciones().then(function (o) {
+                if (!o) return;
+                var err = el('p', { class: 'field-e' });
+                var tipo = el('select'); o.tiposDoc.forEach(function (t) { tipo.appendChild(el('option', { value: String(t.id), text: t.texto })); });
+                tipo.value = String(p.tipoDocId || '');
+                function ent(v, max) { var i = el('input', { type: 'text', maxlength: String(max), autocomplete: 'off' }); i.value = v || ''; return i; }
+                var doc = ent(p.doc, 20); doc.disabled = true; doc.setAttribute('aria-readonly', 'true');
+                var ap = ent(p.apellidoPaterno, 100), am = ent(p.apellidoMaterno, 100), nom = ent(p.nombres, 200);
+                var sus = campoSustento('Qué dato estaba mal (por ejemplo: el apellido se digitó con un error).');
+                CAF.modal('Corregir datos (emergencia)', el('div', { class: 'stack' }, [
+                    el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: se corrige a la misma persona y su autorización se mantiene. El cambio se ve en toda solicitud donde figure. Vigilancia lo verá al instante y el solicitante y Vigilancia recibirán un correo con el antes y el después.' }),
+                    el('div', { class: 'grid g2' }, [SOL.campo('Tipo de documento', tipo), SOL.campo('Número de documento', doc, 'No se puede cambiar. Si es otra persona, quite a esta y agregue a la otra.')]),
+                    el('div', { class: 'grid g3' }, [SOL.campo('Apellido paterno *', ap), SOL.campo('Apellido materno', am), SOL.campo('Nombres *', nom)]),
+                    sus.nodo, err]), [
+                    { texto: 'Cancelar', onclick: function (c) { c(); } },
+                    {
+                        texto: 'Guardar corrección', tipo: 'primary', onclick: function (c) {
+                            err.textContent = '';
+                            if (!ap.value.trim() || !nom.value.trim()) { err.textContent = 'Complete el apellido paterno y los nombres.'; return; }
+                            if (!sus.area.value.trim()) { err.textContent = 'Escriba el sustento de la corrección de emergencia.'; return; }
+                            CAF.pedir(d.urlCorregir, { method: 'POST', body: { solicitudPersonaId: p.id, tipoDocumentoId: Number(tipo.value) || 0, apellidoPaterno: ap.value, apellidoMaterno: am.value, nombres: nom.value, sustento: sus.area.value } }).then(function (x) {
+                                if (!x.success) { err.textContent = SOL.errores(x); return; }
+                                c(); cargar(); refrescar(x.message || 'Datos corregidos.');
+                            });
+                        }
+                    }
+                ], 'ancho');
+            });
         }
 
         refrescar();

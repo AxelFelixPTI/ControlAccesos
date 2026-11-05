@@ -1,6 +1,7 @@
 // Calendario de entregas de proveedores. Semana: tarjetas completas con sus acciones. Mes: conteo por día (un clic abre esa semana).
 // Todos los que tienen el permiso del dashboard lo ven; solo Almacén tiene botones. Cada acción la vuelve a validar la base de datos
-// (estado, día, esclusa única), así que aquí solo se decide qué botón mostrar y se refresca el estado.
+// (estado, día, exclusa única), así que aquí solo se decide qué botón mostrar y se refresca el estado.
+// Almacén tiene un único botón dinámico por entrega: Confirmar disponibilidad → Iniciar atención → Terminar atención (+ Cancelar disponibilidad).
 (function () {
     'use strict';
     var raiz = document.getElementById('caf-prov');
@@ -12,10 +13,37 @@
 
     var DIAS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
     var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    // [rótulo, clase del chip, punto de la vista mensual, ayuda para la leyenda]
     var ESTADO = {
-        PROGRAMADO: ['Programado', 'c-pend', ''], EN_ESPERA: ['Llegó, pendiente de ingreso', 'c-obs', 's-esp'], INGRESO: ['En espera de atención', 'c-obs', 's-esp'],
-        EN_ATENCION: ['En atención', 'c-ok', 's-ok'], RECEPCIONADO: ['Recepción culminada', 'c-par', 's-fin'], SALIO: ['Salió', 'c-line', 's-fin'], NO_SE_PRESENTO: ['No se presentó', 'c-can', 's-no']
+        PROGRAMADO: ['Programado', 'st-prog', 'st-prog', 'Aprobada y agendada; el proveedor aún no llega o no pasó la verificación.'],
+        EN_ESPERA: ['En espera', 'st-esp', 'st-esp', 'Vigilancia verificó sus datos; espera que Almacén confirme disponibilidad y se valide el ingreso.'],
+        INGRESO: ['Ingreso', 'st-ing', 'st-ing', 'Ya ingresó físicamente; espera que Almacén inicie la atención.'],
+        EN_ATENCION: ['En atención', 'st-aten', 'st-aten', 'Almacén lo está recibiendo en la exclusa.'],
+        RECEPCIONADO: ['Recepción culminada', 'st-rec', 'st-rec', 'Almacén terminó; sigue dentro hasta que Vigilancia registre su salida.'],
+        SALIO: ['Salió', 'st-sal', 'st-sal', 'Entrega cerrada.'],
+        NO_SE_PRESENTO: ['No se presentó', 'st-nop', 'st-nop', 'No llegó en el día.'],
+        INGRESO_DENEGADO: ['Ingreso denegado', 'st-den', 'st-den', 'El coordinador denegó su ingreso en la verificación.'],
+        RETIRO_SIN_INGRESO: ['Retiró sin ingresar', 'st-ret', 'st-ret', 'Fue verificado pero se retiró sin ingresar (lo registra Vigilancia).']
     };
+    var EMPRESAS = {
+        TRIANON_ENERGO: ['Trianon Energo', 'TE', 'em-te'], POWER_TECHNOLOGY: ['Power Technology', 'PT', 'em-pt'],
+        TRIANON_ASCENSORES: ['Trianon Ascensores', 'TA', 'em-ta'], TRIANON_SOSTENIBLE: ['Trianon Sostenible', 'TS', 'em-ts']
+    };
+    var filtro = leerFiltro();
+
+    function leerFiltro() {
+        var q = new URLSearchParams(location.search);
+        return { emp: q.get('emp') || '', est: q.get('est') || '', fec: /^\d{4}-\d{2}-\d{2}$/.test(q.get('fec') || '') ? q.get('fec') : '' };
+    }
+    function guardarFiltro() {
+        var q = new URLSearchParams(location.search);
+        ['emp', 'est', 'fec'].forEach(function (k) { if (filtro[k]) q.set(k, filtro[k]); else q.delete(k); });
+        try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (x) { /* sin historial: no pasa nada */ }
+    }
+    function pasa(e) {
+        return (!filtro.emp || e.destinoCodigo === filtro.emp) && (!filtro.est || e.estado === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
+    }
+    function emp(e) { return EMPRESAS[e.destinoCodigo] || [e.destino || '—', '··', 'em-xx']; }
 
     // ── fechas (texto yyyy-MM-dd; el «hoy» lo manda el servidor) ─────────────────────────────
     function aFecha(t) { var p = t.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -47,47 +75,104 @@
 
     function navegar(paso) {
         if (!ancla) return;
-        ancla = vista === 'SEMANA' ? sumar(ancla, 7 * paso) : new Date(ancla.getFullYear(), ancla.getMonth() + paso, 1);
+        ancla = vista === 'SEMANA' ? sumar(ancla, 7 * paso) : vista === 'DIA' ? sumar(ancla, paso) : new Date(ancla.getFullYear(), ancla.getMonth() + paso, 1);
         var r = rangoVisible();
         if (r.desde !== cargado.desde || r.hasta !== cargado.hasta) cargar(); else pintar();
     }
 
     function irHoy() { ancla = vista === 'SEMANA' ? lunes(aFecha(hoy)) : aFecha(hoy); cargar(); }
+    function alinear(f) { return vista === 'SEMANA' ? lunes(f) : vista === 'DIA' ? new Date(f.getFullYear(), f.getMonth(), f.getDate()) : new Date(f.getFullYear(), f.getMonth(), 1); }
 
     // ── pintado ──────────────────────────────────────────────────────────────────────────────
     function pintarVistas() {
         var c = document.getElementById('pv-vistas'); c.textContent = '';
-        [['SEMANA', 'Semana'], ['MES', 'Mes']].forEach(function (v) {
+        [['MES', 'Mes'], ['SEMANA', 'Semana'], ['DIA', 'Día']].forEach(function (v) {
             c.appendChild(el('button', { type: 'button', class: v[0] === vista ? 'on' : '', text: v[1], onclick: function () { cambiarVista(v[0]); } }));
         });
     }
 
     function cambiarVista(v) {
         if (v === vista) return;
-        vista = v; ancla = vista === 'SEMANA' ? lunes(ancla || aFecha(hoy)) : new Date((ancla || aFecha(hoy)).getFullYear(), (ancla || aFecha(hoy)).getMonth(), 1);
+        var previa = ancla || aFecha(hoy), h = aFecha(hoy), fin = vista === 'SEMANA' ? sumar(previa, 6) : new Date(previa.getFullYear(), previa.getMonth() + 1, 0);
+        var contieneHoy = h >= previa && h <= fin || (vista === 'DIA' && aTexto(previa) === hoy);
+        // Al pasar a Día se queda en hoy si el período que se miraba lo incluye; si no, en el primer día de ese período.
+        vista = v; ancla = alinear(v === 'DIA' && contieneHoy ? h : previa);
         pintarVistas(); cargar();
     }
 
     function pintarExclusa() {
         avExc.textContent = '';
-        if (exclusa && exclusa.ocupada) {
+        var x = exclusa || {}, quien = (x.empresa || '') + (x.codigo ? ' (' + x.codigo + ')' : '');
+        if (x.estado === 'RESERVADA') {
+            avExc.className = 'aviso pv-exc-res';
+            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa reservada: ' }), quien + (x.desde ? ' desde las ' + x.desde : '') + '. Almacén confirmó su disponibilidad y espera que ingrese. Para atender a otro proveedor, cancele esa disponibilidad.']));
+        } else if (x.estado === 'DENTRO') {
+            avExc.className = 'aviso pv-exc-res';
+            avExc.appendChild(el('span', {}, [el('b', { text: 'Proveedor dentro, esperando atención: ' }), quien + '. La exclusa sigue reservada para esa entrega.']));
+        } else if (x.estado === 'POR_SALIR') {
             avExc.className = 'aviso pv-exc-on';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Atención en curso en la esclusa: ' }),
-                (exclusa.empresa || '') + (exclusa.codigo ? ' (' + exclusa.codigo + ')' : '') + (exclusa.desde ? ' desde las ' + exclusa.desde : '') + (exclusa.atiende ? ', atiende ' + exclusa.atiende : '') +
-                '. No se puede iniciar otra atención hasta que se termine.']));
+            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa ocupada, esperando la salida: ' }), quien + '. Almacén ya terminó; el camión sale por la misma exclusa y solo cuando Vigilancia registre su salida se podrá reservar para otra entrega.']));
+        } else if (x.estado === 'EN_ATENCION' || x.ocupada) {
+            avExc.className = 'aviso pv-exc-on';
+            avExc.appendChild(el('span', {}, [el('b', { text: 'Atención en curso en la exclusa: ' }), quien + (x.desde ? ' desde las ' + x.desde : '') + (x.atiende ? ', atiende ' + x.atiende : '') + '. No se puede reservar para otra entrega hasta que se termine.']));
         } else {
             avExc.className = 'aviso pv-exc-off';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Esclusa libre. ' }), 'No hay ninguna atención en curso.']));
+            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa libre. ' }), 'No hay ninguna entrega reservada ni en atención.']));
         }
+    }
+
+    function pintarFiltros() {
+        var c = document.getElementById('pv-filtros'); c.textContent = '';
+        function sel(rot, k, ops) {
+            var s = el('select', { 'aria-label': rot }, [el('option', { value: '', text: rot + ': todas' })].concat(ops.map(function (o) { return el('option', { value: o[0], text: o[1] }); })));
+            s.value = filtro[k]; s.addEventListener('change', function () { filtro[k] = s.value; guardarFiltro(); pintar(); }); return s;
+        }
+        c.appendChild(sel('Empresa', 'emp', Object.keys(EMPRESAS).map(function (k) { return [k, EMPRESAS[k][0]]; })));
+        c.appendChild(sel('Estado', 'est', Object.keys(ESTADO).map(function (k) { return [k, ESTADO[k][0]]; })));
+        var f = el('input', { type: 'date', 'aria-label': 'Fecha' }); f.value = filtro.fec;
+        f.addEventListener('change', function () {
+            filtro.fec = f.value; guardarFiltro();
+            if (f.value) { var dia = aFecha(f.value); ancla = alinear(dia); var r = rangoVisible(); if (r.desde !== cargado.desde || r.hasta !== cargado.hasta) { cargar(); return; } }
+            pintar();
+        });
+        c.appendChild(el('label', { class: 'pv-fec' }, [el('span', { class: 'small muted', text: 'Fecha' }), f]));
+        c.appendChild(el('button', { type: 'button', class: 'btn btn-sm', id: 'pv-limpiar', text: 'Quitar filtros', onclick: function () { filtro = { emp: '', est: '', fec: '' }; guardarFiltro(); pintarFiltros(); pintar(); } }));
+        c.appendChild(el('span', { class: 'small muted', id: 'pv-cuenta', 'aria-live': 'polite' }));
+    }
+
+    function pintarLeyenda() {
+        var c = document.getElementById('pv-leyenda'); c.textContent = '';
+        var det = el('details', { class: 'pv-ley' });
+        var guardado = null; try { guardado = localStorage.getItem('pv-leyenda'); } catch (x) { /* sin almacenamiento: queda abierta */ }
+        if (guardado !== 'cerrada') det.open = true;
+        det.addEventListener('toggle', function () { try { localStorage.setItem('pv-leyenda', det.open ? 'abierta' : 'cerrada'); } catch (x) { /* nada */ } });
+        det.appendChild(el('summary', { text: 'Leyenda: estados, empresas y marcas' }));
+        function grupo(titulo, items) { return el('div', { class: 'pv-ley-g' }, [el('b', { text: titulo }), el('ul', {}, items)]); }
+        function fila(marca, texto) { return el('li', {}, [marca, el('span', { class: 'small muted', text: texto })]); }
+        det.appendChild(el('div', { class: 'pv-ley-cols' }, [
+            grupo('Estados', Object.keys(ESTADO).map(function (k) { return fila(el('span', { class: 'pv-st ' + ESTADO[k][1], text: ESTADO[k][0] }), ESTADO[k][3]); })),
+            el('div', {}, [
+                grupo('Empresas (la que recibe la entrega)', Object.keys(EMPRESAS).map(function (k) { return fila(el('span', { class: 'pv-em ' + EMPRESAS[k][2], text: EMPRESAS[k][1] }), EMPRESAS[k][0]); })),
+                grupo('Marcas', [
+                    fila(el('span', { class: 'pv-leyres', text: 'Borde grueso' }), 'EXCLUSA RESERVADA: la entrega tiene la exclusa, desde que Almacén confirma disponibilidad hasta que Vigilancia registra su salida.'),
+                    fila(el('span', { class: 'pv-leyres', text: 'POR SALIR' }), 'Recepción culminada: el camión sigue dentro y la exclusa sigue ocupada hasta su salida.'),
+                    fila(el('span', { class: 'pv-marca pv-m-ok', text: 'Almacén listo' }), 'Almacén confirmó disponibilidad.'),
+                    fila(el('span', { class: 'pv-marca pv-m-dev', text: 'Con desviación' }), 'Se verificó con datos distintos a la solicitud; el coordinador decidió en el acto.')
+                ])
+            ])
+        ]));
+        c.appendChild(det);
     }
 
     function pintar() {
         pintarVistas(); pintarExclusa();
+        var n = datos.filter(pasa).length, cu = document.getElementById('pv-cuenta');
+        if (cu) cu.textContent = n + (n === 1 ? ' entrega' : ' entregas') + (filtro.emp || filtro.est || filtro.fec ? ' con los filtros' : ' en el rango');
         cal.textContent = '';
-        if (vista === 'SEMANA') pintarSemana(); else pintarMes();
+        if (vista === 'SEMANA') pintarSemana(); else if (vista === 'DIA') pintarDia(); else pintarMes();
     }
 
-    function delDia(texto) { return datos.filter(function (e) { return e.fecha === texto; }); }
+    function delDia(texto) { return datos.filter(function (e) { return e.fecha === texto && pasa(e); }); }
 
     function pintarSemana() {
         var fin = sumar(ancla, 6);
@@ -105,6 +190,17 @@
         cal.appendChild(cont);
     }
 
+    function pintarDia() {
+        var t = aTexto(ancla), lista = delDia(t), i = (ancla.getDay() + 6) % 7;
+        titulo.textContent = DIAS[i] + ' ' + ancla.getDate() + ' de ' + MESES[ancla.getMonth()] + ' ' + ancla.getFullYear();
+        var col = el('section', { class: 'pv-dia' + (t === hoy ? ' hoy' : ''), 'aria-label': titulo.textContent }, [
+            el('div', { class: 'pv-dia-h' }, [el('span', { text: t === hoy ? 'Hoy' : '' }), el('small', { text: lista.length ? lista.length + (lista.length === 1 ? ' entrega' : ' entregas') : '' })])
+        ]);
+        if (!lista.length) col.appendChild(el('div', { class: 'pv-vacio', text: 'Sin entregas' }));
+        else { var rejilla = el('div', { class: 'pv-rejilla' }); lista.forEach(function (e) { rejilla.appendChild(tarjeta(e)); }); col.appendChild(rejilla); }
+        cal.appendChild(el('div', { class: 'pv-semana' }, [col]));
+    }
+
     function pintarMes() {
         titulo.textContent = MESES[ancla.getMonth()] + ' ' + ancla.getFullYear();
         var cont = el('div', { class: 'pv-mes' }), r = rangoVisible(), f = aFecha(r.desde), fin = aFecha(r.hasta);
@@ -116,7 +212,7 @@
                     onclick: function () { vista = 'SEMANA'; ancla = lunes(dia); var rr = rangoVisible(); if (rr.desde !== cargado.desde) cargar(); else pintar(); } },
                     [el('span', { class: 'pv-celda-n', text: String(dia.getDate()) })]);
                 lista.slice(0, 3).forEach(function (e) {
-                    celda.appendChild(el('span', { class: 'pv-mini' }, [el('span', { class: 'pv-punto ' + (ESTADO[e.estado] ? ESTADO[e.estado][2] : '') }), el('span', { text: e.hora + ' ' + e.empresa })]));
+                    celda.appendChild(el('span', { class: 'pv-mini' }, [el('span', { class: 'pv-punto ' + (ESTADO[e.estado] ? ESTADO[e.estado][2] : '') }), el('span', { class: 'pv-em ' + emp(e)[2], text: emp(e)[1] }), el('span', { text: e.hora + ' ' + e.empresa })]));
                 });
                 if (lista.length > 3) celda.appendChild(el('span', { class: 'pv-mas', text: '+' + (lista.length - 3) + ' más' }));
                 cont.appendChild(celda);
@@ -126,11 +222,19 @@
     }
 
     function tarjeta(e) {
-        var est = ESTADO[e.estado] || [e.estado, 'c-pend', ''];
-        var c = el('article', { class: 'pv-card' + (e.estado === 'EN_ATENCION' ? ' e-atencion' : '') }, [
-            el('div', { class: 'pv-card-h' }, [el('b', { text: e.empresa }), el('span', { class: 'pv-hora', text: e.hora })]),
-            el('div', {}, [el('span', { class: 'chip ' + est[1], text: est[0] })])
+        var est = ESTADO[e.estado] || [e.estado, 'st-prog', '', ''], em = emp(e);
+        // Reserva = la regla que ya existe: la entrega es la titular de la exclusa. Se mantiene hasta que Vigilancia registra la salida (el camión sale por la misma exclusa).
+        var reserva = !!(exclusa && exclusa.ocupada && exclusa.id === e.id), porSalir = reserva && e.estado === 'RECEPCIONADO';
+        var marcas = el('div', { class: 'pv-marcas' });
+        if (e.disponible && (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO')) marcas.appendChild(el('span', { class: 'pv-marca pv-m-ok', text: 'Almacén listo' + (e.disponibleDesde ? ' ' + e.disponibleDesde : '') }));
+        if (e.conDesviacion) marcas.appendChild(el('span', { class: 'pv-marca pv-m-dev', text: 'Con desviación' }));
+        var c = el('article', { class: 'pv-card ' + em[2] + ' e-' + e.estado.toLowerCase() + (reserva ? ' pv-reserva' : '') }, [
+            reserva ? el('div', { class: 'pv-cinta' }, [porSalir ? 'POR SALIR · EXCLUSA OCUPADA' : 'EXCLUSA RESERVADA']) : null,
+            el('div', { class: 'pv-card-h' }, [el('span', { class: 'pv-em ' + em[2], title: em[0], text: em[1] }), el('b', { text: e.empresa }), el('span', { class: 'pv-hora', text: e.hora })]),
+            el('div', { class: 'pv-estado' }, [el('span', { class: 'pv-st ' + est[1], text: est[0] })]),
+            marcas
         ]);
+        if (!marcas.firstChild) c.removeChild(marcas);
         function linea(rotulo, valor) { if (valor) c.appendChild(el('div', { class: 'pv-linea' }, [el('b', { text: rotulo + ' ' }), valor])); }
         linea('Transportista:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo ? ' (+' + e.apoyo + ' apoyo)' : ''));
         linea('Vehículo:', [e.placa, e.marca].filter(Boolean).join(' · '));
@@ -142,7 +246,7 @@
             e.efectivo ? el('div', { class: 'pv-linea' }, [el('b', { text: 'Atiende: ' }), e.efectivo]) : null
         ]));
         var tiempos = [];
-        if (e.llegada) tiempos.push('Llegó ' + e.llegada); if (e.ingreso) tiempos.push('Ingresó ' + e.ingreso);
+        if (e.llegada) tiempos.push((e.estado === 'INGRESO_DENEGADO' ? 'Verificado ' : 'Verificado ') + e.llegada); if (e.ingreso) tiempos.push('Ingresó ' + e.ingreso);
         if (e.inicio) tiempos.push('Atención ' + e.inicio); if (e.recepcion) tiempos.push('Culminó ' + e.recepcion);
         if (e.salida) tiempos.push('Salió ' + e.salida);
         if (e.resultado === 'CON_OBSERVACION') tiempos.push('Con observación');
@@ -155,25 +259,34 @@
     function acciones(e) {
         if (!almacen) return null;
         var caja = el('div', { class: 'pv-acc' }), hay = false;
-        if (e.puedeProgramar) { hay = true; caja.appendChild(el('button', { type: 'button', class: 'btn btn-sm', text: e.programadoId ? 'Cambiar responsable' : 'Asignar responsable', onclick: function () { modalAsignar(e); } })); }
-        if (e.estado === 'EN_ATENCION') {
-            if (e.puedeTerminar) { hay = true; caja.appendChild(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Terminar atención', onclick: function () { modalTerminar(e); } })); }
-        } else if (e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA' || e.estado === 'INGRESO') {
+        function boton(texto, fn, primario, off, ayuda) {
             hay = true;
-            var b = el('button', { type: 'button', class: 'btn btn-sm btn-primary' + (e.puedeAtender ? '' : ' is-off'), text: 'Atender' });
-            if (e.puedeAtender) b.addEventListener('click', function () { modalAtender(e); });
-            else { b.disabled = true; var m = motivo(e); b.title = m; }
+            var b = el('button', { type: 'button', class: 'btn btn-sm' + (primario ? ' btn-primary' : '') + (off ? ' is-off' : ''), text: texto });
+            if (off) { b.disabled = true; if (ayuda) b.title = ayuda; } else b.addEventListener('click', fn);
             caja.appendChild(b);
-            if (!e.puedeAtender) caja.appendChild(el('div', { class: 'pv-motivo', text: motivo(e) }));
         }
+        if (e.puedeProgramar) boton(e.programadoId ? 'Cambiar responsable' : 'Asignar responsable', function () { modalAsignar(e); });
+        // Botón único con tres etapas: Confirmar disponibilidad → Iniciar atención → Terminar atención.
+        if (e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA') {
+            if (e.puedeConfirmar) boton('Confirmar disponibilidad', function () { modalConfirmar(e); }, true);
+            else if (!(e.estado === 'EN_ESPERA' && e.disponible)) boton('Confirmar disponibilidad', null, true, true, motivo(e));
+            if (e.puedeCancelarDisp) boton('Cancelar disponibilidad', function () { modalCancelarDisp(e); });
+        } else if (e.estado === 'INGRESO') {
+            boton('Iniciar atención', function () { modalAtender(e); }, true, !e.puedeAtender, motivo(e));
+        } else if (e.estado === 'EN_ATENCION') {
+            boton('Terminar atención', function () { modalTerminar(e); }, true, !e.puedeTerminar, motivo(e));
+        }
+        var m = (e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA' || e.estado === 'INGRESO') && !(e.puedeConfirmar || e.puedeAtender) ? motivo(e) : '';
+        if (m) caja.appendChild(el('div', { class: 'pv-motivo', text: m }));
         return hay ? caja : null;
     }
 
     function motivo(e) {
-        if (e.motivoNoAtender) return e.motivoNoAtender;
-        if (e.estado === 'PROGRAMADO') return 'Vigilancia aún no registra la llegada ni el ingreso.';
-        if (e.estado === 'EN_ESPERA') return 'Vigilancia aún no registra el ingreso del proveedor.';
-        return 'No disponible por ahora.';
+        if (e.motivoBloqueo) return e.motivoBloqueo;
+        if (e.estado === 'PROGRAMADO') return 'Vigilancia aún no verifica los datos del proveedor.';
+        if (e.estado === 'EN_ESPERA') return e.disponible ? 'Esperando que Vigilancia valide el ingreso.' : 'No disponible por ahora.';
+        if (e.estado === 'INGRESO') return 'No disponible por ahora.';
+        return '';
     }
 
     // ── acciones ─────────────────────────────────────────────────────────────────────────────
@@ -188,8 +301,35 @@
 
     function botonDe(ev) { return ev && ev.currentTarget ? ev.currentTarget : { disabled: false }; }
 
+    function modalConfirmar(e) {
+        var cuerpo = el('p', { class: 'pv-modal-p' }, ['¿Confirmas que Almacén está disponible para atender a este proveedor? Esto reservará la exclusa para esta entrega. El proveedor no podrá ser atendido hasta que Vigilancia valide su ingreso físico, y podrás cancelar la disponibilidad mientras no haya ingresado.']);
+        var env = false;
+        CAF.modal('Confirmar disponibilidad · ' + e.empresa, cuerpo, [
+            { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Confirmar disponibilidad', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlConfirmar, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; }); } }
+        ]);
+    }
+
+    function modalCancelarDisp(e) {
+        var mot = el('textarea', { rows: '3', maxlength: '500', placeholder: 'Ej.: el proveedor no llegó y otro ya espera' });
+        var err = el('span', { class: 'field-e' });
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('p', { class: 'pv-modal-p', text: 'Se liberará la exclusa para poder confirmar la disponibilidad de otro proveedor que esté en espera. Esta entrega volverá a esperar una nueva confirmación.' }),
+            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo (obligatorio)' }), mot, err])
+        ]);
+        var env = false;
+        CAF.modal('Cancelar disponibilidad · ' + e.empresa, cuerpo, [
+            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Cancelar disponibilidad', tipo: 'primary', onclick: function (cerrar) {
+                if (env) return;
+                if (mot.value.trim().length < 3) { err.textContent = 'Indique el motivo de la cancelación.'; mot.focus(); return; }
+                env = true; enviar(d.urlCancelarDisp, { solicitudId: e.id, motivo: mot.value.trim() }, { disabled: false }, cerrar).then(function () { env = false; });
+            } }
+        ]);
+    }
+
     function modalAtender(e) {
-        var cuerpo = el('p', { class: 'pv-modal-p' }, ['¿Confirmas que deseas iniciar la atención de este proveedor? Esta acción registrará tu usuario como responsable efectivo de la atención y bloqueará el inicio de otras atenciones hasta que finalices la actual.']);
+        var cuerpo = el('p', { class: 'pv-modal-p' }, ['¿Confirmas que deseas iniciar la atención de este proveedor? Esta acción registrará tu usuario como responsable efectivo de la atención. La exclusa seguirá reservada para esta entrega hasta que la finalices.']);
         var env = false;
         CAF.modal('Iniciar atención · ' + e.empresa, cuerpo, [
             { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
@@ -245,6 +385,6 @@
     // Sin tiempo real (IIS/WebSocket sin confirmar): se vuelve a consultar cada minuto mientras la pestaña está a la vista.
     setInterval(function () { if (!document.hidden && ancla) cargar(true); }, 60000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden && ancla) cargar(true); });
-    pintarVistas();
+    pintarVistas(); pintarFiltros(); pintarLeyenda();
     cargar();
 })();

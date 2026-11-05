@@ -94,6 +94,11 @@ public sealed class CoordinacionController : Controller
                     puedeDecidir = p.Puede_Decidir,
                     // Se quita por emergencia a quien está autorizado y aún no ingresó; quien ya ingresó se despide con la salida de Vigilancia.
                     puedeQuitar = puedeCorregir && p.Aprobacion == "APROBADA" && p.Estado == "ESPERADA",
+                    // D-215: corregir los datos (todo menos el número de documento). Mismas condiciones que quitar.
+                    puedeCorregirDatos = puedeCorregir && p.Aprobacion == "APROBADA" && p.Estado == "ESPERADA",
+                    tipoDocId = p.ID_Catalogo_Tipo_Documento, apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres,
+                    // D-215: quitar a la única persona vigente rechaza la solicitud (la web avisa antes; la rutina exige la confirmación)
+                    esUnica = per.Data!.Count(q => q.Aprobacion != "RETIRADA") == 1,
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }
@@ -154,7 +159,15 @@ public sealed class CoordinacionController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> RetirarEmergencia([FromBody] CorreccionRetirarVM m, CancellationToken ct)
     {
-        var r = await _solPer.RetirarEmergenciaAsync(m.SolicitudPersonaId, m.Sustento, User.UsuarioId(), ct);
+        var r = await _solPer.RetirarEmergenciaAsync(m.SolicitudPersonaId, m.Sustento, m.ConfirmarRechazo, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>Corrección de emergencia (D-215): corrige los datos de una persona autorizada (no el número de documento). Exige sustento.</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CorregirEmergencia([FromBody] CorreccionCorregirVM m, CancellationToken ct)
+    {
+        var r = await _solPer.CorregirEmergenciaAsync(m.SolicitudPersonaId, m.TipoDocumentoId, m.ApellidoPaterno, m.ApellidoMaterno, m.Nombres, m.Sustento, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

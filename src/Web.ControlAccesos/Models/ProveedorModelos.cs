@@ -7,9 +7,17 @@ public sealed class ProveedorProgramarVM
     public long? PersonalId { get; set; }
 }
 
+/// <summary>Confirmar disponibilidad o iniciar la atención: solo necesitan la entrega.</summary>
 public sealed class ProveedorAtenderVM
 {
     public long SolicitudId { get; set; }
+}
+
+/// <summary>Cancelar la disponibilidad: el motivo es obligatorio.</summary>
+public sealed class ProveedorCancelarDispVM
+{
+    public long SolicitudId { get; set; }
+    public string? Motivo { get; set; }
 }
 
 /// <summary>Terminar la atención. Sin observación la recepción es conforme.</summary>

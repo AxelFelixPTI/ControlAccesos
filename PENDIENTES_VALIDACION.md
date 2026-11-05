@@ -261,3 +261,13 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-131 | **Terminar con observación opcional** (vacía = conforme). | 2026-11-03 | Almacén | Entrega 2 |
 | P-132 | **El calendario muestra la entrega con el principal aprobado**, aunque un apoyo siga pendiente. | 2026-11-03 | Coordinación | Entrega 2 |
 | P-133 | **Cierre automático «no se presentó»:** sin ejecutor hasta la Entrega 3. | 2026-11-03 | Desarrollo | Entrega 3 |
+| P-134 | **Desviaciones del proveedor:** permisos añadidos a las licencias de Vigilancia y Coordinador de proveedor (el Coordinador ve todas las desviaciones de la sede). | 2026-11-03 | Sandra | Entrega 2 |
+| P-135 | **Reserva de exclusa no liberada sola al fin del día** hasta la Entrega 3; Almacén cancela a mano. | 2026-11-03 | Desarrollo | Entrega 3 |
+| P-136 | **Persona principal vuelve a ESPERADA tras la verificación;** DENTRO solo al validar ingreso. Sin re-verificación aún. | 2026-11-03 | Desarrollo | Entrega 3 |
+| P-137 | **Cambio de fecha con la entrega EN_ESPERA no bloqueado;** confirmar color rojo de «Ingreso denegado». | 2026-11-03 | Sandra | Entrega 2 |
+| P-138 | **«Retiró sin ingresar» deja a la persona principal como NO_SE_PRESENTO.** | 2026-11-05 | Sandra | Bloque 2 |
+| P-139 | **Exclusa hasta la salida (opción B):** una salida no registrada bloquea la exclusa; sin liberación manual. | 2026-11-05 | Sandra | Bloque 2 |
+| P-140 | **Quitar a la única persona = solicitud RECHAZADA** (con advertencia y confirmación); no se cancela. | 2026-11-05 | Sandra | Bloque 3 |
+| P-141 | **Corregir datos en emergencia cambia el registro global de la persona** (se ve en todas sus solicitudes). | 2026-11-05 | Sandra | Bloque 3 |
+| P-142 | **Proveedor ya EN_ESPERA o más: no se corrigen ni quitan personas** (propuesta); usar «Retiró sin ingresar». | 2026-11-05 | Sandra | Bloque 3 |
+| P-143 | **Checklist de salida del proveedor (provisional):** confirmar texto, apoyo y criticidad. | 2026-11-05 | Sandra | Bloque 3 |

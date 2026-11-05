@@ -5,7 +5,7 @@
     'use strict';
     var raiz = document.getElementById('caf-vig');
     if (!raiz) return;
-    var el = CAF.el, d = raiz.dataset, puede = d.puedeRegistrar === 'Y', puedeInc = d.puedeIncidencia === 'Y';
+    var el = CAF.el, d = raiz.dataset, puede = d.puedeRegistrar === 'Y', puedeInc = d.puedeIncidencia === 'Y', puedeProv = d.puedeProveedor === 'Y';
     var todas = [], grupo = 'TODOS', texto = '', temporizador = null, secuencia = 0, modo = 'HOY', hayLimite = false;
     var modos = document.getElementById('v-modos'), desde = document.getElementById('v-desde'), hasta = document.getElementById('v-hasta');
     var cajaTexto = document.getElementById('v-texto'), pills = document.getElementById('v-pills');
@@ -118,9 +118,25 @@
         var tiempos = [];
         if (p.ingreso) tiempos.push('Ingresó ' + p.ingreso);
         if (p.salida) tiempos.push('Salió ' + p.salida);
-        var botones = [];
-        if (puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
-        if (puede && !soloLectura && p.estado === 'DENTRO') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
+        var botones = [], prov = p.esProveedor && !soloLectura, op = p.estadoOp, extra = null;
+        if (prov) {
+            // Entrega de proveedor: Verificar datos → (Almacén confirma disponibilidad) → Validar ingreso → ... → Salida tras la recepción.
+            // Verificar datos es el mismo checklist del ingreso normal; Validar ingreso y Retiró sin ingresar solo existen aquí.
+            if (puede && op === 'PROGRAMADO') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Verificar datos', onclick: function () { movimiento(p, 'INGRESO', true); } }));
+            if (puedeProv && op === 'EN_ESPERA') {
+                var bv = el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso' });
+                if (p.almacenListo) bv.addEventListener('click', function () { validarIngreso(p); }); else { bv.disabled = true; bv.classList.add('is-off'); bv.title = 'Almacén aún no confirmó su disponibilidad'; }
+                botones.push(bv);
+                botones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Retiró sin ingresar', onclick: function () { retiroSinIngreso(p); } }));
+            }
+            if (op === 'PROGRAMADO') extra = chip('Datos por verificar', 'c-pend');
+            else if (op === 'EN_ESPERA') extra = chip(p.almacenListo ? 'Verificado · Almacén listo' : 'Verificado · esperando a Almacén', p.almacenListo ? 'c-ok' : 'c-obs');
+            else if (op === 'INGRESO' || op === 'EN_ATENCION') extra = chip(op === 'INGRESO' ? 'Dentro · espera atención de Almacén' : 'En atención de Almacén', 'c-obs');
+            else if (op === 'RECEPCIONADO') extra = chip('Recepción culminada · falta su salida', 'c-par');
+            else if (op === 'RETIRO_SIN_INGRESO') extra = chip('Se retiró sin ingresar', 'c-can');
+        }
+        if (!prov && puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
+        if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || p.estadoOp === 'RECEPCIONADO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
         if (puedeInc && !soloLectura && (p.estado === 'DENTRO' || p.estado === 'SALIO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger', text: 'Registrar incidencia', onclick: function () {
             // El Coordinador registra en la pantalla única de Incidencias, con la persona ya elegida (queda confirmada directamente).
             if (d.esCoordinador === 'Y') { window.location.href = d.urlIncidencias + '?persona=' + encodeURIComponent(p.id) + '&nombre=' + encodeURIComponent(p.nombre); return; }
@@ -130,6 +146,7 @@
         return el('div', { class: 'vrow' }, [
             el('div', { class: 'vrow-n' }, [el('strong', { text: p.nombre }), el('span', { class: 'field-h', text: docTexto(p) })]),
             el('div', { class: 'vrow-e' }, [chip(e[0], e[1]),
+                extra,
                 p.restringido ? chip('Restringido a zona administrativa', 'c-obs') : null,
                 p.traeEquipos ? chip('Equipos', 'c-line') : null, p.traeHerramientas ? chip('Herramientas', 'c-line') : null,
                 tiempos.length ? el('span', { class: 'field-h', text: tiempos.join(' · ') }) : null]),
@@ -163,12 +180,42 @@
     }
 
     // ── Ingreso / salida ─────────────────────────────────────────────────────────────────────
-    function movimiento(p, etapa) {
+    // Proveedor: ingreso físico (Almacén ya reservó la exclusa) y retiro sin ingresar. Cada acción la vuelve a validar la base de datos.
+    function accionProveedor(url, cuerpo, cerrar) {
+        return CAF.pedir(url, { method: 'POST', body: cuerpo }).then(function (r) {
+            if (r.success) { CAF.aviso(r.message || 'Listo.'); cerrar(); } else CAF.aviso(r.message || 'No se pudo completar la acción.', 'warn');
+            return cargar();
+        });
+    }
+    function validarIngreso(p) {
+        var env = false;
+        CAF.modal('Validar ingreso · ' + p.nombre, el('p', { text: 'Confirme que el proveedor ya ingresó físicamente. Almacén lo atenderá desde la esclusa reservada.' }), [
+            { texto: 'Cancelar', onclick: function (c) { c(); } },
+            { texto: 'Confirmar ingreso', tipo: 'primary', onclick: function (c) { if (env) return; env = true; accionProveedor(d.urlValidarIngreso, { solicitudId: p.solicitudId }, c).then(function () { env = false; }); } }
+        ]);
+    }
+    function retiroSinIngreso(p) {
+        var mot = el('textarea', { rows: '3', maxlength: '500', placeholder: 'Ej.: se fue por la demora' }), err = el('span', { class: 'field-e' }), env = false;
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('p', { text: 'El proveedor ya fue verificado pero se retira sin ingresar. Se libera la esclusa si Almacén ya la había reservado para esta entrega.' }),
+            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo (obligatorio)' }), mot, err])
+        ]);
+        CAF.modal('Retiró sin ingresar · ' + p.nombre, cuerpo, [
+            { texto: 'Volver', onclick: function (c) { c(); } },
+            { texto: 'Registrar retiro', tipo: 'primary', onclick: function (c) {
+                if (env) return;
+                if (mot.value.trim().length < 3) { err.textContent = 'Indique el motivo del retiro.'; mot.focus(); return; }
+                env = true; accionProveedor(d.urlRetiro, { solicitudId: p.solicitudId, motivo: mot.value.trim() }, c).then(function () { env = false; });
+            } }
+        ]);
+    }
+
+    function movimiento(p, etapa, verificacion) {
         var cuerpo = el('div', { class: 'stack' }, [el('p', { class: 'vacio', text: 'Cargando...' })]);
         var enviando = false, ctx = null;
-        var m = CAF.modal((etapa === 'INGRESO' ? 'Validar ingreso · ' : 'Registrar salida · ') + p.nombre, cuerpo, [
+        var m = CAF.modal((etapa === 'INGRESO' ? (verificacion ? 'Verificar datos · ' : 'Validar ingreso · ') : 'Registrar salida · ') + p.nombre, cuerpo, [
             { texto: 'Cancelar', onclick: function (c) { c(); } },
-            { texto: etapa === 'INGRESO' ? 'Registrar ingreso' : 'Registrar salida', tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviar(ctx, c, function (v) { enviando = v; }); } }
+            { texto: etapa === 'INGRESO' ? (verificacion ? 'Registrar verificación' : 'Registrar ingreso') : 'Registrar salida', tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviar(ctx, c, function (v) { enviando = v; }); } }
         ], 'ancho');
         CAF.pedir(d.urlFicha + '?id=' + p.id).then(function (r) {
             cuerpo.textContent = '';

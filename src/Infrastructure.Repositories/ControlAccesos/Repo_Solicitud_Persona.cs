@@ -71,7 +71,7 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             ct: ct);
     }
 
-    public async Task<ResultSp> RetirarEmergenciaAsync(long solicitudPersonaId, string sustento, long usuarioId, CancellationToken ct = default)
+    public async Task<ResultSp> RetirarEmergenciaAsync(long solicitudPersonaId, string sustento, bool confirmarRechazo, long usuarioId, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraAsync(
             clave: Conn,
@@ -79,6 +79,25 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             bind: p =>
             {
                 AddLongReq(p, "HV_ID_Solicitud_Persona", solicitudPersonaId);
+                AddStrReq(p, "HV_Sustento", sustento);
+                AddChar1(p, "HV_Confirmar_Rechazo", confirmarRechazo ? "Y" : "N");
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> CorregirEmergenciaAsync(long solicitudPersonaId, long tipoDocumentoId, string apellidoPaterno, string? apellidoMaterno, string nombres, string sustento, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_PERSONA_CORREGIR_EMERGENCIA",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud_Persona", solicitudPersonaId);
+                AddLongReq(p, "HV_ID_Catalogo_Tipo_Documento", tipoDocumentoId);
+                AddStrReq(p, "HV_Apellido_Paterno", apellidoPaterno);
+                AddStr(p, "HV_Apellido_Materno", apellidoMaterno);
+                AddStrReq(p, "HV_Nombres", nombres);
                 AddStrReq(p, "HV_Sustento", sustento);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },

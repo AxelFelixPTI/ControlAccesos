@@ -36,4 +36,7 @@ public sealed class Dto_Vigilancia_Persona
     public bool Exige_SCTR { get; set; }
     public bool Exige_EPP { get; set; }
     public string? Zonas_Nombres { get; set; }
+    public bool Es_Proveedor { get; set; }                 // transportista principal de una entrega de proveedor
+    public string? Estado_Operativo { get; set; }          // PROGRAMADO, EN_ESPERA, INGRESO, ... (solo proveedor)
+    public bool Disponibilidad_Confirmada { get; set; }    // Almacén ya reservó la exclusa para esta entrega
 }

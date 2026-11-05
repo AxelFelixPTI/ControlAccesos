@@ -640,6 +640,8 @@ BEGIN
                 WHEN 'SOLICITUD_PERSONA:RETIRAR'            THEN 'Retiró a una persona'
                 WHEN 'SOLICITUD_PERSONA:AGREGAR_EMERGENCIA' THEN 'Agregó a una persona (corrección de emergencia)'
                 WHEN 'SOLICITUD_PERSONA:RETIRAR_EMERGENCIA' THEN 'Retiró a una persona (corrección de emergencia)'
+                WHEN 'SOLICITUD_PERSONA:CORREGIR_EMERGENCIA' THEN 'Corrigió los datos de una persona (corrección de emergencia)'
+                WHEN 'SOLICITUD:RECHAZAR_EMERGENCIA'        THEN 'Rechazó la solicitud (se retiró a la única persona)'
                 WHEN 'SOLICITUD_PERSONA:CORREGIR'           THEN 'Corrigió los datos de una persona'
                 WHEN 'SOLICITUD_PERSONA:REENVIAR'           THEN 'Reenvió a una persona a aprobación'
                 WHEN 'SOLICITUD_PERSONA:NO_SE_PRESENTO'     THEN 'Marcó que una persona no se presentó'
@@ -701,6 +703,7 @@ $$;
 --     HV_Grupo: POR_INGRESAR, DENTRO, SALIERON, DENEGADOS_NO_VINIERON; NULL o TODOS = todos.
 --     HV_Texto: documento, nombre de la persona o empresa.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(BIGINT, BIGINT, DATE, VARCHAR, VARCHAR);
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(
     "HV_UsuarioID"        BIGINT,
     "HV_ID_Catalogo_Sede" BIGINT  DEFAULT NULL,
@@ -713,7 +716,7 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Solicitud" BIGINT, "Codigo" VA
                "Tipo_Documento" VARCHAR, "Numero_Documento" VARCHAR, "Persona_Nombre" VARCHAR,
                "Estado" VARCHAR, "Grupo" VARCHAR, "Fecha_Hora_Ingreso" TIMESTAMP, "Fecha_Hora_Salida" TIMESTAMP,
                "Acceso_Restringido" CHAR(1), "Trae_Equipos" CHAR(1), "Trae_Herramientas" CHAR(1),
-               "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR)
+               "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR, "Es_Proveedor" CHAR(1), "Estado_Operativo" VARCHAR, "Disponibilidad_Confirmada" CHAR(1))
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -721,7 +724,7 @@ DECLARE
     lv_txt   VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
     lv_grupo VARCHAR(30)  := UPPER(TRIM(COALESCE("HV_Grupo", 'TODOS')));
 BEGIN
-    -- V1.0 2026-10-17
+    -- V1.1 2026-11-05: + Es_Proveedor, Estado_Operativo, Disponibilidad_Confirmada
     IF LENGTH(lv_grupo) = 0 THEN lv_grupo := 'TODOS'; END IF;
     RETURN QUERY
     SELECT P."ID_Solicitud_Persona", S."ID_Solicitud", S."Codigo", S."ID_Catalogo_Sede",
@@ -738,12 +741,17 @@ BEGIN
            CAST((SELECT STRING_AGG(ZA."Descripcion", ', ' ORDER BY ZA."Orden", ZA."ID_Catalogo_Zona_Acceso")
                    FROM "CAF_Solicitud_Zona" Z
                    JOIN "Catalogo_Zona_Acceso" ZA ON ZA."ID_Catalogo_Zona_Acceso" = Z."ID_Catalogo_Zona_Acceso"
-                  WHERE Z."ID_Solicitud" = S."ID_Solicitud" AND Z."Eliminado" = 'N') AS VARCHAR)
+                  WHERE Z."ID_Solicitud" = S."ID_Solicitud" AND Z."Eliminado" = 'N') AS VARCHAR),
+           -- Entrega de proveedor (solo el transportista principal): estado operativo y si Almacén ya reservó la exclusa
+           CAST(CASE WHEN O."ID_Solicitud" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
+           CAST(O."Estado_Operativo" AS VARCHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = S."ID_Solicitud" AND X."Eliminado" = 'N') THEN 'Y' ELSE 'N' END AS CHAR(1))
       FROM "CAF_Solicitud" S
       JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
+      LEFT JOIN "CAF_Solicitud_Operacion" O ON O."ID_Solicitud" = S."ID_Solicitud" AND O."Eliminado" = 'N' AND O."Activa" = 'Y' AND P."Es_Principal" = 'Y'
      WHERE S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
        AND CAST(S."Fecha_Hora_Prevista" AS DATE) = lv_fecha
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")

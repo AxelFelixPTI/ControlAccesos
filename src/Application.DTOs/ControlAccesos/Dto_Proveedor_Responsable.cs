@@ -19,6 +19,7 @@ public sealed class Dto_Proveedor_Responsable
 public sealed class Dto_Proveedor_Exclusa
 {
     public bool Ocupada { get; set; }
+    public string Estado { get; set; } = "LIBRE";   // LIBRE | RESERVADA | DENTRO | EN_ATENCION
     public long? ID_Solicitud { get; set; }
     public string? Codigo { get; set; }
     public string? Empresa { get; set; }

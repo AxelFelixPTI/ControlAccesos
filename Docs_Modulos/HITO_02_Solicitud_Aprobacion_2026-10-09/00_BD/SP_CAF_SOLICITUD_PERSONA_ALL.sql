@@ -23,7 +23,8 @@
 -- 2 ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA el Coordinador agrega a quien llegó (solicitud ya aprobada)
 -- 3 ERP_CAF_SOLICITUD_PERSONA_RETIRAR            el solicitante retira
 -- 4 ERP_CAF_SOLICITUD_PERSONA_CORREGIR           corrige y, si estaba observada, reenvía
--- 5 ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA el Coordinador quita a una autorizada que aún no ingresó
+-- 5 ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA el Coordinador quita a una autorizada que aún no ingresó (si es la única, la solicitud queda RECHAZADA)
+-- 6 ERP_CAF_SOLICITUD_PERSONA_CORREGIR_EMERGENCIA el Coordinador corrige los datos de una autorizada (todo menos el número de documento)
 --
 -- La persona externa ya debe existir en el registro (ERP_CAF_PERSONA_EXTERNA_*).
 -- CONCURRENCIA: cada operación toma primero un bloqueo sobre la fila de la
@@ -579,14 +580,22 @@ $$;
 --      en portería no se quita: si está dentro, Vigilancia registra su salida con una
 --      observación.
 --    - No se borra nada: la persona pasa a RETIRADA y sus decisiones dejan de ser
---      vigentes. No se quita a la última persona: solo el solicitante cancela la solicitud.
+--      vigentes.
+--    - V2.0 (D-215): si es la ÚNICA persona vigente, quitarla equivale a rechazar la solicitud
+--      (la cancelación sigue siendo solo del solicitante). Exige HV_Confirmar_Rechazo = 'Y'; sin
+--      confirmar responde 409 con el aviso. La solicitud queda RECHAZADA y se libera lo reservado.
+--    - Proveedor: solo mientras la entrega siga PROGRAMADA (después, Vigilancia usa
+--      «Retiró sin ingresar»).
 --    - Las personas pendientes u observadas no se tocan aquí: se resuelven con la
 --      decisión normal (observar o rechazar) o las modifica el solicitante.
 --    - Avisa por correo igual que ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA.
 -- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(BIGINT, VARCHAR, BIGINT, INT, VARCHAR);
+
 CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(
     IN    "HV_ID_Solicitud_Persona" BIGINT,
     IN    "HV_Sustento"             VARCHAR(2000),
+    IN    "HV_Confirmar_Rechazo"    CHAR(1),
     IN    "HV_UsuarioID"            BIGINT,
     INOUT "HV_Codigo_Resp"          INT DEFAULT NULL,
     INOUT "HV_Mensaje"              VARCHAR(250) DEFAULT NULL
@@ -611,8 +620,9 @@ DECLARE
     lv_est2   VARCHAR(20);
     lv_dest   VARCHAR(2000);
     lv_dest2  VARCHAR(2000);
+    lv_ultima CHAR(1) := 'N';
 BEGIN
-    -- V1.0 2026-10-27 (D-169)
+    -- V2.0 2026-11-05 (D-215: única persona = rechazo con confirmación; bloqueo si la entrega ya está en curso)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA';
     BEGIN
@@ -674,13 +684,24 @@ BEGIN
             RETURN;
         END IF;
 
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Operacion"
+         WHERE "ID_Solicitud" = lv_sol AND "Activa" = 'Y' AND "Eliminado" = 'N' AND "Estado_Operativo" <> 'PROGRAMADO';
+        IF lv_n > 0 THEN
+            "HV_Codigo_Resp" := 409;
+            "HV_Mensaje" := 'La entrega ya está en curso (en espera, ingreso o atención): sus personas no se modifican. Vigilancia puede registrar «Retiró sin ingresar».';
+            RETURN;
+        END IF;
+
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona"
          WHERE "ID_Solicitud" = lv_sol AND "Eliminado" = 'N' AND "Aprobacion" <> 'RETIRADA'
            AND "ID_Solicitud_Persona" <> "HV_ID_Solicitud_Persona";
         IF lv_n = 0 THEN
-            "HV_Codigo_Resp" := 101;
-            "HV_Mensaje" := 'Es la única persona de la solicitud. Pida al solicitante que cancele la solicitud en su lugar.';
-            RETURN;
+            IF COALESCE("HV_Confirmar_Rechazo", 'N') <> 'Y' THEN
+                "HV_Codigo_Resp" := 409;
+                "HV_Mensaje" := 'Es la única persona de la solicitud: si la retira, la solicitud quedará RECHAZADA. Confirme para continuar.';
+                RETURN;
+            END IF;
+            lv_ultima := 'Y';
         END IF;
 
         SELECT "Apellido_Paterno" || COALESCE(' ' || "Apellido_Materno", '') || ', ' || "Nombres" INTO lv_nom
@@ -696,11 +717,23 @@ BEGIN
 
         CALL "ERP_CAF_SOLICITUD_RECALCULAR"(lv_sol, "HV_UsuarioID", lv_est2, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
+        IF lv_ultima = 'Y' THEN
+            -- Sin personas vigentes RECALCULAR no cambia el estado: aquí se rechaza expresamente
+            UPDATE "CAF_Solicitud" SET "Estado" = 'RECHAZADA', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud" = lv_sol;
+            CALL "ERP_CAF_PROVEEDOR_SINCRONIZAR"(lv_sol, "HV_UsuarioID", lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'proveedor: %', lv_m; END IF;
+        END IF;
         CALL "ERP_CAF_SOLICITUD_VERSION_GUARDAR"(lv_sol, "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'version: %', lv_m; END IF;
         CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD_PERSONA', "HV_ID_Solicitud_Persona", lv_sol, 'RETIRAR_EMERGENCIA',
              lv_nom || ' · Emergencia: ' || lv_sus, "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
+        IF lv_ultima = 'Y' THEN
+            CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD', lv_sol, lv_sol, 'RECHAZAR_EMERGENCIA',
+                 'Se retiró a la única persona (' || lv_nom || ') · Emergencia: ' || lv_sus, "HV_UsuarioID", lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
+        END IF;
 
         SELECT U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" INTO lv_quien
           FROM "CAF_GOVERNANCE"."Usuario" U WHERE U."ID_Usuario" = "HV_UsuarioID";
@@ -711,18 +744,215 @@ BEGIN
         lv_dest := CASE WHEN lv_dest IS NULL THEN lv_dest2 WHEN lv_dest2 IS NULL THEN lv_dest ELSE lv_dest || '; ' || lv_dest2 END;
         CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_CORRECCION', lv_sol, lv_dest,
              "ERP_CAF_FN_COPIA_CORREO"(lv_sol, 'N', 'Y', 'N', 'Y'),
-             'Corrección de emergencia en ' || lv_codsol || ': se retiró a una persona',
+             CASE WHEN lv_ultima = 'Y' THEN 'Corrección de emergencia en ' || lv_codsol || ': la solicitud fue rechazada'
+                  ELSE 'Corrección de emergencia en ' || lv_codsol || ': se retiró a una persona' END,
              'CORRECCIÓN DE EMERGENCIA' || CHR(10)
              || 'Se retiró a ' || lv_nom || ' de la solicitud ' || lv_codsol || ': ya no está autorizada para ingresar.' || CHR(10)
+             || CASE WHEN lv_ultima = 'Y' THEN 'Era la única persona: la solicitud quedó RECHAZADA.' || CHR(10) ELSE '' END
              || 'Sustento: ' || lv_sus || CHR(10)
              || 'Registrado por: ' || COALESCE(lv_quien, 'el Coordinador') || '.',
              "HV_UsuarioID", lv_c, lv_m);
 
         "HV_Codigo_Resp" := 100;
-        "HV_Mensaje"     := 'Persona retirada por corrección de emergencia.';
+        "HV_Mensaje"     := CASE WHEN lv_ultima = 'Y' THEN 'Persona retirada: la solicitud quedó rechazada.' ELSE 'Persona retirada por corrección de emergencia.' END;
     EXCEPTION WHEN OTHERS THEN
         "HV_Codigo_Resp" := 500;
         "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA';
+    END;
+END;
+$$;
+
+
+-- -----------------------------------------------------------------------------
+-- 6. ERP_CAF_SOLICITUD_PERSONA_CORREGIR_EMERGENCIA   (D-215)
+--    CORRECCIÓN DE EMERGENCIA del Coordinador: corrige los datos de una persona AUTORIZADA
+--    de una solicitud ya aprobada (tipo de documento, apellidos y nombres). El NÚMERO DE
+--    DOCUMENTO no se cambia aquí: si es otra persona, se retira esta y se agrega la otra.
+--    - Mismas condiciones que RETIRAR_EMERGENCIA: permiso y rol del Coordinador, solicitud
+--      APROBADA/APROBADA_PARCIAL, hasta el día de la visita, persona APROBADA y ESPERADA
+--      (sin movimientos en portería), sustento obligatorio, y proveedor solo mientras la
+--      entrega siga PROGRAMADA.
+--    - Los datos viven en el registro de personas externas (una fila por persona real):
+--      el cambio se ve en toda solicitud donde figure. La aprobación no se reabre: es la
+--      misma persona con un dato mal escrito.
+--    - Deja en la bitácora el antes y el después, y avisa por correo como las demás.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_PERSONA_CORREGIR_EMERGENCIA"(
+    IN    "HV_ID_Solicitud_Persona"      BIGINT,
+    IN    "HV_ID_Catalogo_Tipo_Documento" BIGINT,
+    IN    "HV_Apellido_Paterno"          VARCHAR(100),
+    IN    "HV_Apellido_Materno"          VARCHAR(100),
+    IN    "HV_Nombres"                   VARCHAR(200),
+    IN    "HV_Sustento"                  VARCHAR(2000),
+    IN    "HV_UsuarioID"                 BIGINT,
+    INOUT "HV_Codigo_Resp"               INT DEFAULT NULL,
+    INOUT "HV_Mensaje"                   VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_n      INT := 0;
+    lv_sol    BIGINT;
+    lv_apr    VARCHAR(20);
+    lv_ing    VARCHAR(20);
+    lv_ext    BIGINT;
+    lv_tipo   BIGINT;
+    lv_sede   BIGINT;
+    lv_estado VARCHAR(20);
+    lv_fecha  TIMESTAMP;
+    lv_codsol VARCHAR(20);
+    lv_doc    VARCHAR(20);
+    lv_tdoc0  BIGINT;
+    lv_ap0    VARCHAR(100);
+    lv_am0    VARCHAR(100);
+    lv_no0    VARCHAR(200);
+    lv_ap     VARCHAR(100);
+    lv_am     VARCHAR(100);
+    lv_no     VARCHAR(200);
+    lv_min    BIGINT;
+    lv_max    BIGINT;
+    lv_solo   CHAR(1);
+    lv_antes  VARCHAR(500);
+    lv_desp   VARCHAR(500);
+    lv_quien  VARCHAR(400);
+    lv_sus    VARCHAR(2000);
+    lv_c      INT;
+    lv_m      VARCHAR(250);
+    lv_dest   VARCHAR(2000);
+    lv_dest2  VARCHAR(2000);
+BEGIN
+    -- V1.0 2026-11-05 (D-215)
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_PERSONA_CORREGIR_EMERGENCIA';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        lv_sus := TRIM(COALESCE("HV_Sustento", ''));
+        IF LENGTH(lv_sus) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Escriba el sustento de la corrección de emergencia.'; RETURN;
+        END IF;
+        IF LENGTH(lv_sus) > 300 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El sustento no puede pasar de 300 caracteres.'; RETURN;
+        END IF;
+        lv_ap := TRIM(COALESCE("HV_Apellido_Paterno", ''));
+        lv_am := NULLIF(TRIM(COALESCE("HV_Apellido_Materno", '')), '');
+        lv_no := TRIM(COALESCE("HV_Nombres", ''));
+        IF LENGTH(lv_ap) = 0 OR LENGTH(lv_no) = 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Apellido paterno y nombres son obligatorios.'; RETURN;
+        END IF;
+
+        SELECT MAX("ID_Solicitud") INTO lv_sol FROM "CAF_Solicitud_Persona"
+         WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona" AND "Eliminado" = 'N';
+        UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = lv_sol;
+        SELECT COUNT(*), MAX("ID_Solicitud"), MAX("Aprobacion"), MAX("Estado"), MAX("ID_Persona_Externa")
+          INTO lv_n, lv_sol, lv_apr, lv_ing, lv_ext
+          FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La persona no está en la solicitud.'; RETURN;
+        END IF;
+        SELECT MAX("ID_Catalogo_Sede"), MAX("ID_Catalogo_Tipo_Acceso"), MAX("Estado"), MAX("Fecha_Hora_Prevista"), MAX("Codigo")
+          INTO lv_sede, lv_tipo, lv_estado, lv_fecha, lv_codsol FROM "CAF_Solicitud" WHERE "ID_Solicitud" = lv_sol;
+        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_APROBAR', lv_sede) <> 'Y' THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para aprobar en esta sede.'; RETURN;
+        END IF;
+        SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Paso_Aprobacion" S
+         WHERE S."ID_Catalogo_Tipo_Acceso" = lv_tipo AND S."Eliminado" = 'N' AND S."Activo" = 'Y' AND S."Obligatorio" = 'Y'
+           AND "ERP_CAF_FN_USUARIO_TIENE_ROL"("HV_UsuarioID", S."ID_Catalogo_Licencia", lv_sede) = 'Y';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Su rol no decide ningún paso de este tipo de acceso.'; RETURN;
+        END IF;
+        IF lv_estado = 'CANCELADA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
+        END IF;
+        IF lv_estado NOT IN ('APROBADA', 'APROBADA_PARCIAL') THEN
+            "HV_Codigo_Resp" := 409;
+            "HV_Mensaje" := 'La corrección de emergencia solo aplica a una solicitud ya aprobada.';
+            RETURN;
+        END IF;
+        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó: la solicitud no se modifica.'; RETURN;
+        END IF;
+        IF lv_apr <> 'APROBADA' THEN
+            "HV_Codigo_Resp" := 409;
+            "HV_Mensaje" := 'Solo se corrige por emergencia a una persona autorizada. Las demás se resuelven con la decisión normal.';
+            RETURN;
+        END IF;
+        IF lv_ing <> 'ESPERADA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La persona ya tiene movimientos en portería: sus datos no se corrigen aquí.'; RETURN;
+        END IF;
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Operacion"
+         WHERE "ID_Solicitud" = lv_sol AND "Activa" = 'Y' AND "Eliminado" = 'N' AND "Estado_Operativo" <> 'PROGRAMADO';
+        IF lv_n > 0 THEN
+            "HV_Codigo_Resp" := 409;
+            "HV_Mensaje" := 'La entrega ya está en curso (en espera, ingreso o atención): sus personas no se modifican.';
+            RETURN;
+        END IF;
+
+        SELECT "ID_Catalogo_Tipo_Documento", "Numero_Documento", "Apellido_Paterno", "Apellido_Materno", "Nombres"
+          INTO lv_tdoc0, lv_doc, lv_ap0, lv_am0, lv_no0
+          FROM "CAF_Persona_Externa" WHERE "ID_Persona_Externa" = lv_ext;
+
+        SELECT MAX("Longitud_Min"), MAX("Longitud_Max"), MAX("Solo_Numeros") INTO lv_min, lv_max, lv_solo
+          FROM "CAF_GOVERNANCE"."Catalogo_Tipo_Documento"
+         WHERE "ID_Catalogo_Tipo_Documento" = "HV_ID_Catalogo_Tipo_Documento" AND "Eliminado" = 'N' AND "Activo" = 'Y';
+        IF lv_min IS NULL THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El tipo de documento no existe o está inactivo.'; RETURN;
+        END IF;
+        IF LENGTH(lv_doc) NOT BETWEEN lv_min AND lv_max THEN
+            "HV_Codigo_Resp" := 400;
+            "HV_Mensaje" := 'El número de documento actual no es válido para ese tipo (debe tener entre ' || lv_min || ' y ' || lv_max || ' caracteres).';
+            RETURN;
+        END IF;
+        IF lv_solo = 'Y' AND LTRIM(lv_doc, '0123456789') <> '' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Ese tipo de documento solo admite números y el documento actual tiene letras.'; RETURN;
+        END IF;
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Persona_Externa"
+         WHERE "ID_Catalogo_Tipo_Documento" = "HV_ID_Catalogo_Tipo_Documento" AND "Numero_Documento" = lv_doc
+           AND "ID_Persona_Externa" <> lv_ext;
+        IF lv_n > 0 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Ya existe otra persona con ese tipo y número de documento.'; RETURN;
+        END IF;
+        IF lv_tdoc0 = "HV_ID_Catalogo_Tipo_Documento" AND lv_ap0 = lv_ap AND COALESCE(lv_am0, '') = COALESCE(lv_am, '') AND lv_no0 = lv_no THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'No hay cambios que guardar.'; RETURN;
+        END IF;
+
+        lv_antes := lv_ap0 || COALESCE(' ' || lv_am0, '') || ', ' || lv_no0 || ' (tipo doc. ' || lv_tdoc0 || ')';
+        lv_desp  := lv_ap  || COALESCE(' ' || lv_am,  '') || ', ' || lv_no  || ' (tipo doc. ' || "HV_ID_Catalogo_Tipo_Documento" || ')';
+
+        UPDATE "CAF_Persona_Externa"
+           SET "ID_Catalogo_Tipo_Documento" = "HV_ID_Catalogo_Tipo_Documento",
+               "Apellido_Paterno" = lv_ap, "Apellido_Materno" = lv_am, "Nombres" = lv_no,
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Persona_Externa" = lv_ext;
+
+        CALL "ERP_CAF_SOLICITUD_VERSION_GUARDAR"(lv_sol, "HV_UsuarioID", lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'version: %', lv_m; END IF;
+        CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD_PERSONA', "HV_ID_Solicitud_Persona", lv_sol, 'CORREGIR_EMERGENCIA',
+             'Antes: ' || lv_antes || ' · Ahora: ' || lv_desp || ' · Emergencia: ' || lv_sus, "HV_UsuarioID", lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
+
+        SELECT U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" INTO lv_quien
+          FROM "CAF_GOVERNANCE"."Usuario" U WHERE U."ID_Usuario" = "HV_UsuarioID";
+
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(lv_sol, 'SOLICITANTE', NULL, lv_dest, lv_c, lv_m);
+        CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(lv_sol, 'PORTERIA', NULL, lv_dest2, lv_c, lv_m);
+        lv_dest := CASE WHEN lv_dest IS NULL THEN lv_dest2 WHEN lv_dest2 IS NULL THEN lv_dest ELSE lv_dest || '; ' || lv_dest2 END;
+        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_CORRECCION', lv_sol, lv_dest,
+             "ERP_CAF_FN_COPIA_CORREO"(lv_sol, 'N', 'Y', 'N', 'Y'),
+             'Corrección de emergencia en ' || lv_codsol || ': se corrigieron los datos de una persona',
+             'CORRECCIÓN DE EMERGENCIA' || CHR(10)
+             || 'En la solicitud ' || lv_codsol || ' se corrigieron los datos de una persona (el documento ' || lv_doc || ' no cambia).' || CHR(10)
+             || 'Antes: ' || lv_antes || CHR(10)
+             || 'Ahora: ' || lv_desp || CHR(10)
+             || 'Sustento: ' || lv_sus || CHR(10)
+             || 'Registrado por: ' || COALESCE(lv_quien, 'el Coordinador') || '.',
+             "HV_UsuarioID", lv_c, lv_m);
+
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Datos de la persona corregidos por emergencia.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_PERSONA_CORREGIR_EMERGENCIA';
     END;
 END;
 $$;

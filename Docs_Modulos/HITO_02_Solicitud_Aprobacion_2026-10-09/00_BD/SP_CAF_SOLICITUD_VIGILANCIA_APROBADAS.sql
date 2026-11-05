@@ -11,8 +11,9 @@
 --           Mismas columnas que ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR. Máximo 500 filas.
 --           Sirve para consultar; el ingreso y la salida solo se registran el día de la visita.
 -- =============================================================================
+DROP FUNCTION IF EXISTS "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"(BIGINT, BIGINT, DATE, DATE, VARCHAR);
 CREATE OR REPLACE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint DEFAULT NULL::bigint, "HV_Fecha_Desde" date DEFAULT NULL::date, "HV_Fecha_Hasta" date DEFAULT NULL::date, "HV_Texto" character varying DEFAULT NULL::character varying)
- RETURNS TABLE("ID_Solicitud_Persona" bigint, "ID_Solicitud" bigint, "Codigo" character varying, "ID_Catalogo_Sede" bigint, "Fecha_Hora_Prevista" timestamp without time zone, "Empresa_Visitante" character varying, "Responsable_Nombre" character varying, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Estado" character varying, "Grupo" character varying, "Fecha_Hora_Ingreso" timestamp without time zone, "Fecha_Hora_Salida" timestamp without time zone, "Acceso_Restringido" character, "Trae_Equipos" character, "Trae_Herramientas" character, "Exige_SCTR" character, "Exige_EPP" character, "Zonas_Nombres" character varying)
+ RETURNS TABLE("ID_Solicitud_Persona" bigint, "ID_Solicitud" bigint, "Codigo" character varying, "ID_Catalogo_Sede" bigint, "Fecha_Hora_Prevista" timestamp without time zone, "Empresa_Visitante" character varying, "Responsable_Nombre" character varying, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Estado" character varying, "Grupo" character varying, "Fecha_Hora_Ingreso" timestamp without time zone, "Fecha_Hora_Salida" timestamp without time zone, "Acceso_Restringido" character, "Trae_Equipos" character, "Trae_Herramientas" character, "Exige_SCTR" character, "Exige_EPP" character, "Zonas_Nombres" character varying, "Es_Proveedor" character, "Estado_Operativo" character varying, "Disponibilidad_Confirmada" character)
  LANGUAGE plpgsql
  STABLE
  SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
@@ -37,7 +38,8 @@ BEGIN
            CAST((SELECT STRING_AGG(ZA."Descripcion", ', ' ORDER BY ZA."Orden", ZA."ID_Catalogo_Zona_Acceso")
                    FROM "CAF_Solicitud_Zona" Z
                    JOIN "Catalogo_Zona_Acceso" ZA ON ZA."ID_Catalogo_Zona_Acceso" = Z."ID_Catalogo_Zona_Acceso"
-                  WHERE Z."ID_Solicitud" = S."ID_Solicitud" AND Z."Eliminado" = 'N') AS VARCHAR)
+                  WHERE Z."ID_Solicitud" = S."ID_Solicitud" AND Z."Eliminado" = 'N') AS VARCHAR),
+           CAST('N' AS CHAR(1)), CAST(NULL AS VARCHAR), CAST('N' AS CHAR(1))   -- los proveedores no aparecen aquí
       FROM "CAF_Solicitud" S
       JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
