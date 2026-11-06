@@ -17,6 +17,7 @@ namespace Infrastructure.Contracts.ControlAccesos;
 public interface IRepo_Solicitud
 {
     Task<Result<List<string>>> EmpresasBuscarAsync(string? texto, CancellationToken ct = default);
+    Task<Result<List<Dto_Correo_Sugerido>>> CorreosSugerirAsync(string? texto, CancellationToken ct = default);
     /// <summary>Tipos de ingreso activos para el selector (el tipo Proveedor solo se ofrece a quien tiene la licencia de solicitante de proveedores).</summary>
     Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(long usuarioId, CancellationToken ct = default);
     /// <summary>Sedes donde el usuario puede crear solicitudes, con la marca de cochera.</summary>

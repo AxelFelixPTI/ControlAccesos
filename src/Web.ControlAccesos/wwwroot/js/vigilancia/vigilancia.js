@@ -6,7 +6,7 @@
     var raiz = document.getElementById('caf-vig');
     if (!raiz) return;
     var el = CAF.el, d = raiz.dataset, puede = d.puedeRegistrar === 'Y', puedeInc = d.puedeIncidencia === 'Y', puedeProv = d.puedeProveedor === 'Y';
-    var todas = [], grupo = 'TODOS', texto = '', temporizador = null, secuencia = 0, modo = 'HOY', hayLimite = false;
+    var todas = [], brutas = [], grupo = 'TODOS', texto = '', temporizador = null, secuencia = 0, modo = 'HOY', hayLimite = false;
     var modos = document.getElementById('v-modos'), desde = document.getElementById('v-desde'), hasta = document.getElementById('v-hasta');
     var cajaTexto = document.getElementById('v-texto'), pills = document.getElementById('v-pills');
     var panelNoAut = document.getElementById('v-noaut'), bloques = document.getElementById('v-bloques');
@@ -26,6 +26,10 @@
     function docTexto(p) { return (p.tipoDoc ? p.tipoDoc + ' ' : '') + (p.doc || ''); }
 
     // ── Lista ────────────────────────────────────────────────────────────────────────────────
+    // Filtro por tipo de solicitud (solo en pantalla): `brutas` es lo que llegó, `todas` lo que pasa el filtro.
+    var ftipos = SOL.filtroTipos('vigilancia', cajaTexto.closest('section') || cajaTexto.parentNode, function () { aplicarTipos(); });
+    function aplicarTipos() { todas = brutas.filter(function (p) { return ftipos.pasa(p.tipo); }); pintar(); }
+
     function pintarModos() {
         modos.textContent = '';
         [['HOY', 'Hoy'], ['APROBADAS', 'Aprobadas (todas las fechas)']].forEach(function (m) {
@@ -38,21 +42,22 @@
 
     function cambiarModo(m) {
         if (m === modo) return;
-        modo = m; grupo = 'TODOS'; todas = []; panelNoAut.hidden = true;
+        modo = m; grupo = 'TODOS'; todas = []; brutas = []; panelNoAut.hidden = true;
         if (modo === 'APROBADAS' && !desde.value) desde.value = SOL.hoy();
         pintarModos(); cargar();
     }
 
-    function cargar() {
+    function cargar(silencioso) {
         var mi = ++secuencia;
         var apr = modo === 'APROBADAS';
         var url = apr ? d.urlAprobadas + '?texto=' + encodeURIComponent(texto) + '&desde=' + desde.value + '&hasta=' + hasta.value : d.urlLista + '?texto=' + encodeURIComponent(texto);
         return CAF.pedir(url).then(function (r) {
             if (mi !== secuencia) return;
-            if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
-            todas = r.data; hayLimite = !!r.limite;
-            pintar();
-            if (!apr && !todas.length && texto.trim().length >= 3) buscarNoAutorizada(mi); else panelNoAut.hidden = true;
+            if (!r.success) { if (!silencioso) CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
+            brutas = r.data; hayLimite = !!r.limite;
+            ftipos.registrar(brutas.map(function (p) { return p.tipo; }));
+            aplicarTipos();
+            if (!apr && !brutas.length && texto.trim().length >= 3) buscarNoAutorizada(mi); else panelNoAut.hidden = true;
         });
     }
 
@@ -134,9 +139,10 @@
             else if (op === 'INGRESO' || op === 'EN_ATENCION') extra = chip(op === 'INGRESO' ? 'Dentro · espera atención de Almacén' : 'En atención de Almacén', 'c-obs');
             else if (op === 'RECEPCIONADO') extra = chip('Recepción culminada · falta su salida', 'c-par');
             else if (op === 'RETIRO_SIN_INGRESO') extra = chip('Se retiró sin ingresar', 'c-can');
+            else if (op === 'CIERRE_FORZADO') extra = chip('Cerrada por el sistema · falta registrar su salida', 'c-rec');
         }
         if (!prov && puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
-        if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || p.estadoOp === 'RECEPCIONADO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
+        if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || p.estadoOp === 'RECEPCIONADO' || p.estadoOp === 'CIERRE_FORZADO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: p.estadoOp === 'CIERRE_FORZADO' ? 'Registrar salida (tardía)' : 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
         if (puedeInc && !soloLectura && (p.estado === 'DENTRO' || p.estado === 'SALIO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger', text: 'Registrar incidencia', onclick: function () {
             // El Coordinador registra en la pantalla única de Incidencias, con la persona ya elegida (queda confirmada directamente).
             if (d.esCoordinador === 'Y') { window.location.href = d.urlIncidencias + '?persona=' + encodeURIComponent(p.id) + '&nombre=' + encodeURIComponent(p.nombre); return; }
@@ -470,6 +476,20 @@
         });
     }
 
+    // Acceso directo desde el calendario de proveedores: abre la acción que toca de esa entrega (la misma ventana de siempre, con su checklist).
+    var directa = new URLSearchParams(location.search).get('solicitud');
+    function abrirDirecta(id) {
+        var p = brutas.filter(function (x) { return String(x.solicitudId) === id && x.esProveedor; })[0];
+        if (!p) { CAF.aviso('Esa entrega no está en la lista de hoy: solo se atiende el día programado.', 'warn'); return; }
+        var op = p.estadoOp;
+        if (puede && op === 'PROGRAMADO') movimiento(p, 'INGRESO', true);
+        else if (puedeProv && op === 'EN_ESPERA' && p.almacenListo) validarIngreso(p);
+        else if (puede && p.estado === 'DENTRO' && (op === 'RECEPCIONADO' || op === 'CIERRE_FORZADO')) movimiento(p, 'SALIDA');
+        else CAF.aviso(op === 'EN_ESPERA' ? 'Almacén aún no confirmó su disponibilidad: todavía no se puede validar el ingreso.' : 'Por ahora no hay una acción de Vigilancia para esa entrega.', 'warn');
+    }
+
     pintarModos();
-    cargar();
+    cargar().then(function () { if (directa && /^\d+$/.test(directa)) { history.replaceState(null, '', location.pathname); abrirDirecta(directa); } });
+    // Refresco automático cada 10 s (sin ventanas abiertas y sin pisar lo que se está escribiendo en el buscador).
+    CAF.autoRefrescar(function () { if (document.activeElement !== cajaTexto) cargar(true); }, 10);
 })();

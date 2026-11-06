@@ -22,6 +22,7 @@
         RECEPCIONADO: ['Recepción culminada', 'st-rec', 'st-rec', 'Almacén terminó; sigue dentro hasta que Vigilancia registre su salida.'],
         SALIO: ['Salió', 'st-sal', 'st-sal', 'Entrega cerrada.'],
         NO_SE_PRESENTO: ['No se presentó', 'st-nop', 'st-nop', 'No llegó en el día.'],
+        CIERRE_FORZADO: ['Cierre forzado', 'st-cie', 'st-cie', 'El día terminó sin registrar su salida: el sistema la cerró y liberó la exclusa.'],
         INGRESO_DENEGADO: ['Ingreso denegado', 'st-den', 'st-den', 'El coordinador denegó su ingreso en la verificación.'],
         RETIRO_SIN_INGRESO: ['Retiró sin ingresar', 'st-ret', 'st-ret', 'Fue verificado pero se retiró sin ingresar (lo registra Vigilancia).']
     };
@@ -253,7 +254,54 @@
         if (tiempos.length) c.appendChild(el('div', { class: 'pv-tiempos', text: tiempos.join(' · ') }));
         var acc = acciones(e);
         if (acc) c.appendChild(acc);
+        var ir = enlaces(e);
+        if (ir) c.appendChild(ir);
         return c;
+    }
+
+    // Accesos directos a las pantallas originales, donde se hace el trabajo con sus propias reglas. Cada pantalla abre la entrega ya aplicada.
+    function enlaces(e) {
+        var l = [];
+        var pie = null;
+        if (d.puedeSolicitar === 'Y' && e.esMia) {
+            // Los mismos botones de la solicitud: Ver, Duplicar y Cancelar (solo mientras la entrega siga PROGRAMADA).
+            l.push(['Ver solicitud', d.urlSolDetalle.replace('__ID__', e.id), 'Abre el detalle de su solicitud']);
+            l.push(['Duplicar', d.urlSolNueva + '?reutilizar=' + e.id, 'Crea una solicitud nueva a partir de esta']);
+            pie = e;
+        }
+        if (d.puedeCoordinar === 'Y') l.push([e.estado === 'PROGRAMADO' ? 'Revisar / emergencia' : 'Ver en Coordinación', d.urlCoord + '?solicitud=' + e.id, e.estado === 'PROGRAMADO' ? 'Abre la solicitud para revisarla o corregir personas en emergencia' : 'Abre la solicitud (con la entrega ya en curso solo se consulta)']);
+        if (d.puedeVigilar === 'Y') {
+            var t = { PROGRAMADO: 'Verificar datos', EN_ESPERA: 'Validar ingreso', RECEPCIONADO: 'Registrar salida', CIERRE_FORZADO: 'Registrar salida (tardía)' }[e.estado];
+            if (t) l.push([t, d.urlVig + '?solicitud=' + e.id, 'Abre Control de accesos con esta entrega']);
+        }
+        if (!l.length) return null;
+        var caja = el('div', { class: 'pv-ir' }, l.map(function (x) { return el('a', { class: 'btn btn-sm', href: x[1], text: x[0], title: x[2] }); }));
+        if (pie) {
+            var bc = el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar' });
+            if (e.puedeCancelarSol) bc.addEventListener('click', function () { modalCancelarSolicitud(e); });
+            else { bc.disabled = true; bc.classList.add('is-off'); bc.title = e.motivoNoCancelarSol || 'No se puede cancelar'; }
+            caja.appendChild(bc);
+        }
+        return caja;
+    }
+
+    // Cancelar la solicitud (la misma confirmación y regla de «Mis solicitudes»; la base vuelve a validar).
+    function modalCancelarSolicitud(e) {
+        var motivo = el('textarea', { rows: '2', maxlength: '300', placeholder: 'Motivo (opcional)' });
+        var err = el('p', { class: 'field-e' });
+        var cuerpo = el('div', { class: 'stack' }, [el('p', { text: '¿Cancelar la solicitud ' + e.codigo + '? Sus invitados ya no podrán ingresar con ella.' }), motivo, err]);
+        var env = false;
+        CAF.modal('Cancelar solicitud', cuerpo, [
+            { texto: 'Volver', onclick: function (c) { c(); } },
+            { texto: 'Cancelar solicitud', tipo: 'primary', onclick: function (c) {
+                if (env) return; env = true;
+                CAF.pedir(d.urlSolCancelar, { method: 'POST', body: { solicitudId: e.id, motivo: motivo.value } }).then(function (r) {
+                    env = false;
+                    if (!r.success) { err.textContent = (r.errors && r.errors[0] && r.errors[0].message) || r.message || 'No se pudo cancelar.'; return; }
+                    c(); CAF.aviso('Solicitud cancelada.'); cargar(true);
+                });
+            } }
+        ]);
     }
 
     function acciones(e) {
@@ -382,9 +430,8 @@
     document.getElementById('pv-sig').addEventListener('click', function () { navegar(1); });
     document.getElementById('pv-hoy').addEventListener('click', irHoy);
     document.getElementById('pv-act').addEventListener('click', function () { cargar().then(function () { CAF.aviso('Calendario actualizado.'); }); });
-    // Sin tiempo real (IIS/WebSocket sin confirmar): se vuelve a consultar cada minuto mientras la pestaña está a la vista.
-    setInterval(function () { if (!document.hidden && ancla) cargar(true); }, 60000);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && ancla) cargar(true); });
+    // Sin tiempo real (IIS/WebSocket sin confirmar): se vuelve a consultar cada 10 s mientras la pestaña está a la vista y sin ventanas abiertas.
+    CAF.autoRefrescar(function () { if (ancla) cargar(true); }, 10);
     pintarVistas(); pintarFiltros(); pintarLeyenda();
     cargar();
 })();

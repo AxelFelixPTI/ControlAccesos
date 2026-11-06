@@ -163,4 +163,26 @@ public sealed class Srv_Porteria : ISrv_Porteria
         }
     }
 
+    public Task<Result<long>> ProveedorCierreDiaAsync(long usuarioId, CancellationToken ct = default)
+        => Contar("CIERRE_DIA Proveedor", () => _repo.ProveedorCierreDiaAsync(usuarioId, ct));
+
+    public Task<Result<long>> ProveedorAvisosSalidaAsync(long usuarioId, CancellationToken ct = default)
+        => Contar("AVISOS_SALIDA Proveedor", () => _repo.ProveedorAvisosSalidaAsync(usuarioId, ct));
+
+    private async Task<Result<long>> Contar(string etiqueta, Func<Task<ResultSp<long>>> llamada)
+    {
+        try
+        {
+            var sp = await llamada().ConfigureAwait(false);
+            return sp.Ok
+                ? Result<long>.Ok(sp.Data!, sp.Mensaje)
+                : Result<long>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{Etiqueta} ERROR", etiqueta);
+            return Result<long>.Fail(ex.Message);
+        }
+    }
+
 }

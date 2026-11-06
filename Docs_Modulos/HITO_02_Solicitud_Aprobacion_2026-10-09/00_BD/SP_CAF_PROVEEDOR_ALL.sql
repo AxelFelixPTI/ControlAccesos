@@ -210,7 +210,7 @@ DECLARE
     lv_eop    VARCHAR(20);
     lv_debe   CHAR(1);
 BEGIN
-    -- V1.0 2026-11-02
+    -- V1.1 2026-11-06: perder la aprobación también desactiva una entrega EN_ESPERA (vuelve a PROGRAMADO)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_SINCRONIZAR';
     BEGIN
@@ -241,12 +241,20 @@ BEGIN
              WHERE "ID_Solicitud" = "HV_ID_Solicitud";
             INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
             VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'Reactivada: transportista principal aprobado');
-        ELSIF lv_debe = 'N' AND lv_act = 'Y' AND lv_eop = 'PROGRAMADO' THEN
-            UPDATE "CAF_Solicitud_Operacion" SET "Activa" = 'N', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+        ELSIF lv_debe = 'N' AND lv_act = 'Y' AND lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN
+            -- D-220: antes del ingreso físico, perder la aprobación saca la entrega del calendario y de Vigilancia hasta que se
+            -- apruebe de nuevo. Si ya estaba verificada (EN_ESPERA) vuelve a PROGRAMADO: los datos pueden haber cambiado y deben verificarse otra vez.
+            UPDATE "CAF_Solicitud_Operacion"
+               SET "Activa" = 'N', "Estado_Operativo" = 'PROGRAMADO',
+                   "Fecha_Llegada" = CASE WHEN lv_eop = 'EN_ESPERA' THEN NULL ELSE "Fecha_Llegada" END,
+                   "Fecha_Disponibilidad" = NULL, "ID_Usuario_Disponibilidad" = NULL,
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
              WHERE "ID_Solicitud" = "HV_ID_Solicitud";
             INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
-            VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID",
-                    CASE WHEN lv_estado = 'CANCELADA' THEN 'Desactivada: solicitud cancelada' ELSE 'Desactivada: el transportista principal ya no está aprobado' END);
+            VALUES ("HV_ID_Solicitud", lv_eop, 'PROGRAMADO', "HV_UsuarioID",
+                    CASE WHEN lv_estado = 'CANCELADA' THEN 'Desactivada: solicitud cancelada'
+                         WHEN lv_eop = 'EN_ESPERA' THEN 'Desactivada: el transportista principal ya no está aprobado; deberá verificarse de nuevo'
+                         ELSE 'Desactivada: el transportista principal ya no está aprobado' END);
         END IF;
         -- Si la entrega deja de estar aprobada o se cancela antes del ingreso, se libera su reserva de la esclusa
         IF lv_debe = 'N' AND COALESCE(lv_eop, 'PROGRAMADO') IN ('PROGRAMADO','EN_ESPERA') THEN
@@ -311,6 +319,7 @@ BEGIN
                         lv_msg := CASE WHEN lv_eop = 'EN_ESPERA' THEN 'Los datos del proveedor ya fueron verificados: espere la disponibilidad de Almacén y valide el ingreso.'
                                        WHEN lv_eop = 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
                                        WHEN lv_eop = 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
+                                       WHEN lv_eop IN ('CIERRE_FORZADO','NO_SE_PRESENTO') THEN 'La entrega fue cerrada al terminar su día.'
                                        ELSE 'El transportista principal ya ingresó.' END;
                     ELSIF CAST(lv_prev AS DATE) <> CURRENT_DATE THEN
                         lv_cod := 409; lv_msg := 'La entrega es para otra fecha.';
@@ -321,7 +330,7 @@ BEGIN
             ELSIF lv_eop NOT IN ('INGRESO','EN_ATENCION','RECEPCIONADO') THEN
                 lv_cod := 409; lv_msg := 'Primero debe ingresar el transportista principal.';
             END IF;
-        ELSIF UPPER(COALESCE("HV_Etapa", '')) = 'SALIDA' AND lv_prin = 'Y' AND lv_eop NOT IN ('RECEPCIONADO','SALIO') THEN
+        ELSIF UPPER(COALESCE("HV_Etapa", '')) = 'SALIDA' AND lv_prin = 'Y' AND lv_eop NOT IN ('RECEPCIONADO','SALIO','CIERRE_FORZADO') THEN
             lv_cod := 409; lv_msg := 'El transportista principal sale cuando Almacén recepciona la entrega.';
         END IF;
     END IF;
@@ -352,8 +361,13 @@ DECLARE
     lv_c    INT;
     lv_m    VARCHAR(250);
     lv_desv CHAR(1) := 'N';
+    lv_cod  VARCHAR(20);
+    lv_emp  VARCHAR(500);
+    lv_fp   VARCHAR(20);
+    lv_quien VARCHAR(400);
+    lv_dest VARCHAR(2000);
 BEGIN
-    -- V2.0 2026-11-03
+    -- V2.1 2026-11-06 (D-218: salida tardía tras un cierre forzado)
     "HV_Codigo_Resp" := 100;
     "HV_Mensaje"     := 'No aplica.';
     IF "ERP_CAF_FN_ES_PROVEEDOR"("HV_ID_Solicitud_Persona") <> 'Y' THEN RETURN; END IF;
@@ -401,6 +415,25 @@ BEGIN
                SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
                    "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
              WHERE "ID_Solicitud_Actual" = lv_sol;
+        ELSIF lv_den = 0 AND lv_eop = 'CIERRE_FORZADO' THEN
+            -- D-218: salida registrada tarde, sobre una entrega que el sistema ya había cerrado. La exclusa ya está libre.
+            -- Es un descuido de Vigilancia: se avisa al Coordinador para que tome las medidas que correspondan.
+            CALL "ERP_CAF_PROVEEDOR_MOVER"(lv_sol, 'SALIO', "HV_UsuarioID", NULL, 'Salida registrada tarde: la entrega se había cerrado a la fuerza', NULL, lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
+            SELECT S."Codigo", S."Empresa_Visitante", TO_CHAR(S."Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') INTO lv_cod, lv_emp, lv_fp
+              FROM "CAF_Solicitud" S WHERE S."ID_Solicitud" = lv_sol;
+            SELECT U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" INTO lv_quien
+              FROM "CAF_GOVERNANCE"."Usuario" U WHERE U."ID_Usuario" = "HV_UsuarioID";
+            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(lv_sol, 'APROBADORES', NULL, lv_dest, lv_c, lv_m);
+            IF lv_dest IS NOT NULL AND LENGTH(lv_dest) > 0 THEN
+                CALL "ERP_CAF_CORREO_ENCOLAR"('PROVEEDOR_AVISO', lv_sol, lv_dest, NULL,
+                     'Salida tardía de proveedor en ' || lv_cod || ': Vigilancia no la registró a tiempo',
+                     'SALIDA REGISTRADA FUERA DE TIEMPO' || CHR(10)
+                     || 'La entrega ' || lv_cod || ' (' || COALESCE(lv_emp, '') || ', programada el ' || lv_fp || ') no tenía registrada su salida al terminar el día, por lo que el sistema la cerró y liberó la exclusa.' || CHR(10)
+                     || 'Vigilancia registró la salida después: ' || COALESCE(lv_quien, 'un vigilante') || '.' || CHR(10)
+                     || 'Se informa para que tome las medidas que correspondan.',
+                     "HV_UsuarioID", lv_c, lv_m);
+            END IF;
         END IF;
     END IF;
     "HV_Mensaje" := 'Estado operativo revisado.';
@@ -710,6 +743,187 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
         "HV_Codigo_Resp" := 500;
         "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_RECEPCION';
+    END;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 10. ERP_CAF_PARAMETRO_VALOR / ERP_CAF_PARAMETRO_GUARDAR   (D-218)
+--     Parámetros del sistema (clave/valor). Hoy: PROVEEDOR_HORA_CORTE (HH:MM, por defecto 00:00).
+--     GUARDAR solo la usa quien administra la base (no hay pantalla todavía): valida el formato de la hora.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_PARAMETRO_VALOR"("HV_Clave" VARCHAR)
+RETURNS VARCHAR
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_v VARCHAR;
+BEGIN
+    -- V1.0 2026-11-06
+    SELECT "Valor" INTO lv_v FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N';
+    RETURN lv_v;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PARAMETRO_GUARDAR"(
+    IN    "HV_Clave"       VARCHAR(60),
+    IN    "HV_Valor"       VARCHAR(200),
+    IN    "HV_UsuarioID"   BIGINT,
+    INOUT "HV_Codigo_Resp" INT DEFAULT NULL,
+    INOUT "HV_Mensaje"     VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_n INT := 0;
+BEGIN
+    -- V1.0 2026-11-06
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_PARAMETRO_GUARDAR';
+    BEGIN
+        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N';
+        IF lv_n = 0 THEN
+            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El parámetro no existe.'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'PROVEEDOR_HORA_CORTE' AND COALESCE("HV_Valor", '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La hora de corte debe tener el formato HH:MM (de 00:00 a 23:59).'; RETURN;
+        END IF;
+        UPDATE "CAF_Parametro" SET "Valor" = "HV_Valor", "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "Clave" = "HV_Clave";
+        "HV_Codigo_Resp" := 100; "HV_Mensaje" := 'Parámetro guardado.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500; "HV_Mensaje" := 'Error interno en ERP_CAF_PARAMETRO_GUARDAR';
+    END;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 11. ERP_CAF_PROVEEDOR_CIERRE_DIA   (D-218)
+--     Cierre forzado del día. Idempotente y barato: la llaman el servicio en segundo plano cada minuto y,
+--     como red de seguridad, el calendario, la lista de Vigilancia y «Confirmar disponibilidad».
+--     Día operativo = fecha de (ahora − hora de corte). Toda entrega activa cuya fecha prevista sea ANTERIOR
+--     al día operativo y siga abierta se cierra:
+--       PROGRAMADO                                        -> NO_SE_PRESENTO
+--       EN_ESPERA, INGRESO, EN_ATENCION, RECEPCIONADO     -> CIERRE_FORZADO
+--     Se libera la exclusa si la tenía, y las personas que seguían ESPERADAS pasan a NO_SE_PRESENTO. Quien ya
+--     estaba DENTRO sigue DENTRO: Vigilancia aún puede registrar su salida (queda como salida tardía y avisa al Coordinador).
+--     Todo en sentencias de conjunto (sin ciclos), y queda en el historial operativo como acción del sistema.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_CIERRE_DIA"(
+    IN    "HV_UsuarioID"   BIGINT,
+    INOUT "HV_Cerradas"    INT DEFAULT NULL,
+    INOUT "HV_Codigo_Resp" INT DEFAULT NULL,
+    INOUT "HV_Mensaje"     VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_corte VARCHAR(10);
+    lv_dia   DATE;
+BEGIN
+    -- V1.0 2026-11-06
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_CIERRE_DIA';
+    "HV_Cerradas"    := 0;
+    BEGIN
+        lv_corte := COALESCE("ERP_CAF_PARAMETRO_VALOR"('PROVEEDOR_HORA_CORTE'), '00:00');
+        lv_dia   := CAST(CAST(CURRENT_TIMESTAMP AS TIMESTAMP) - CAST(lv_corte AS INTERVAL) AS DATE);
+
+        CREATE TEMP TABLE IF NOT EXISTS "tmp_cierre_dia" ("ID_Solicitud" BIGINT, "Anterior" VARCHAR(20), "Nuevo" VARCHAR(20)) ON COMMIT DROP;
+        DELETE FROM "tmp_cierre_dia";
+        INSERT INTO "tmp_cierre_dia" ("ID_Solicitud", "Anterior", "Nuevo")
+        SELECT O."ID_Solicitud", O."Estado_Operativo",
+               CASE WHEN O."Estado_Operativo" = 'PROGRAMADO' THEN 'NO_SE_PRESENTO' ELSE 'CIERRE_FORZADO' END
+          FROM "CAF_Solicitud_Operacion" O
+          JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud"
+         WHERE O."Activa" = 'Y' AND O."Eliminado" = 'N'
+           AND O."Estado_Operativo" IN ('PROGRAMADO','EN_ESPERA','INGRESO','EN_ATENCION','RECEPCIONADO')
+           AND CAST(S."Fecha_Hora_Prevista" AS DATE) < lv_dia;
+        SELECT COUNT(*) INTO "HV_Cerradas" FROM "tmp_cierre_dia";
+
+        IF "HV_Cerradas" > 0 THEN
+            UPDATE "CAF_Exclusa"
+               SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud_Actual" IN (SELECT "ID_Solicitud" FROM "tmp_cierre_dia");
+            UPDATE "CAF_Solicitud_Persona"
+               SET "Estado" = 'NO_SE_PRESENTO', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud" IN (SELECT "ID_Solicitud" FROM "tmp_cierre_dia") AND "Eliminado" = 'N' AND "Estado" = 'ESPERADA';
+            INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
+            SELECT T."ID_Solicitud", T."Anterior", T."Nuevo", "HV_UsuarioID",
+                   'Cierre automático del día (hora de corte ' || lv_corte || ')' FROM "tmp_cierre_dia" T;
+            UPDATE "CAF_Solicitud_Operacion" O
+               SET "Estado_Operativo" = T."Nuevo", "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+              FROM "tmp_cierre_dia" T WHERE O."ID_Solicitud" = T."ID_Solicitud";
+        END IF;
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Cierre del día revisado.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_CIERRE_DIA';
+    END;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 12. ERP_CAF_PROVEEDOR_AVISOS_SALIDA   (D-218)
+--     Aviso por correo a Vigilancia (copia a Almacén) de cada entrega RECEPCIONADA (la exclusa sigue ocupada,
+--     «por salir») cuya salida no se registró: el primero a la hora de recibida y luego uno por hora. Dice
+--     cuándo se cerrará a la fuerza. La llama el servicio en segundo plano cada minuto; no repite antes de una hora.
+--     OJO HANA (T-33): usa un ciclo FOR; en HANA se recorre desde la aplicación o con una tabla temporal.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_AVISOS_SALIDA"(
+    IN    "HV_UsuarioID"   BIGINT,
+    INOUT "HV_Avisados"    INT DEFAULT NULL,
+    INOUT "HV_Codigo_Resp" INT DEFAULT NULL,
+    INOUT "HV_Mensaje"     VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    r        RECORD;
+    lv_corte VARCHAR(10);
+    lv_dest  VARCHAR(2000);
+    lv_copia VARCHAR(2000);
+    lv_c     INT;
+    lv_m     VARCHAR(250);
+    lv_hrs   INT;
+BEGIN
+    -- V1.0 2026-11-06
+    "HV_Codigo_Resp" := 500;
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_AVISOS_SALIDA';
+    "HV_Avisados"    := 0;
+    BEGIN
+        lv_corte := COALESCE("ERP_CAF_PARAMETRO_VALOR"('PROVEEDOR_HORA_CORTE'), '00:00');
+        FOR r IN
+            SELECT O."ID_Solicitud", S."Codigo", S."Empresa_Visitante", O."Fecha_Recepcion"
+              FROM "CAF_Solicitud_Operacion" O
+              JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud"
+             WHERE O."Activa" = 'Y' AND O."Eliminado" = 'N' AND O."Estado_Operativo" = 'RECEPCIONADO'
+               AND O."Fecha_Recepcion" <= CURRENT_TIMESTAMP - INTERVAL '1 hour'
+               AND (O."Ultimo_Aviso_Salida" IS NULL OR O."Ultimo_Aviso_Salida" <= CURRENT_TIMESTAMP - INTERVAL '1 hour')
+             ORDER BY O."ID_Solicitud"
+        LOOP
+            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(r."ID_Solicitud", 'PORTERIA', NULL, lv_dest, lv_c, lv_m);
+            CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"(r."ID_Solicitud", 'ALMACEN', NULL, lv_copia, lv_c, lv_m);
+            lv_hrs := CAST(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - r."Fecha_Recepcion")) / 3600 AS INT);
+            IF lv_dest IS NOT NULL AND LENGTH(lv_dest) > 0 THEN
+                CALL "ERP_CAF_CORREO_ENCOLAR"('PROVEEDOR_AVISO', r."ID_Solicitud", lv_dest, lv_copia,
+                     'Salida pendiente: ' || r."Codigo" || ' sigue con la exclusa ocupada',
+                     'SALIDA PENDIENTE' || CHR(10)
+                     || 'La entrega ' || r."Codigo" || ' (' || COALESCE(r."Empresa_Visitante", '') || ') fue recepcionada a las ' || TO_CHAR(r."Fecha_Recepcion", 'HH24:MI')
+                     || ' (hace ' || lv_hrs || ' h) y su salida no está registrada: la exclusa sigue ocupada y no puede usarla otro proveedor.' || CHR(10)
+                     || 'Registre la salida en Control de accesos. Si sigue abierta al llegar la hora de corte (' || lv_corte || '), el sistema cerrará la entrega a la fuerza y avisará al Coordinador.',
+                     "HV_UsuarioID", lv_c, lv_m);
+                IF lv_c <> 100 THEN RAISE EXCEPTION 'correo: %', lv_m; END IF;
+                "HV_Avisados" := "HV_Avisados" + 1;
+            END IF;
+            UPDATE "CAF_Solicitud_Operacion" SET "Ultimo_Aviso_Salida" = CURRENT_TIMESTAMP WHERE "ID_Solicitud" = r."ID_Solicitud";
+        END LOOP;
+        "HV_Codigo_Resp" := 100;
+        "HV_Mensaje"     := 'Avisos de salida revisados.';
+    EXCEPTION WHEN OTHERS THEN
+        "HV_Codigo_Resp" := 500;
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_AVISOS_SALIDA';
     END;
 END;
 $$;

@@ -56,6 +56,12 @@ nav{padding:6px 12px;display:flex;flex-direction:column;gap:4px;flex:1}
 .field-l{font-size:13px;font-weight:600;color:var(--muted)}.field-h{font-size:12px;color:var(--faint)}.field-e,.err{font-size:13px;color:var(--dang-ink);font-weight:500}
 input,select,textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--sf);border:1px solid var(--line2);border-radius:8px;min-height:44px;padding:0 12px;width:100%}
 input:disabled{background:var(--sf2);color:var(--muted);cursor:not-allowed}
+.filtro-tipos{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin:0 0 10px}
+.filtro-tipos[hidden]{display:none}
+.filtro-tipos .chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:14px}
+.filtro-tipos .chk input{width:18px;height:18px}
+.fila-destacada td{background:var(--par-bg);box-shadow:inset 0 0 0 1px var(--par-ink)}
+.chips-box{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--line2);border-radius:8px;background:var(--sf);padding:6px 8px;min-height:44px;cursor:text}.chips-box:focus-within{border-color:var(--teal)}.chips-box input{border:0;outline:0;min-height:30px;padding:0 4px;flex:1 1 160px;width:auto;background:transparent}.chips-box .chip{white-space:normal;word-break:break-all}.chips-box .chip .link{cursor:pointer;border:0;background:transparent;color:inherit;padding:0 2px}
 textarea{padding:10px 12px;resize:vertical}input[type=checkbox]{width:18px;height:18px;min-height:0;accent-color:var(--teal);flex:none;margin:0}
 input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-height:56px;font-size:19px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 16px;border-radius:9px;border:1px solid var(--line2);background:var(--sf);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}

@@ -24,4 +24,10 @@ public interface ISrv_Porteria
     Task<Result<Dto_Porteria_Registrado>> IngresoRegistrarAsync(Dto_Porteria_Ingreso dto, long usuarioId, CancellationToken ct = default);
     Task<Result<Dto_Porteria_Registrado>> SalidaRegistrarAsync(Dto_Porteria_Salida dto, long usuarioId, CancellationToken ct = default);
     Task<Result<long>> NoSePresentoMarcarAsync(DateTime? fechaCorte, long usuarioId, CancellationToken ct = default);
+
+    /// <summary>D-218: cierre forzado del día de proveedores (libera la exclusa). Devuelve cuántas entregas cerró.</summary>
+    Task<Result<long>> ProveedorCierreDiaAsync(long usuarioId, CancellationToken ct = default);
+
+    /// <summary>D-218: encola el aviso horario de salida pendiente a Vigilancia. Devuelve cuántos avisos encoló.</summary>
+    Task<Result<long>> ProveedorAvisosSalidaAsync(long usuarioId, CancellationToken ct = default);
 }

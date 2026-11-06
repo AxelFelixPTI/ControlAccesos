@@ -100,6 +100,7 @@ BEGIN
         IF lv_eop NOT IN ('PROGRAMADO','EN_ESPERA','INGRESO') THEN
             "HV_Codigo_Resp" := 409;
             "HV_Mensaje" := CASE WHEN lv_eop = 'NO_SE_PRESENTO' THEN 'La entrega figura como «no se presentó».'
+                                 WHEN lv_eop = 'CIERRE_FORZADO' THEN 'La entrega fue cerrada al terminar su día.'
                                  ELSE 'La atención ya se inició: el responsable programado no se cambia.' END; RETURN;
         END IF;
         IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
@@ -153,7 +154,8 @@ RETURNS TABLE ("Ocupada" CHAR, "Estado" VARCHAR, "ID_Solicitud" BIGINT, "Codigo"
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 BEGIN
-    -- V2.0 2026-11-03
+    -- V2.2 2026-11-06: + Puede_Cancelar_Sol / Motivo_No_Cancelar_Sol (botones propios de la solicitud en la tarjeta)
+    -- V2.1 2026-11-06: + Es_Solicitante (la solicitud es del usuario que consulta; habilita el acceso directo a «Mis solicitudes»)
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_DASHBOARD', "HV_ID_Catalogo_Sede") <> 'Y' THEN
         RETURN;
     END IF;
@@ -202,7 +204,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "Fecha_Recepcion" TIMESTAMP, "Fecha_Salida" TIMESTAMP, "Resultado_Recepcion" VARCHAR,
                "ID_Personal_Programado" BIGINT, "Programado_Nombre" VARCHAR, "Efectivo_Nombre" VARCHAR,
                "Puede_Programar" CHAR, "Puede_Confirmar" CHAR, "Puede_Cancelar_Disp" CHAR,
-               "Puede_Atender" CHAR, "Puede_Terminar" CHAR, "Motivo_Bloqueo" VARCHAR)
+               "Puede_Atender" CHAR, "Puede_Terminar" CHAR, "Motivo_Bloqueo" VARCHAR,
+               "Es_Solicitante" CHAR, "Puede_Cancelar_Sol" CHAR, "Motivo_No_Cancelar_Sol" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -252,7 +255,14 @@ BEGIN
            CAST(CASE WHEN O."Estado_Operativo" <> 'EN_ESPERA' OR lv_titular = S."ID_Solicitud" THEN NULL
                      WHEN CAST(S."Fecha_Hora_Prevista" AS DATE) <> CURRENT_DATE THEN 'Solo se confirma el día programado'
                      WHEN lv_titular IS NOT NULL THEN 'La exclusa está reservada para ' || COALESCE(lv_tcod, 'otra entrega')
-                     ELSE NULL END AS VARCHAR)
+                     ELSE NULL END AS VARCHAR),
+           CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID" THEN 'Y' ELSE 'N' END AS CHAR),
+           -- Cancelar la solicitud (solo su dueño): la regla es la de ERP_CAF_SOLICITUD_CANCELAR (sin ingresos y, en proveedor, solo PROGRAMADA)
+           CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID" AND O."Estado_Operativo" = 'PROGRAMADO'
+                          AND (SELECT IX."Cancelar" FROM "ERP_CAF_SOLICITUD_INDICADORES"(S."ID_Solicitud") IX) = 'Y' THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN S."ID_Usuario_Solicitante" <> "HV_UsuarioID" THEN NULL
+                     WHEN O."Estado_Operativo" <> 'PROGRAMADO' THEN 'La entrega ya está en curso o terminó: no se puede cancelar.'
+                     ELSE (SELECT IX."Motivo_Cancelar" FROM "ERP_CAF_SOLICITUD_INDICADORES"(S."ID_Solicitud") IX) END AS VARCHAR)
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
@@ -320,6 +330,7 @@ BEGIN
                                         WHEN 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
                                         WHEN 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
                                         WHEN 'NO_SE_PRESENTO' THEN 'La entrega figura como «no se presentó».'
+                                        WHEN 'CIERRE_FORZADO' THEN 'La entrega fue cerrada al terminar su día.'
                                         ELSE 'El proveedor ya ingresó.' END; RETURN;
         END IF;
         IF CAST(lv_fecha AS DATE) <> CURRENT_DATE THEN

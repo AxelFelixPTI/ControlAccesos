@@ -221,6 +221,21 @@ public sealed class Repo_Porteria : RepoHelpers, IRepo_Porteria
         return ResultSp<long>.Success(Convert.ToInt64(r.Data["HV_Cantidad_Result"] ?? 0L), r.Mensaje);
     }
 
+    public Task<ResultSp<long>> ProveedorCierreDiaAsync(long usuarioId, CancellationToken ct = default)
+        => ContarAsync("ERP_CAF_PROVEEDOR_CIERRE_DIA", "HV_Cerradas", usuarioId, ct);
+
+    public Task<ResultSp<long>> ProveedorAvisosSalidaAsync(long usuarioId, CancellationToken ct = default)
+        => ContarAsync("ERP_CAF_PROVEEDOR_AVISOS_SALIDA", "HV_Avisados", usuarioId, ct);
+
+    private async Task<ResultSp<long>> ContarAsync(string procedimiento, string columna, long usuarioId, CancellationToken ct)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn, procedimiento: procedimiento, columnasSalida: new[] { columna },
+            bind: p => AddLongReq(p, "HV_UsuarioID", usuarioId), ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<long>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<long>.Success(Convert.ToInt64(r.Data[columna] ?? 0L), r.Mensaje);
+    }
+
     /// <summary>Respuestas del checklist como texto «id:Y,id:N» (formato de las rutinas).</summary>
     private static string ItemsTexto(IEnumerable<Dto_Porteria_Respuesta>? items)
         => items is null ? string.Empty

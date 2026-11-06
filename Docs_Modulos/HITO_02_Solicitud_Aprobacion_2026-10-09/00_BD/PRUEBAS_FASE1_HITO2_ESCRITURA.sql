@@ -1051,6 +1051,68 @@ BEGIN
     PERFORM pg_temp.chk('Proveedor no se presentó: ya no se verifica', '409|', pg_temp.verif(pg_temp.sp(v_sd, v_q3), v_uvp), '');
     PERFORM pg_temp.chk('Proveedor no se presentó: la entrega en curso (EN_ESPERA) no se marca por error', 'SALIO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sb), '');
 
+    -- ===================================================== O2. CIERRE FORZADO DEL DÍA (D-218)
+    DECLARE v_sx BIGINT; v_px BIGINT; v_n INT; v_cz INT; v_csx VARCHAR(20); v_reg2 BIGINT; v_des2 BIGINT; v_res2 VARCHAR(30);
+    BEGIN
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Cierre Forzado S.A.', NULL, NULL, NULL, NULL, v_q3::TEXT, NULL, NULL, NULL, 'MNO345', NULL, NULL, '955444333', NULL, v_emp, '20333333333', 'Calle 3', 'Hino', 'Q33333333', v_q3, v_usp, v_sx, v_csx, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_sx, v_paso_p, 'APROBADA', NULL, pg_temp.sp(v_sx, v_q3)::TEXT, v_ucp, v_cant, v_cod, v_msg);
+    v_px := pg_temp.sp(v_sx, v_q3);
+    PERFORM pg_temp.chk('Cierre: la hora de corte por defecto es 00:00', '00:00', pg_temp.q('SELECT "ERP_CAF_PARAMETRO_VALOR"(''PROVEEDOR_HORA_CORTE'')'), '');
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('PROVEEDOR_HORA_CORTE', '25:61', v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre: una hora de corte inválida se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('NO_EXISTE', '1', v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre: un parámetro inexistente es 404', '404', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('PROVEEDOR_HORA_CORTE', '03:30', v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre: la hora de corte se puede cambiar', '100|03:30', v_cod::TEXT || '|' || pg_temp.q('SELECT "ERP_CAF_PARAMETRO_VALOR"(''PROVEEDOR_HORA_CORTE'')'), v_msg);
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('PROVEEDOR_HORA_CORTE', '00:00', v_uvp, v_cod, v_msg);
+
+    -- Entrega RECEPCIONADA (camión dentro, exclusa ocupada) y su persona principal DENTRO
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'RECEPCIONADO', "Fecha_Recepcion" = CURRENT_TIMESTAMP - INTERVAL '2 hours' WHERE "ID_Solicitud" = v_sx;
+    UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'DENTRO', "Fecha_Hora_Ingreso" = CURRENT_TIMESTAMP - INTERVAL '3 hours' WHERE "ID_Solicitud_Persona" = v_px;
+    UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = v_sx WHERE "ID_Catalogo_Sede" = v_ves;
+
+    CALL "ERP_CAF_PROVEEDOR_AVISOS_SALIDA"(v_uvp, v_n, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre aviso: la entrega recepcionada hace 2 h genera un aviso', '100|1', v_cod::TEXT || '|' || v_n, v_msg);
+    PERFORM pg_temp.chk('Cierre aviso: queda encolado PROVEEDOR_AVISO para Vigilancia', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "Tipo" = ''PROVEEDOR_AVISO'' AND "ID_Solicitud" = ' || v_sx), '');
+    CALL "ERP_CAF_PROVEEDOR_AVISOS_SALIDA"(v_uvp, v_n, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre aviso: no se repite antes de una hora', '0', v_n::TEXT, v_msg);
+    UPDATE "CAF_Solicitud_Operacion" SET "Ultimo_Aviso_Salida" = CURRENT_TIMESTAMP - INTERVAL '2 hours' WHERE "ID_Solicitud" = v_sx;
+    CALL "ERP_CAF_PROVEEDOR_AVISOS_SALIDA"(v_uvp, v_n, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre aviso: pasada la hora se avisa otra vez', '1|2', v_n || '|' || pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "Tipo" = ''PROVEEDOR_AVISO'' AND "ID_Solicitud" = ' || v_sx), '');
+
+    CALL "ERP_CAF_PROVEEDOR_CIERRE_DIA"(0, v_cz, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre: durante su día la entrega no se cierra', 'RECEPCIONADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sx), v_msg);
+
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = "Fecha_Hora_Prevista" - INTERVAL '1 day' WHERE "ID_Solicitud" = v_sx;
+    CALL "ERP_CAF_PROVEEDOR_CIERRE_DIA"(0, v_cz, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre: al día siguiente la entrega abierta pasa a CIERRE_FORZADO', '100|CIERRE_FORZADO', v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sx), v_msg);
+    PERFORM pg_temp.chk('Cierre: se libera la exclusa', 'libre', pg_temp.q('SELECT COALESCE("ID_Solicitud_Actual"::TEXT, ''libre'') FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
+    PERFORM pg_temp.chk('Cierre: quien estaba DENTRO sigue DENTRO (puede registrarse su salida)', 'DENTRO', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_px), '');
+    PERFORM pg_temp.chk('Cierre: queda en el historial como acción del sistema', 'CIERRE_FORZADO|0', pg_temp.q('SELECT "Estado_Nuevo" || ''|'' || "ID_Usuario" FROM "CAF_Solicitud_Operacion_Evento" WHERE "ID_Solicitud" = ' || v_sx || ' ORDER BY "ID_Operacion_Evento" DESC LIMIT 1'), '');
+    CALL "ERP_CAF_PROVEEDOR_CIERRE_DIA"(0, v_cz, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre: es idempotente (la segunda vez no cierra nada)', '100|0', v_cod::TEXT || '|' || v_cz, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_AVISOS_SALIDA"(v_uvp, v_n, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre aviso: una entrega cerrada ya no genera avisos', '0', v_n::TEXT, v_msg);
+
+    -- Hora de corte configurable: con corte 23:59 el "día operativo" aún es el de ayer, y una entrega de ayer no se cierra
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'EN_ESPERA' WHERE "ID_Solicitud" = v_sx;
+    UPDATE "CAF_Parametro" SET "Valor" = '23:59' WHERE "Clave" = 'PROVEEDOR_HORA_CORTE';
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = CURRENT_TIMESTAMP - INTERVAL '23 hours' WHERE "ID_Solicitud" = v_sx AND CURRENT_TIME > TIME '00:01';
+    CALL "ERP_CAF_PROVEEDOR_CIERRE_DIA"(0, v_cz, v_cod, v_msg);
+    UPDATE "CAF_Parametro" SET "Valor" = '00:00' WHERE "Clave" = 'PROVEEDOR_HORA_CORTE';
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'CIERRE_FORZADO' WHERE "ID_Solicitud" = v_sx;
+    UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE "ID_Solicitud" = v_sx;
+
+    -- Salida tardía
+    PERFORM pg_temp.chk('Cierre regla: ya no se pide verificar la entrega cerrada', '409', pg_temp.q('SELECT (SELECT "Codigo_Resp" FROM "ERP_CAF_PROVEEDOR_REGLA"(' || v_px || ', ''INGRESO''))'), '');
+    PERFORM pg_temp.chk('Cierre salida tardía: Vigilancia aún lo ve en su lista de hoy', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, CURRENT_DATE) WHERE "ID_Solicitud_Persona" = ' || v_px), '');
+    CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(v_px, COALESCE(pg_temp.items(v_px, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Cierre salida tardía: Vigilancia registra la salida', '100|SALE', v_cod::TEXT || '|' || v_res2, v_msg);
+    PERFORM pg_temp.chk('Cierre salida tardía: la entrega pasa a SALIO', 'SALIO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sx), v_msg);
+    PERFORM pg_temp.chk('Cierre salida tardía: se avisa al Coordinador', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "Tipo" = ''PROVEEDOR_AVISO'' AND "ID_Solicitud" = ' || v_sx || ' AND "Asunto" LIKE ''Salida tardía%'''), '');
+    PERFORM pg_temp.chk('Cierre salida tardía: no vuelve a ocupar la exclusa', 'libre', pg_temp.q('SELECT COALESCE("ID_Solicitud_Actual"::TEXT, ''libre'') FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
+    END;
+
     -- ===================================================== P. CALENDARIO DE ENTREGAS DE ALMACÉN (Entrega 2)
     DECLARE
         v_lic_da BIGINT; v_ual2 BIGINT; v_ud BIGINT; v_pal1 BIGINT; v_pal2 BIGINT; v_palv BIGINT;
@@ -1298,11 +1360,29 @@ BEGIN
     -- Si la entrega pierde su aprobación antes del ingreso, la reserva se libera
     UPDATE "CAF_Solicitud_Persona" SET "Aprobacion" = 'PENDIENTE' WHERE "ID_Solicitud" = v_s3 AND "Es_Principal" = 'Y';
     CALL "ERP_CAF_PROVEEDOR_SINCRONIZAR"(v_s3, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Dashboard: la entrega que perdió la aprobación en EN_ESPERA vuelve a PROGRAMADO (se verifica de nuevo)', 'PROGRAMADO|N', pg_temp.q('SELECT "Estado_Operativo" || ''|'' || "Activa" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_s3), '');
+    PERFORM pg_temp.chk('Dashboard: la entrega que pierde la aprobación desaparece del calendario', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
     PERFORM pg_temp.chk('Sincronizar: sin aprobación del principal la reserva se libera', 'true', pg_temp.q('SELECT ("ID_Solicitud_Actual" IS NULL)::TEXT FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
     UPDATE "CAF_Solicitud_Persona" SET "Aprobacion" = 'APROBADA' WHERE "ID_Solicitud" = v_s3 AND "Es_Principal" = 'Y';
     CALL "ERP_CAF_PROVEEDOR_SINCRONIZAR"(v_s3, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Dashboard: al reaprobarse la entrega vuelve al calendario', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    PERFORM pg_temp.chk('Dashboard: Es_Solicitante es N para quien no creó la solicitud', 'N', pg_temp.q('SELECT "Es_Solicitante" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    UPDATE "CAF_Solicitud" SET "ID_Usuario_Solicitante" = v_ual WHERE "ID_Solicitud" = v_s3;
+    PERFORM pg_temp.chk('Dashboard: Es_Solicitante es Y para quien creó la solicitud (acceso a «Mis solicitudes»)', 'Y', pg_temp.q('SELECT "Es_Solicitante" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    PERFORM pg_temp.chk('Calendario: su dueño ve Cancelar habilitado mientras la entrega está PROGRAMADA', 'Y', pg_temp.q('SELECT COALESCE("Puede_Cancelar_Sol",''-'') FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    UPDATE "CAF_Solicitud" SET "ID_Usuario_Solicitante" = v_usp WHERE "ID_Solicitud" = v_s3;
+    PERFORM pg_temp.chk('Calendario: quien no es el dueño nunca puede cancelar desde la tarjeta', 'N|-', pg_temp.q('SELECT COALESCE("Puede_Cancelar_Sol",''-'') FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3) || '|' || pg_temp.q('SELECT COALESCE("Motivo_No_Cancelar_Sol",''-'') FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    UPDATE "CAF_Solicitud" SET "ID_Usuario_Solicitante" = v_ual WHERE "ID_Solicitud" = v_s3;
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'EN_ATENCION' WHERE "ID_Solicitud" = v_s3;
+    PERFORM pg_temp.chk('Calendario: ya en atención el dueño no puede cancelar (botón deshabilitado)', 'N', pg_temp.q('SELECT COALESCE("Puede_Cancelar_Sol",''-'') FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    PERFORM pg_temp.chk('Calendario: ya en atención explica por qué no se puede cancelar', 'La entrega ya está en curso o terminó: no se puede cancelar.', pg_temp.q('SELECT COALESCE("Motivo_No_Cancelar_Sol",''-'') FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s3), '');
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'PROGRAMADO' WHERE "ID_Solicitud" = v_s3;
+    UPDATE "CAF_Solicitud" SET "ID_Usuario_Solicitante" = v_usp WHERE "ID_Solicitud" = v_s3;
     CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(v_s3, v_ual, v_cod, v_msg);
-    PERFORM pg_temp.chk('Disponibilidad: reaprobada, se puede confirmar de nuevo', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Disponibilidad: reaprobada, antes de confirmar debe verificarse de nuevo', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.verif((SELECT "ID_Solicitud_Persona" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_s3 AND "Es_Principal" = 'Y'), v_uvp);
+    CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(v_s3, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('Disponibilidad: reaprobada y verificada, se puede confirmar de nuevo', '100', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(v_s3, v_uvp, v_cod, v_msg);
     CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s3, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Atender: la tercera se atiende con su reserva', '100', v_cod::TEXT, v_msg);

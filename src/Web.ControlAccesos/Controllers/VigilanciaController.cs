@@ -48,6 +48,7 @@ public sealed class VigilanciaController : Controller
     [HttpGet]
     public async Task<IActionResult> Lista(string? texto, CancellationToken ct)
     {
+        await _por.ProveedorCierreDiaAsync(0, ct); // D-218: red de seguridad del cierre forzado del día (idempotente).
         var r = await _vig.ListarAsync(User.UsuarioId(), new Dto_Filtro_Vigilancia { Texto = Vacio(texto) }, ct);
         if (!r.Success) return Falla(r.Message);
         return Json(new
@@ -60,7 +61,7 @@ public sealed class VigilanciaController : Controller
                 nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
                 exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
-                esProveedor = p.Es_Proveedor, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
+                esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
             })
         });
     }

@@ -176,3 +176,8 @@ Sobre la base donde ya ejecutaste 01 a 05:
 - Eventos con `Resultado` = `DISP_CONFIRMADA` / `DISP_CANCELADA`.
 - Migración: EN_ESPERA antiguos → PROGRAMADO; INGRESO antiguos: el primero por sede conserva la exclusa, los demás vuelven a EN_ESPERA.
 
+## Proveedor: cierre forzado del día (script 22, D-218)
+- Tabla nueva `CAF_Parametro` (`Clave` única, `Valor`, `Descripcion`, auditoría): parámetros del sistema. Hoy `PROVEEDOR_HORA_CORTE` = `00:00`. (32 tablas.)
+- `CAF_Solicitud_Operacion.Estado_Operativo` admite además `CIERRE_FORZADO`; columna nueva `Ultimo_Aviso_Salida` (TIMESTAMP, para no repetir el aviso antes de una hora).
+- `CAF_Correo_Pendiente.Tipo` admite además `PROVEEDOR_AVISO` (aviso horario a Vigilancia y aviso de salida tardía al Coordinador).
+

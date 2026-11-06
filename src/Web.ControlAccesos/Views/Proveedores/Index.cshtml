@@ -1,6 +1,8 @@
 @{ ViewData["Titulo"] = "Entregas de proveedores"; ViewData["Migas"] = "Proveedores"; var almacen = (bool)(ViewData["PuedeAlmacen"] ?? false); }
 <link rel="stylesheet" href="~/css/proveedores.css" asp-append-version="true" />
 <div class="stack" id="caf-prov" data-puede-almacen="@(almacen ? "Y" : "N")"
+     data-puede-solicitar="@((bool)(ViewData["PuedeSolicitar"] ?? false) ? "Y" : "N")" data-puede-coordinar="@((bool)(ViewData["PuedeCoordinar"] ?? false) ? "Y" : "N")" data-puede-vigilar="@((bool)(ViewData["PuedeVigilar"] ?? false) ? "Y" : "N")"
+     data-url-sol-detalle="@Url.Action("Detalle", "Solicitudes", new { id = "__ID__" })" data-url-sol-nueva="@Url.Action("Nueva", "Solicitudes")" data-url-sol-cancelar="@Url.Action("Cancelar", "Solicitudes")" data-url-coord="@Url.Action("Index", "Coordinacion")" data-url-vig="@Url.Action("Index", "Vigilancia")"
      data-url-datos="@Url.Action("Datos", "Proveedores")" data-url-responsables="@Url.Action("Responsables", "Proveedores")"
      data-url-programar="@Url.Action("Programar", "Proveedores")" data-url-atender="@Url.Action("Atender", "Proveedores")"
      data-url-terminar="@Url.Action("Terminar", "Proveedores")"

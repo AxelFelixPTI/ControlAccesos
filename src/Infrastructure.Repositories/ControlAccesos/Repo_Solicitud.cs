@@ -45,6 +45,24 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         }
     }
 
+    public async Task<Result<List<Dto_Correo_Sugerido>>> CorreosSugerirAsync(string? texto, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_CORREOS_SUGERIR",
+                bind: p => AddStr(p, "HV_Texto", texto),
+                map: rd => new Dto_Correo_Sugerido { Correo = RdStr(rd, "Correo"), Nombre = RdStrN(rd, "Nombre"), Origen = RdStr(rd, "Origen") },
+                ct: ct);
+            return Result<List<Dto_Correo_Sugerido>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Correo_Sugerido>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(long usuarioId, CancellationToken ct = default)
     {
         try

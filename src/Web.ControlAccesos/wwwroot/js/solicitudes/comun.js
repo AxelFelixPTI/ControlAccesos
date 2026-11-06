@@ -66,6 +66,56 @@ var SOL = (function () {
         return caja;
     }
 
+    // D-217: lista de correos como etiquetas. Escriba 2 letras para ver usuarios y correos ya usados; Enter, «;» o «,» agregan;
+    // la × quita uno. Sin repetidos. El nodo expone .value (texto «a; b») igual que un campo de texto.
+    function chipsCorreo(valor, urlSug, ph) {
+        var lista = [], RX = /^[^\s@;,]+@[^\s@;,]+\.[^\s@;,]+$/;
+        var caja = el('div', { class: 'chips-box' }), input = el('input', { type: 'text', autocomplete: 'off', placeholder: ph || '' });
+        var aviso = el('p', { class: 'field-h' }), raiz = el('div', { class: 'sug-wrap' });
+        function partir(t) { return String(t || '').split(/[;,\s]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean); }
+        function pintar() {
+            caja.textContent = '';
+            lista.forEach(function (c) {
+                var x = el('button', { type: 'button', class: 'link', text: '×', 'aria-label': 'Quitar ' + c });
+                x.addEventListener('click', function () { lista = lista.filter(function (y) { return y !== c; }); aviso.textContent = ''; pintar(); });
+                caja.appendChild(el('span', { class: 'chip c-line' }, [el('span', { text: c }), x]));
+            });
+            caja.appendChild(input);
+        }
+        function agregar(t) {
+            var ok = true;
+            partir(t).forEach(function (c) {
+                if (!RX.test(c)) { aviso.textContent = '«' + c + '» no parece un correo válido.'; ok = false; return; }
+                if (lista.indexOf(c) >= 0) { aviso.textContent = c + ' ya está en la lista.'; return; }
+                lista.push(c); aviso.textContent = '';
+            });
+            if (ok) input.value = '';
+            pintar();
+            return ok;
+        }
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ';' || e.key === ',') { if (input.value.trim()) { e.preventDefault(); agregar(input.value); input.focus(); } else if (e.key === 'Enter') e.preventDefault(); }
+            else if (e.key === 'Backspace' && !input.value && lista.length) { lista.pop(); pintar(); input.focus(); }
+        });
+        input.addEventListener('paste', function (e) { var t = (e.clipboardData || window.clipboardData).getData('text'); if (/[;,\s]/.test(t.trim())) { e.preventDefault(); agregar(t); input.focus(); } });
+        input.addEventListener('blur', function () { setTimeout(function () { if (input.value.trim()) agregar(input.value); }, 200); });
+        caja.addEventListener('click', function () { input.focus(); });
+        var sug = sugerencias(input, 2, function (q) {
+            return CAF.pedir(urlSug + '?q=' + encodeURIComponent(q)).then(function (r) {
+                return r.success ? r.data.filter(function (c) { return lista.indexOf(c.correo) < 0; }).map(function (c) { return { t: c.correo, s: c.nombre || 'usado antes', v: c.correo }; }) : [];
+            });
+        }, function (c) { agregar(c); input.focus(); });
+        raiz.appendChild(caja); raiz.appendChild(sug); raiz.appendChild(aviso);
+        lista = partir(valor).filter(function (c, i, a) { return RX.test(c) && a.indexOf(c) === i; });
+        pintar();
+        // Lo escrito y no confirmado se lee también (si no es un correo válido, la base lo rechaza con su mensaje).
+        Object.defineProperty(raiz, 'value', {
+            get: function () { var p = input.value.trim(); return lista.concat(p ? [p] : []).join('; '); },
+            set: function (t) { lista = partir(t).filter(function (c, i, a) { return RX.test(c) && a.indexOf(c) === i; }); input.value = ''; pintar(); }
+        });
+        return raiz;
+    }
+
     // v: valores iniciales {fecha,hora,empresa,responsableId,responsable,motivoId,motivoDetalle,observaciones,zonasIds,copias,
     //    tipoId,sedeId,cochera,placa,areaDetalle,contactoNombre,contactoTelefonos,contactoCorreos}
     // modo: 'crear' (tipo y sede se eligen) | 'editar' (tipo y sede quedan fijos, solo se muestran).
@@ -111,7 +161,8 @@ var SOL = (function () {
                 return r.success ? r.data.map(function (e) { return { t: e, v: e }; }) : [];
             });
         }, function (e) { empresa.value = e; });
-        var copias = texto(v.copias, 500, 'correo1@empresa.com; correo2@empresa.com');
+        var urlCorreos = urlResp.replace(/Responsables$/, 'Correos');
+        var copias = chipsCorreo(v.copias, urlCorreos, 'Escriba un correo o nombre y elija de la lista');
 
         function sincMotivo() {
             var m = op.motivos.filter(function (x) { return String(x.id) === motivo.value; })[0];
@@ -124,7 +175,7 @@ var SOL = (function () {
         var areaDetalle = texto(v.areaDetalle, 300, 'Opcional. Ej.: sala de servidores, segundo piso');
         var cNombre = texto(v.contactoNombre, 200, 'Persona de contacto de la empresa contratista');
         var cTel = texto(v.contactoTelefonos, 100, '999 111 222; 01 555 0000');
-        var cCorreos = texto(v.contactoCorreos, 500, 'contacto@contratista.com; otro@contratista.com');
+        var cCorreos = chipsCorreo(v.contactoCorreos, urlResp.replace(/Responsables$/, 'Correos'), 'contacto@contratista.com');
 
         // ── Cochera ──
         var cochera = el('select', {}, [el('option', { value: 'N', text: 'No' }), el('option', { value: 'Y', text: 'Sí' })]);
@@ -205,14 +256,14 @@ var SOL = (function () {
                 nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
                 nodo.appendChild(campo('Detalle del área (opcional)', areaDetalle));
                 nodo.appendChild(el('h4', { text: 'Contacto de la empresa contratista' }));
-                nodo.appendChild(el('div', { class: 'grid g3' }, [campo('Nombre del contacto *', cNombre), campo('Teléfonos *', cTel, 'Varios, separados por «;».'), campo('Correos *', cCorreos, 'Varios, separados por «;». No se copian solos a los avisos.')]));
+                nodo.appendChild(el('div', { class: 'grid g3' }, [campo('Nombre del contacto *', cNombre), campo('Teléfonos *', cTel, 'Varios, separados por «;».'), campo('Correos *', cCorreos, 'Varios correos, uno por etiqueta. No se copian solos a los avisos.')]));
             } else {
                 nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Motivo de la visita *', motivo), detalleCampo]));
                 nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
             }
             if (sedeActual().cochera) nodo.appendChild(cocheraBloque);
             nodo.appendChild(campo('Detalles adicionales (opcional)', obs));
-            nodo.appendChild(campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud (nueva, decisiones, cancelación). Sepárelos con «;».'));
+            nodo.appendChild(campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud (nueva, decisiones, cancelación). Escriba 2 letras para ver usuarios y correos usados antes; Enter agrega un correo y la × lo quita.'));
             pintarZonas();
         }
         tipoSel.addEventListener('change', armar);
@@ -326,6 +377,41 @@ var SOL = (function () {
         return { nodo: nodo, guardar: listo };
     }
 
-    return { el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
+    // Filtro por tipo de solicitud (solo en pantalla; las consultas al servidor no cambian). Muestra una casilla por cada tipo
+    // que llegó en los datos, así que cada persona ve solo los tipos que su licencia le permite. Con un solo tipo no se muestra.
+    // clave: nombre de la pantalla (recuerda la elección en este navegador). Marcado = se ve; no se puede quitar el último.
+    function filtroTipos(clave, despuesDe, alCambiar) {
+        var ALM = 'caf.tipos.' + clave, quitados = {}, vistos = [];
+        try { var g = JSON.parse(localStorage.getItem(ALM) || '[]'); if (Array.isArray(g)) g.forEach(function (t) { quitados[t] = true; }); } catch (e) { /* sin almacenamiento */ }
+        var caja = el('div', { class: 'filtro-tipos', hidden: '' });
+        despuesDe.parentNode.insertBefore(caja, despuesDe.nextSibling);
+        function guardar() { try { localStorage.setItem(ALM, JSON.stringify(Object.keys(quitados))); } catch (e) { /* sin almacenamiento */ } }
+        function pintar() {
+            caja.textContent = '';
+            caja.hidden = vistos.length < 2;
+            if (caja.hidden) return;
+            caja.appendChild(el('span', { class: 'field-l', text: 'Tipo de solicitud' }));
+            vistos.forEach(function (t) {
+                var c = el('input', { type: 'checkbox' }); c.checked = !quitados[t];
+                c.addEventListener('change', function () {
+                    if (!c.checked && vistos.filter(function (x) { return !quitados[x]; }).length <= 1) { c.checked = true; return; }
+                    if (c.checked) delete quitados[t]; else quitados[t] = true;
+                    guardar(); alCambiar();
+                });
+                caja.appendChild(el('label', { class: 'chk' }, [c, el('span', { text: t })]));
+            });
+        }
+        return {
+            // Anota los tipos que llegaron (una vez cada uno) y vuelve a pintar las casillas si apareció uno nuevo.
+            registrar: function (tipos) {
+                var nuevo = false;
+                tipos.forEach(function (t) { if (t && vistos.indexOf(t) < 0) { vistos.push(t); nuevo = true; } });
+                if (nuevo) { vistos.sort(); pintar(); }
+            },
+            pasa: function (t) { return !t || !quitados[t]; }
+        };
+    }
+
+    return { filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
              errores: errores, cargarOpciones: cargarOpciones, formDatos: formDatos, formPersona: formPersona };
 })();

@@ -213,5 +213,8 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Puede_Atender          = RdBool(rd, "Puede_Atender"),
         Puede_Terminar         = RdBool(rd, "Puede_Terminar"),
         Motivo_Bloqueo         = RdStrN(rd, "Motivo_Bloqueo"),
+        Es_Solicitante         = RdBool(rd, "Es_Solicitante"),
+        Puede_Cancelar_Sol     = RdBool(rd, "Puede_Cancelar_Sol"),
+        Motivo_No_Cancelar_Sol = RdStrN(rd, "Motivo_No_Cancelar_Sol"),
     };
 }

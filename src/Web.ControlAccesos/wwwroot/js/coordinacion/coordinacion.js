@@ -17,14 +17,17 @@
         });
     }
 
+    var ftipos = SOL.filtroTipos('coord', document.getElementById('c-empresa').closest('section'), function () { pintar(); });
+
     function pintar() {
         pintarTabs();
         cuerpo.textContent = '';
-        if (!filas.length) {
+        var vistas = filas.filter(function (s) { return ftipos.pasa(s.tipo); });
+        if (!vistas.length) {
             cuerpo.appendChild(el('tr', {}, [el('td', { colspan: '7', class: 'vacio', text: pestana === 'POR_DECIDIR' ? 'No tiene solicitudes por decidir.' : 'No hay solicitudes con ese filtro.' })]));
             return;
         }
-        filas.forEach(function (s) {
+        vistas.forEach(function (s) {
             var detalle = [];
             if (s.autorizadas) detalle.push(s.autorizadas + ' autorizada(s)');
             if (s.pendientes) detalle.push(s.pendientes + ' pendiente(s)');
@@ -48,7 +51,7 @@
               + '&persona=' + encodeURIComponent(f.persona.value) + '&fecha=' + f.fecha.value + '&estado=' + f.estado.value;
         return CAF.pedir(d.urlLista + q).then(function (r) {
             if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
-            porDecidir = r.porDecidir; filas = r.data;
+            porDecidir = r.porDecidir; filas = r.data; ftipos.registrar(filas.map(function (s) { return s.tipo; }));
             if (primera) { primera = false; if (porDecidir === 0 && pestana === 'POR_DECIDIR') { pestana = 'TODAS'; return cargar(); } }
             pintar();
         });
@@ -290,4 +293,7 @@
     }
 
     cargar();
+    // Acceso directo desde el calendario de proveedores: abre «Revisar» de esa solicitud (la misma ventana de siempre, con sus reglas).
+    var directa = new URLSearchParams(location.search).get('solicitud');
+    if (directa && /^\d+$/.test(directa)) { history.replaceState(null, '', location.pathname); revisar(Number(directa)); }
 })();

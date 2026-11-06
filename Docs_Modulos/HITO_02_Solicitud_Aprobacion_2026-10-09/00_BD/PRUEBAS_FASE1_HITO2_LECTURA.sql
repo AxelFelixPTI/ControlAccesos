@@ -113,6 +113,16 @@ BEGIN
     -- ===================================================== A. PIEZAS INTERNAS
     PERFORM pg_temp.chk('Normalizar: sin tildes ni mayúsculas', 'jose ano', "ERP_CAF_FN_NORMALIZAR"('JOSÉ Año'), '');
     PERFORM pg_temp.chk('Normalizar: nulo', '', "ERP_CAF_FN_NORMALIZAR"(NULL), '');
+
+    -- D-217: sugerencias de correo para «Correos en copia»
+    PERFORM pg_temp.chk('Correos: con menos de 2 letras no sugiere', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''a'')'), '');
+    PERFORM pg_temp.chk('Correos: un usuario sale con su nombre y origen USUARIO', 'carlos@ejemplo.pe|USUARIO', pg_temp.q('SELECT "Correo" || ''|'' || "Origen" FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''carlos'')'), '');
+    PERFORM pg_temp.chk('Correos: se busca también por nombre, sin tildes ni mayúsculas', 'maria@ejemplo.pe', pg_temp.q('SELECT "Correo" FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''MARIA'') WHERE "Origen" = ''USUARIO'''), '');
+    PERFORM pg_temp.chk('Correos: un correo externo ya usado en una copia sale como USADO', 'gerencia@ejemplo.pe|USADO', pg_temp.q('SELECT "Correo" || ''|'' || "Origen" FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''gerencia'')'), 'se guarda solo al enviar la solicitud');
+    PERFORM pg_temp.chk('Correos: los usuarios van antes que los usados', 'USUARIO', pg_temp.q('SELECT "Origen" FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''ejemplo'') LIMIT 1'), '');
+    PERFORM pg_temp.chk('Correos: sin repetidos', '0', pg_temp.q('SELECT COUNT(*) FROM (SELECT "Correo" FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''ejemplo'') GROUP BY "Correo" HAVING COUNT(*) > 1) X'), '');
+    PERFORM pg_temp.chk('Correos: un usuario con copia previa no se repite como USADO', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''carlos'') WHERE "Origen" = ''USADO'''), '');
+    PERFORM pg_temp.chk('Correos: texto sin coincidencias', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"(''zzzzqq'')'), '');
     PERFORM pg_temp.chk('Visible: el dueño ve su solicitud', 'Y', "ERP_CAF_FN_SOLICITUD_VISIBLE"(v_u_sol, v_s1), '');
     PERFORM pg_temp.chk('Visible: otro solicitante no ve la ajena', 'N', "ERP_CAF_FN_SOLICITUD_VISIBLE"(v_u_sol2, v_s1), '');
     PERFORM pg_temp.chk('Visible: el Coordinador ve todas', 'Y', "ERP_CAF_FN_SOLICITUD_VISIBLE"(v_u_coo, v_s1), '');
@@ -328,6 +338,8 @@ BEGIN
     -- ===================================================== K. VIGILANCIA
     PERFORM pg_temp.chk('Vigilancia hoy: solo las 2 personas autorizadas de S3', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ')'), 'la rechazada y la cancelada no aparecen');
     PERFORM pg_temp.chk('Vigilancia: el estado y el grupo de cada una', 'DENTRO/POR_INGRESAR', pg_temp.q('SELECT string_agg("Grupo", ''/'' ORDER BY "ID_Solicitud_Persona") FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ')'), '');
+    PERFORM pg_temp.chk('Vigilancia hoy: cada persona trae el tipo de su solicitud (filtro por tipo en pantalla)', 'true', pg_temp.q('SELECT (COUNT(*) = 2 AND COUNT("Tipo_Acceso") = 2)::TEXT FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ')'), '');
+    PERFORM pg_temp.chk('Vigilancia aprobadas: también trae el tipo', 'true', pg_temp.q('SELECT (COUNT(*) > 0 AND COUNT(*) = COUNT("Tipo_Acceso"))::TEXT FROM "ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"(' || v_u_vig || ')'), '');
     PERFORM pg_temp.chk('Vigilancia: filtro por grupo «Dentro»', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ', NULL, NULL, NULL, ''DENTRO'')'), '');
     PERFORM pg_temp.chk('Vigilancia: filtro por grupo «Por ingresar»', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ', NULL, NULL, NULL, ''por_ingresar'')'), '');
     PERFORM pg_temp.chk('Vigilancia: filtro por grupo «Salieron»', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ', NULL, NULL, NULL, ''SALIERON'')'), '');

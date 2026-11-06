@@ -58,7 +58,7 @@ public sealed class SolicitudesController : Controller
         var filas = r.Data!.Select(s => new
         {
             id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
-            empresa = s.Empresa_Visitante, estado = s.Estado, responsable = s.Responsable_Nombre, codigoOrigen = s.Codigo_Origen,
+            empresa = s.Empresa_Visitante, tipo = s.Tipo_Acceso, estado = s.Estado, responsable = s.Responsable_Nombre, codigoOrigen = s.Codigo_Origen,
             total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
             puedeEditar = s.Puede_Editar_Datos, motivoNoEditar = s.Motivo_No_Editar_Datos,
             puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar, puedeReutilizar = s.Puede_Reutilizar,
@@ -127,6 +127,15 @@ public sealed class SolicitudesController : Controller
         var r = await _sol.EmpresasBuscarAsync(q, ct);
         if (!r.Success) return Falla(r.Message);
         return Json(new { success = true, data = r.Data });
+    }
+
+    /// <summary>D-217: sugerencias de correo para «Correos en copia»: usuarios del sistema y correos externos ya usados.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Correos(string? q, CancellationToken ct)
+    {
+        var r = await _sol.CorreosSugerirAsync(q, ct);
+        if (!r.Success) return Falla(r.Message);
+        return Json(new { success = true, data = r.Data!.Select(c => new { correo = c.Correo, nombre = c.Nombre, origen = c.Origen }) });
     }
 
     /// <summary>Autocompletar al escribir nombre o apellido de una persona externa ya registrada.</summary>

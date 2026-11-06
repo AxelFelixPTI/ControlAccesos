@@ -716,7 +716,8 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Solicitud" BIGINT, "Codigo" VA
                "Tipo_Documento" VARCHAR, "Numero_Documento" VARCHAR, "Persona_Nombre" VARCHAR,
                "Estado" VARCHAR, "Grupo" VARCHAR, "Fecha_Hora_Ingreso" TIMESTAMP, "Fecha_Hora_Salida" TIMESTAMP,
                "Acceso_Restringido" CHAR(1), "Trae_Equipos" CHAR(1), "Trae_Herramientas" CHAR(1),
-               "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR, "Es_Proveedor" CHAR(1), "Estado_Operativo" VARCHAR, "Disponibilidad_Confirmada" CHAR(1))
+               "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR, "Es_Proveedor" CHAR(1), "Estado_Operativo" VARCHAR, "Disponibilidad_Confirmada" CHAR(1),
+               "Tipo_Acceso" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -724,7 +725,8 @@ DECLARE
     lv_txt   VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
     lv_grupo VARCHAR(30)  := UPPER(TRIM(COALESCE("HV_Grupo", 'TODOS')));
 BEGIN
-    -- V1.1 2026-11-05: + Es_Proveedor, Estado_Operativo, Disponibilidad_Confirmada
+    -- V1.3 2026-11-06: + Tipo_Acceso (filtro por tipo en pantalla)
+    -- V1.2 2026-11-06: + quien sigue DENTRO de una entrega con CIERRE_FORZADO (salida tardía)
     IF LENGTH(lv_grupo) = 0 THEN lv_grupo := 'TODOS'; END IF;
     RETURN QUERY
     SELECT P."ID_Solicitud_Persona", S."ID_Solicitud", S."Codigo", S."ID_Catalogo_Sede",
@@ -745,15 +747,21 @@ BEGIN
            -- Entrega de proveedor (solo el transportista principal): estado operativo y si Almacén ya reservó la exclusa
            CAST(CASE WHEN O."ID_Solicitud" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST(O."Estado_Operativo" AS VARCHAR),
-           CAST(CASE WHEN EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = S."ID_Solicitud" AND X."Eliminado" = 'N') THEN 'Y' ELSE 'N' END AS CHAR(1))
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = S."ID_Solicitud" AND X."Eliminado" = 'N') THEN 'Y' ELSE 'N' END AS CHAR(1)),
+           CAST(TX."Descripcion" AS VARCHAR)
       FROM "CAF_Solicitud" S
+      LEFT JOIN "Catalogo_Tipo_Acceso" TX ON TX."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
       JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
       LEFT JOIN "CAF_Solicitud_Operacion" O ON O."ID_Solicitud" = S."ID_Solicitud" AND O."Eliminado" = 'N' AND O."Activa" = 'Y' AND P."Es_Principal" = 'Y'
      WHERE S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
-       AND CAST(S."Fecha_Hora_Prevista" AS DATE) = lv_fecha
+       AND (CAST(S."Fecha_Hora_Prevista" AS DATE) = lv_fecha
+            -- D-218: quien quedó DENTRO de una entrega cerrada a la fuerza sigue en la lista de hoy para registrar su salida tardía
+            OR (lv_fecha = CURRENT_DATE AND P."Estado" = 'DENTRO'
+                AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" OC WHERE OC."ID_Solicitud" = S."ID_Solicitud" AND OC."Eliminado" = 'N'
+                               AND OC."Activa" = 'Y' AND OC."Estado_Operativo" = 'CIERRE_FORZADO')))
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
        AND ("ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_REGISTRAR', S."ID_Catalogo_Sede") = 'Y'
             OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_VER', S."ID_Catalogo_Sede") = 'Y')
@@ -846,3 +854,48 @@ BEGIN
 END;
 $$;
 -- Prueba: SELECT * FROM "ERP_CAF_SOLICITUD_EMPRESAS_BUSCAR"('tri');
+
+-- -----------------------------------------------------------------------------
+-- 16. ERP_CAF_SOLICITUD_CORREOS_SUGERIR  (D-217: «Correos en copia» como buscador con etiquetas)
+--     Sugiere correos para copiar los avisos. Primero los de los usuarios activos del sistema (con su nombre);
+--     después los correos externos ya usados en solicitudes anteriores (copias y correos de contacto),
+--     sin repetir ninguno y sin distinguir mayúsculas. Globales: no dependen de quién pregunta.
+--     No hay tabla propia: lo externo «se guarda» al enviarse una solicitud y aparece solo la vez siguiente.
+--     Exige texto de 2 letras o más. Máximo 12.
+--     OJO HANA (T-32): REGEXP_SPLIT_TO_TABLE es de PostgreSQL; en HANA se separa con SERIES_GENERATE o
+--     SUBSTR_REGEXPR sobre «;» y «,».
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"("HV_Texto" VARCHAR DEFAULT NULL)
+RETURNS TABLE ("Correo" VARCHAR, "Nombre" VARCHAR, "Origen" VARCHAR)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+#variable_conflict use_column
+DECLARE
+    lv_txt VARCHAR := "ERP_CAF_FN_NORMALIZAR"(COALESCE(TRIM("HV_Texto"), ''));
+BEGIN
+    -- V1.0 2026-11-05
+    IF LENGTH(lv_txt) < 2 THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT Z."Correo", Z."Nombre", Z."Origen"
+      FROM (
+        SELECT CAST(LOWER(TRIM(U."Correo")) AS VARCHAR) AS "Correo",
+               CAST(U."Apellido_Paterno" || COALESCE(' ' || U."Apellido_Materno", '') || ', ' || U."Nombres" AS VARCHAR) AS "Nombre",
+               CAST('USUARIO' AS VARCHAR) AS "Origen", 1 AS "Rango"
+          FROM "CAF_GOVERNANCE"."Usuario" U
+         WHERE U."Eliminado" = 'N' AND U."Activo" = 'Y' AND U."ID_Usuario" > 0
+        UNION ALL
+        SELECT X."Correo", CAST(NULL AS VARCHAR), CAST('USADO' AS VARCHAR), 2
+          FROM (SELECT DISTINCT LOWER(TRIM(C."Correo")) AS "Correo"
+                  FROM "CAF_Solicitud_Copia_Correo" C WHERE C."Eliminado" = 'N'
+                UNION
+                SELECT DISTINCT LOWER(TRIM(P.pc))
+                  FROM (SELECT REGEXP_SPLIT_TO_TABLE(COALESCE(S."Contacto_Correos", ''), '[;,]') AS pc
+                          FROM "CAF_Solicitud" S WHERE S."Eliminado" = 'N') P) X
+         WHERE X."Correo" LIKE '%@%'
+           AND NOT EXISTS (SELECT 1 FROM "CAF_GOVERNANCE"."Usuario" U2 WHERE LOWER(TRIM(U2."Correo")) = X."Correo")
+      ) Z
+     WHERE "ERP_CAF_FN_NORMALIZAR"(Z."Correo" || ' ' || COALESCE(Z."Nombre", '')) LIKE '%' || lv_txt || '%'
+     ORDER BY Z."Rango", Z."Nombre", Z."Correo"
+     LIMIT 12;
+END;
+$$;
+-- Prueba: SELECT * FROM "ERP_CAF_SOLICITUD_CORREOS_SUGERIR"('gmail');

@@ -44,4 +44,9 @@ public sealed class Dto_Proveedor_Entrega
     public bool Puede_Atender { get; set; }                    // Iniciar atención (etapa 2)
     public bool Puede_Terminar { get; set; }                   // Terminar atención (etapa 3)
     public string? Motivo_Bloqueo { get; set; }
+    /// <summary>La solicitud es del usuario que consulta (acceso directo a «Mis solicitudes»).</summary>
+    public bool Es_Solicitante { get; set; }
+    /// <summary>Su dueño puede cancelarla ahora (sin ingresos y la entrega aún PROGRAMADA).</summary>
+    public bool Puede_Cancelar_Sol { get; set; }
+    public string? Motivo_No_Cancelar_Sol { get; set; }
 }

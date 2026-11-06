@@ -37,6 +37,7 @@ public static class PlantillaCorreo
         ["SOLICITUD_CORRECCION"] = "Corrección de emergencia",
         ["SOLICITUD_VIGILANCIA"] = "Ingreso autorizado",
         ["SOLICITUD_CANCELADA"] = "Solicitud cancelada",
+        ["PROVEEDOR_AVISO"]     = "Aviso de entrega de proveedor",
     };
 
     /// <summary>

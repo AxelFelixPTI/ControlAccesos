@@ -13,10 +13,13 @@
     function verUrl(id) { return url.detalle.replace('__ID__', id); }
     function enGrupo(s, g) { return !g || s.estado === g || (g === 'APROBADA' && s.estado === 'APROBADA_PARCIAL'); }
 
+    var ftipos = SOL.filtroTipos('mis', document.getElementById('m-texto').closest('section'), function () { pintar(); });
+    function visibles() { return filas.filter(function (s) { return ftipos.pasa(s.tipo); }); }
+
     function pintarKpis() {
         kpis.textContent = '';
         GRUPOS.forEach(function (g) {
-            var n = filas.filter(function (s) { return enGrupo(s, g[0]); }).length;
+            var n = visibles().filter(function (s) { return enGrupo(s, g[0]); }).length;
             kpis.appendChild(el('button', { type: 'button', class: 'kpi' + (estado === g[0] ? ' on' : ''), onclick: function () { estado = g[0]; pintar(); } },
                 [el('b', { text: String(n) }), g[1]]));
         });
@@ -54,14 +57,14 @@
 
     function pintar() {
         pintarKpis();
-        var vistas = filas.filter(function (s) { return enGrupo(s, estado); });
+        var vistas = visibles().filter(function (s) { return enGrupo(s, estado); });
         cuerpo.textContent = '';
         if (!vistas.length) { cuerpo.appendChild(el('tr', {}, [el('td', { colspan: '7', class: 'vacio', text: filas.length ? 'No hay solicitudes con ese filtro.' : 'Todavía no ha creado solicitudes.' })])); return; }
         vistas.forEach(function (s) {
             var acc = [el('a', { class: 'btn btn-sm', href: verUrl(s.id), text: 'Ver' })];
             if (s.puedeReutilizar) acc.push(el('a', { class: 'btn btn-sm', href: url.nueva + '?reutilizar=' + s.id, text: 'Reutilizar' }));
             if (s.puedeCancelar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar', onclick: function () { cancelar(s); } }));
-            cuerpo.appendChild(el('tr', { class: s.estado === 'CANCELADA' ? 'off' : '' }, [
+            cuerpo.appendChild(el('tr', { class: (s.estado === 'CANCELADA' ? 'off' : '') + '', 'data-id': String(s.id) }, [
                 el('td', {}, [el('a', { class: 'link', href: verUrl(s.id), text: s.codigo }), s.codigoOrigen ? el('div', { class: 'field-h', text: 'de ' + s.codigoOrigen }) : null]),
                 el('td', { text: SOL.fechaLarga(s.fecha) + ' · ' + s.hora }),
                 el('td', { text: s.empresa || '' }),
@@ -77,7 +80,7 @@
         var q = '?texto=' + encodeURIComponent(texto.value.trim()) + '&desde=' + desde.value + '&hasta=' + hasta.value;
         return CAF.pedir(url.mis + q).then(function (r) {
             if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
-            filas = r.data; pintar();
+            filas = r.data; ftipos.registrar(filas.map(function (s) { return s.tipo; })); pintar();
         });
     }
 

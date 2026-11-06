@@ -67,5 +67,16 @@ var CAF = (function () {
         return { cerrar: cerrar };
     }
 
-    return { el: el, pedir: pedir, aviso: aviso, modal: modal };
+    // Refresco automático de una pantalla. Llama a fn cada `segundos` mientras la pestaña esté a la vista y no haya una
+    // ventana abierta (para no pisar lo que la persona está llenando); al volver a la pestaña refresca de inmediato.
+    // fn debe ser silenciosa (sin avisos si falla). Devuelve una función para detenerlo.
+    function autoRefrescar(fn, segundos) {
+        function libre() { return !document.hidden && !document.querySelector('.modal-back'); }
+        var id = setInterval(function () { if (libre()) fn(); }, Math.max(5, segundos || 10) * 1000);
+        function vis() { if (libre()) fn(); }
+        document.addEventListener('visibilitychange', vis);
+        return function () { clearInterval(id); document.removeEventListener('visibilitychange', vis); };
+    }
+
+    return { el: el, pedir: pedir, aviso: aviso, modal: modal, autoRefrescar: autoRefrescar };
 })();

@@ -130,6 +130,7 @@ public sealed class Repo_Solicitud_Vigilancia : RepoHelpers, IRepo_Solicitud_Vig
         Es_Proveedor         = RdBool(rd, "Es_Proveedor"),
         Estado_Operativo     = RdStrN(rd, "Estado_Operativo"),
         Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),
+        Tipo_Acceso          = RdStrN(rd, "Tipo_Acceso"),
     };
 
     private static Dto_Vigilancia_No_Autorizada MapVigilancia_No_Autorizada(DbDataReader rd) => new()

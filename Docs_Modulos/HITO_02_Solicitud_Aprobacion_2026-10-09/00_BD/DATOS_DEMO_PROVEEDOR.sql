@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Archivo : DATOS_DEMO_PROVEEDOR.sql      (OPCIONAL: solo para probar el calendario en el piloto; NO lo corre restaurar_bd.ps1)
 -- Version : V2.0 2026-11-03 (flujo corregido: verificacion -> disponibilidad de Almacen -> ingreso fisico)
--- Requiere: scripts 01 a 19, los SP, y 11_SEED_DEMO_USUARIOS.sql (usuarios de demostracion).
+-- Requiere: scripts 01 a 22, los SP, y 11_SEED_DEMO_USUARIOS.sql (usuarios de demostracion).
 -- Que hace (una sola vez; falla si ya se ejecuto):
 --   1. Crea 2 usuarios de Almacen (con su ficha de Personal): almacen1.demo@trianon.test y almacen2.demo@trianon.test, clave Alma.Demo#2026
 --   2. Da licencias de proveedor a usuarios demo, sede VES:
@@ -114,7 +114,8 @@ BEGIN
         CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_ids[k], 'CONFORME', NULL, v_al1, v_cod, v_msg);
         IF v_cod <> 100 THEN RAISE EXCEPTION 'recepcion %: %', k, v_msg; END IF;
         IF k = 7 THEN
-            CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(v_sps[k], '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_vig, v_r, v_d, v_x, v_cod, v_msg);
+            SELECT COALESCE(STRING_AGG("ID_Catalogo_Item_Checklist" || ':Y', ','), '') INTO v_it FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_sps[k], 'SALIDA', 'N', 'N');
+            CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(v_sps[k], v_it, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_vig, v_r, v_d, v_x, v_cod, v_msg);
             IF v_cod <> 100 THEN RAISE EXCEPTION 'salida %: %', k, v_msg; END IF;
         END IF;
     END LOOP;

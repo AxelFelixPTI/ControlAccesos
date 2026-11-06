@@ -25,13 +25,18 @@ public sealed class ProveedoresController : Controller
 
     private readonly ISrv_Proveedor _prov;
     private readonly ISrv_Catalogo_Sede _sedes;
+    private readonly ISrv_Porteria _por;
 
-    public ProveedoresController(ISrv_Proveedor prov, ISrv_Catalogo_Sede sedes) { _prov = prov; _sedes = sedes; }
+    public ProveedoresController(ISrv_Proveedor prov, ISrv_Catalogo_Sede sedes, ISrv_Porteria por) { _prov = prov; _sedes = sedes; _por = por; }
 
     [HttpGet]
     public IActionResult Index()
     {
         ViewData["PuedeAlmacen"] = User.TienePermiso(PermAlmacen);
+        // Accesos directos a las pantallas originales (cada una vuelve a validar el permiso al abrirse).
+        ViewData["PuedeSolicitar"] = User.TienePermiso("PER_CAF_PROVEEDOR_SOLICITAR");
+        ViewData["PuedeCoordinar"] = User.TienePermiso("PER_CAF_SOLICITUD_APROBAR");
+        ViewData["PuedeVigilar"] = User.TienePermiso("PER_CAF_PROVEEDOR_VIGILANCIA");
         return View();
     }
 
@@ -42,6 +47,7 @@ public sealed class ProveedoresController : Controller
         var sede = await SedeIdAsync(ct);
         if (sede is null) return Falla("No se encontró la sede " + SedeCodigo + ".");
         var uid = User.UsuarioId();
+        await _por.ProveedorCierreDiaAsync(0, ct); // D-218: red de seguridad; el servicio en segundo plano ya lo hace cada minuto (idempotente).
         var r = await _prov.CalendarioAsync(uid, sede.Value, Fecha(desde), Fecha(hasta), ct);
         if (!r.Success) return Falla(r.Message);
         var x = await _prov.ExclusaEstadoAsync(uid, sede.Value, ct);
@@ -64,7 +70,7 @@ public sealed class ProveedoresController : Controller
                 llegada = Hora(e.Fecha_Llegada), ingreso = Hora(e.Fecha_Ingreso), inicio = Hora(e.Fecha_Inicio_Atencion), recepcion = Hora(e.Fecha_Recepcion), salida = Hora(e.Fecha_Salida),
                 resultado = e.Resultado_Recepcion, programadoId = e.ID_Personal_Programado, programado = e.Programado_Nombre, efectivo = e.Efectivo_Nombre,
                 puedeProgramar = e.Puede_Programar, puedeConfirmar = e.Puede_Confirmar, puedeCancelarDisp = e.Puede_Cancelar_Disp,
-                puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, motivoBloqueo = e.Motivo_Bloqueo,
+                puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, motivoBloqueo = e.Motivo_Bloqueo, esMia = e.Es_Solicitante, puedeCancelarSol = e.Puede_Cancelar_Sol, motivoNoCancelarSol = e.Motivo_No_Cancelar_Sol,
             }),
         });
     }

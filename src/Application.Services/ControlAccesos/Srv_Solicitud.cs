@@ -41,6 +41,16 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
+    public async Task<Result<List<Dto_Correo_Sugerido>>> CorreosSugerirAsync(string? texto, CancellationToken ct = default)
+    {
+        try { return await _repo.CorreosSugerirAsync(texto, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CORREOS_SUGERIR Solicitud ERROR");
+            return Result<List<Dto_Correo_Sugerido>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
         try { return await _repo.MisListarAsync(usuarioId, f, ct).ConfigureAwait(false); }

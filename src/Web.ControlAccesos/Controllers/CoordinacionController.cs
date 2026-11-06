@@ -51,7 +51,7 @@ public sealed class CoordinacionController : Controller
             data = r.Data!.Select(s => new
             {
                 id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
-                esHoy = s.Es_Hoy, empresa = s.Empresa_Visitante, solicitante = s.Solicitante_Nombre, estado = s.Estado, total = s.Total_Personas,
+                esHoy = s.Es_Hoy, tipo = s.Tipo_Acceso, empresa = s.Empresa_Visitante, solicitante = s.Solicitante_Nombre, estado = s.Estado, total = s.Total_Personas,
                 autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, porDecidirMis = s.Por_Decidir_Mis,
                 personas = s.Personas_Nombres,
             })

@@ -271,3 +271,14 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-141 | **Corregir datos en emergencia cambia el registro global de la persona** (se ve en todas sus solicitudes). | 2026-11-05 | Sandra | Bloque 3 |
 | P-142 | **Proveedor ya EN_ESPERA o más: no se corrigen ni quitan personas** (propuesta); usar «Retiró sin ingresar». | 2026-11-05 | Sandra | Bloque 3 |
 | P-143 | **Checklist de salida del proveedor (provisional):** confirmar texto, apoyo y criticidad. | 2026-11-05 | Sandra | Bloque 3 |
+| P-144 | **Sugerencias de correo muestran todos los usuarios activos** a cualquier solicitante. | 2026-11-05 | Sandra | Bloque 4 |
+| P-145 | **Hora de corte del día de proveedores solo por SQL** (sin pantalla de administración). | 2026-11-06 | Sandra | Cierre forzado |
+| P-146 | **Aviso de salida pendiente cada hora** a Vigilancia (copia Almacén): confirmar frecuencia y destinatarios. | 2026-11-06 | Sandra | Cierre forzado |
+| P-147 | **Salida tardía avisa a los aprobadores (Coordinador)**; confirmar destinatario y copias. | 2026-11-06 | Sandra | Cierre forzado |
+| P-148 | **Persona DENTRO tras un cierre forzado sigue DENTRO** sin tope de tiempo hasta registrar su salida. | 2026-11-06 | Sandra | Cierre forzado |
+| P-149 | **«No se presentó» de proveedor ahora es automático** (servicio cada minuto); el de visitantes normales sigue sin ejecutor (P-133). | 2026-11-06 | Desarrollo | Cierre forzado |
+| P-150 | **Refresco automático cada 10 s** (calendario y Vigilancia): confirmar intervalo y si se extiende a otras pantallas. | 2026-11-06 | Sandra | Refresco |
+| P-151 | **EN_ESPERA: el Coordinador solo consulta** (sin corrección de emergencia). | 2026-11-06 | Sandra | Bloque 5 |
+| P-152 | **Perder la aprobación en EN_ESPERA devuelve a PROGRAMADO** y exige verificar de nuevo al reaprobar. | 2026-11-06 | Sandra | Bloque 5 |
+| P-153 | **El acceso a Vigilancia abre directo la ventana de la acción**; en el calendario el solicitante ve Ver solicitud / Duplicar / Cancelar (Cancelar deshabilitado si la entrega ya no está PROGRAMADA). Confirmar si «Duplicar» se queda o se quita para proveedores. | 2026-11-06 | Sandra | Bloque 5 |
+| P-154 | **Filtro por tipo solo de pantalla**, recordado por navegador; sin filtro en Desviaciones e Incidencias. | 2026-11-06 | Sandra | Filtro por tipo |

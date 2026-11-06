@@ -24,4 +24,10 @@ public interface IRepo_Porteria
     Task<ResultSp<Dto_Porteria_Registrado>> IngresoRegistrarAsync(Dto_Porteria_Ingreso dto, long usuarioId, CancellationToken ct = default);
     Task<ResultSp<Dto_Porteria_Registrado>> SalidaRegistrarAsync(Dto_Porteria_Salida dto, long usuarioId, CancellationToken ct = default);
     Task<ResultSp<long>> NoSePresentoMarcarAsync(DateTime? fechaCorte, long usuarioId, CancellationToken ct = default);
+
+    /// <summary>D-218: cierre forzado del día de proveedores. Devuelve cuántas entregas cerró.</summary>
+    Task<ResultSp<long>> ProveedorCierreDiaAsync(long usuarioId, CancellationToken ct = default);
+
+    /// <summary>D-218: encola el aviso horario de salida pendiente. Devuelve cuántos avisos encoló.</summary>
+    Task<ResultSp<long>> ProveedorAvisosSalidaAsync(long usuarioId, CancellationToken ct = default);
 }
