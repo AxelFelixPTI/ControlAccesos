@@ -155,6 +155,57 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
             },
             ct: ct);
 
+    public Task<ResultSp> IngresoFisicoAsync(long solicitudId, string idsPersona, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_INGRESO_FISICO",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStrReq(p, "HV_IDs_Persona", idsPersona);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> RetiroPersonasAsync(long solicitudId, string idsPersona, string motivo, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStrReq(p, "HV_IDs_Persona", idsPersona);
+                AddStrReq(p, "HV_Motivo", motivo);
+                AddChar1(p, "HV_Exigir_En_Espera", "N");
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> VerificarGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default)
+        => GrupoAsync("ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO", dto, usuarioId, ct);
+
+    public Task<ResultSp> SalidaGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default)
+        => GrupoAsync("ERP_CAF_PROVEEDOR_SALIDA_GRUPO", dto, usuarioId, ct);
+
+    private Task<ResultSp> GrupoAsync(string procedimiento, Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: procedimiento,
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", dto.ID_Solicitud);
+                AddStrReq(p, "HV_IDs_Persona", string.Join(",", dto.IDs_Persona));
+                AddStr(p, "HV_Items", string.Join(",", dto.Items.Select(i => i.ID_Catalogo_Item_Checklist + ":" + (i.Cumple ? "Y" : "N"))));
+                AddStr(p, "HV_Observacion", dto.Observacion);
+                AddStr(p, "HV_Desv_Descripcion", dto.Desviacion?.Descripcion);
+                AddLong(p, "HV_ID_Coordinador", dto.Desviacion?.ID_Coordinador);
+                AddLong(p, "HV_ID_Tratamiento", dto.Desviacion?.ID_Tratamiento);
+                AddStr(p, "HV_Tratamiento_Detalle", dto.Desviacion?.Tratamiento_Detalle);
+                AddStr(p, "HV_Resultado_Elegido", dto.Desviacion?.Resultado_Elegido);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
     public Task<ResultSp> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
             clave: Conn,
@@ -194,6 +245,11 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Vehiculo_Marca         = RdStrN(rd, "Vehiculo_Marca"),
         Observaciones          = RdStrN(rd, "Observaciones"),
         Cantidad_Apoyo         = RdInt(rd, "Cantidad_Apoyo"),
+        Transportistas_Total       = RdInt(rd, "Transportistas_Total"),
+        Transportistas_Verificados = RdInt(rd, "Transportistas_Verificados"),
+        Transportistas_Dentro      = RdInt(rd, "Transportistas_Dentro"),
+        Transportistas_Salieron    = RdInt(rd, "Transportistas_Salieron"),
+        Ayudantes_Total            = RdInt(rd, "Ayudantes_Total"),
         Estado_Operativo       = RdStr(rd, "Estado_Operativo"),
         Con_Desviacion         = RdBool(rd, "Con_Desviacion"),
         Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),

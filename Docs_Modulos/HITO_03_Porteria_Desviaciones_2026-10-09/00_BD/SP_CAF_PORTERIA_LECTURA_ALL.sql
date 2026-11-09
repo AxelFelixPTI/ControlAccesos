@@ -67,6 +67,7 @@ $$;
 -- -----------------------------------------------------------------------------
 -- 2. ERP_CAF_PORTERIA_FICHA
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_PORTERIA_FICHA"(BIGINT, BIGINT);
 CREATE OR REPLACE FUNCTION "ERP_CAF_PORTERIA_FICHA"(
     "HV_UsuarioID"            BIGINT,
     "HV_ID_Solicitud_Persona" BIGINT
@@ -80,12 +81,13 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Solicitud" BIGINT, "Codigo" VA
                "Tiene_Respaldo_Equipos" CHAR(1), "Tiene_Respaldo_Herramientas" CHAR(1),
                "Puede_Registrar_Ingreso" CHAR(1), "Motivo_No_Ingreso" VARCHAR,
                "Puede_Registrar_Ingreso_Tardio" CHAR(1),
-               "Puede_Registrar_Salida" CHAR(1), "Motivo_No_Salida" VARCHAR)
+               "Puede_Registrar_Salida" CHAR(1), "Motivo_No_Salida" VARCHAR, "Fuera_Franja" CHAR(1))
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_sede BIGINT; lv_puede CHAR(1);
 BEGIN
+    -- V1.1 2026-11-09 (D-227): + Fuera_Franja ('Y' si el contratista llega fuera de sus días u horario: el ingreso exige desviación)
     -- V1.0 2026-10-17
     SELECT S."ID_Catalogo_Sede" INTO lv_sede
       FROM "CAF_Solicitud_Persona" P JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
@@ -122,7 +124,8 @@ BEGIN
            CAST(CASE WHEN lv_puede <> 'Y' THEN 'Solo tiene permiso de consulta.' WHEN RI."Permitido" = 'Y' THEN NULL ELSE RI."Mensaje" END AS VARCHAR),
            CAST(CASE WHEN lv_puede = 'Y' AND RT."Permitido" = 'Y' AND RI."Permitido" <> 'Y' THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST(CASE WHEN lv_puede = 'Y' THEN RS."Permitido" ELSE 'N' END AS CHAR(1)),
-           CAST(CASE WHEN lv_puede <> 'Y' THEN 'Solo tiene permiso de consulta.' WHEN RS."Permitido" = 'Y' THEN NULL ELSE RS."Mensaje" END AS VARCHAR)
+           CAST(CASE WHEN lv_puede <> 'Y' THEN 'Solo tiene permiso de consulta.' WHEN RS."Permitido" = 'Y' THEN NULL ELSE RS."Mensaje" END AS VARCHAR),
+           CAST(CASE WHEN "ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) = 'FUERA' THEN 'Y' ELSE 'N' END AS CHAR(1))
       FROM "CAF_Solicitud_Persona" P
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"

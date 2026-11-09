@@ -11,7 +11,9 @@ namespace Application.Contracts.ControlAccesos;
 public static class ValidadorAdjuntos
 {
     public const int MaxBytes = 5 * 1024 * 1024;
-    public const int MaxPorSolicitud = 2;
+    public const int MaxPorSolicitud = 10;
+    /// <summary>Suma máxima de los documentos de una solicitud: el correo los lleva adjuntos (tope 20 MB en ProcesadorCorreos).</summary>
+    public const long MaxBytesTotal = 20L * 1024 * 1024;
 
     public const string Permitidos = "PDF, Word (DOC, DOCX) y Excel (XLS, XLSX)";
 

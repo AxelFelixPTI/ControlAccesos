@@ -12,12 +12,30 @@ public sealed class DecidirVM
     public string? MensajeResto { get; set; }
 }
 
+/// <summary>D-227: ampliar los días autorizados de un contratista por franja (solo suma).</summary>
+public sealed class CorreccionDiasVM
+{
+    public long SolicitudId { get; set; }
+    public List<string>? Dias { get; set; }
+    public string? HoraDesde { get; set; }
+    public string? HoraHasta { get; set; }
+    public string? Sustento { get; set; }
+}
+
 /// <summary>Corrección de emergencia (D-169): agregar a una persona a una solicitud ya aprobada.</summary>
 public sealed class CorreccionAgregarVM
 {
     public long SolicitudId { get; set; }
     public long PersonaId { get; set; }
     public string? Sustento { get; set; }
+    /// <summary>D-226: solo en solicitudes de proveedor; si es transportista, sus datos son opcionales.</summary>
+    public bool EsTransportista { get; set; }
+    public string? Ruc { get; set; }
+    public string? Nombre { get; set; }
+    public string? Direccion { get; set; }
+    public string? Placa { get; set; }
+    public string? Marca { get; set; }
+    public string? Licencia { get; set; }
 }
 
 /// <summary>Corrección de emergencia (D-169): quitar a una persona autorizada que aún no ingresó.</summary>

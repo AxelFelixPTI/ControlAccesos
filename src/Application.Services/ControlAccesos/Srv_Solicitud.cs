@@ -105,6 +105,40 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
+    public async Task<Result<List<Dto_Solicitud_Dia>>> DiasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.DiasListarAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DIAS Solicitud ERROR");
+            return Result<List<Dto_Solicitud_Dia>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<int>> DiasExtenderAsync(long solicitudId, IReadOnlyList<string> dias, string? horaDesde, string? horaHasta, string sustento, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.DiasExtenderAsync(solicitudId, dias, horaDesde, horaHasta, sustento, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result<int>.Ok(sp.Data, sp.Mensaje) : Result<int>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DIAS_EXTENDER Solicitud ID={ID} ERROR", solicitudId);
+            return Result<int>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Solicitud_Transportista>>> TransportistasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.TransportistasListarAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TRANSPORTISTAS Solicitud ERROR");
+            return Result<List<Dto_Solicitud_Transportista>>.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Persona>>> PersonasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
     {
         try { return await _repo.PersonasListarAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
@@ -172,8 +206,8 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
             errors.Add(new ResultError(nameof(dto.ID_Catalogo_Sede), "Seleccione la sede."));
         if (dto.ID_Catalogo_Tipo_Acceso <= 0)
             errors.Add(new ResultError(nameof(dto.ID_Catalogo_Tipo_Acceso), "Seleccione el tipo de acceso."));
-        if (dto.ID_Personal_Responsable is <= 0)
-            errors.Add(new ResultError(nameof(dto.ID_Personal_Responsable), "Seleccione al responsable."));
+        // El responsable es opcional para proveedor y contratista: 0 se trata como «sin responsable» y la rutina decide si el tipo lo exige.
+        if (dto.ID_Personal_Responsable is <= 0) dto.ID_Personal_Responsable = null;
         if (dto.Fecha_Hora_Prevista == default)
             errors.Add(new ResultError(nameof(dto.Fecha_Hora_Prevista), "Indique la fecha y hora de la visita."));
         if (dto.IDs_Persona_Externa is null || dto.IDs_Persona_Externa.Count == 0)
@@ -200,8 +234,8 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         var errors = new List<ResultError>();
         if (dto.Fecha_Hora_Prevista == default)
             errors.Add(new ResultError(nameof(dto.Fecha_Hora_Prevista), "Indique la fecha y hora de la visita."));
-        if (dto.ID_Personal_Responsable is <= 0)
-            errors.Add(new ResultError(nameof(dto.ID_Personal_Responsable), "Seleccione al responsable."));
+        // El responsable es opcional para proveedor y contratista: 0 se trata como «sin responsable» y la rutina decide si el tipo lo exige.
+        if (dto.ID_Personal_Responsable is <= 0) dto.ID_Personal_Responsable = null;
         if (errors.Count > 0)
             return Result<bool>.Validation("Datos inválidos.", errors);
 

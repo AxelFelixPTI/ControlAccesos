@@ -106,16 +106,19 @@ CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_TIPOS_OPCIONES"("HV_UsuarioID" BIG
 RETURNS TABLE ("ID_Catalogo_Tipo_Acceso" BIGINT, "Codigo" VARCHAR, "Descripcion" VARCHAR, "Usable" CHAR, "Leyenda" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 BEGIN
-    -- V1.1 2026-11-02
+    -- V1.2 2026-11-09: cada usuario solo ve los tipos para los que tiene permiso (D-224)
     RETURN QUERY
     SELECT T."ID_Catalogo_Tipo_Acceso", T."Codigo", T."Descripcion", T."Disponible",
            CAST(CASE WHEN T."Disponible" = 'Y' THEN NULL ELSE 'Próximamente: pendiente de definición' END AS VARCHAR)
       FROM "Catalogo_Tipo_Acceso" T
      WHERE T."Eliminado" = 'N' AND T."Activo" = 'Y'
-       AND (T."Codigo" <> 'PROVEEDOR'
-            OR EXISTS (SELECT 1 FROM "CAF_GOVERNANCE"."Catalogo_Sede" S
+       AND ((T."Codigo" <> 'PROVEEDOR'
+             AND EXISTS (SELECT 1 FROM "CAF_GOVERNANCE"."Catalogo_Sede" S2
+                          WHERE S2."Eliminado" = 'N' AND S2."Activo" = 'Y'
+                            AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S2."ID_Catalogo_Sede") = 'Y'))
+            OR (T."Codigo" = 'PROVEEDOR' AND EXISTS (SELECT 1 FROM "CAF_GOVERNANCE"."Catalogo_Sede" S
                         WHERE S."Eliminado" = 'N' AND S."Activo" = 'Y' AND S."Aplica_Proveedor" = 'Y'
-                          AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', S."ID_Catalogo_Sede") = 'Y'))
+                          AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', S."ID_Catalogo_Sede") = 'Y')))
      ORDER BY T."Orden", T."ID_Catalogo_Tipo_Acceso";
 END;
 $$;

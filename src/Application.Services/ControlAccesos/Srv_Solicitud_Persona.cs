@@ -46,14 +46,14 @@ public sealed class Srv_Solicitud_Persona : ISrv_Solicitud_Persona
         }
     }
 
-    public async Task<Result<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string? sustento, long usuarioId, CancellationToken ct = default)
+    public async Task<Result<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string? sustento, long usuarioId, Dto_Transportista_Entrada? transportista = null, CancellationToken ct = default)
     {
         // Solo formulario: que haya sustento. Que la solicitud esté aprobada, la fecha y el rol los valida la rutina.
         if (string.IsNullOrWhiteSpace(sustento))
             return Result<long>.Validation("Datos inválidos.", new[] { new ResultError("Sustento", "Escriba el sustento de la corrección de emergencia.") });
         try
         {
-            var sp = await _repo.AgregarEmergenciaAsync(solicitudId, personaExternaId, sustento.Trim(), usuarioId, ct).ConfigureAwait(false);
+            var sp = await _repo.AgregarEmergenciaAsync(solicitudId, personaExternaId, sustento.Trim(), usuarioId, transportista, ct).ConfigureAwait(false);
             return sp.Ok
                 ? Result<long>.Ok(sp.Data!, sp.Mensaje)
                 : Result<long>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));

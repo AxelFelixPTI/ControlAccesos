@@ -116,6 +116,89 @@ var SOL = (function () {
         return raiz;
     }
 
+    // ── Selector de días de la franja del contratista (D-227): rango consecutivo y/o días sueltos, combinables ──
+    // Devuelve {nodo, dias(), horaDesde(), horaHasta(), poner(lista)}. La web expande todo a una lista explícita «AAAA-MM-DD».
+    var DIAS_MAX = 92;
+    function sumaDias(f, n) { var p = f.split('-'); var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function nombreDia(f) { var p = f.split('-'); var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])); return ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()] + ' ' + p[2] + '/' + p[1]; }
+    function textoHoras(d, h) {
+        if (!d && !h) return 'sin horas indicadas';
+        return [d ? 'ingreso aprox. ' + d : null, h ? 'salida aprox. ' + h : null].filter(Boolean).join(' · ');
+    }
+    // ini: lista de días «AAAA-MM-DD» ya elegidos. Se guardan como tramos (un rango o un día suelto) y cada tramo se quita de una vez.
+    function selectorDias(ini, hd, hh) {
+        var tramos = [];   // {f: ['AAAA-MM-DD', ...], t: texto}
+        var corr = null;
+        (ini || []).slice().sort().forEach(function (f) { if (corr && sumaDias(corr.f[corr.f.length - 1], 1) === f) corr.f.push(f); else if (!corr || corr.f[corr.f.length - 1] !== f) { corr = { f: [f] }; tramos.push(corr); } });
+        tramos.forEach(function (t) { t.t = t.f.length === 1 ? nombreDia(t.f[0]) : 'Del ' + nombreDia(t.f[0]) + ' al ' + nombreDia(t.f[t.f.length - 1]) + ' (' + t.f.length + ' días)'; });
+        // Filtros del rango (se cruzan): frecuencia × fines de semana. getDay: 0 dom ... 6 sáb
+        var FRECUENCIAS = [['todos', 'Todos los días', null], ['lmv', 'Interdiario desde lunes (lun, mié, vie)', [1, 3, 5]], ['mjs', 'Interdiario desde martes (mar, jue, sáb)', [2, 4, 6]]];
+        var FINES = [['incl', 'Incluidos', null], ['sin', 'Sin fines de semana', [1, 2, 3, 4, 5]], ['sab', 'Con sábados (sin domingos)', [1, 2, 3, 4, 5, 6]]];
+        var frec = el('select'); FRECUENCIAS.forEach(function (p) { frec.appendChild(el('option', { value: p[0], text: p[1] })); });
+        var fines = el('select'); FINES.forEach(function (p) { fines.appendChild(el('option', { value: p[0], text: p[1] })); });
+        function diaSemana(f) { var p = f.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay(); }
+        var desde = el('input', { type: 'date', min: hoy() }), hasta = el('input', { type: 'date', min: hoy() }), suelto = el('input', { type: 'date', min: hoy() });
+        var horaD = el('input', { type: 'time' }), horaH = el('input', { type: 'time' }); horaD.value = hd || ''; horaH.value = hh || '';
+        var msg = el('p', { class: 'field-h' }), lista = el('ul', { class: 'dias-lista' }), total = el('p', { class: 'field-h' }), quitarTodos = el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Quitar todos' });
+        function expandir() {
+            var set = {};
+            tramos.forEach(function (t) { t.f.forEach(function (f) { set[f] = true; }); });
+            return Object.keys(set).sort();
+        }
+        function pintar() {
+            lista.textContent = '';
+            tramos.slice().sort(function (x, y) { return x.f[0] < y.f[0] ? -1 : 1; }).forEach(function (t) {
+                var x = el('button', { type: 'button', class: 'btn btn-sm', 'aria-label': 'Quitar este tramo', text: 'Quitar' });
+                x.addEventListener('click', function () { tramos = tramos.filter(function (y) { return y !== t; }); msg.textContent = ''; pintar(); });
+                lista.appendChild(el('li', {}, [el('span', { text: t.t }), x]));
+            });
+            if (!tramos.length) lista.appendChild(el('li', { class: 'field-h', text: 'Aún no agregó ningún día.' }));
+            var nt = expandir().length;
+            total.textContent = nt ? 'Total: ' + nt + (nt === 1 ? ' día' : ' días') : '';
+            quitarTodos.hidden = tramos.length < 2;
+        }
+        function agregar(fechas, texto) {
+            var antes = expandir().length;
+            tramos.push({ f: fechas, t: texto });
+            var despues = expandir().length;
+            if (despues > DIAS_MAX) { tramos.pop(); msg.textContent = 'Máximo ' + DIAS_MAX + ' días por solicitud.'; return false; }
+            if (despues === antes) { tramos.pop(); msg.textContent = 'Esos días ya estaban en la lista.'; return false; }
+            msg.textContent = ''; pintar(); return true;
+        }
+        quitarTodos.addEventListener('click', function () { tramos = []; msg.textContent = ''; pintar(); });
+        var bRango = el('button', { type: 'button', class: 'btn btn-sm', text: 'Agregar rango' }), bDia = el('button', { type: 'button', class: 'btn btn-sm', text: 'Agregar día' });
+        bRango.addEventListener('click', function () {
+            if (!desde.value || !hasta.value) { msg.textContent = 'Indique el primer y el último día del rango.'; return; }
+            if (desde.value < hoy()) { msg.textContent = 'No se admiten días anteriores a hoy.'; return; }
+            if (hasta.value < desde.value) { msg.textContent = 'El último día no puede ser anterior al primero.'; return; }
+            var pf = FRECUENCIAS.filter(function (p) { return p[0] === frec.value; })[0], pw = FINES.filter(function (p) { return p[0] === fines.value; })[0], fs = [], f = desde.value;
+            while (f <= hasta.value && fs.length <= 400) {
+                var dw = diaSemana(f);
+                if ((!pf[2] || pf[2].indexOf(dw) >= 0) && (!pw[2] || pw[2].indexOf(dw) >= 0)) fs.push(f);
+                f = sumaDias(f, 1);
+            }
+            if (!fs.length) { msg.textContent = 'En ese rango no hay días con los filtros elegidos.'; return; }
+            var filtros = [pf[2] ? pf[1].split(' (')[0] : null, pw[2] ? pw[1] : null].filter(Boolean).join(', ');
+            var tx = 'Del ' + nombreDia(desde.value) + ' al ' + nombreDia(hasta.value) + (filtros ? ' · ' + filtros : '') + ' (' + fs.length + (fs.length === 1 ? ' día)' : ' días)');
+            if (agregar(fs, tx)) { desde.value = ''; hasta.value = ''; frec.value = 'todos'; fines.value = 'incl'; }
+        });
+        bDia.addEventListener('click', function () {
+            if (!suelto.value) { msg.textContent = 'Elija el día que desea agregar.'; return; }
+            if (suelto.value < hoy()) { msg.textContent = 'No se admiten días anteriores a hoy.'; return; }
+            if (agregar([suelto.value], nombreDia(suelto.value))) suelto.value = '';
+        });
+        pintar();
+        var izq = el('div', { class: 'stack' }, [
+            campo('Rango: desde', desde), campo('Rango: hasta', hasta), campo('Frecuencia del rango', frec), campo('Fines de semana', fines), el('div', {}, [bRango]),
+            campo('Día suelto', suelto), el('div', {}, [bDia])]);
+        var der = el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Días autorizados *' }), lista, total, el('div', {}, [quitarTodos]), msg]);
+        var nodo = el('div', { class: 'stack' }, [
+            el('div', { class: 'dias-sel' }, [izq, der]),
+            el('div', { class: 'grid g2' }, [campo('Hora de ingreso aproximada (opcional)', horaD), campo('Hora de salida aproximada (opcional)', horaH, 'Es solo referencia para Vigilancia: no restringe el ingreso ni la salida. Se aplica a todos los días.')])
+        ]);
+        return { nodo: nodo, dias: expandir, horaDesde: function () { return horaD.value; }, horaHasta: function () { return horaH.value; } };
+    }
+
     // v: valores iniciales {fecha,hora,empresa,responsableId,responsable,motivoId,motivoDetalle,observaciones,zonasIds,copias,
     //    tipoId,sedeId,cochera,placa,areaDetalle,contactoNombre,contactoTelefonos,contactoCorreos}
     // modo: 'crear' (tipo y sede se eligen) | 'editar' (tipo y sede quedan fijos, solo se muestran).
@@ -145,10 +228,15 @@ var SOL = (function () {
         function tipoActual() { return op.tipos.filter(function (t) { return String(t.id) === tipoSel.value; })[0] || { id: 0, codigo: '', texto: '' }; }
         function sedeActual() { return op.sedes.filter(function (s) { return String(s.id) === sedeSel.value; })[0] || { id: 0, texto: '', cochera: false, zonas: [] }; }
         function esContratista() { return tipoActual().codigo === CONTRATISTA; }
+        function esProveedor() { return tipoActual().codigo === 'PROVEEDOR'; }
 
         // ── Campos comunes ──
         var fecha = el('input', { type: 'date', min: hoy() }); fecha.value = v.fecha || '';
         var hora = el('input', { type: 'time' }); hora.value = v.hora || '';
+        // D-227: el contratista se solicita por días (franja). Al editar una solicitud que ya tiene días, se muestran y no se cambian.
+        var diasFijos = editar && (v.dias || []).length > 0;
+        var selDias = selectorDias(v.dias && !editar ? v.dias.map(function (d) { return d.fecha; }) : [], '', '');
+        function usaDias() { return esContratista() && !diasFijos && !(editar && !(v.dias || []).length); }
         var empresa = texto(v.empresa, 250, '');
         var motivo = el('select'); motivo.appendChild(el('option', { value: '', text: 'Elija el motivo' }));
         op.motivos.forEach(function (m) { motivo.appendChild(el('option', { value: String(m.id), text: m.texto })); });
@@ -176,6 +264,14 @@ var SOL = (function () {
         var cNombre = texto(v.contactoNombre, 200, 'Persona de contacto de la empresa contratista');
         var cTel = texto(v.contactoTelefonos, 100, '999 111 222; 01 555 0000');
         var cCorreos = chipsCorreo(v.contactoCorreos, urlResp.replace(/Responsables$/, 'Correos'), 'contacto@contratista.com');
+
+        // ── Proveedor de abastecimiento (D-223): empresa que recibe y responsable de la entrega (contacto). Los datos de cada
+        //    transportista se piden en el paso «Personas». No tiene responsable de atención (lo define Almacén), zonas ni cochera. ──
+        var grupo = el('select'); grupo.appendChild(el('option', { value: '', text: 'Elija la empresa del grupo' }));
+        (op.empresasGrupo || []).forEach(function (g) { grupo.appendChild(el('option', { value: String(g.id), text: g.texto })); });
+        grupo.value = v.empresaDestinoId && (op.empresasGrupo || []).some(function (g) { return g.id === v.empresaDestinoId; }) ? String(v.empresaDestinoId) : '';
+        var pNombre = texto(v.contactoNombre, 200, 'Quién responde por esta entrega');
+        var pTel = texto(v.contactoTelefonos, 100, '999 111 222');
 
         // ── Cochera ──
         var cochera = el('select', {}, [el('option', { value: 'N', text: 'No' }), el('option', { value: 'Y', text: 'Sí' })]);
@@ -247,10 +343,29 @@ var SOL = (function () {
             nodo.textContent = '';
             nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Tipo de ingreso *', tipoSel, editar ? null : (t.codigo ? null : 'Elija el tipo de ingreso.')), campo('Sede *', sedeSel)]));
             if (editar) nodo.appendChild(tipoAyuda);
-            nodo.appendChild(el('div', { class: 'grid g2' }, [campo(c ? 'Fecha del servicio *' : 'Fecha de la visita *', fecha), campo(c ? 'Hora prevista del servicio *' : 'Hora prevista *', hora)]));
-            empresa.placeholder = c ? 'Nombre de la empresa contratista' : 'Empresa o procedencia de los visitantes';
-            nodo.appendChild(campo(c ? 'Empresa contratista *' : 'Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])));
-            nodo.appendChild(el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]));
+            if (c && diasFijos) {
+                var hd = textoHoras(v.dias[0].desde, v.dias[0].hasta);
+                nodo.appendChild(el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Días autorizados' }),
+                    el('p', { text: v.dias.map(function (x) { return nombreDia(x.fecha); }).join(', ') + ' · ' + hd }),
+                    el('span', { class: 'field-h', text: 'Los días no se cambian. Si se equivocó, cancele la solicitud y cree otra.' })]));
+            } else if (usaDias()) {
+                nodo.appendChild(selDias.nodo);
+            } else {
+                nodo.appendChild(el('div', { class: 'grid g2' }, [campo(c ? 'Fecha del servicio *' : esProveedor() ? 'Fecha de la entrega *' : 'Fecha de la visita *', fecha), campo(c ? 'Hora prevista del servicio *' : 'Hora prevista *', hora)]));
+            }
+            var prov = esProveedor();
+            empresa.placeholder = c ? 'Nombre de la empresa contratista' : prov ? 'Empresa proveedora que realiza la entrega' : 'Empresa o procedencia de los visitantes';
+            nodo.appendChild(campo(c ? 'Empresa contratista *' : prov ? 'Empresa proveedora *' : 'Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])));
+            if (esProveedor()) {
+                nodo.appendChild(campo('Empresa del grupo que recibe la entrega *', grupo));
+                nodo.appendChild(el('h4', { text: 'Responsable de la entrega' }));
+                nodo.appendChild(el('p', { class: 'field-h', text: 'Persona de contacto de esta entrega: quien necesite comunicarse (Vigilancia, Almacén, Coordinación) la llamará a ella. No tiene que ser el transportista.' }));
+                nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Nombre del responsable *', pNombre), campo('Teléfono *', pTel, 'Mínimo 6 dígitos. Varios, separados por «;».')]));
+                nodo.appendChild(campo('Detalles adicionales (opcional)', obs));
+                nodo.appendChild(campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud.'));
+                return;
+            }
+            nodo.appendChild(el('div', { class: 'field' }, [el('span', { class: 'field-l', text: c ? 'Responsable de atención (opcional)' : 'Responsable de atención *' }), caja]));
             if (c) {
                 nodo.appendChild(campo('Actividad(es) a realizar *', actividades));
                 nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
@@ -271,15 +386,18 @@ var SOL = (function () {
         armar();
 
         function leer() {
-            var c = esContratista(), conCochera = sedeActual().cochera && cochera.value === 'Y';
+            var c = esContratista(), p = esProveedor(), conCochera = !p && sedeActual().cochera && cochera.value === 'Y';
             return {
                 tipoId: Number(tipoSel.value) || 0, tipoCodigo: tipoActual().codigo, tipoTexto: tipoActual().texto, sedeId: Number(sedeSel.value) || 0, sedeTexto: sedeActual().texto,
-                fecha: fecha.value, hora: hora.value, empresa: empresa.value, responsableId: resp.id, responsable: resp.nombre,
-                motivoId: c ? null : (motivo.value ? Number(motivo.value) : null),
-                motivoDetalle: c ? actividades.value : detalle.value, observaciones: obs.value,
-                zonasIds: sedeActual().zonas.filter(function (z) { return zonasSel[z.id]; }).map(function (z) { return z.id; }), copias: copias.value,
+                fecha: usaDias() ? (selDias.dias()[0] || '') : diasFijos ? v.fecha : fecha.value, hora: usaDias() ? '00:00' : diasFijos ? v.hora : hora.value,
+                dias: usaDias() ? selDias.dias() : [], horaDesde: usaDias() ? selDias.horaDesde() : '', horaHasta: usaDias() ? selDias.horaHasta() : '',
+                empresa: empresa.value, responsableId: resp.id, responsable: resp.nombre,
+                motivoId: c || p ? null : (motivo.value ? Number(motivo.value) : null),
+                motivoDetalle: p ? '' : c ? actividades.value : detalle.value, observaciones: obs.value,
+                zonasIds: p ? [] : sedeActual().zonas.filter(function (z) { return zonasSel[z.id]; }).map(function (z) { return z.id; }), copias: copias.value,
+                empresaDestinoId: p && grupo.value ? Number(grupo.value) : null, empresaDestino: p ? (grupo.options[grupo.selectedIndex] || {}).text || '' : '',
                 cochera: conCochera, placa: conCochera ? placa.value.toUpperCase().replace(/[\s-]/g, '') : '',
-                areaDetalle: c ? areaDetalle.value : '', contactoNombre: c ? cNombre.value : '', contactoTelefonos: c ? cTel.value : '', contactoCorreos: c ? cCorreos.value : ''
+                areaDetalle: c ? areaDetalle.value : '', contactoNombre: c ? cNombre.value : p ? pNombre.value : '', contactoTelefonos: c ? cTel.value : p ? pTel.value : '', contactoCorreos: c ? cCorreos.value : ''
             };
         }
         // Validación mínima de formulario; las reglas de fondo las valida el servidor.
@@ -287,10 +405,20 @@ var SOL = (function () {
             var d = leer(), c = esContratista();
             if (!d.tipoId) return 'Elija el tipo de ingreso.';
             if (!d.sedeId) return 'Elija la sede.';
-            if (!d.fecha || !d.hora) return c ? 'Indique la fecha y la hora del servicio.' : 'Indique la fecha y la hora de la visita.';
-            if (d.fecha < hoy()) return c ? 'La fecha del servicio no puede ser anterior a hoy.' : 'La fecha de la visita no puede ser anterior a hoy.';
-            if (!d.empresa.trim()) return c ? 'Indique la empresa contratista.' : 'Indique la empresa o procedencia.';
-            if (!d.responsableId) return 'Elija al responsable de atención.';
+            if (usaDias()) {
+                if (!d.dias.length) return 'Elija al menos un día de trabajo.';
+                if (d.horaDesde && d.horaHasta && d.horaHasta <= d.horaDesde) return 'La hora de salida debe ser posterior a la de ingreso.';
+            } else if (!d.fecha || !d.hora) return c ? 'Indique la fecha y la hora del servicio.' : 'Indique la fecha y la hora de la visita.';
+            if (!usaDias() && !diasFijos && d.fecha < hoy()) return c ? 'La fecha del servicio no puede ser anterior a hoy.' : 'La fecha de la visita no puede ser anterior a hoy.';
+            if (!d.empresa.trim()) return c ? 'Indique la empresa contratista.' : esProveedor() ? 'Indique la empresa proveedora.' : 'Indique la empresa o procedencia.';
+            if (esProveedor()) {
+                if (!sedeActual().proveedor && !editar) return 'Esa sede no recibe proveedores de abastecimiento. Elija otra sede.';
+                if (!d.empresaDestinoId) return 'Elija la empresa del grupo que recibe la entrega.';
+                if (!d.contactoNombre.trim()) return 'Indique el nombre del responsable de la entrega.';
+                if (d.contactoTelefonos.replace(/\D/g, '').length < 6) return 'Indique el teléfono del responsable de la entrega (mínimo 6 dígitos).';
+                return '';
+            }
+            if (!d.responsableId && !c) return 'Elija al responsable de atención.';
             if (c) {
                 if (!d.motivoDetalle.trim()) return 'Describa la(s) actividad(es) a realizar.';
             } else {
@@ -412,6 +540,23 @@ var SOL = (function () {
         };
     }
 
-    return { filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
+    // Proveedor (D-223): tarjetas de los transportistas de una solicitud (detalle del solicitante y revisión del Coordinador).
+    // lista = [{principal,nombrePersona,tipoDoc,doc,ruc,nombre,direccion,placa,marca,licencia,completos}]
+    function transportistasNodo(lista) {
+        var CAMPOS = [['ruc', 'RUC'], ['nombre', 'Transportista'], ['direccion', 'Dirección'], ['placa', 'Placa'], ['marca', 'Marca'], ['licencia', 'Licencia']];
+        var caja = el('div', { class: 'stack' }, [el('h3', { text: 'Transportistas (' + (lista || []).length + ')' })]);
+        if (!lista || !lista.length) { caja.appendChild(el('p', { class: 'vacio', text: 'Sin transportistas registrados.' })); return caja; }
+        caja.appendChild(el('ul', { class: 'plist' }, lista.map(function (t) {
+            var datos = CAMPOS.filter(function (c) { return t[c[0]]; }).map(function (c) { return c[1] + ': ' + t[c[0]]; }).join(' · ');
+            return el('li', {}, [el('div', { class: 'plist-m' }, [
+                el('div', { class: 'pn', text: t.nombrePersona + (t.principal ? ' (principal)' : '') }),
+                el('div', { class: 'field-h', text: (t.tipoDoc ? t.tipoDoc + ' ' : '') + (t.doc || '') }),
+                el('div', { class: 'field-h', text: datos || 'Sin datos de transportista aquí: constan en los documentos adjuntos.' }),
+                t.completos ? null : (datos ? el('div', { class: 'field-h', text: 'Los datos que faltan constan en los documentos adjuntos.' }) : null)])]);
+        })));
+        return caja;
+    }
+
+    return { textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
              errores: errores, cargarOpciones: cargarOpciones, formDatos: formDatos, formPersona: formPersona };
 })();

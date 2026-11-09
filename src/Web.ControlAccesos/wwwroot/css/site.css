@@ -131,7 +131,7 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
 .pill{min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:var(--sf);font:inherit;font-weight:600;font-size:14px;color:var(--ink);cursor:pointer}.pill.on{background:var(--teal);border-color:var(--teal);color:#fff}
 .blk{padding:0;overflow:hidden}.blk-h{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;padding:12px 20px;background:var(--sf2);border-bottom:1px solid var(--line)}
 .vrow{display:grid;grid-template-columns:minmax(220px,1.2fr) minmax(200px,1fr) auto;gap:12px;align-items:center;padding:12px 20px;border-top:1px solid var(--line)}.vrow:first-of-type{border-top:0}
-.vrow-n{display:flex;flex-direction:column}.vrow-e{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vrow-n{display:flex;flex-direction:column}.vrow-n.con-sel{flex-direction:row;gap:10px;align-items:center}.vrow-t{display:flex;flex-direction:column}.vsel{display:inline-flex;align-items:center;min-width:28px;min-height:28px;cursor:pointer}.vsel input{width:18px;height:18px}.vbar{display:flex;flex-direction:column;gap:8px;padding:10px 20px;border-top:1px solid var(--line);background:var(--sf2)}.vlista{margin:0;padding-left:18px;font-size:14px}.vrow-e{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .noaut{background:var(--dang-bg);color:var(--dang-ink);border-radius:12px;padding:16px 18px;font-size:15px}.noaut ul{margin:8px 0 0;padding-left:18px}
 .chk{display:flex;align-items:center;gap:10px;font-size:14px;padding:6px 0;cursor:pointer}
 .chk-grid .chk{border:1px solid var(--line);border-radius:10px;padding:10px 12px}.chk-grid .chk.on{border-color:var(--teal);background:var(--teal-soft)}
@@ -232,3 +232,8 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
   .toasts{bottom:calc(16px + env(safe-area-inset-bottom,0px))}
 }
 
+
+.dias-sel{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:20px;align-items:start}.dias-sel .stack input[type=date]{width:100%}
+.dias-lista{list-style:none;margin:0;padding:6px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--sf);min-height:120px;max-height:280px;overflow:auto}
+.dias-lista li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line2)}.dias-lista li:last-child{border-bottom:0}
+@media(max-width:720px){.dias-sel{grid-template-columns:1fr}}

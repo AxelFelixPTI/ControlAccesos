@@ -42,7 +42,7 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             ct: ct);
     }
 
-    public async Task<ResultSp<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string sustento, long usuarioId, CancellationToken ct = default)
+    public async Task<ResultSp<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string sustento, long usuarioId, Dto_Transportista_Entrada? transportista = null, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraConIdAsync(
             clave: Conn,
@@ -54,6 +54,14 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
                 AddLongReq(p, "HV_ID_Persona_Externa", personaExternaId);
                 AddStrReq(p, "HV_Sustento", sustento);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
+                // D-226: transportista (con datos opcionales) o ayudante/persona común
+                AddChar1(p, "HV_Es_Transportista", transportista is null ? "N" : "Y");
+                AddStr(p, "HV_Trans_Ruc", transportista?.Ruc);
+                AddStr(p, "HV_Trans_Nombre", transportista?.Nombre);
+                AddStr(p, "HV_Trans_Direccion", transportista?.Direccion);
+                AddStr(p, "HV_Trans_Placa", transportista?.Placa);
+                AddStr(p, "HV_Trans_Marca", transportista?.Marca);
+                AddStr(p, "HV_Trans_Licencia", transportista?.Licencia);
             },
             ct: ct);
     }

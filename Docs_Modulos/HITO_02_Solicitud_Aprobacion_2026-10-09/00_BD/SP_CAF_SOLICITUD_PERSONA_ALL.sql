@@ -80,13 +80,13 @@ BEGIN
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud no existe.'; RETURN;
         END IF;
-        IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', lv_sede) <> 'Y' THEN
+        IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+        IF COALESCE("ERP_CAF_FN_FRANJA_FIN"("HV_ID_Solicitud"), CAST(lv_fecha AS DATE)) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó.'; RETURN;
         END IF;
 
@@ -165,12 +165,21 @@ $$;
 --      lista sale de las personas con Aprobacion = APROBADA.
 -- -----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA"(BIGINT, BIGINT, BIGINT, BIGINT, INT, VARCHAR);
+-- V1.2 (D-226): cambia la firma (rol transportista/ayudante + datos del transportista); sin sobrecarga en HANA
+DROP PROCEDURE IF EXISTS "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(BIGINT, BIGINT, VARCHAR, BIGINT, BIGINT, INT, VARCHAR);
 
 CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(
     IN    "HV_ID_Solicitud"        BIGINT,
     IN    "HV_ID_Persona_Externa"  BIGINT,
     IN    "HV_Sustento"            VARCHAR(2000),
     IN    "HV_UsuarioID"           BIGINT,
+    IN    "HV_Es_Transportista"    CHAR(1) DEFAULT 'N',
+    IN    "HV_Trans_Ruc"           VARCHAR(20) DEFAULT NULL,
+    IN    "HV_Trans_Nombre"        VARCHAR(300) DEFAULT NULL,
+    IN    "HV_Trans_Direccion"     VARCHAR(400) DEFAULT NULL,
+    IN    "HV_Trans_Placa"         VARCHAR(30) DEFAULT NULL,
+    IN    "HV_Trans_Marca"         VARCHAR(100) DEFAULT NULL,
+    IN    "HV_Trans_Licencia"      VARCHAR(50) DEFAULT NULL,
     INOUT "HV_ID_Solicitud_Persona_Result" BIGINT DEFAULT NULL,
     INOUT "HV_Codigo_Resp"         INT DEFAULT NULL,
     INOUT "HV_Mensaje"             VARCHAR(250) DEFAULT NULL
@@ -194,8 +203,13 @@ DECLARE
     lv_est2   VARCHAR(20);
     lv_dest   VARCHAR(2000);
     lv_dest2  VARCHAR(2000);
+    lv_tcod   VARCHAR(30);
+    lv_eop    VARCHAR(20);
+    lv_act    CHAR(1);
+    lv_errt   VARCHAR(250);
+    lv_rol    VARCHAR(20) := '';
 BEGIN
-    -- V1.1 2026-10-27 (D-169)
+    -- V1.2 2026-11-09 (D-226): en una solicitud de proveedor se elige transportista o ayudante de descarga
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA';
     "HV_ID_Solicitud_Persona_Result" := 0;
@@ -235,8 +249,36 @@ BEGIN
             "HV_Mensaje" := 'La corrección de emergencia solo aplica a una solicitud ya aprobada. Mientras esté por decidir, apruebe u observe a las personas desde la revisión.';
             RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+        IF COALESCE("ERP_CAF_FN_FRANJA_FIN"("HV_ID_Solicitud"), CAST(lv_fecha AS DATE)) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó: la solicitud no se modifica.'; RETURN;
+        END IF;
+
+        -- D-226: el rol (transportista / ayudante) solo existe en solicitudes de proveedor
+        SELECT MAX("Codigo") INTO lv_tcod FROM "Catalogo_Tipo_Acceso" WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo;
+        IF COALESCE("HV_Es_Transportista", 'N') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique si la persona es transportista (Y) o ayudante (N).'; RETURN;
+        END IF;
+        IF COALESCE("HV_Es_Transportista", 'N') = 'Y' THEN
+            IF lv_tcod IS DISTINCT FROM 'PROVEEDOR' THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Solo una solicitud de proveedor tiene transportistas.'; RETURN;
+            END IF;
+            lv_errt := "ERP_CAF_FN_TRANSPORTISTA_VALIDAR"("HV_Trans_Ruc", "HV_Trans_Nombre", "HV_Trans_Direccion",
+                                                          "HV_Trans_Placa", "HV_Trans_Marca", "HV_Trans_Licencia");
+            IF lv_errt <> '' THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := lv_errt; RETURN;
+            END IF;
+            lv_rol := 'transportista';
+        ELSIF lv_tcod = 'PROVEEDOR' THEN
+            lv_rol := 'ayudante';
+        END IF;
+        IF lv_tcod = 'PROVEEDOR' THEN
+            SELECT MAX("Estado_Operativo"), MAX("Activa") INTO lv_eop, lv_act
+              FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
+            IF COALESCE("HV_Es_Transportista", 'N') = 'Y' AND lv_eop IS NOT NULL
+               AND (lv_act <> 'Y' OR lv_eop NOT IN ('PROGRAMADO','EN_ESPERA','INGRESO','EN_ATENCION')) THEN
+                "HV_Codigo_Resp" := 409;
+                "HV_Mensaje" := 'La entrega ya terminó: no se puede agregar un transportista. Cree una nueva solicitud.'; RETURN;
+            END IF;
         END IF;
 
         SELECT COUNT(*), MAX("Apellido_Paterno" || COALESCE(' ' || "Apellido_Materno", '') || ', ' || "Nombres")
@@ -270,6 +312,15 @@ BEGIN
         CALL "ERP_CAF_SOLICITUD_HEREDAR_PASOS"("HV_ID_Solicitud", lv_sp, "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'heredar: %', lv_m; END IF;
 
+        -- D-226: si entra como transportista queda con su fila de datos (si volvía de RETIRADA se reemplaza la anterior)
+        IF COALESCE("HV_Es_Transportista", 'N') = 'Y' THEN
+            UPDATE "CAF_Solicitud_Transportista" SET "Eliminado" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud_Persona" = lv_sp AND "Eliminado" = 'N';
+            INSERT INTO "CAF_Solicitud_Transportista" ("ID_Solicitud","ID_Solicitud_Persona","Ruc","Nombre","Direccion","Placa","Marca","Licencia","UsuarioID_Create")
+            VALUES ("HV_ID_Solicitud", lv_sp, NULLIF(TRIM("HV_Trans_Ruc"), ''), NULLIF(TRIM("HV_Trans_Nombre"), ''), NULLIF(TRIM("HV_Trans_Direccion"), ''),
+                    "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Trans_Placa"), NULLIF(TRIM("HV_Trans_Marca"), ''), NULLIF(TRIM("HV_Trans_Licencia"), ''), "HV_UsuarioID");
+        END IF;
+
         -- Aprueba los pasos por persona que le corresponden por rol, sin saltarse el orden
         INSERT INTO "CAF_Solicitud_Decision"
                ("ID_Solicitud_Persona","ID_Tipo_Acceso_Paso_Aprobacion","Decision","Mensaje","ID_Usuario","Fecha_Decision","UsuarioID_Create")
@@ -292,10 +343,17 @@ BEGIN
 
         CALL "ERP_CAF_SOLICITUD_RECALCULAR"("HV_ID_Solicitud", "HV_UsuarioID", lv_est2, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
+        -- D-226: un transportista nuevo aún no está verificado: si la entrega ya esperaba, vuelve a PROGRAMADO
+        -- (la exclusa que ya tuviera reservada se mantiene). En INGRESO/EN_ATENCION no se toca.
+        IF COALESCE("HV_Es_Transportista", 'N') = 'Y' AND lv_eop = 'EN_ESPERA' THEN
+            CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'PROGRAMADO', "HV_UsuarioID", NULL,
+                  'Se agregó un transportista por emergencia: falta verificarlo', NULL, lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
+        END IF;
         CALL "ERP_CAF_SOLICITUD_VERSION_GUARDAR"("HV_ID_Solicitud", "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'version: %', lv_m; END IF;
         CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD_PERSONA', lv_sp, "HV_ID_Solicitud", 'AGREGAR_EMERGENCIA',
-             lv_nom || ' · Emergencia: ' || lv_sus, "HV_UsuarioID", lv_c, lv_m);
+             lv_nom || CASE WHEN lv_rol = '' THEN '' ELSE ' (' || lv_rol || ')' END || ' · Emergencia: ' || lv_sus, "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
 
         SELECT "Aprobacion" INTO lv_apr2 FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = lv_sp;
@@ -310,7 +368,7 @@ BEGIN
              "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'N', 'Y', 'N', 'Y'),
              'Corrección de emergencia en ' || lv_codsol || ': se agregó a una persona',
              'CORRECCIÓN DE EMERGENCIA' || CHR(10)
-             || 'Se agregó a ' || lv_nom || ' a la solicitud ' || lv_codsol
+             || 'Se agregó a ' || lv_nom || CASE WHEN lv_rol = 'transportista' THEN ' (transportista)' WHEN lv_tcod = 'PROVEEDOR' THEN ' (ayudante de descarga)' ELSE '' END || ' a la solicitud ' || lv_codsol
              || CASE WHEN lv_apr2 = 'APROBADA' THEN ' y queda autorizada para ingresar.' ELSE ' y espera la aprobación de otros aprobadores.' END || CHR(10)
              || 'Sustento: ' || lv_sus || CHR(10)
              || 'Registrado por: ' || COALESCE(lv_quien, 'el Coordinador') || '.',
@@ -348,6 +406,8 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_PERSONA_RETIRAR"(
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
+    lv_es_t CHAR(1) := 'N';
+    lv_nt   INT := 0;
     lv_n      INT := 0;
     lv_sol    BIGINT;
     lv_apr    VARCHAR(20);
@@ -381,13 +441,13 @@ BEGIN
         END IF;
         SELECT MAX("ID_Catalogo_Sede"), MAX("ID_Usuario_Solicitante"), MAX("Estado"), MAX("Fecha_Hora_Prevista")
           INTO lv_sede, lv_owner, lv_estado, lv_fecha FROM "CAF_Solicitud" WHERE "ID_Solicitud" = lv_sol;
-        IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', lv_sede) <> 'Y' THEN
+        IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+        IF COALESCE("ERP_CAF_FN_FRANJA_FIN"(lv_sol), CAST(lv_fecha AS DATE)) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó.'; RETURN;
         END IF;
         IF lv_apr = 'RETIRADA' THEN
@@ -406,6 +466,15 @@ BEGIN
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Es la última persona de la solicitud. Cancele la solicitud en su lugar.'; RETURN;
         END IF;
+        -- D-225: sin transportista no hay entrega
+        lv_es_t := "ERP_CAF_FN_ES_TRANSPORTISTA"("HV_ID_Solicitud_Persona");
+        SELECT COUNT(*) INTO lv_nt FROM "CAF_Solicitud_Persona" PT
+         WHERE PT."ID_Solicitud" = lv_sol AND PT."Eliminado" = 'N' AND PT."Aprobacion" <> 'RETIRADA'
+           AND PT."ID_Solicitud_Persona" <> "HV_ID_Solicitud_Persona" AND "ERP_CAF_FN_ES_TRANSPORTISTA"(PT."ID_Solicitud_Persona") = 'Y';
+        IF lv_es_t = 'Y' AND lv_nt = 0 THEN
+            "HV_Codigo_Resp" := 101;
+            "HV_Mensaje" := 'Es el único transportista: sin él no hay entrega. Si fue un error de nombre use «Corregir persona»; si ya no viene, cancele la solicitud.'; RETURN;
+        END IF;
 
         SELECT "Apellido_Paterno" || COALESCE(' ' || "Apellido_Materno", '') || ', ' || "Nombres" INTO lv_nom
           FROM "CAF_Persona_Externa" WHERE "ID_Persona_Externa" = lv_ext;
@@ -418,6 +487,10 @@ BEGIN
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
 
+        IF lv_es_t = 'Y' THEN
+            CALL "ERP_CAF_SOLICITUD_TRANSPORTISTA_QUITAR"("HV_ID_Solicitud_Persona", "HV_UsuarioID", lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'transportista: %', lv_m; END IF;
+        END IF;
         CALL "ERP_CAF_SOLICITUD_RECALCULAR"(lv_sol, "HV_UsuarioID", lv_est2, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
         CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD_PERSONA', "HV_ID_Solicitud_Persona", lv_sol, 'RETIRAR', lv_nom, "HV_UsuarioID", lv_c, lv_m);
@@ -490,13 +563,13 @@ BEGIN
         END IF;
         SELECT MAX("ID_Catalogo_Sede"), MAX("ID_Catalogo_Tipo_Acceso"), MAX("ID_Usuario_Solicitante"), MAX("Estado"), MAX("Fecha_Hora_Prevista"), MAX("Codigo")
           INTO lv_sede, lv_tipo, lv_owner, lv_estado, lv_fecha, lv_codsol FROM "CAF_Solicitud" WHERE "ID_Solicitud" = lv_sol;
-        IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', lv_sede) <> 'Y' THEN
+        IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+        IF COALESCE("ERP_CAF_FN_FRANJA_FIN"(lv_sol), CAST(lv_fecha AS DATE)) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó.'; RETURN;
         END IF;
         IF lv_apr = 'APROBADA' THEN
@@ -602,6 +675,8 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
+    lv_es_t CHAR(1) := 'N';
+    lv_nt   INT := 0;
     lv_n      INT := 0;
     lv_sol    BIGINT;
     lv_apr    VARCHAR(20);
@@ -665,7 +740,7 @@ BEGIN
             "HV_Mensaje" := 'La corrección de emergencia solo aplica a una solicitud ya aprobada. Mientras esté por decidir, observe o rechace desde la revisión.';
             RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+        IF COALESCE("ERP_CAF_FN_FRANJA_FIN"(lv_sol), CAST(lv_fecha AS DATE)) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó: la solicitud no se modifica.'; RETURN;
         END IF;
         IF lv_apr = 'RETIRADA' THEN
@@ -695,10 +770,17 @@ BEGIN
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona"
          WHERE "ID_Solicitud" = lv_sol AND "Eliminado" = 'N' AND "Aprobacion" <> 'RETIRADA'
            AND "ID_Solicitud_Persona" <> "HV_ID_Solicitud_Persona";
-        IF lv_n = 0 THEN
+        -- D-225: el único transportista cuenta como «única persona»: sin transportista no hay entrega
+        lv_es_t := "ERP_CAF_FN_ES_TRANSPORTISTA"("HV_ID_Solicitud_Persona");
+        SELECT COUNT(*) INTO lv_nt FROM "CAF_Solicitud_Persona" PT
+         WHERE PT."ID_Solicitud" = lv_sol AND PT."Eliminado" = 'N' AND PT."Aprobacion" <> 'RETIRADA'
+           AND PT."ID_Solicitud_Persona" <> "HV_ID_Solicitud_Persona" AND "ERP_CAF_FN_ES_TRANSPORTISTA"(PT."ID_Solicitud_Persona") = 'Y';
+        IF lv_n = 0 OR (lv_es_t = 'Y' AND lv_nt = 0) THEN
             IF COALESCE("HV_Confirmar_Rechazo", 'N') <> 'Y' THEN
                 "HV_Codigo_Resp" := 409;
-                "HV_Mensaje" := 'Es la única persona de la solicitud: si la retira, la solicitud quedará RECHAZADA. Confirme para continuar.';
+                "HV_Mensaje" := CASE WHEN lv_n = 0
+                    THEN 'Es la única persona de la solicitud: si la retira, la solicitud quedará RECHAZADA. Confirme para continuar.'
+                    ELSE 'Es el único transportista: sin él no hay entrega y la solicitud quedará RECHAZADA. Si fue un error de nombre use «Corregir datos»; si ya no viene, cancele. Confirme para continuar.' END;
                 RETURN;
             END IF;
             lv_ultima := 'Y';
@@ -715,6 +797,10 @@ BEGIN
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
 
+        IF lv_es_t = 'Y' THEN
+            CALL "ERP_CAF_SOLICITUD_TRANSPORTISTA_QUITAR"("HV_ID_Solicitud_Persona", "HV_UsuarioID", lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'transportista: %', lv_m; END IF;
+        END IF;
         CALL "ERP_CAF_SOLICITUD_RECALCULAR"(lv_sol, "HV_UsuarioID", lv_est2, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
         IF lv_ultima = 'Y' THEN
@@ -748,7 +834,7 @@ BEGIN
                   ELSE 'Corrección de emergencia en ' || lv_codsol || ': se retiró a una persona' END,
              'CORRECCIÓN DE EMERGENCIA' || CHR(10)
              || 'Se retiró a ' || lv_nom || ' de la solicitud ' || lv_codsol || ': ya no está autorizada para ingresar.' || CHR(10)
-             || CASE WHEN lv_ultima = 'Y' THEN 'Era la única persona: la solicitud quedó RECHAZADA.' || CHR(10) ELSE '' END
+             || CASE WHEN lv_ultima = 'Y' THEN 'Era la única persona o el único transportista: la solicitud quedó RECHAZADA.' || CHR(10) ELSE '' END
              || 'Sustento: ' || lv_sus || CHR(10)
              || 'Registrado por: ' || COALESCE(lv_quien, 'el Coordinador') || '.',
              "HV_UsuarioID", lv_c, lv_m);
@@ -869,7 +955,7 @@ BEGIN
             "HV_Mensaje" := 'La corrección de emergencia solo aplica a una solicitud ya aprobada.';
             RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
+        IF COALESCE("ERP_CAF_FN_FRANJA_FIN"(lv_sol), CAST(lv_fecha AS DATE)) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó: la solicitud no se modifica.'; RETURN;
         END IF;
         IF lv_apr <> 'APROBADA' THEN

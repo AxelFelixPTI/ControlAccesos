@@ -69,6 +69,7 @@ DECLARE
     lv_nombre VARCHAR(500);
     lv_ext    VARCHAR(10);
     lv_hash   VARCHAR(64);
+    lv_tot    BIGINT := 0;
     lv_ed     CHAR(1);
     lv_motivo VARCHAR(250);
     lv_c      INT;
@@ -111,8 +112,13 @@ BEGIN
         END IF;
 
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Adjunto" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
-        IF lv_n >= 2 THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Una solicitud admite como máximo 2 documentos. Retire uno para agregar otro.'; RETURN;
+        IF lv_n >= 10 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Una solicitud admite como máximo 10 documentos. Retire uno para agregar otro.'; RETURN;
+        END IF;
+        -- El correo lleva los documentos como adjuntos (tope 20 MB): se corta aquí para que nunca falle el envío.
+        SELECT COALESCE(SUM("Tamano_Bytes"), 0) INTO lv_tot FROM "CAF_Solicitud_Adjunto" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
+        IF lv_tot + LENGTH("HV_Contenido") > 20971520 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Los documentos de una solicitud no pueden sumar más de 20 MB. Retire alguno o use un archivo más liviano.'; RETURN;
         END IF;
         lv_hash := ENCODE(SHA256("HV_Contenido"), 'hex');
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Adjunto" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Hash_SHA256" = lv_hash;

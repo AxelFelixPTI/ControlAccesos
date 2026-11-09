@@ -12,6 +12,7 @@
 // Conexión : ConexionesCaf.Modulo  (schema TRIANONSATELITAL_CAF_PRODD)
 // Las firmas de bind salen de las firmas reales de las rutinas (gen_capas_solicitud.py).
 
+using System.Globalization;
 using System.Data.Common;
 using Application.DTOs.ControlAccesos;
 using Infrastructure.Contracts.ControlAccesos;
@@ -299,8 +300,18 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         }
     }
 
+    /// <summary>D-223: una línea por transportista (CHR(30) entre registros, CHR(31) entre campos); sin esos separadores en el texto.</summary>
+    internal static string Transportistas(IEnumerable<Dto_Transportista_Entrada> l)
+    {
+        static string L(string? s) => (s ?? string.Empty).Replace('\u001e', ' ').Replace('\u001f', ' ').Trim();
+        return string.Join('\u001e', l.Select(t => string.Join('\u001f',
+            t.ID_Persona_Externa.ToString(CultureInfo.InvariantCulture), L(t.Ruc), L(t.Nombre), L(t.Direccion), L(t.Placa), L(t.Marca), L(t.Licencia))));
+    }
+
     public async Task<ResultSp<Dto_Solicitud_Creada>> CrearAsync(Dto_Solicitud_Crear dto, long usuarioId, CancellationToken ct = default)
     {
+        if (dto.Transportistas.Count > 0) return await CrearProveedorAsync(dto, usuarioId, ct).ConfigureAwait(false);
+        if (dto.Dias.Count > 0) return await CrearContratistaAsync(dto, usuarioId, ct).ConfigureAwait(false);
         var r = await _exec.EjecutarEscrituraConSalidasAsync(
             clave: Conn,
             procedimiento: "ERP_CAF_SOLICITUD_CREAR",
@@ -340,6 +351,160 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
             ID_Solicitud = Convert.ToInt64(r.Data["HV_ID_Solicitud_Result"] ?? 0L),
             Codigo = Convert.ToString(r.Data["HV_Codigo_Solicitud_Result"]) ?? string.Empty,
         }, r.Mensaje);
+    }
+
+    /// <summary>D-227: solicitud de contratista con su lista de días autorizados, en una sola operación (ERP_CAF_SOLICITUD_CREAR_CONTRATISTA).</summary>
+    private async Task<ResultSp<Dto_Solicitud_Creada>> CrearContratistaAsync(Dto_Solicitud_Crear dto, long usuarioId, CancellationToken ct)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA",
+            columnasSalida: new[] { "HV_ID_Solicitud_Result", "HV_Codigo_Solicitud_Result" },
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Catalogo_Sede", dto.ID_Catalogo_Sede);
+                AddLong(p, "HV_ID_Personal_Responsable", dto.ID_Personal_Responsable);
+                AddStr(p, "HV_Empresa_Visitante", dto.Empresa_Visitante);
+                AddStr(p, "HV_Motivo_Detalle", dto.Motivo_Detalle);
+                AddStr(p, "HV_Observaciones", dto.Observaciones);
+                AddStr(p, "HV_IDs_Zona", Ids(dto.IDs_Zona));
+                AddStr(p, "HV_IDs_Persona_Externa", Ids(dto.IDs_Persona_Externa));
+                AddStr(p, "HV_Copias", dto.Copias);
+                AddLong(p, "HV_ID_Solicitud_Origen", dto.ID_Solicitud_Origen);
+                AddStr(p, "HV_Requiere_Cochera", dto.Requiere_Cochera ? "Y" : "N");
+                AddStr(p, "HV_Placa_Vehiculo", dto.Placa_Vehiculo);
+                AddStr(p, "HV_Area_Detalle", dto.Area_Detalle);
+                AddStr(p, "HV_Contacto_Nombre", dto.Contacto_Nombre);
+                AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
+                AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
+                AddStr(p, "HV_Dias", string.Join(',', dto.Dias));
+                AddStr(p, "HV_Hora_Desde", dto.Hora_Desde);
+                AddStr(p, "HV_Hora_Hasta", dto.Hora_Hasta);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<Dto_Solicitud_Creada>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<Dto_Solicitud_Creada>.Success(new Dto_Solicitud_Creada
+        {
+            ID_Solicitud = Convert.ToInt64(r.Data["HV_ID_Solicitud_Result"] ?? 0L),
+            Codigo = Convert.ToString(r.Data["HV_Codigo_Solicitud_Result"]) ?? string.Empty,
+        }, r.Mensaje);
+    }
+
+    public async Task<Result<List<Dto_Solicitud_Dia>>> DiasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_DIAS",
+                bind: p =>
+                {
+                    AddLongReq(p, "HV_UsuarioID", usuarioId);
+                    AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                },
+                map: rd => new Dto_Solicitud_Dia
+                {
+                    Fecha = RdDt(rd, "Fecha"),
+                    Hora_Desde = RdStrN(rd, "Hora_Desde"),
+                    Hora_Hasta = RdStrN(rd, "Hora_Hasta"),
+                    Origen = RdStr(rd, "Origen"),
+                },
+                ct: ct);
+            return Result<List<Dto_Solicitud_Dia>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Solicitud_Dia>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<ResultSp<int>> DiasExtenderAsync(long solicitudId, IReadOnlyList<string> dias, string? horaDesde, string? horaHasta, string sustento, long usuarioId, CancellationToken ct = default)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_DIAS_EXTENDER",
+            columnasSalida: new[] { "HV_Agregados" },
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStr(p, "HV_Dias", string.Join(',', dias));
+                AddStr(p, "HV_Hora_Desde", horaDesde);
+                AddStr(p, "HV_Hora_Hasta", horaHasta);
+                AddStrReq(p, "HV_Sustento", sustento);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<int>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<int>.Success(Convert.ToInt32(r.Data["HV_Agregados"] ?? 0), r.Mensaje);
+    }
+
+    /// <summary>Solicitud de proveedor con sus transportistas, en una sola operación (ERP_CAF_SOLICITUD_CREAR_PROVEEDOR).</summary>
+    private async Task<ResultSp<Dto_Solicitud_Creada>> CrearProveedorAsync(Dto_Solicitud_Crear dto, long usuarioId, CancellationToken ct)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR",
+            columnasSalida: new[] { "HV_ID_Solicitud_Result", "HV_Codigo_Solicitud_Result" },
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Catalogo_Sede", dto.ID_Catalogo_Sede);
+                AddTimestamp(p, "HV_Fecha_Hora_Prevista", dto.Fecha_Hora_Prevista);
+                AddStr(p, "HV_Empresa_Visitante", dto.Empresa_Visitante);
+                AddStr(p, "HV_Observaciones", dto.Observaciones);
+                AddStr(p, "HV_IDs_Persona_Externa", Ids(dto.IDs_Persona_Externa));
+                AddStr(p, "HV_Copias", dto.Copias);
+                AddLong(p, "HV_ID_Solicitud_Origen", dto.ID_Solicitud_Origen);
+                AddStr(p, "HV_Contacto_Nombre", dto.Contacto_Nombre);
+                AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
+                AddLong(p, "HV_ID_Empresa_Destino", dto.ID_Catalogo_Empresa_Destino);
+                AddStr(p, "HV_Transportistas", Transportistas(dto.Transportistas));
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<Dto_Solicitud_Creada>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<Dto_Solicitud_Creada>.Success(new Dto_Solicitud_Creada
+        {
+            ID_Solicitud = Convert.ToInt64(r.Data["HV_ID_Solicitud_Result"] ?? 0L),
+            Codigo = Convert.ToString(r.Data["HV_Codigo_Solicitud_Result"]) ?? string.Empty,
+        }, r.Mensaje);
+    }
+
+    public async Task<Result<List<Dto_Solicitud_Transportista>>> TransportistasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_TRANSPORTISTAS",
+                bind: p =>
+                {
+                    AddLongReq(p, "HV_UsuarioID", usuarioId);
+                    AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                },
+                map: rd => new Dto_Solicitud_Transportista
+                {
+                    ID_Solicitud_Persona = RdLong(rd, "ID_Solicitud_Persona"),
+                    ID_Persona_Externa   = RdLong(rd, "ID_Persona_Externa"),
+                    Es_Principal         = RdBool(rd, "Es_Principal"),
+                    Tipo_Documento       = RdStrN(rd, "Tipo_Documento"),
+                    Numero_Documento     = RdStrN(rd, "Numero_Documento"),
+                    Nombre_Completo      = RdStr(rd, "Nombre_Completo"),
+                    Ruc                  = RdStrN(rd, "Ruc"),
+                    Nombre               = RdStrN(rd, "Nombre"),
+                    Direccion            = RdStrN(rd, "Direccion"),
+                    Placa                = RdStrN(rd, "Placa"),
+                    Marca                = RdStrN(rd, "Marca"),
+                    Licencia             = RdStrN(rd, "Licencia"),
+                    Datos_Completos      = RdBool(rd, "Datos_Completos"),
+                },
+                ct: ct);
+            return Result<List<Dto_Solicitud_Transportista>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Solicitud_Transportista>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
     }
 
     public async Task<ResultSp<bool>> EditarDatosAsync(long solicitudId, Dto_Solicitud_Editar dto, long usuarioId, CancellationToken ct = default)
@@ -504,6 +669,8 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Contacto_Nombre              = RdStrN(rd, "Contacto_Nombre"),
         Contacto_Telefonos           = RdStrN(rd, "Contacto_Telefonos"),
         Contacto_Correos             = RdStrN(rd, "Contacto_Correos"),
+        ID_Empresa_Destino           = RdLongN(rd, "ID_Empresa_Destino"),
+        Empresa_Destino              = RdStrN(rd, "Empresa_Destino"),
         Copias                       = RdStrN(rd, "Copias"),
         CreateDate                   = RdDtN(rd, "CreateDate"),
         Total_Personas               = RdInt(rd, "Total_Personas"),

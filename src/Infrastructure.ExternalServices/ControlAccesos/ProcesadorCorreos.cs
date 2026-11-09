@@ -146,7 +146,7 @@ public sealed class ProcesadorCorreos
         return new MensajeCorreo(para, cc, a.Asunto, a.Html, a.Texto, id, respuestaA, responder, responder is null ? null : NombreVisible(c), docs.Count > 0 ? docs : null);
     }
 
-    /// <summary>Máximo de adjuntos por correo (Gmail admite 25 MB en total; el límite del sistema es 2 × 5 MB).</summary>
+    /// <summary>Máximo de adjuntos por correo (Gmail admite 25 MB en total; el sistema limita a 10 documentos de 5 MB y 20 MB en total por solicitud).</summary>
     internal const long MaxBytesAdjuntos = 20L * 1024 * 1024;
 
     /// <summary>Avisos que llevan los documentos de la solicitud como adjuntos (D-183).</summary>

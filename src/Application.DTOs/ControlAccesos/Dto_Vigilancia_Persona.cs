@@ -40,4 +40,8 @@ public sealed class Dto_Vigilancia_Persona
     public string? Estado_Operativo { get; set; }          // PROGRAMADO, EN_ESPERA, INGRESO, ... (solo proveedor)
     public string? Tipo_Acceso { get; set; }                // descripción del tipo de solicitud (filtro por tipo en pantalla)
     public bool Disponibilidad_Confirmada { get; set; }    // Almacén ya reservó la exclusa para esta entrega
+    public bool Es_Transportista { get; set; }             // D-225: transportista (conduce un vehículo) frente a ayudante de descarga
+    public bool Verificada { get; set; }
+    /// <summary>D-227: NA (no es de franja), DENTRO o FUERA de la franja autorizada en este momento.</summary>
+    public string Franja_Estado { get; set; } = "NA";                   // D-225: Vigilancia ya verificó sus datos
 }

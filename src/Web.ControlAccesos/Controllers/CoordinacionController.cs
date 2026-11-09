@@ -66,12 +66,19 @@ public sealed class CoordinacionController : Controller
         if (!d.Success) return Falla(d.Message);
         var per = await _sol.PersonasListarAsync(u, id, ct);
         var his = await _sol.HistorialListarAsync(u, id, ct);
+        var tra = await _sol.TransportistasListarAsync(u, id, ct);
+        var dia = await _sol.DiasListarAsync(u, id, ct);
+        if (!dia.Success) return Falla(dia.Message);
         if (!per.Success) return Falla(per.Message);
         if (!his.Success) return Falla(his.Message);
+        if (!tra.Success) return Falla(tra.Message);
         var s = d.Data!;
+        // D-225: en proveedor el «único» que importa es el transportista (sin él no hay entrega, aunque queden ayudantes)
+        var tIds = tra.Data!.Select(t => t.ID_Solicitud_Persona).ToHashSet();
+        var tVivos = per.Data!.Count(q => tIds.Contains(q.ID_Solicitud_Persona) && q.Aprobacion != "RETIRADA");
         var puedeCorregir = User.TienePermiso("PER_CAF_SOLICITUD_APROBAR")
                             && (s.Estado == "APROBADA" || s.Estado == "APROBADA_PARCIAL")
-                            && s.Fecha_Hora_Prevista.Date >= DateTime.Today;
+                            && (s.Fecha_Hora_Prevista.Date >= DateTime.Today || dia.Data!.Any(x => x.Fecha.Date >= DateTime.Today));
         return Json(new
         {
             success = true,
@@ -84,6 +91,13 @@ public sealed class CoordinacionController : Controller
                 responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area, solicitante = s.Solicitante_Nombre, solicitanteCorreo = s.Solicitante_Correo,
                 exigeSctr = s.Exige_SCTR, exigeEpp = s.Exige_EPP, motivoCancelacion = s.Motivo_Cancelacion, codigoOrigen = s.Codigo_Origen,
                 puedeDecidir = s.Puede_Decidir,
+                empresaDestino = s.Empresa_Destino,
+                dias = dia.Data!.Select(x => new { fecha = x.Fecha.ToString("yyyy-MM-dd"), desde = x.Hora_Desde, hasta = x.Hora_Hasta, origen = x.Origen }),
+                transportistas = tra.Data!.Select(t => new
+                {
+                    personaId = t.ID_Persona_Externa, principal = t.Es_Principal, tipoDoc = t.Tipo_Documento, doc = t.Numero_Documento, nombrePersona = t.Nombre_Completo,
+                    ruc = t.Ruc, nombre = t.Nombre, direccion = t.Direccion, placa = t.Placa, marca = t.Marca, licencia = t.Licencia, completos = t.Datos_Completos,
+                }),
                 // Corrección de emergencia (D-169): solo sobre una solicitud ya aprobada y hasta el día de la visita.
                 // Es solo para mostrar el botón: la rutina vuelve a validar estado, fecha, rol y sustento.
                 puedeCorregir = puedeCorregir,
@@ -98,7 +112,8 @@ public sealed class CoordinacionController : Controller
                     puedeCorregirDatos = puedeCorregir && p.Aprobacion == "APROBADA" && p.Estado == "ESPERADA",
                     tipoDocId = p.ID_Catalogo_Tipo_Documento, apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres,
                     // D-215: quitar a la única persona vigente rechaza la solicitud (la web avisa antes; la rutina exige la confirmación)
-                    esUnica = per.Data!.Count(q => q.Aprobacion != "RETIRADA") == 1,
+                    esUnica = tIds.Count > 0 ? tIds.Contains(p.ID_Solicitud_Persona) && tVivos == 1 : per.Data!.Count(q => q.Aprobacion != "RETIRADA") == 1,
+                    esTransportista = tIds.Contains(p.ID_Solicitud_Persona),
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }
@@ -151,8 +166,21 @@ public sealed class CoordinacionController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AgregarEmergencia([FromBody] CorreccionAgregarVM m, CancellationToken ct)
     {
-        var r = await _solPer.AgregarEmergenciaAsync(m.SolicitudId, m.PersonaId, m.Sustento, User.UsuarioId(), ct);
+        var t = m.EsTransportista
+            ? new Dto_Transportista_Entrada { ID_Persona_Externa = m.PersonaId, Ruc = m.Ruc, Nombre = m.Nombre, Direccion = m.Direccion, Placa = m.Placa, Marca = m.Marca, Licencia = m.Licencia }
+            : null;
+        var r = await _solPer.AgregarEmergenciaAsync(m.SolicitudId, m.PersonaId, m.Sustento, User.UsuarioId(), t, ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-227: el Coordinador agrega días a una solicitud de contratista ya aprobada. Solo suma; exige sustento.</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExtenderDias([FromBody] CorreccionDiasVM m, CancellationToken ct)
+    {
+        var dias = (m.Dias ?? new()).Select(x => (x ?? "").Trim()).Where(x => x.Length > 0).ToList();
+        var r = await _sol.DiasExtenderAsync(m.SolicitudId, dias, string.IsNullOrWhiteSpace(m.HoraDesde) ? null : m.HoraDesde.Trim(),
+            string.IsNullOrWhiteSpace(m.HoraHasta) ? null : m.HoraHasta.Trim(), m.Sustento ?? string.Empty, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r), data = new { agregados = r.Success ? r.Data : 0 } });
     }
 
     /// <summary>Corrección de emergencia (D-169): quita a una persona autorizada que aún no ingresó. Exige sustento.</summary>

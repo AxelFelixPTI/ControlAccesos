@@ -22,6 +22,14 @@ public interface ISrv_Proveedor
     Task<Result> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     /// <summary>Vigilancia: el proveedor verificado se retira sin ingresar (motivo obligatorio).</summary>
     Task<Result> RetiroSinIngresoAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-225: Vigilancia registra el ingreso físico de las personas indicadas (ya verificadas), respetando la capacidad de la exclusa.</summary>
+    Task<Result> IngresoFisicoAsync(long solicitudId, IReadOnlyCollection<long> idsPersona, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-225: Vigilancia marca que las personas indicadas se retiraron sin ingresar (motivo obligatorio).</summary>
+    Task<Result> RetiroPersonasAsync(long solicitudId, IReadOnlyCollection<long> idsPersona, string? motivo, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-225: verificación de datos de varias personas con un solo checklist (todo o nada).</summary>
+    Task<Result> VerificarGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-225: salida de varias personas con un solo checklist (todo o nada).</summary>
+    Task<Result> SalidaGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default);
     Task<Result> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     Task<Result> TerminarAsync(long solicitudId, string? observacion, long usuarioId, CancellationToken ct = default);
 }

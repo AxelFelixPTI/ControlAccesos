@@ -34,6 +34,24 @@ SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 -- -----------------------------------------------------------------------------
 -- 1. ERP_CAF_FN_PERMISO_TIPO
 -- -----------------------------------------------------------------------------
+-- 0. ERP_CAF_FN_ES_SOLICITANTE: puede crear Y gestionar sus propias solicitudes (D-224)
+--    Quien tiene PER_CAF_SOLICITUD_PROPIA o PER_CAF_PROVEEDOR_SOLICITAR. El permiso de proveedor
+--    NO da acceso a los demás tipos de ingreso (eso lo decide ERP_CAF_FN_PERMISO_TIPO).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID" BIGINT, "HV_ID_Catalogo_Sede" BIGINT)
+RETURNS CHAR(1)
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+BEGIN
+    -- V1.0 2026-11-09
+    IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', "HV_ID_Catalogo_Sede") = 'Y' THEN
+        RETURN 'Y';
+    END IF;
+    RETURN 'N';
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION "ERP_CAF_FN_PERMISO_TIPO"("HV_UsuarioID" BIGINT, "HV_Tipo_Codigo" VARCHAR, "HV_ID_Catalogo_Sede" BIGINT)
 RETURNS CHAR(1)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
@@ -66,6 +84,23 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- 2-bis. ERP_CAF_FN_ES_TRANSPORTISTA  (por solicitud-persona; D-225)
+--        'Y' si la persona figura como transportista de su solicitud (CAF_Solicitud_Transportista). Las demás son ayudantes de descarga.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_ES_TRANSPORTISTA"("HV_ID_Solicitud_Persona" BIGINT)
+RETURNS CHAR(1)
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_n INT := 0;
+BEGIN
+    -- V1.0 2026-11-09
+    SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Transportista" T
+     WHERE T."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona" AND T."Eliminado" = 'N';
+    RETURN CASE WHEN lv_n > 0 THEN 'Y' ELSE 'N' END;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- 3. ERP_CAF_FN_PORTERIA_PERMISO  (el proveedor lo registra la Vigilancia con licencia de proveedores)
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION "ERP_CAF_FN_PORTERIA_PERMISO"("HV_UsuarioID" BIGINT, "HV_ID_Solicitud_Persona" BIGINT, "HV_ID_Catalogo_Sede" BIGINT)
@@ -84,8 +119,8 @@ $$;
 -- 4. ERP_CAF_FN_PROVEEDOR_VALIDAR
 --    '' si todo está bien o el mensaje para el solicitante.
 --      * Tipo distinto de PROVEEDOR: no admite datos de proveedor.
---      * PROVEEDOR: sede con Aplica_Proveedor, RUC de 11 dígitos, dirección, marca, placa (5 a 8 letras o
---        números), licencia de conducir, teléfono (mínimo 6 dígitos) y empresa Trianon destinataria activa.
+--      * PROVEEDOR: sede con Aplica_Proveedor, teléfono (mínimo 6 dígitos) y empresa Trianon destinataria activa.
+--        RUC, dirección, marca, placa y licencia son opcionales (V1.1, D-223); si se escriben se valida su formato.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION "ERP_CAF_FN_PROVEEDOR_VALIDAR"(
     "HV_Tipo_Codigo"      VARCHAR,
@@ -123,12 +158,11 @@ BEGIN
     IF lv_n = 0 THEN RETURN 'La sede no existe o está inactiva.'; END IF;
     IF lv_aplica <> 'Y' THEN RETURN 'Esa sede no recibe proveedores de abastecimiento.'; END IF;
 
-    IF COALESCE(TRIM("HV_Proveedor_RUC"), '') !~ '^[0-9]{11}$' THEN RETURN 'Indique el RUC del proveedor (11 dígitos).'; END IF;
-    IF NULLIF(TRIM(COALESCE("HV_Proveedor_Direccion", '')), '') IS NULL THEN RETURN 'Indique la dirección del proveedor.'; END IF;
-    IF NULLIF(TRIM(COALESCE("HV_Vehiculo_Marca", '')), '') IS NULL THEN RETURN 'Indique la marca del vehículo.'; END IF;
+    -- V1.1 2026-11-06 (D-223): RUC, dirección, marca, placa y licencia son OPCIONALES (pueden ir en los adjuntos);
+    -- si se escriben, se validan el RUC (11 dígitos) y la placa (5 a 8 letras o números).
+    IF NULLIF(TRIM(COALESCE("HV_Proveedor_RUC", '')), '') IS NOT NULL AND TRIM("HV_Proveedor_RUC") !~ '^[0-9]{11}$' THEN RETURN 'El RUC debe tener 11 dígitos.'; END IF;
     lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa_Vehiculo");
-    IF lv_placa IS NULL OR lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'Indique la placa del vehículo (de 5 a 8 letras o números).'; END IF;
-    IF NULLIF(TRIM(COALESCE("HV_Licencia_Conducir", '')), '') IS NULL THEN RETURN 'Indique la licencia de conducir del transportista.'; END IF;
+    IF lv_placa IS NOT NULL AND lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
     IF LENGTH(REGEXP_REPLACE(COALESCE("HV_Telefono", ''), '[^0-9]', '', 'g')) < 6 THEN
         RETURN 'Indique el teléfono del transportista (mínimo 6 dígitos).';
     END IF;
@@ -222,8 +256,10 @@ BEGIN
             "HV_Codigo_Resp" := 100; "HV_Mensaje" := 'No aplica.'; RETURN;
         END IF;
 
-        SELECT MAX("Aprobacion") INTO lv_apr FROM "CAF_Solicitud_Persona"
-         WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Es_Principal" = 'Y';
+        -- V1.2 2026-11-09 (D-225): la entrega está vigente si hay al menos un transportista aprobado
+        SELECT CASE WHEN COUNT(*) > 0 THEN 'APROBADA' ELSE 'NO' END INTO lv_apr FROM "CAF_Solicitud_Persona" P
+         WHERE P."ID_Solicitud" = "HV_ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
+           AND ("ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y' OR P."Es_Principal" = 'Y');
         lv_debe := CASE WHEN lv_estado <> 'CANCELADA' AND lv_apr = 'APROBADA' THEN 'Y' ELSE 'N' END;
 
         SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_op, lv_act, lv_eop
@@ -250,6 +286,8 @@ BEGIN
                    "Fecha_Disponibilidad" = NULL, "ID_Usuario_Disponibilidad" = NULL,
                    "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
              WHERE "ID_Solicitud" = "HV_ID_Solicitud";
+            UPDATE "CAF_Solicitud_Persona" SET "Fecha_Verificacion" = NULL, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Estado" = 'ESPERADA';
             INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
             VALUES ("HV_ID_Solicitud", lv_eop, 'PROGRAMADO', "HV_UsuarioID",
                     CASE WHEN lv_estado = 'CANCELADA' THEN 'Desactivada: solicitud cancelada'
@@ -289,59 +327,113 @@ LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_n    INT := 0;
-    lv_prin CHAR(1);
     lv_op   INT := 0;
     lv_act  CHAR(1);
     lv_eop  VARCHAR(20);
     lv_cod  INT := 100;
     lv_msg  VARCHAR(250) := NULL;
     lv_prev TIMESTAMP;
+    lv_ver  TIMESTAMP;
+    lv_sol  BIGINT;
+    lv_pend INT := 0;
 BEGIN
-    -- V2.0 2026-11-03
-    SELECT COUNT(*), MAX(P."Es_Principal"), MAX(S."Fecha_Hora_Prevista") INTO lv_n, lv_prin, lv_prev
+    -- V3.0 2026-11-09 (D-225): todas las personas pasan por verificación; ya no hay «principal primero»
+    SELECT COUNT(*), MAX(S."Fecha_Hora_Prevista"), MAX(P."Fecha_Verificacion"), MAX(P."ID_Solicitud") INTO lv_n, lv_prev, lv_ver, lv_sol
       FROM "CAF_Solicitud_Persona" P
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
      WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
     IF lv_n > 0 THEN
         SELECT COUNT(*), MAX(O."Activa"), MAX(O."Estado_Operativo") INTO lv_op, lv_act, lv_eop
-          FROM "CAF_Solicitud_Operacion" O
-          JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = O."ID_Solicitud"
-         WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona" AND O."Eliminado" = 'N';
+          FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = lv_sol AND O."Eliminado" = 'N';
         IF lv_op = 0 OR lv_act <> 'Y' THEN
-            lv_cod := 409; lv_msg := 'La entrega del proveedor no está programada: el transportista principal debe estar aprobado.';
+            lv_cod := 409; lv_msg := 'La entrega del proveedor no está programada: debe haber un transportista aprobado.';
         ELSIF UPPER(COALESCE("HV_Etapa", '')) = 'INGRESO' THEN
-            IF lv_prin = 'Y' THEN
-                -- Este movimiento es la VERIFICACIÓN de datos (registra la llegada); el ingreso físico se valida aparte.
-                IF COALESCE("HV_Tardio", 'N') <> 'Y' THEN
-                    IF lv_eop <> 'PROGRAMADO' THEN
-                        lv_cod := 409;
-                        lv_msg := CASE WHEN lv_eop = 'EN_ESPERA' THEN 'Los datos del proveedor ya fueron verificados: espere la disponibilidad de Almacén y valide el ingreso.'
-                                       WHEN lv_eop = 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
-                                       WHEN lv_eop = 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
-                                       WHEN lv_eop IN ('CIERRE_FORZADO','NO_SE_PRESENTO') THEN 'La entrega fue cerrada al terminar su día.'
-                                       ELSE 'El transportista principal ya ingresó.' END;
-                    ELSIF CAST(lv_prev AS DATE) <> CURRENT_DATE THEN
-                        lv_cod := 409; lv_msg := 'La entrega es para otra fecha.';
-                    END IF;
-                ELSIF lv_eop NOT IN ('PROGRAMADO','EN_ESPERA') THEN
-                    lv_cod := 409; lv_msg := 'El transportista principal ya ingresó o su ingreso fue denegado.';
-                END IF;
-            ELSIF lv_eop NOT IN ('INGRESO','EN_ATENCION','RECEPCIONADO') THEN
-                lv_cod := 409; lv_msg := 'Primero debe ingresar el transportista principal.';
+            -- Este movimiento es la VERIFICACIÓN de datos de la persona; el ingreso físico se registra aparte.
+            IF lv_eop NOT IN ('PROGRAMADO','EN_ESPERA','INGRESO','EN_ATENCION') THEN
+                lv_cod := 409;
+                lv_msg := CASE WHEN lv_eop = 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
+                               WHEN lv_eop = 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
+                               WHEN lv_eop IN ('CIERRE_FORZADO','NO_SE_PRESENTO') THEN 'La entrega fue cerrada al terminar su día.'
+                               ELSE 'La recepción de la entrega ya culminó.' END;
+            ELSIF lv_ver IS NOT NULL AND COALESCE("HV_Tardio", 'N') <> 'Y' THEN
+                lv_cod := 409; lv_msg := 'Los datos de esta persona ya fueron verificados: falta registrar su ingreso.';
+            ELSIF COALESCE("HV_Tardio", 'N') <> 'Y' AND CAST(lv_prev AS DATE) <> CURRENT_DATE THEN
+                lv_cod := 409; lv_msg := 'La entrega es para otra fecha.';
             END IF;
-        ELSIF UPPER(COALESCE("HV_Etapa", '')) = 'SALIDA' AND lv_prin = 'Y' AND lv_eop NOT IN ('RECEPCIONADO','SALIO','CIERRE_FORZADO') THEN
-            lv_cod := 409; lv_msg := 'El transportista principal sale cuando Almacén recepciona la entrega.';
+        ELSIF UPPER(COALESCE("HV_Etapa", '')) = 'SALIDA' AND lv_eop NOT IN ('RECEPCIONADO','SALIO','CIERRE_FORZADO') THEN
+            -- Con varios vehículos, cada uno sale al terminar su descarga para dar paso al siguiente (capacidad de la exclusa).
+            SELECT COUNT(*) INTO lv_pend FROM "CAF_Solicitud_Persona" P2
+             WHERE P2."ID_Solicitud" = lv_sol AND P2."Eliminado" = 'N' AND P2."Aprobacion" = 'APROBADA' AND P2."Estado" = 'ESPERADA'
+               AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P2."ID_Solicitud_Persona") = 'Y';
+            IF NOT (lv_eop IN ('INGRESO','EN_ATENCION') AND lv_pend > 0) THEN
+                lv_cod := 409; lv_msg := 'La salida se registra cuando Almacén recepciona la entrega (o para dar paso al siguiente vehículo).';
+            END IF;
         END IF;
     END IF;
     RETURN QUERY SELECT lv_cod, CAST(COALESCE(lv_msg, 'Puede registrarse.') AS VARCHAR);
 END;
 $$;
 
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_RECALCULAR"(
+    IN    "HV_ID_Solicitud"  BIGINT,
+    IN    "HV_UsuarioID"     BIGINT,
+    IN    "HV_Observacion"   VARCHAR(500),
+    INOUT "HV_Codigo_Resp"   INT DEFAULT NULL,
+    INOUT "HV_Mensaje"       VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_eop  VARCHAR(20);
+    lv_act  CHAR(1);
+    lv_desv CHAR(1);
+    lv_viv  INT := 0;
+    lv_ver  INT := 0;
+    lv_nega INT := 0;
+    lv_nuevo VARCHAR(20);
+    lv_c    INT;
+    lv_m    VARCHAR(250);
+BEGIN
+    -- V1.0 2026-11-09 (D-225): el estado de la entrega sale del estado de sus transportistas.
+    --   PROGRAMADO -> EN_ESPERA cuando TODOS los transportistas por ingresar están verificados.
+    --   Sin transportistas por ingresar (denegados o retirados): la entrega termina sin ingreso y se libera la exclusa.
+    "HV_Codigo_Resp" := 100;
+    "HV_Mensaje"     := 'No aplica.';
+    SELECT MAX("Estado_Operativo"), MAX("Activa"), MAX("Con_Desviacion") INTO lv_eop, lv_act, lv_desv
+      FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
+    IF lv_eop IS NULL OR lv_act <> 'Y' OR lv_eop NOT IN ('PROGRAMADO','EN_ESPERA') THEN RETURN; END IF;
+    SELECT COUNT(*), COALESCE(SUM(CASE WHEN P."Fecha_Verificacion" IS NOT NULL THEN 1 ELSE 0 END), 0) INTO lv_viv, lv_ver
+      FROM "CAF_Solicitud_Persona" P
+     WHERE P."ID_Solicitud" = "HV_ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA' AND P."Estado" = 'ESPERADA'
+       AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y';
+    IF lv_viv = 0 THEN
+        SELECT COUNT(*) INTO lv_nega FROM "CAF_Solicitud_Persona" P
+         WHERE P."ID_Solicitud" = "HV_ID_Solicitud" AND P."Eliminado" = 'N' AND P."Estado" = 'DENEGADA'
+           AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y';
+        lv_nuevo := CASE WHEN lv_nega > 0 THEN 'INGRESO_DENEGADO' ELSE 'RETIRO_SIN_INGRESO' END;
+        CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", lv_nuevo, "HV_UsuarioID",
+              CASE WHEN lv_nuevo = 'RETIRO_SIN_INGRESO' THEN 'RETIRO_SIN_INGRESO' ELSE NULL END,
+              COALESCE(NULLIF(TRIM("HV_Observacion"), ''),
+                       CASE WHEN lv_nega > 0 THEN 'Ingreso denegado en la verificación de datos' ELSE 'Ningún transportista quedó por ingresar' END), NULL, lv_c, lv_m);
+        IF lv_c <> 100 THEN "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; RETURN; END IF;
+        UPDATE "CAF_Exclusa"
+           SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Solicitud_Actual" = "HV_ID_Solicitud";
+    ELSIF lv_eop = 'PROGRAMADO' AND lv_ver = lv_viv THEN
+        CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'EN_ESPERA', "HV_UsuarioID", NULL,
+              CASE WHEN lv_desv = 'Y' THEN 'Todos los transportistas verificados (con desviación autorizada)' ELSE 'Todos los transportistas verificados' END, NULL, lv_c, lv_m);
+        IF lv_c <> 100 THEN "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; RETURN; END IF;
+    END IF;
+    "HV_Mensaje" := 'Estado operativo revisado.';
+END;
+$$;
+
 -- -----------------------------------------------------------------------------
 -- 8. ERP_CAF_PROVEEDOR_PORTERIA_POST  (interna; la llaman ingreso y salida de portería ya registrados)
---    INGRESO del principal (quedó DENTRO)  : PROGRAMADO o EN_ESPERA -> INGRESO.
---    SALIDA: si ya nadie de la solicitud está DENTRO y estaba RECEPCIONADO -> SALIO.
+--    INGRESO (etapa de verificación): la persona verificada queda ESPERADA con Fecha_Verificacion (todavía NO está dentro)
+--              y se recalcula la entrega. Una persona DENEGADA solo se recalcula (puede dejar la entrega sin transportistas).
+--    SALIDA  : si ya nadie de la solicitud está DENTRO y estaba RECEPCIONADO -> SALIO y se libera la exclusa.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_PORTERIA_POST"(
     IN    "HV_ID_Solicitud_Persona" BIGINT,
@@ -353,56 +445,48 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_PORTERIA_POST"(
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_sol  BIGINT;
-    lv_prin CHAR(1);
     lv_est  VARCHAR(20);
     lv_eop  VARCHAR(20);
     lv_act  CHAR(1);
     lv_den  INT := 0;
     lv_c    INT;
     lv_m    VARCHAR(250);
-    lv_desv CHAR(1) := 'N';
+    lv_desv INT := 0;
     lv_cod  VARCHAR(20);
     lv_emp  VARCHAR(500);
     lv_fp   VARCHAR(20);
     lv_quien VARCHAR(400);
     lv_dest VARCHAR(2000);
 BEGIN
+    -- V3.0 2026-11-09 (D-225: verificación por persona)
     -- V2.1 2026-11-06 (D-218: salida tardía tras un cierre forzado)
     "HV_Codigo_Resp" := 100;
     "HV_Mensaje"     := 'No aplica.';
     IF "ERP_CAF_FN_ES_PROVEEDOR"("HV_ID_Solicitud_Persona") <> 'Y' THEN RETURN; END IF;
-    SELECT P."ID_Solicitud", P."Es_Principal", P."Estado" INTO lv_sol, lv_prin, lv_est
+    SELECT P."ID_Solicitud", P."Estado" INTO lv_sol, lv_est
       FROM "CAF_Solicitud_Persona" P WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
     SELECT "Estado_Operativo", "Activa" INTO lv_eop, lv_act FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = lv_sol;
     IF lv_eop IS NULL OR lv_act <> 'Y' THEN RETURN; END IF;
 
     IF "HV_Etapa" = 'INGRESO' THEN
-        IF lv_prin = 'Y' AND lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN
-            -- El movimiento de portería del principal es la VERIFICACIÓN: la decisión del coordinador ya viene
-            -- registrada en la desviación (si la hubo). No es el ingreso físico.
-            SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END INTO lv_desv
+        IF lv_eop IN ('PROGRAMADO','EN_ESPERA','INGRESO','EN_ATENCION') THEN
+            -- La decisión del coordinador ya viene registrada en la desviación (si la hubo): la entrega queda marcada «con desviación».
+            SELECT COUNT(*) INTO lv_desv
               FROM "CAF_Desviacion" D JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = D."ID_Registro_Acceso"
              WHERE R."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona" AND R."Tipo_Movimiento" = 'INGRESO' AND D."Eliminado" = 'N';
-            UPDATE "CAF_Solicitud_Operacion" SET "Con_Desviacion" = lv_desv, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-             WHERE "ID_Solicitud" = lv_sol;
-            IF lv_est = 'DENEGADA' THEN
-                CALL "ERP_CAF_PROVEEDOR_MOVER"(lv_sol, 'INGRESO_DENEGADO', "HV_UsuarioID", NULL, 'Ingreso denegado en la verificación de datos', NULL, lv_c, lv_m);
-                IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
-                UPDATE "CAF_Exclusa"
-                   SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
-                       "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-                 WHERE "ID_Solicitud_Actual" = lv_sol;
-            ELSIF lv_est = 'DENTRO' THEN
-                -- Verificación conforme (o desviación autorizada): todavía NO está dentro. El ingreso físico lo valida Vigilancia después.
-                UPDATE "CAF_Solicitud_Persona"
-                   SET "Estado" = 'ESPERADA', "Fecha_Hora_Ingreso" = NULL, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-                 WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
-                IF lv_eop = 'PROGRAMADO' THEN
-                    CALL "ERP_CAF_PROVEEDOR_MOVER"(lv_sol, 'EN_ESPERA', "HV_UsuarioID", NULL,
-                          CASE WHEN lv_desv = 'Y' THEN 'Verificación de datos con desviación autorizada' ELSE 'Verificación de datos conforme' END, NULL, lv_c, lv_m);
-                    IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
-                END IF;
+            IF lv_desv > 0 THEN
+                UPDATE "CAF_Solicitud_Operacion" SET "Con_Desviacion" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+                 WHERE "ID_Solicitud" = lv_sol;
             END IF;
+            IF lv_est = 'DENTRO' THEN
+                -- Verificación conforme (o desviación autorizada): todavía NO está dentro. El ingreso físico se registra después.
+                UPDATE "CAF_Solicitud_Persona"
+                   SET "Estado" = 'ESPERADA', "Fecha_Hora_Ingreso" = NULL, "Fecha_Verificacion" = CURRENT_TIMESTAMP,
+                       "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+                 WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
+            END IF;
+            CALL "ERP_CAF_PROVEEDOR_RECALCULAR"(lv_sol, "HV_UsuarioID", NULL, lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
         END IF;
     ELSE
         SELECT COUNT(*) INTO lv_den FROM "CAF_Solicitud_Persona"
@@ -456,66 +540,13 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
-    lv_n     INT := 0;
-    lv_sede  BIGINT;
-    lv_act   CHAR(1);
-    lv_eop   VARCHAR(20);
-    lv_pest  VARCHAR(20);
-    lv_c     INT;
-    lv_m     VARCHAR(250);
+    lv_id BIGINT;
 BEGIN
-    "HV_Codigo_Resp" := 500;
-    "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_INGRESO_VALIDAR';
-    BEGIN
-        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
-        END IF;
-        UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
-        SELECT COUNT(*), MAX(S."ID_Catalogo_Sede") INTO lv_n, lv_sede
-          FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
-         WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
-        IF lv_n = 0 THEN
-            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;
-        END IF;
-        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_VIGILANCIA', lv_sede) <> 'Y' THEN
-            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para registrar el ingreso de proveedores.'; RETURN;
-        END IF;
-        SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_n, lv_act, lv_eop
-          FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
-        IF lv_n = 0 OR lv_act <> 'Y' THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La entrega no está programada (solicitud sin aprobar o cancelada).'; RETURN;
-        END IF;
-        IF lv_eop <> 'EN_ESPERA' THEN
-            "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := CASE lv_eop WHEN 'PROGRAMADO' THEN 'Primero debe verificar los datos del proveedor.'
-                                        WHEN 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
-                                        WHEN 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
-                                        WHEN 'NO_SE_PRESENTO' THEN 'La entrega figura como «no se presentó».'
-                                        WHEN 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
-                                        ELSE 'El proveedor ya ingresó.' END; RETURN;
-        END IF;
-        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa"
-         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
-        IF lv_n = 0 THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Almacén aún no confirmó su disponibilidad para recibir a este proveedor.'; RETURN;
-        END IF;
-        SELECT MAX("Estado") INTO lv_pest FROM "CAF_Solicitud_Persona"
-         WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Es_Principal" = 'Y' AND "Eliminado" = 'N';
-        IF lv_pest IS NULL OR lv_pest <> 'ESPERADA' THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'El transportista principal no está pendiente de ingreso.'; RETURN;
-        END IF;
-        UPDATE "CAF_Solicitud_Persona"
-           SET "Estado" = 'DENTRO', "Fecha_Hora_Ingreso" = CURRENT_TIMESTAMP, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-         WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Es_Principal" = 'Y' AND "Eliminado" = 'N';
-        CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'INGRESO', "HV_UsuarioID", NULL, 'Ingreso físico validado', NULL, lv_c, lv_m);
-        IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
-        "HV_Codigo_Resp" := 100;
-        "HV_Mensaje"     := 'Ingreso registrado.';
-    EXCEPTION WHEN OTHERS THEN
-        "HV_Codigo_Resp" := 500;
-        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_INGRESO_VALIDAR';
-    END;
+    -- V3.0 2026-11-09 (D-225): atajo de UNA persona (el transportista principal). La pantalla usa ERP_CAF_PROVEEDOR_INGRESO_FISICO,
+    -- que registra el ingreso de varias personas a la vez (ver SP_CAF_PROVEEDOR_GRUPO_ALL.sql).
+    SELECT MAX("ID_Solicitud_Persona") INTO lv_id FROM "CAF_Solicitud_Persona"
+     WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Es_Principal" = 'Y' AND "Eliminado" = 'N';
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"("HV_ID_Solicitud", COALESCE(CAST(lv_id AS VARCHAR), ''), "HV_UsuarioID", "HV_Codigo_Resp", "HV_Mensaje");
 END;
 $$;
 
@@ -534,63 +565,13 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_RETIRO_SIN_INGRESO"(
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
-    lv_n     INT := 0;
-    lv_sede  BIGINT;
-    lv_act   CHAR(1);
-    lv_eop   VARCHAR(20);
-    lv_mot   VARCHAR(500);
-    lv_c     INT;
-    lv_m     VARCHAR(250);
+    lv_ids VARCHAR(2000);
 BEGIN
-    "HV_Codigo_Resp" := 500;
-    "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_RETIRO_SIN_INGRESO';
-    BEGIN
-        IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
-        END IF;
-        lv_mot := TRIM(COALESCE("HV_Motivo", ''));
-        IF LENGTH(lv_mot) < 3 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique el motivo del retiro.'; RETURN;
-        END IF;
-        UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
-        SELECT COUNT(*), MAX(S."ID_Catalogo_Sede") INTO lv_n, lv_sede
-          FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
-         WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
-        IF lv_n = 0 THEN
-            "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;
-        END IF;
-        IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_VIGILANCIA', lv_sede) <> 'Y' THEN
-            "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para registrar el retiro de proveedores.'; RETURN;
-        END IF;
-        SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_n, lv_act, lv_eop
-          FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
-        IF lv_n = 0 OR lv_act <> 'Y' THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La entrega no está programada (solicitud sin aprobar o cancelada).'; RETURN;
-        END IF;
-        IF lv_eop <> 'EN_ESPERA' THEN
-            "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := CASE lv_eop WHEN 'PROGRAMADO' THEN 'Solo se registra el retiro de un proveedor ya verificado.'
-                                        WHEN 'RETIRO_SIN_INGRESO' THEN 'El proveedor ya figura como retirado sin ingresar.'
-                                        WHEN 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
-                                        WHEN 'NO_SE_PRESENTO' THEN 'La entrega figura como «no se presentó».'
-                                        ELSE 'El proveedor ya ingresó: no se registra como retirado sin ingresar.' END; RETURN;
-        END IF;
-        UPDATE "CAF_Exclusa"
-           SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
-               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud";
-        UPDATE "CAF_Solicitud_Persona"
-           SET "Estado" = 'NO_SE_PRESENTO', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-         WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Es_Principal" = 'Y' AND "Eliminado" = 'N' AND "Estado" = 'ESPERADA';
-        CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'RETIRO_SIN_INGRESO', "HV_UsuarioID", 'RETIRO_SIN_INGRESO', 'Retiro sin ingresar: ' || lv_mot, NULL, lv_c, lv_m);
-        IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
-        "HV_Codigo_Resp" := 100;
-        "HV_Mensaje"     := 'Retiro registrado. La esclusa quedó libre.';
-    EXCEPTION WHEN OTHERS THEN
-        "HV_Codigo_Resp" := 500;
-        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_RETIRO_SIN_INGRESO';
-    END;
+    -- V2.0 2026-11-09 (D-225): atajo de toda la entrega verificada (EN_ESPERA): retira a TODAS sus personas por ingresar.
+    -- La pantalla usa ERP_CAF_PROVEEDOR_RETIRO_PERSONAS (selección de personas).
+    SELECT STRING_AGG(CAST("ID_Solicitud_Persona" AS VARCHAR), ',') INTO lv_ids FROM "CAF_Solicitud_Persona"
+     WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Aprobacion" = 'APROBADA' AND "Estado" = 'ESPERADA';
+    CALL "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS"("HV_ID_Solicitud", COALESCE(lv_ids, ''), "HV_Motivo", 'Y', "HV_UsuarioID", "HV_Codigo_Resp", "HV_Mensaje");
 END;
 $$;
 
@@ -644,7 +625,7 @@ BEGIN
         END IF;
         IF lv_eop <> 'INGRESO' THEN
             "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := CASE WHEN lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN 'El transportista principal aún no ingresó.'
+            "HV_Mensaje" := CASE WHEN lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN 'Aún no ingresó ningún transportista.'
                                  WHEN lv_eop = 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
                                  WHEN lv_eop = 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
                                  ELSE 'La atención ya se inició o terminó.' END; RETURN;
@@ -737,6 +718,26 @@ BEGIN
         END IF;
         CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'RECEPCIONADO', "HV_UsuarioID", lv_res, "HV_Observacion", NULL, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
+        -- V5.0 2026-11-09 (D-225): quien no llegó a ingresar queda como «no ingresó» (con constancia en el historial)
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona"
+         WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Aprobacion" = 'APROBADA' AND "Estado" = 'ESPERADA';
+        IF lv_n > 0 THEN
+            UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'NO_SE_PRESENTO', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Aprobacion" = 'APROBADA' AND "Estado" = 'ESPERADA';
+            INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
+            VALUES ("HV_ID_Solicitud", 'RECEPCIONADO', 'RECEPCIONADO', "HV_UsuarioID", 'No ingresó: ' || lv_n || ' persona(s) quedaron sin ingresar al recepcionarse la entrega');
+        END IF;
+        -- Si ya no hay nadie dentro (los vehículos salieron uno a uno), la entrega termina aquí y se libera la exclusa
+        SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona"
+         WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Estado" = 'DENTRO';
+        IF lv_n = 0 THEN
+            CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'SALIO', "HV_UsuarioID", NULL, 'Todos salieron antes de la recepción', NULL, lv_c, lv_m);
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
+            UPDATE "CAF_Exclusa"
+               SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud_Actual" = "HV_ID_Solicitud";
+        END IF;
         -- V4.0: la exclusa NO se libera aquí: el camión sigue dentro y sale por la misma exclusa. La libera la salida (PORTERIA_POST).
         "HV_Codigo_Resp" := 100;
         "HV_Mensaje"     := 'Recepción registrada.';
@@ -786,6 +787,9 @@ BEGIN
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El parámetro no existe.'; RETURN;
         END IF;
+        IF "HV_Clave" = 'EXCLUSA_CAPACIDAD' AND COALESCE("HV_Valor", '') !~ '^[1-9][0-9]?$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La capacidad debe ser un número entero de 1 a 99.'; RETURN;
+        END IF;
         IF "HV_Clave" = 'PROVEEDOR_HORA_CORTE' AND COALESCE("HV_Valor", '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La hora de corte debe tener el formato HH:MM (de 00:00 a 23:59).'; RETURN;
         END IF;
@@ -820,8 +824,11 @@ LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_corte VARCHAR(10);
     lv_dia   DATE;
+    lv_cc    INT;
+    lv_c     INT;
+    lv_m     VARCHAR(250);
 BEGIN
-    -- V1.0 2026-11-06
+    -- V1.1 2026-11-09 (D-227: también cierra a los contratistas que siguieron dentro)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_CIERRE_DIA';
     "HV_Cerradas"    := 0;
@@ -856,6 +863,10 @@ BEGIN
                SET "Estado_Operativo" = T."Nuevo", "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
               FROM "tmp_cierre_dia" T WHERE O."ID_Solicitud" = T."ID_Solicitud";
         END IF;
+        -- D-227: el cierre forzado del día de los contratistas va con el mismo reloj (misma hora de corte)
+        CALL "ERP_CAF_CONTRATISTA_CIERRE_DIA"(lv_dia, "HV_UsuarioID", lv_cc, lv_c, lv_m);
+        IF lv_c <> 100 THEN RAISE EXCEPTION 'contratista: %', lv_m; END IF;
+        "HV_Cerradas" := "HV_Cerradas" + COALESCE(lv_cc, 0);
         "HV_Codigo_Resp" := 100;
         "HV_Mensaje"     := 'Cierre del día revisado.';
     EXCEPTION WHEN OTHERS THEN

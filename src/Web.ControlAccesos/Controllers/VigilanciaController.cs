@@ -62,6 +62,7 @@ public sealed class VigilanciaController : Controller
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
                 exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
                 esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
+                esTransportista = p.Es_Transportista, verificada = p.Verificada, franja = p.Franja_Estado,
             })
         });
     }
@@ -127,7 +128,7 @@ public sealed class VigilanciaController : Controller
                 traeEquipos = x.Trae_Equipos, traeHerramientas = x.Trae_Herramientas, exigeSctr = x.Exige_SCTR, exigeEpp = x.Exige_EPP, zonas = x.Zonas_Nombres,
                 respaldoEquipos = x.Tiene_Respaldo_Equipos, respaldoHerramientas = x.Tiene_Respaldo_Herramientas,
                 puedeIngreso = x.Puede_Registrar_Ingreso, motivoNoIngreso = x.Motivo_No_Ingreso, puedeIngresoTardio = x.Puede_Registrar_Ingreso_Tardio,
-                puedeSalida = x.Puede_Registrar_Salida, motivoNoSalida = x.Motivo_No_Salida,
+                puedeSalida = x.Puede_Registrar_Salida, motivoNoSalida = x.Motivo_No_Salida, fueraFranja = x.Fuera_Franja,
                 respaldos = res.Data!.Select(r => new { id = r.ID_Respaldo, categoria = r.Categoria, tipo = r.Tipo_Respaldo, numero = r.Numero_Documento, hora = r.Fecha_Hora.ToString("HH:mm"), vigilante = r.Vigilante_Nombre, personas = r.Cantidad_Personas }),
             }
         });
@@ -236,6 +237,38 @@ public sealed class VigilanciaController : Controller
         return Json(new { success = r.Success, message = r.Message });
     }
 
+    /// <summary>D-225: ingreso físico de las personas marcadas (ya verificadas); respeta la capacidad de la exclusa.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermProveedor)]
+    public async Task<IActionResult> IngresoFisico([FromBody] ProveedorGrupoVM m, CancellationToken ct)
+    {
+        var r = await _prov.IngresoFisicoAsync(m.SolicitudId, m.PersonasIds, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
+    /// <summary>D-225: las personas marcadas se retiran sin ingresar (motivo obligatorio).</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermProveedor)]
+    public async Task<IActionResult> RetiroPersonas([FromBody] ProveedorGrupoVM m, CancellationToken ct)
+    {
+        var r = await _prov.RetiroPersonasAsync(m.SolicitudId, m.PersonasIds, m.Motivo, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
+    /// <summary>D-225: verificación de datos de varias personas con un solo checklist.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermRegistrar)]
+    public async Task<IActionResult> VerificarGrupo([FromBody] ProveedorGrupoVM m, CancellationToken ct)
+    {
+        var r = await _prov.VerificarGrupoAsync(Grupo(m), User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
+    /// <summary>D-225: salida de varias personas con un solo checklist.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermRegistrar)]
+    public async Task<IActionResult> SalidaGrupo([FromBody] ProveedorGrupoVM m, CancellationToken ct)
+    {
+        var r = await _prov.SalidaGrupoAsync(Grupo(m), User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
     [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermRegistrar)]
     public async Task<IActionResult> Salida([FromBody] MovimientoVM m, CancellationToken ct)
     {
@@ -249,6 +282,18 @@ public sealed class VigilanciaController : Controller
     }
 
     // ── apoyo ──────────────────────────────────────────────────────────────────────────────────
+    private static Dto_Proveedor_Grupo Grupo(ProveedorGrupoVM m) => new()
+    {
+        ID_Solicitud = m.SolicitudId, IDs_Persona = m.PersonasIds,
+        Items = m.Items.Select(i => new Dto_Porteria_Respuesta { ID_Catalogo_Item_Checklist = i.Id, Cumple = i.Cumple }).ToList(),
+        Observacion = Vacio(m.Observacion),
+        Desviacion = m.Desviacion is null ? null : new Dto_Porteria_Desviacion_Entrada
+        {
+            Descripcion = Vacio(m.Desviacion.Descripcion), ID_Coordinador = m.Desviacion.CoordinadorId, ID_Tratamiento = m.Desviacion.TratamientoId,
+            Tratamiento_Detalle = Vacio(m.Desviacion.TratamientoDetalle), Resultado_Elegido = Vacio(m.Desviacion.ResultadoElegido),
+        },
+    };
+
     private static List<Dto_Porteria_Respuesta> Items(MovimientoVM m)
         => m.Items.Select(i => new Dto_Porteria_Respuesta { ID_Catalogo_Item_Checklist = i.Id, Cumple = i.Cumple }).ToList();
 

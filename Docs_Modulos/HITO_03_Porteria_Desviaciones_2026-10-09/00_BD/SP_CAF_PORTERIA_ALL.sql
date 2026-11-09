@@ -70,7 +70,7 @@ BEGIN
             OR (I."Condicion" = 'ZONA_EXIGE_EPP'    AND S."Exige_EPP" = 'Y')
             OR (I."Condicion" = 'TRAE_EQUIPOS'      AND COALESCE("HV_Trae_Equipos", 'N') = 'Y')
             OR (I."Condicion" = 'TRAE_HERRAMIENTAS' AND COALESCE("HV_Trae_Herramientas", 'N') = 'Y')
-            OR (I."Condicion" = 'SOLO_PRINCIPAL'    AND P."Es_Principal" = 'Y'))
+            OR (I."Condicion" = 'SOLO_PRINCIPAL'    AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y'))   -- D-225: «principal» = transportista
      ORDER BY I."Orden", I."ID_Catalogo_Item_Checklist";
 END;
 $$;
@@ -100,13 +100,17 @@ DECLARE
     lv_etapa  VARCHAR(10) := UPPER(TRIM(COALESCE("HV_Etapa", '')));
     lv_msg    VARCHAR(250) := NULL;
     lv_cod    INT := 100;
+    lv_sol    BIGINT;
+    lv_franja CHAR(1) := 'N';
 BEGIN
-    -- V1.0 2026-10-17
-    SELECT COUNT(*), MAX(P."Estado"), MAX(P."Aprobacion"), MAX(S."Estado"), MAX(CAST(S."Fecha_Hora_Prevista" AS DATE))
-      INTO lv_n, lv_est_p, lv_apr, lv_est_s, lv_fecha
+    -- V1.1 2026-11-09 (D-227): contratista con franja de días: la fecha no bloquea (fuera de franja = desviación)
+    SELECT COUNT(*), MAX(P."Estado"), MAX(P."Aprobacion"), MAX(S."Estado"), MAX(CAST(S."Fecha_Hora_Prevista" AS DATE)), MAX(S."ID_Solicitud")
+      INTO lv_n, lv_est_p, lv_apr, lv_est_s, lv_fecha, lv_sol
       FROM "CAF_Solicitud_Persona" P
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud" AND S."Eliminado" = 'N'
      WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona" AND P."Eliminado" = 'N';
+
+    IF lv_n > 0 THEN lv_franja := "ERP_CAF_FN_ES_FRANJA"(lv_sol); END IF;
 
     IF lv_n = 0 THEN
         lv_cod := 404; lv_msg := 'La persona no figura en ninguna solicitud.';
@@ -125,6 +129,8 @@ BEGIN
             lv_cod := 409; lv_msg := 'Ya se le denegó el ingreso en esta visita.';
         ELSIF lv_est_p = 'NO_SE_PRESENTO' THEN
             lv_cod := 409; lv_msg := 'La persona figura como «no se presentó».';
+        ELSIF lv_franja = 'Y' THEN
+            NULL;   -- la franja se evalúa al registrar el ingreso: fuera de ella se exige desviación
         ELSIF COALESCE("HV_Tardio", 'N') = 'Y' THEN
             IF lv_fecha > CURRENT_DATE THEN
                 lv_cod := 409; lv_msg := 'La visita todavía no ocurre: no corresponde un registro tardío.';
@@ -214,8 +220,11 @@ DECLARE
     lv_c        INT;
     lv_m        VARCHAR(250);
     lv_estado   VARCHAR(20);
+    lv_franja   CHAR(1) := 'N';
+    lv_fuera    BOOLEAN := FALSE;
+    lv_desc     VARCHAR(2100);
 BEGIN
-    -- V1.0 2026-10-17
+    -- V1.1 2026-11-09 (D-227): contratista con franja: ingresos repetidos y desviación si llega fuera de franja
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_PORTERIA_INGRESO_REGISTRAR';
     "HV_ID_Registro_Acceso_Result" := 0;
@@ -251,7 +260,11 @@ BEGIN
             IF lv_hecho > CURRENT_TIMESTAMP THEN
                 "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La hora indicada es futura.'; RETURN;
             END IF;
-            IF CAST(lv_hecho AS DATE) <> CAST(lv_prevista AS DATE) THEN
+            IF "ERP_CAF_FN_ES_FRANJA"(lv_sol) = 'Y' THEN
+                IF NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D WHERE D."ID_Solicitud" = lv_sol AND D."Eliminado" = 'N' AND D."Fecha" = CAST(lv_hecho AS DATE)) THEN
+                    "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La fecha del registro tardío debe ser uno de los días autorizados.'; RETURN;
+                END IF;
+            ELSIF CAST(lv_hecho AS DATE) <> CAST(lv_prevista AS DATE) THEN
                 "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La fecha del registro tardío debe ser la de la visita.'; RETURN;
             END IF;
             IF "HV_Observacion" IS NULL OR LENGTH(TRIM("HV_Observacion")) = 0 THEN
@@ -270,6 +283,11 @@ BEGIN
         IF lv_perm <> 'Y' THEN
             "HV_Codigo_Resp" := lv_cod_r; "HV_Mensaje" := lv_msg_r; RETURN;
         END IF;
+
+        -- D-227: ¿llega fuera de la franja autorizada? (solo contratistas con días; el registro tardío ya validó su fecha)
+        lv_franja := "ERP_CAF_FN_ES_FRANJA"(lv_sol);
+        lv_fuera  := (lv_franja = 'Y' AND lv_tardio = 'N' AND "ERP_CAF_FN_FRANJA_ESTADO"(lv_sol, lv_hecho) = 'FUERA');
+        lv_desc   := "HV_Desv_Descripcion";
 
         -- Checklist: todos los ítems aplicables, ni uno más ni uno menos
         lv_lista  := ',' || REPLACE(UPPER(COALESCE("HV_Items", '')), ' ', '') || ',';
@@ -291,7 +309,7 @@ BEGIN
             "HV_Mensaje" := 'Responda todos los ítems del checklist, ni más ni menos, con el formato id:Y o id:N.'; RETURN;
         END IF;
 
-        IF lv_incumple = 0 THEN
+        IF lv_incumple = 0 AND NOT lv_fuera THEN
             IF ("HV_Desv_Descripcion" IS NOT NULL AND LENGTH(TRIM("HV_Desv_Descripcion")) > 0) OR "HV_ID_Tratamiento" IS NOT NULL THEN
                 "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Todos los ítems cumplen: no corresponde registrar una desviación.'; RETURN;
             END IF;
@@ -306,6 +324,9 @@ BEGIN
             IF lv_critico > 0 AND lv_res <> 'NO_INGRESA' THEN
                 "HV_Codigo_Resp" := 101;
                 "HV_Mensaje" := 'Un ítem crítico no se cumple (identidad): el ingreso debe denegarse.'; RETURN;
+            END IF;
+            IF lv_fuera THEN
+                lv_desc := 'Ingreso fuera de la franja autorizada. ' || COALESCE(TRIM("HV_Desv_Descripcion"), '');
             END IF;
         END IF;
 
@@ -338,8 +359,8 @@ BEGIN
                "HV_UsuarioID"
           FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"("HV_ID_Solicitud_Persona", 'INGRESO', lv_trae_eq, lv_trae_h) A;
 
-        IF lv_incumple > 0 THEN
-            CALL "ERP_CAF_DESVIACION_CREAR"(lv_reg, lv_sol, "HV_Desv_Descripcion", "HV_ID_Coordinador", "HV_ID_Tratamiento",
+        IF lv_incumple > 0 OR lv_fuera THEN
+            CALL "ERP_CAF_DESVIACION_CREAR"(lv_reg, lv_sol, lv_desc, "HV_ID_Coordinador", "HV_ID_Tratamiento",
                  "HV_Tratamiento_Detalle", lv_res, "HV_UsuarioID", lv_des, lv_c, lv_m);
             IF lv_c <> 100 THEN RAISE EXCEPTION 'desviacion: %', lv_m; END IF;
         END IF;
@@ -529,10 +550,15 @@ BEGIN
             IF lv_c <> 100 THEN RAISE EXCEPTION 'desviacion: %', lv_m; END IF;
         END IF;
 
-        UPDATE "CAF_Solicitud_Persona"
-           SET "Estado" = 'SALIO', "Fecha_Hora_Salida" = lv_hecho,
+        -- D-227: en una franja de días la persona vuelve a ESPERADA mientras le queden días (de hoy en adelante)
+        UPDATE "CAF_Solicitud_Persona" P
+           SET "Estado" = CASE WHEN "ERP_CAF_FN_ES_FRANJA"(P."ID_Solicitud") = 'Y'
+                                AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D WHERE D."ID_Solicitud" = P."ID_Solicitud" AND D."Eliminado" = 'N'
+                                               AND D."Fecha" >= CAST(lv_hecho AS DATE))
+                               THEN 'ESPERADA' ELSE 'SALIO' END,
+               "Fecha_Hora_Salida" = lv_hecho,
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-         WHERE "ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
+         WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
 
         CALL "ERP_CAF_PROVEEDOR_PORTERIA_POST"("HV_ID_Solicitud_Persona", 'SALIDA', "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'proveedor: %', lv_m; END IF;
@@ -597,7 +623,13 @@ BEGIN
               FROM "CAF_Solicitud_Persona" P
               JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
              WHERE P."ID_Solicitud_Persona" > lv_id AND P."Eliminado" = 'N' AND P."Estado" = 'ESPERADA' AND P."Aprobacion" = 'APROBADA'
-               AND CAST(S."Fecha_Hora_Prevista" AS DATE) < lv_corte;
+               AND ((NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D0 WHERE D0."ID_Solicitud" = S."ID_Solicitud" AND D0."Eliminado" = 'N')
+                     AND CAST(S."Fecha_Hora_Prevista" AS DATE) < lv_corte)
+                 -- D-227: contratista con franja: solo cuando terminó su ÚLTIMO día y nunca ingresó
+                 OR (EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D1 WHERE D1."ID_Solicitud" = S."ID_Solicitud" AND D1."Eliminado" = 'N')
+                     AND (SELECT MAX(D2."Fecha") FROM "CAF_Solicitud_Dia" D2 WHERE D2."ID_Solicitud" = S."ID_Solicitud" AND D2."Eliminado" = 'N') < lv_corte
+                     AND NOT EXISTS (SELECT 1 FROM "CAF_Registro_Acceso" R WHERE R."ID_Solicitud_Persona" = P."ID_Solicitud_Persona"
+                                        AND R."Tipo_Movimiento" = 'INGRESO' AND R."Resultado" IN ('INGRESA','INGRESA_RESTRINGIDO') AND R."Eliminado" = 'N')));
             EXIT WHEN lv_id IS NULL;
 
             UPDATE "CAF_Solicitud_Persona"
@@ -611,6 +643,14 @@ BEGIN
             IF lv_c <> 100 THEN RAISE EXCEPTION 'evento: %', lv_m; END IF;
             lv_cant := lv_cant + 1;
         END LOOP;
+
+        -- D-227: contratista con franja terminada que ingresó alguna vez y quedó ESPERADA (le sobraban días): cierra como SALIO
+        UPDATE "CAF_Solicitud_Persona" P
+           SET "Estado" = 'SALIO', "UsuarioID_Update" = 0, "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE P."Eliminado" = 'N' AND P."Estado" = 'ESPERADA' AND P."Aprobacion" = 'APROBADA'
+           AND (SELECT MAX(D2."Fecha") FROM "CAF_Solicitud_Dia" D2 WHERE D2."ID_Solicitud" = P."ID_Solicitud" AND D2."Eliminado" = 'N') < lv_corte
+           AND EXISTS (SELECT 1 FROM "CAF_Registro_Acceso" R WHERE R."ID_Solicitud_Persona" = P."ID_Solicitud_Persona"
+                          AND R."Tipo_Movimiento" = 'INGRESO' AND R."Resultado" IN ('INGRESA','INGRESA_RESTRINGIDO') AND R."Eliminado" = 'N');
 
         -- Entregas de proveedor que siguen PROGRAMADAS con la fecha vencida (la llegada nunca se registró)
         lv_id := 0;

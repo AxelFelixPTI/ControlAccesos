@@ -25,6 +25,12 @@ public sealed class Dto_Proveedor_Entrega
     public string? Vehiculo_Marca { get; set; }
     public string? Observaciones { get; set; }
     public int Cantidad_Apoyo { get; set; }
+    // D-225: avance por persona (solo aprobadas). Los ayudantes de descarga no bloquean la entrega.
+    public int Transportistas_Total { get; set; }
+    public int Transportistas_Verificados { get; set; }
+    public int Transportistas_Dentro { get; set; }
+    public int Transportistas_Salieron { get; set; }
+    public int Ayudantes_Total { get; set; }
     public string Estado_Operativo { get; set; } = string.Empty;
     public bool Con_Desviacion { get; set; }
     public bool Disponibilidad_Confirmada { get; set; }       // «Almacén listo»: la esclusa está reservada para esta entrega

@@ -150,7 +150,8 @@ BEGIN
             "HV_Codigo_Resp" := 400;
             "HV_Mensaje" := CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'La empresa contratista es obligatoria.' ELSE 'La empresa o procedencia es obligatoria.' END; RETURN;
         END IF;
-        IF lv_prov = 'N' THEN
+        -- D-227: el responsable de atención es opcional para el contratista (si se indica, se valida)
+        IF lv_prov = 'N' AND NOT (lv_tcod = 'CONTRATISTA' AND "HV_ID_Personal_Responsable" IS NULL) THEN
             SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Personal"
              WHERE "ID_Personal" = "HV_ID_Personal_Responsable" AND "Eliminado" = 'N' AND "Activo" = 'Y';
             IF lv_n = 0 THEN
@@ -282,7 +283,7 @@ BEGIN
                 "HV_Fecha_Hora_Prevista", TRIM("HV_Empresa_Visitante"), lv_motid, lv_detalle, NULLIF(TRIM("HV_Observaciones"), ''),
                 lv_sctr, lv_epp, 'PENDIENTE', 1, CURRENT_TIMESTAMP, "HV_ID_Solicitud_Origen",
                 lv_coch, lv_placa, CASE WHEN lv_prov = 'Y' THEN NULL ELSE NULLIF(TRIM("HV_Area_Detalle"), '') END,
-                CASE WHEN lv_prov = 'Y' THEN NULL ELSE NULLIF(TRIM("HV_Contacto_Nombre"), '') END,
+                NULLIF(TRIM("HV_Contacto_Nombre"), ''),   -- proveedor: responsable de la entrega (D-223)
                 NULLIF(TRIM("HV_Contacto_Telefonos"), ''), CASE WHEN lv_prov = 'Y' THEN NULL ELSE NULLIF(TRIM("HV_Contacto_Correos"), '') END,
                 CASE WHEN lv_prov = 'Y' THEN "HV_ID_Empresa_Destino" ELSE NULL END, CASE WHEN lv_prov = 'Y' THEN TRIM("HV_Proveedor_RUC") ELSE NULL END,
                 CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM("HV_Proveedor_Direccion"), '') ELSE NULL END,
@@ -302,6 +303,14 @@ BEGIN
         SELECT lv_id, PE."ID_Persona_Externa", 'PENDIENTE', 'SOLICITUD',
                CASE WHEN PE."ID_Persona_Externa" = "HV_ID_Persona_Principal" THEN 'Y' ELSE 'N' END, "HV_UsuarioID" FROM "CAF_Persona_Externa" PE
          WHERE lv_listaP LIKE '%,' || CAST(PE."ID_Persona_Externa" AS VARCHAR) || ',%';
+
+        -- Proveedor: el transportista principal queda con su fila de datos (D-223); los demás los agrega ERP_CAF_SOLICITUD_CREAR_PROVEEDOR
+        IF lv_prov = 'Y' THEN
+            INSERT INTO "CAF_Solicitud_Transportista" ("ID_Solicitud","ID_Solicitud_Persona","Ruc","Direccion","Placa","Marca","Licencia","UsuarioID_Create")
+            SELECT lv_id, P."ID_Solicitud_Persona", NULLIF(TRIM("HV_Proveedor_RUC"), ''), NULLIF(TRIM("HV_Proveedor_Direccion"), ''), lv_placa,
+                   NULLIF(TRIM("HV_Vehiculo_Marca"), ''), NULLIF(TRIM("HV_Licencia_Conducir"), ''), "HV_UsuarioID"
+              FROM "CAF_Solicitud_Persona" P WHERE P."ID_Solicitud" = lv_id AND P."Es_Principal" = 'Y';
+        END IF;
 
         CALL "ERP_CAF_SOLICITUD_COPIAS_GUARDAR"(lv_id, "HV_Copias", "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'copias: %', lv_m; END IF;
@@ -325,7 +334,7 @@ BEGIN
                  CASE WHEN lv_prov = 'Y'
                       THEN 'Se registró una solicitud de ingreso de proveedor de abastecimiento y está por aprobar: ' || lv_cntP || ' persona(s) de '
                            || TRIM("HV_Empresa_Visitante") || ', entrega prevista el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI')
-                           || ' (placa ' || lv_placa || ').'
+                           || CASE WHEN lv_placa IS NULL THEN '.' ELSE ' (placa ' || lv_placa || ').' END
                       WHEN lv_tcod = 'CONTRATISTA'
                       THEN 'Se registró una solicitud de ingreso de contratista y está por aprobar: ' || lv_cntP || ' persona(s) de '
                            || TRIM("HV_Empresa_Visitante") || ', servicio previsto el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI') || '.'
@@ -438,6 +447,7 @@ DECLARE
     lv_dir_old   VARCHAR(300);
     lv_mar_old   VARCHAR(50);
     lv_lic_old   VARCHAR(20);
+    lv_e_ruc VARCHAR(30); lv_e_dir VARCHAR(300); lv_e_mar VARCHAR(50); lv_e_lic VARCHAR(20); lv_e_pla VARCHAR(15);
 BEGIN
     -- V1.2 2026-11-02 (Proveedor de abastecimiento)
     "HV_Codigo_Resp" := 500;
@@ -482,6 +492,18 @@ BEGIN
             "HV_Codigo_Resp" := 409;
             "HV_Mensaje" := 'Ya ingresó una persona: los datos de la visita no se cambian. Puede modificar el personal.'; RETURN;
         END IF;
+        -- D-227: contratista con franja de días: aprobada no se modifica (se pide una solicitud nueva o el Coordinador
+        -- amplía los días); y los días no se cambian por esta vía.
+        IF "ERP_CAF_FN_ES_FRANJA"("HV_ID_Solicitud") = 'Y' THEN
+            IF lv_estado IN ('APROBADA','APROBADA_PARCIAL') THEN
+                "HV_Codigo_Resp" := 409;
+                "HV_Mensaje" := 'Una solicitud de contratista aprobada no se modifica. Para ampliar el plazo cree una solicitud nueva o pida al Coordinador que agregue días.'; RETURN;
+            END IF;
+            IF CAST("HV_Fecha_Hora_Prevista" AS DATE) IS DISTINCT FROM CAST(lv_fecha AS DATE) THEN
+                "HV_Codigo_Resp" := 400;
+                "HV_Mensaje" := 'Los días de una solicitud de contratista no se cambian: cancele la solicitud y cree otra con los días correctos.'; RETURN;
+            END IF;
+        END IF;
         -- Proveedor: tras registrarse la llegada ya no se edita (solo mientras sigue programado)
         IF lv_prov = 'Y' THEN
             SELECT MAX("Estado_Operativo"), MAX("Activa") INTO lv_eop, lv_oact FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
@@ -498,7 +520,8 @@ BEGIN
             "HV_Codigo_Resp" := 400;
             "HV_Mensaje" := CASE WHEN lv_tcod = 'CONTRATISTA' THEN 'La empresa contratista es obligatoria.' ELSE 'La empresa o procedencia es obligatoria.' END; RETURN;
         END IF;
-        IF lv_prov = 'N' THEN
+        -- D-227: el responsable de atención es opcional para el contratista (si se indica, se valida)
+        IF lv_prov = 'N' AND NOT (lv_tcod = 'CONTRATISTA' AND "HV_ID_Personal_Responsable" IS NULL) THEN
             SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Personal"
              WHERE "ID_Personal" = "HV_ID_Personal_Responsable" AND "Eliminado" = 'N' AND "Activo" = 'Y';
             IF lv_n = 0 THEN
@@ -528,17 +551,26 @@ BEGIN
         IF "ERP_CAF_FN_COPIAS_VALIDAS"("HV_Copias") <> 'Y' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La lista de correos en copia no es válida.'; RETURN;
         END IF;
-        lv_err := "ERP_CAF_FN_PROVEEDOR_VALIDAR"(lv_tcod, lv_sede, "HV_ID_Empresa_Destino", "HV_Proveedor_RUC", "HV_Proveedor_Direccion",
-                                                 "HV_Vehiculo_Marca", "HV_Placa_Vehiculo", "HV_Licencia_Conducir", "HV_Contacto_Telefonos");
+        -- Proveedor (D-223): los datos de transportista y vehículo se registran por transportista al crear. Si esta edición no los trae
+        -- (la pantalla de edición no los maneja), se conservan los guardados; si trae alguno, reemplaza a los del principal.
+        IF lv_prov = 'Y' AND NULLIF(TRIM(COALESCE("HV_Proveedor_RUC", '')), '') IS NULL AND NULLIF(TRIM(COALESCE("HV_Proveedor_Direccion", '')), '') IS NULL
+           AND NULLIF(TRIM(COALESCE("HV_Vehiculo_Marca", '')), '') IS NULL AND NULLIF(TRIM(COALESCE("HV_Licencia_Conducir", '')), '') IS NULL
+           AND NULLIF(TRIM(COALESCE("HV_Placa_Vehiculo", '')), '') IS NULL THEN
+            lv_e_ruc := lv_ruc_old; lv_e_dir := lv_dir_old; lv_e_mar := lv_mar_old; lv_e_lic := lv_lic_old; lv_e_pla := lv_placa_old;
+        ELSE
+            lv_e_ruc := "HV_Proveedor_RUC"; lv_e_dir := "HV_Proveedor_Direccion"; lv_e_mar := "HV_Vehiculo_Marca"; lv_e_lic := "HV_Licencia_Conducir"; lv_e_pla := "HV_Placa_Vehiculo";
+        END IF;
+        lv_err := "ERP_CAF_FN_PROVEEDOR_VALIDAR"(lv_tcod, lv_sede, "HV_ID_Empresa_Destino", lv_e_ruc, lv_e_dir,
+                                                 lv_e_mar, lv_e_pla, lv_e_lic, "HV_Contacto_Telefonos");
         IF lv_err = '' AND lv_prov <> 'Y' THEN
-            lv_err := "ERP_CAF_FN_TIPO_INGRESO_VALIDAR"(lv_tcod, lv_sede, "HV_Requiere_Cochera", "HV_Placa_Vehiculo",
+            lv_err := "ERP_CAF_FN_TIPO_INGRESO_VALIDAR"(lv_tcod, lv_sede, "HV_Requiere_Cochera", lv_e_pla,
                                                         "HV_Area_Detalle", "HV_Contacto_Nombre", "HV_Contacto_Telefonos", "HV_Contacto_Correos");
         END IF;
         IF lv_err <> '' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := lv_err; RETURN;
         END IF;
         IF lv_prov = 'Y' THEN lv_coch := 'N'; ELSE lv_coch := COALESCE(NULLIF(UPPER(TRIM("HV_Requiere_Cochera")), ''), 'N'); END IF;
-        lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa_Vehiculo");
+        lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"(lv_e_pla);
 
         -- La zona del proveedor es fija (esclusa vehicular): no se recibe del cliente
         IF lv_prov = 'Y' THEN
@@ -589,19 +621,19 @@ BEGIN
         IF lv_n > 0 OR lv_n2 > 0 THEN
             lv_cambia := 'Y'; lv_desc := lv_desc || 'Zonas modificadas. ';
         END IF;
-        IF lv_prov = 'N' AND "HV_ID_Personal_Responsable" <> lv_resp_old THEN
+        IF lv_prov = 'N' AND "HV_ID_Personal_Responsable" IS DISTINCT FROM lv_resp_old THEN
             lv_desc := lv_desc || 'Responsable de atención cambiado. ';
         END IF;
         -- Proveedor: el vehículo y los datos de la empresa obligan a volver a aprobar solo si cambia la fecha, la empresa o el RUC;
         -- placa, marca, licencia, dirección, teléfono y empresa destinataria se registran sin reabrir
         IF lv_prov = 'Y' THEN
-            IF COALESCE(TRIM("HV_Proveedor_RUC"), '') <> COALESCE(lv_ruc_old, '') THEN
-                lv_cambia := 'Y'; lv_desc := lv_desc || 'RUC: ' || COALESCE(lv_ruc_old, '-') || ' → ' || TRIM("HV_Proveedor_RUC") || '. ';
+            IF COALESCE(TRIM(lv_e_ruc), '') <> COALESCE(lv_ruc_old, '') THEN
+                lv_cambia := 'Y'; lv_desc := lv_desc || 'RUC: ' || COALESCE(lv_ruc_old, '-') || ' → ' || COALESCE(NULLIF(TRIM(lv_e_ruc), ''), '-') || '. ';
             END IF;
             IF COALESCE("HV_ID_Empresa_Destino", 0) <> COALESCE(lv_emp_old, 0)
-               OR COALESCE(NULLIF(TRIM("HV_Proveedor_Direccion"), ''), '') <> COALESCE(lv_dir_old, '')
-               OR COALESCE(NULLIF(TRIM("HV_Vehiculo_Marca"), ''), '') <> COALESCE(lv_mar_old, '')
-               OR COALESCE(NULLIF(TRIM("HV_Licencia_Conducir"), ''), '') <> COALESCE(lv_lic_old, '') THEN
+               OR COALESCE(NULLIF(TRIM(lv_e_dir), ''), '') <> COALESCE(lv_dir_old, '')
+               OR COALESCE(NULLIF(TRIM(lv_e_mar), ''), '') <> COALESCE(lv_mar_old, '')
+               OR COALESCE(NULLIF(TRIM(lv_e_lic), ''), '') <> COALESCE(lv_lic_old, '') THEN
                 lv_desc := lv_desc || 'Datos de la entrega o del vehículo modificados. ';
             END IF;
         END IF;
@@ -643,16 +675,27 @@ BEGIN
                "Exige_SCTR" = lv_sctr, "Exige_EPP" = lv_epp,
                "Requiere_Cochera" = lv_coch, "Placa_Vehiculo" = lv_placa,
                "Area_Detalle" = CASE WHEN lv_prov = 'Y' THEN NULL ELSE NULLIF(TRIM("HV_Area_Detalle"), '') END,
-               "Contacto_Nombre" = CASE WHEN lv_prov = 'Y' THEN NULL ELSE NULLIF(TRIM("HV_Contacto_Nombre"), '') END,
+               "Contacto_Nombre" = NULLIF(TRIM("HV_Contacto_Nombre"), ''),
                "Contacto_Telefonos" = NULLIF(TRIM("HV_Contacto_Telefonos"), ''),
                "Contacto_Correos" = CASE WHEN lv_prov = 'Y' THEN NULL ELSE NULLIF(TRIM("HV_Contacto_Correos"), '') END,
                "ID_Catalogo_Empresa_Grupo_Destino" = CASE WHEN lv_prov = 'Y' THEN "HV_ID_Empresa_Destino" ELSE NULL END,
-               "Proveedor_RUC" = CASE WHEN lv_prov = 'Y' THEN TRIM("HV_Proveedor_RUC") ELSE NULL END,
-               "Proveedor_Direccion" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM("HV_Proveedor_Direccion"), '') ELSE NULL END,
-               "Vehiculo_Marca" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM("HV_Vehiculo_Marca"), '') ELSE NULL END,
-               "Licencia_Conducir" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM("HV_Licencia_Conducir"), '') ELSE NULL END,
+               "Proveedor_RUC" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM(lv_e_ruc), '') ELSE NULL END,
+               "Proveedor_Direccion" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM(lv_e_dir), '') ELSE NULL END,
+               "Vehiculo_Marca" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM(lv_e_mar), '') ELSE NULL END,
+               "Licencia_Conducir" = CASE WHEN lv_prov = 'Y' THEN NULLIF(TRIM(lv_e_lic), '') ELSE NULL END,
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud" = "HV_ID_Solicitud";
+
+        -- Proveedor: la fila de datos del transportista principal sigue a lo que se copió a la solicitud (D-223)
+        IF lv_prov = 'Y' THEN
+            UPDATE "CAF_Solicitud_Transportista" T
+               SET "Ruc" = NULLIF(TRIM(lv_e_ruc), ''), "Direccion" = NULLIF(TRIM(lv_e_dir), ''), "Placa" = lv_placa,
+                   "Marca" = NULLIF(TRIM(lv_e_mar), ''), "Licencia" = NULLIF(TRIM(lv_e_lic), ''),
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE T."ID_Solicitud" = "HV_ID_Solicitud" AND T."Eliminado" = 'N'
+               AND T."ID_Solicitud_Persona" IN (SELECT P."ID_Solicitud_Persona" FROM "CAF_Solicitud_Persona" P
+                                                 WHERE P."ID_Solicitud" = "HV_ID_Solicitud" AND P."Es_Principal" = 'Y');
+        END IF;
 
         CALL "ERP_CAF_SOLICITUD_COPIAS_GUARDAR"("HV_ID_Solicitud", "HV_Copias", "HV_UsuarioID", lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'copias: %', lv_m; END IF;

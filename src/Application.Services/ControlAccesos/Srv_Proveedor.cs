@@ -94,6 +94,60 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         catch (Exception ex) { _logger.LogError(ex, "RETIRO SIN INGRESO Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
+    public async Task<Result> IngresoFisicoAsync(long solicitudId, IReadOnlyCollection<long> idsPersona, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (idsPersona is null || idsPersona.Count == 0) return Result.Fail("Seleccione al menos una persona.", MapeoSp.Codigo(400));
+            var sp = await _repo.IngresoFisicoAsync(solicitudId, string.Join(",", idsPersona), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "INGRESO FISICO Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> RetiroPersonasAsync(long solicitudId, IReadOnlyCollection<long> idsPersona, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (idsPersona is null || idsPersona.Count == 0) return Result.Fail("Seleccione al menos una persona.", MapeoSp.Codigo(400));
+            if (string.IsNullOrWhiteSpace(motivo)) return Result.Fail("Indique el motivo del retiro.", MapeoSp.Codigo(400));
+            var sp = await _repo.RetiroPersonasAsync(solicitudId, string.Join(",", idsPersona), motivo.Trim(), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "RETIRO PERSONAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> VerificarGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default)
+    {
+        var err = ValidarGrupo(dto);
+        if (err is not null) return err;
+        try
+        {
+            var sp = await _repo.VerificarGrupoAsync(dto, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "VERIFICAR GRUPO Proveedor ID={ID} ERROR", dto.ID_Solicitud); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> SalidaGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default)
+    {
+        var err = ValidarGrupo(dto);
+        if (err is not null) return err;
+        try
+        {
+            var sp = await _repo.SalidaGrupoAsync(dto, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "SALIDA GRUPO Proveedor ID={ID} ERROR", dto.ID_Solicitud); return Result.Fail(ex.Message); }
+    }
+
+    private static Result? ValidarGrupo(Dto_Proveedor_Grupo? dto)
+    {
+        if (dto is null || dto.ID_Solicitud <= 0) return Result.Fail("Faltan los datos de la entrega.", MapeoSp.Codigo(400));
+        if (dto.IDs_Persona is null || dto.IDs_Persona.Count == 0) return Result.Fail("Seleccione al menos una persona.", MapeoSp.Codigo(400));
+        return null;
+    }
+
     public async Task<Result> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
     {
         try

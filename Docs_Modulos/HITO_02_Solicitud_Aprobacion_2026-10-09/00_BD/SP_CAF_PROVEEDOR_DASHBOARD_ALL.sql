@@ -205,7 +205,9 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "ID_Personal_Programado" BIGINT, "Programado_Nombre" VARCHAR, "Efectivo_Nombre" VARCHAR,
                "Puede_Programar" CHAR, "Puede_Confirmar" CHAR, "Puede_Cancelar_Disp" CHAR,
                "Puede_Atender" CHAR, "Puede_Terminar" CHAR, "Motivo_Bloqueo" VARCHAR,
-               "Es_Solicitante" CHAR, "Puede_Cancelar_Sol" CHAR, "Motivo_No_Cancelar_Sol" VARCHAR)
+               "Es_Solicitante" CHAR, "Puede_Cancelar_Sol" CHAR, "Motivo_No_Cancelar_Sol" VARCHAR,
+               "Transportistas_Total" INT, "Transportistas_Verificados" INT, "Transportistas_Dentro" INT, "Transportistas_Salieron" INT,
+               "Ayudantes_Total" INT)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -213,6 +215,7 @@ DECLARE
     lv_titular BIGINT;
     lv_tcod   VARCHAR(20);
 BEGIN
+    -- V2.3 2026-11-09 (D-225): + contadores de transportistas y ayudantes
     -- V2.0 2026-11-03
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_DASHBOARD', "HV_ID_Catalogo_Sede") <> 'Y' THEN
         RETURN;
@@ -262,7 +265,17 @@ BEGIN
                           AND (SELECT IX."Cancelar" FROM "ERP_CAF_SOLICITUD_INDICADORES"(S."ID_Solicitud") IX) = 'Y' THEN 'Y' ELSE 'N' END AS CHAR),
            CAST(CASE WHEN S."ID_Usuario_Solicitante" <> "HV_UsuarioID" THEN NULL
                      WHEN O."Estado_Operativo" <> 'PROGRAMADO' THEN 'La entrega ya está en curso o terminó: no se puede cancelar.'
-                     ELSE (SELECT IX."Motivo_Cancelar" FROM "ERP_CAF_SOLICITUD_INDICADORES"(S."ID_Solicitud") IX) END AS VARCHAR)
+                     ELSE (SELECT IX."Motivo_Cancelar" FROM "ERP_CAF_SOLICITUD_INDICADORES"(S."ID_Solicitud") IX) END AS VARCHAR),
+           CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
+                  AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'Y') AS INT),
+           CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
+                  AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'Y' AND X."Fecha_Verificacion" IS NOT NULL) AS INT),
+           CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
+                  AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'Y' AND X."Estado" = 'DENTRO') AS INT),
+           CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
+                  AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'Y' AND X."Estado" = 'SALIO') AS INT),
+           CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
+                  AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'N') AS INT)
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'

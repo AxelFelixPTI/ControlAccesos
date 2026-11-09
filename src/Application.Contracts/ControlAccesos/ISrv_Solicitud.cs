@@ -29,6 +29,12 @@ public interface ISrv_Solicitud
     Task<Result<Dto_Solicitud_Contadores>> ContadoresAsync(long usuarioId, long? sedeId = null, CancellationToken ct = default);
     Task<Result<Dto_Solicitud_Detalle>> DetalleAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Persona>>> PersonasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
+    /// <summary>Proveedor (D-223): los transportistas de la solicitud con sus datos opcionales.</summary>
+    Task<Result<List<Dto_Solicitud_Transportista>>> TransportistasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
+    /// <summary>D-227: días autorizados del contratista por franja.</summary>
+    Task<Result<List<Dto_Solicitud_Dia>>> DiasListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
+    /// <summary>D-227: el Coordinador agrega días a una solicitud aprobada (emergencia).</summary>
+    Task<Result<int>> DiasExtenderAsync(long solicitudId, IReadOnlyList<string> dias, string? horaDesde, string? horaHasta, string sustento, long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Paso>>> PasosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Evento>>> HistorialListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Version>>> VersionesListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);

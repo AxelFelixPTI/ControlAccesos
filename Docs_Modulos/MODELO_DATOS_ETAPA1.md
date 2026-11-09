@@ -12,9 +12,11 @@ Estado: **BORRADOR para revisión**. Todos los scripts (01 a 08) están probados
 | `TRIANONSATELITAL_CAF_PRODD` | 2 | 06 | `CAF_Solicitud`, `CAF_Solicitud_Version`, `CAF_Solicitud_Zona`, `CAF_Solicitud_Persona`, `CAF_Solicitud_Copia_Correo`, `CAF_Evento` (6) |
 | `TRIANONSATELITAL_CAF_PRODD` | 3 | 07 | `CAF_Registro_Acceso`, `CAF_Registro_Checklist`, `CAF_Respaldo`, `CAF_Respaldo_Persona`, `CAF_Desviacion` (5) |
 | `TRIANONSATELITAL_CAF_PRODD` | 4 | 08 | `CAF_Incidencia`, `CAF_Incidencia_Persona`, `CAF_Correo_Pendiente` (3) |
-| `TRIANONSATELITAL_CAF_PRODD` | 2 (Entrega J) | 15 | `CAF_Solicitud_Adjunto` (1): documentos de la solicitud, máx. 2 de 5 MB, en la BD |
+| `TRIANONSATELITAL_CAF_PRODD` | 2 (Entrega J) | 15 | `CAF_Solicitud_Adjunto` (1): documentos de la solicitud, máx. 10 de 5 MB y 20 MB en total, en la BD |
 | `TRIANONSATELITAL_CAF_PRODD` | 2 (Entrega H) | 16 | Columnas nuevas en `CAF_Solicitud` (`Requiere_Cochera`, `Placa_Vehiculo`, `Area_Detalle`, `Contacto_Nombre`, `Contacto_Telefonos`, `Contacto_Correos`) y `Catalogo_Sede.Aplica_Cochera`; sin tablas nuevas |
 | `TRIANONSATELITAL_CAF_PRODD` | 2 (Proveedor, Entrega 1) | 17 | `CAF_Solicitud_Operacion` y `CAF_Solicitud_Operacion_Evento` (2): estado operativo del proveedor y su historial. Columnas nuevas: `CAF_Solicitud` (`ID_Catalogo_Empresa_Grupo_Destino`, `Proveedor_RUC`, `Proveedor_Direccion`, `Vehiculo_Marca`, `Licencia_Conducir`; `ID_Personal_Responsable` opcional), `CAF_Solicitud_Persona.Es_Principal`, `Catalogo_Sede.Aplica_Proveedor`; checklist con la condición `SOLO_PRINCIPAL`; 4 permisos y 4 licencias de proveedor |
+| `TRIANONSATELITAL_CAF_PRODD` | 2 (Proveedor, 2b-2) | 24 | Columna `CAF_Solicitud_Persona.Fecha_Verificacion` (verificación por persona) y parámetro `EXCLUSA_CAPACIDAD` (vehículos a la vez en la exclusa, 1). La condición `SOLO_PRINCIPAL` del checklist significa ahora «solo transportistas» |
+| `TRIANONSATELITAL_CAF_PRODD` | 2 (Contratista, franja) | 25, 26 | `CAF_Solicitud_Dia` (días autorizados por solicitud: Fecha, Hora_Desde/Hasta opcionales, Origen SOLICITUD/EXTENSION) y seed provisional de checklist del contratista (D-227). |
 
 ## 2. Cómo se relacionan las tablas transaccionales
 
@@ -181,3 +183,7 @@ Sobre la base donde ya ejecutaste 01 a 05:
 - `CAF_Solicitud_Operacion.Estado_Operativo` admite además `CIERRE_FORZADO`; columna nueva `Ultimo_Aviso_Salida` (TIMESTAMP, para no repetir el aviso antes de una hora).
 - `CAF_Correo_Pendiente.Tipo` admite además `PROVEEDOR_AVISO` (aviso horario a Vigilancia y aviso de salida tardía al Coordinador).
 
+
+## Proveedor: transportistas múltiples (script 23, D-223)
+- Tabla nueva `CAF_Solicitud_Transportista` (33 tablas): `ID_Solicitud`, `ID_Solicitud_Persona` (FK), `Ruc`, `Nombre`, `Direccion`, `Placa`, `Marca`, `Licencia` (todos opcionales), `Eliminado` y auditoría. El principal es el de menor ID; sus datos se replican en `CAF_Solicitud`.
+- El script migra los transportistas principales que ya existían.

@@ -87,6 +87,23 @@ public sealed class SolicitudGuardarVM
     public string? ContactoNombre { get; set; }
     public string? ContactoTelefonos { get; set; }
     public string? ContactoCorreos { get; set; }
+    public long? EmpresaDestinoId { get; set; }            // proveedor: empresa del grupo que recibe (D-223)
+    public List<TransportistaVM> Transportistas { get; set; } = new();   // proveedor, solo al crear
+    public List<string>? Dias { get; set; }                // contratista por franja (D-227): «AAAA-MM-DD», solo al crear
+    public string? HoraDesde { get; set; }                 // contratista: horario opcional «HH:mm»
+    public string? HoraHasta { get; set; }
+}
+
+/// <summary>Datos opcionales de un transportista (D-223). El primero de la lista es el principal.</summary>
+public sealed class TransportistaVM
+{
+    public long PersonaId { get; set; }
+    public string? Ruc { get; set; }
+    public string? Nombre { get; set; }
+    public string? Direccion { get; set; }
+    public string? Placa { get; set; }
+    public string? Marca { get; set; }
+    public string? Licencia { get; set; }
 }
 
 public sealed class PersonaExternaVM

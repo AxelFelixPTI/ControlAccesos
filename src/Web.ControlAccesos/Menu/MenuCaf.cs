@@ -18,8 +18,8 @@ public sealed class MenuCaf
 
     private static readonly EntradaMenu[] Todas =
     {
-        new("Mis solicitudes",            "Solicitante",    new[] { "PER_CAF_SOLICITUD_PROPIA" }, true, "Solicitudes", "Index"),
-        new("Nueva solicitud",            "Solicitante",    new[] { "PER_CAF_SOLICITUD_PROPIA" }, true, "Solicitudes", "Nueva"),
+        new("Mis solicitudes",            "Solicitante",    new[] { "PER_CAF_SOLICITUD_PROPIA", "PER_CAF_PROVEEDOR_SOLICITAR" }, true, "Solicitudes", "Index"),
+        new("Nueva solicitud",            "Solicitante",    new[] { "PER_CAF_SOLICITUD_PROPIA", "PER_CAF_PROVEEDOR_SOLICITAR" }, true, "Solicitudes", "Nueva"),
         new("Solicitudes",                "Coordinador",    new[] { "PER_CAF_SOLICITUD_APROBAR", "PER_CAF_SOLICITUD_VER_TODAS" }, true, "Coordinacion", "Index"),
         new("Desviaciones",               "Coordinador",    new[] { "PER_CAF_DESVIACION_CONFORMIDAD" }, true, "Desviaciones", "Index"),
         new("Incidencias", "Coordinador", new[] { "PER_CAF_INCIDENCIA_DECIDIR" }, true, "Incidencias", "Index"),

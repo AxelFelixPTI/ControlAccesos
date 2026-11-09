@@ -81,17 +81,19 @@
             cont.appendChild(el('div', { class: 'det-h' }, [el('h3', { text: s.codigo }), SOL.chipEstado(s.estado), s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null]));
             if (s.estado === 'CANCELADA') cont.appendChild(el('div', { class: 'aviso a-info', text: 'Solicitud cancelada' + (s.motivoCancelacion ? ': ' + s.motivoCancelacion : '.') }));
             var dl = el('dl', { class: 'dl' });
-            var c = s.tipoCodigo === 'CONTRATISTA';
-            var filas = [['Tipo de ingreso', s.tipo || '—'], [c ? 'Servicio' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], [c ? 'Empresa contratista' : 'Empresa', s.empresa || '—']];
-            if (c) filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
+            var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';
+            var filas = [['Tipo de ingreso', s.tipo || '—'], (c && s.dias && s.dias.length) ? ['Días de trabajo (' + s.dias.length + ')', s.dias.map(function (x) { return SOL.fechaLarga(x.fecha) + (x.origen === 'EXTENSION' ? ' (ampliado)' : ''); }).join(', ') + ' · ' + SOL.textoHoras(s.dias[0].desde, s.dias[0].hasta) + ' · ' + s.sede] : [c ? 'Servicio' : pv ? 'Entrega' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
+            if (pv) filas.push(['Empresa que recibe', s.empresaDestino || '—'], ['Responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')]);
+            else if (c) filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
             else filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
-            filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+            if (!pv) filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
             if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
             filas.push(['Solicitante', (s.solicitante || '—') + (s.solicitanteCorreo ? ' · ' + s.solicitanteCorreo : '')], ['Observaciones', s.observaciones || '—']);
             filas
                 .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
             cont.appendChild(dl);
+            if (pv) cont.appendChild(SOL.transportistasNodo(s.transportistas));
             cont.appendChild(ADJ.panel({ solicitudId: id, urlListar: d.urlAdj, puedeAdjuntar: false }).nodo);
             if (s.exigeSctr || s.exigeEpp) cont.appendChild(el('div', { class: 'aviso a-warn', text: 'Las zonas exigen ' + [s.exigeSctr ? 'SCTR' : '', s.exigeEpp ? 'EPP' : ''].filter(Boolean).join(' y ') + ': Vigilancia lo verifica al ingreso.' }));
             cont.appendChild(el('div', { class: 'pills' }, [['personas', 'Personas (' + s.personas.filter(function (p) { return p.aprobacion !== 'RETIRADA'; }).length + ')'], ['historial', 'Historial']].map(function (x) {
@@ -138,7 +140,7 @@
                 ul.appendChild(el('li', { class: p.aprobacion === 'RETIRADA' ? 'ret' : '' }, [
                     chk ? el('label', { class: 'chk' }, [chk]) : null,
                     el('div', { class: 'plist-m' }, [
-                        el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), p.origen === 'AGREGADA_COORDINADOR' ? el('span', { class: 'chip c-line', text: 'Agregada por coordinación' }) : null]),
+                        el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), s.tipoCodigo === 'PROVEEDOR' ? el('span', { class: 'chip c-line', text: p.esTransportista ? 'Transportista' : 'Ayudante de descarga' }) : null, p.origen === 'AGREGADA_COORDINADOR' ? el('span', { class: 'chip c-line', text: 'Agregada por coordinación' }) : null]),
                         el('div', { class: 'field-h', text: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }),
                         nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null,
                         yaIngreso ? el('div', { class: 'field-h', text: 'Ya ingresó: no se quita. Vigilancia registra su salida con una observación.' }) : null
@@ -198,7 +200,8 @@
             if (s.puedeCorregir) {
                 caja.appendChild(el('div', { class: 'aviso a-warn' }, [
                     el('span', { text: 'Corrección de emergencia: solo si la visita cambia el mismo día. Agregue a quien llegó sin estar en la solicitud, corrija un dato mal escrito (menos el número de documento) o quite a quien ya no viene. Vigilancia lo ve al instante y el solicitante y Vigilancia reciben un correo con su sustento.' }),
-                    el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona (emergencia)', onclick: agregar })
+                    el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona (emergencia)', onclick: agregar }),
+                    (s.tipoCodigo === 'CONTRATISTA' && s.dias && s.dias.length) ? el('button', { type: 'button', class: 'btn btn-sm', text: '+ Ampliar días (emergencia)', onclick: ampliarDias }) : null
                 ]));
             }
             return caja;
@@ -209,14 +212,53 @@
             return { area: area, nodo: el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Sustento (obligatorio)' }), area]) };
         }
 
+        // D-227: el Coordinador agrega días al contratista por franja. Solo suma: no quita días ni toca lo ya registrado.
+        function ampliarDias() {
+            var sel = SOL.selectorDias([], s.dias[0].desde || '', s.dias[0].hasta || ''), err = el('p', { class: 'field-e' });
+            var sus = campoSustento('Por qué se amplía el plazo (por ejemplo: el trabajo se retrasó, el cliente pidió más días).');
+            CAF.modal('Ampliar días (emergencia)', el('div', { class: 'stack' }, [
+                el('div', { class: 'aviso a-info', text: 'Se suman a los días ya autorizados (' + s.dias.map(function (x) { return SOL.nombreDia(x.fecha); }).join(', ') + '). No se quita ningún día, la solicitud sigue aprobada y lo ya registrado no cambia. Avisamos por correo al solicitante y a Vigilancia.' }),
+                sel.nodo, sus.nodo, err]), [
+                { texto: 'Cancelar', onclick: function (c) { c(); } },
+                {
+                    texto: 'Ampliar', tipo: 'primary', onclick: function (c) {
+                        err.textContent = '';
+                        if (!sel.dias().length) { err.textContent = 'Elija al menos un día para agregar.'; return; }
+                        if (!sus.area.value.trim()) { err.textContent = 'Escriba el sustento de la corrección de emergencia.'; return; }
+                        CAF.pedir(d.urlExtenderDias, { method: 'POST', body: { solicitudId: id, dias: sel.dias(), horaDesde: sel.horaDesde(), horaHasta: sel.horaHasta(), sustento: sus.area.value } }).then(function (x) {
+                            if (!x.success) { err.textContent = SOL.errores(x); return; }
+                            c(); cargar(); refrescar(x.message || 'Días agregados.');
+                        });
+                    }
+                }
+            ], 'ancho');
+        }
+
         function agregar() {
             opciones().then(function (o) {
                 if (!o) return;
                 var fp = SOL.formPersona(o, d.urlBuscar, d.urlPersona), err = el('p', { class: 'field-e' });
                 var sus = campoSustento('Por qué se agrega a esta persona ahora (por ejemplo: llegó a portería, lo pidió el responsable de atención).');
+                // D-226: en una entrega de proveedor se indica si viene como transportista o como ayudante de descarga
+                var pv = s && s.tipoCodigo === 'PROVEEDOR', rol = null, dt = null, ins = {};
+                if (pv) {
+                    rol = el('select', {}, [el('option', { value: 'A', text: 'Ayudante de descarga' }), el('option', { value: 'T', text: 'Transportista (conductor)' })]);
+                    var cam = [['ruc', 'RUC del transportista', 11, '11 dígitos.'], ['nombre', 'Razón social', 200, ''], ['direccion', 'Dirección', 300, ''],
+                        ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, '']];
+                    dt = el('div', { class: 'stack', hidden: 'hidden' }, [el('p', { class: 'ayuda', text: 'Datos del transportista (opcionales: Vigilancia los completa al verificarlo).' })].concat(cam.map(function (c) {
+                        var i = el('input', { type: 'text', maxlength: String(c[2]), placeholder: c[3] }); ins[c[0]] = i;
+                        if (c[0] === 'placa') i.style.textTransform = 'uppercase';
+                        return el('label', { class: 'field' }, [el('span', { class: 'field-l', text: c[1] }), i]);
+                    })));
+                    rol.addEventListener('change', function () { if (rol.value === 'T') dt.removeAttribute('hidden'); else dt.setAttribute('hidden', 'hidden'); });
+                }
                 CAF.modal('Agregar persona (emergencia)', el('div', { class: 'stack' }, [
                     el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: la persona queda autorizada de inmediato. Vigilancia la verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
-                    fp.nodo, sus.nodo, err]), [
+                    fp.nodo,
+                    pv ? el('label', { class: 'field' }, [el('span', { class: 'field-l', text: '¿Con qué función viene?' }), rol]) : null,
+                    pv ? dt : null,
+                    pv ? el('div', { class: 'aviso a-info', text: 'Si agrega un transportista cuando la entrega ya esperaba, vuelve a «Programado» hasta que Vigilancia lo verifique. Un transportista no se puede agregar si la entrega ya terminó.' }) : null,
+                    sus.nodo, err]), [
                     { texto: 'Cancelar', onclick: function (c) { c(); } },
                     {
                         texto: 'Agregar', tipo: 'primary', onclick: function (c) {
@@ -224,7 +266,13 @@
                             if (!sus.area.value.trim()) { err.textContent = 'Escriba el sustento de la corrección de emergencia.'; return; }
                             fp.guardar().then(function (r) {
                                 if (!r.success) { err.textContent = SOL.errores(r); return; }
-                                CAF.pedir(d.urlAgregar, { method: 'POST', body: { solicitudId: id, personaId: r.data.id, sustento: sus.area.value } }).then(function (x) {
+                                var cuerpo = { solicitudId: id, personaId: r.data.id, sustento: sus.area.value };
+                                if (pv && rol.value === 'T') {
+                                    cuerpo.esTransportista = true;
+                                    Object.keys(ins).forEach(function (k) { cuerpo[k] = ins[k].value.trim() || null; });
+                                    if (cuerpo.placa) cuerpo.placa = cuerpo.placa.toUpperCase().replace(/[\s-]/g, '');
+                                }
+                                CAF.pedir(d.urlAgregar, { method: 'POST', body: cuerpo }).then(function (x) {
                                     if (!x.success) { err.textContent = SOL.errores(x); return; }
                                     c(); cargar(); refrescar(x.message || 'Persona agregada y aprobada.');
                                 });
@@ -240,7 +288,7 @@
             var sus = campoSustento(unica ? 'Por qué se rechaza la solicitud (por ejemplo: el transportista ya no viene y no hay reemplazo).' : 'Por qué se quita a esta persona (por ejemplo: ya no viene, la reemplazó otra persona).');
             CAF.modal(unica ? 'Quitar y rechazar la solicitud (emergencia)' : 'Quitar persona (emergencia)', el('div', { class: 'stack' }, [
                 el('p', { text: '¿Quitar a ' + p.nombre + ' de esta solicitud? Ya no podrá ingresar.' }),
-                unica ? el('div', { class: 'aviso a-warn', text: 'Es la única persona de la solicitud. Si la quita, la solicitud quedará RECHAZADA y nadie podrá ingresar con ella. Si lo que quiere es otra cosa, el solicitante puede cancelarla desde sus solicitudes.' }) : null,
+                unica ? el('div', { class: 'aviso a-warn', text: p.esTransportista ? 'Es el único transportista: sin él no hay entrega y la solicitud quedará RECHAZADA, aunque queden ayudantes de descarga. Si fue un error de nombre, use «Corregir datos»; si ya no viene, el solicitante puede cancelar la solicitud desde sus solicitudes.' : 'Es la única persona de la solicitud. Si la quita, la solicitud quedará RECHAZADA y nadie podrá ingresar con ella. Si lo que quiere es otra cosa, el solicitante puede cancelarla desde sus solicitudes.' }) : null,
                 el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: Vigilancia lo verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
                 sus.nodo, err]), [
                 { texto: 'Volver', onclick: function (c) { c(); } },

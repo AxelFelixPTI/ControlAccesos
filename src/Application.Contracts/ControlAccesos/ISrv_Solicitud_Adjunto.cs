@@ -1,4 +1,4 @@
-// Documentos adjuntos de la solicitud (Entrega J, D-183/D-184). Las reglas (dueño, estado, máximo 2, 5 MB,
+// Documentos adjuntos de la solicitud (Entrega J, D-183/D-184). Las reglas (dueño, estado, máximo 10, 20 MB en total, 5 MB,
 // quién ve) viven en las rutinas; aquí solo se valida el archivo en el servidor (extensión, firma, tamaño).
 
 using Application.DTOs.ControlAccesos;

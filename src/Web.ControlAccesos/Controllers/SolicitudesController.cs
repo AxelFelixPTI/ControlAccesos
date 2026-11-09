@@ -15,10 +15,12 @@ using Web.ControlAccesos.Seguridad;
 
 namespace Web.ControlAccesos.Controllers;
 
-[Authorize, ExigirPermiso(SolicitudesController.Permiso)]
+[Authorize, ExigirPermiso(SolicitudesController.Permiso, SolicitudesController.PermisoProveedor)]
 public sealed class SolicitudesController : Controller
 {
     public const string Permiso = "PER_CAF_SOLICITUD_PROPIA";
+    /// <summary>Quien puede solicitar proveedores también gestiona sus propias solicitudes (D-224).</summary>
+    public const string PermisoProveedor = "PER_CAF_PROVEEDOR_SOLICITAR";
     private const string MotivoContratista = "SERVICIO_CONTRATISTA";
 
     private readonly ISrv_Solicitud _sol;
@@ -30,13 +32,14 @@ public sealed class SolicitudesController : Controller
     private readonly ISrv_Catalogo_Motivo_Visita _motivos;
     private readonly ISrv_Catalogo_Zona_Acceso _zonas;
     private readonly ISrv_Catalogo_Tipo_Documento _tiposDoc;
+    private readonly ISrv_Catalogo_Empresa_Grupo _empresasGrupo;
 
     public SolicitudesController(ISrv_Solicitud sol, ISrv_Solicitud_Persona solPer, ISrv_Persona_Externa externas, ISrv_Personal personal,
         ISrv_Catalogo_Sede sedes, ISrv_Catalogo_Tipo_Acceso tipos, ISrv_Catalogo_Motivo_Visita motivos, ISrv_Catalogo_Zona_Acceso zonas,
-        ISrv_Catalogo_Tipo_Documento tiposDoc)
+        ISrv_Catalogo_Tipo_Documento tiposDoc, ISrv_Catalogo_Empresa_Grupo empresasGrupo)
     {
         _sol = sol; _solPer = solPer; _externas = externas; _personal = personal; _sedes = sedes; _tipos = tipos; _motivos = motivos;
-        _zonas = zonas; _tiposDoc = tiposDoc;
+        _zonas = zonas; _tiposDoc = tiposDoc; _empresasGrupo = empresasGrupo;
     }
 
     // ── pantallas ──────────────────────────────────────────────────────────────────────────────
@@ -74,7 +77,8 @@ public sealed class SolicitudesController : Controller
         var sedes = await _sol.SedesOpcionesAsync(User.UsuarioId(), ct);
         var motivos = await _motivos.ListarAsync(false, ct);
         var td = await _tiposDoc.ObtenerDropdownAsync(ct);
-        var falla = new[] { tipos.Success ? null : tipos.Message, sedes.Success ? null : sedes.Message, motivos.Success ? null : motivos.Message, td.Success ? null : td.Message }.FirstOrDefault(x => x is not null);
+        var grupo = await _empresasGrupo.ObtenerDropdownAsync(ct);
+        var falla = new[] { tipos.Success ? null : tipos.Message, sedes.Success ? null : sedes.Message, motivos.Success ? null : motivos.Message, td.Success ? null : td.Message, grupo.Success ? null : grupo.Message }.FirstOrDefault(x => x is not null);
         if (falla is not null) return Falla(falla);
         if (!tipos.Data!.Any(t => t.Usable)) return Falla("No hay un tipo de ingreso disponible. Pida al administrador que lo habilite en Catálogos.");
         if (sedes.Data!.Count == 0) return Falla("No tiene una sede habilitada para crear solicitudes. Pida al administrador que le asigne la licencia en su sede.");
@@ -101,6 +105,8 @@ public sealed class SolicitudesController : Controller
                 // El motivo fijo del contratista no se ofrece a los visitantes.
                 motivos = motivos.Data!.Where(m => m.Activo == "Y" && m.Codigo != MotivoContratista).OrderBy(m => m.Orden).Select(m => new { id = m.ID_Catalogo, texto = m.Descripcion, esOtro = m.Es_Otro == "Y" }),
                 tiposDoc = td.Data!.Select(x => new { id = x.ID_Catalogo, texto = x.Codigo }),
+                // Proveedor: empresas del grupo que pueden recibir la entrega
+                empresasGrupo = grupo.Data!.Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion }),
             }
         });
     }
@@ -189,17 +195,26 @@ public sealed class SolicitudesController : Controller
     {
         if (m.SedeId <= 0) return Falla("Seleccione la sede.");
         if (m.TipoId <= 0) return Falla("Seleccione el tipo de ingreso.");
-        var fh = FechaHora(m);
-        if (fh is null) return Falla("Indique la fecha y la hora de la visita.");
+        // D-227: contratista por franja: la fecha de la solicitud la fija la rutina (primer día); aquí basta una referencia
+        var dias = (m.Dias ?? new()).Select(x => (x ?? "").Trim()).Where(x => x.Length > 0).ToList();
+        var fh = dias.Count > 0 ? Fecha(dias.Min(StringComparer.Ordinal)) : FechaHora(m);
+        if (fh is null) return Falla(dias.Count > 0 ? "Alguno de los días indicados no es válido." : "Indique la fecha y la hora de la visita.");
 
         var r = await _sol.CrearAsync(new Dto_Solicitud_Crear
         {
-            ID_Catalogo_Sede = m.SedeId, ID_Catalogo_Tipo_Acceso = m.TipoId, ID_Personal_Responsable = m.ResponsableId,
+            ID_Catalogo_Sede = m.SedeId, ID_Catalogo_Tipo_Acceso = m.TipoId, ID_Personal_Responsable = m.ResponsableId > 0 ? m.ResponsableId : null,
             Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null,
             Motivo_Detalle = Vacio(m.MotivoDetalle), Observaciones = Vacio(m.Observaciones), IDs_Zona = m.ZonasIds ?? new(),
             IDs_Persona_Externa = m.PersonasIds ?? new(), Copias = Vacio(m.Copias), ID_Solicitud_Origen = m.OrigenId is > 0 ? m.OrigenId : null,
             Requiere_Cochera = m.Cochera, Placa_Vehiculo = Vacio(m.Placa), Area_Detalle = Vacio(m.AreaDetalle),
             Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
+            ID_Catalogo_Empresa_Destino = m.EmpresaDestinoId is > 0 ? m.EmpresaDestinoId : null,
+            Dias = dias, Hora_Desde = Vacio(m.HoraDesde), Hora_Hasta = Vacio(m.HoraHasta),
+            Transportistas = (m.Transportistas ?? new()).Select(t => new Dto_Transportista_Entrada
+            {
+                ID_Persona_Externa = t.PersonaId, Ruc = Vacio(t.Ruc), Nombre = Vacio(t.Nombre), Direccion = Vacio(t.Direccion),
+                Placa = Vacio(t.Placa), Marca = Vacio(t.Marca), Licencia = Vacio(t.Licencia),
+            }).ToList(),
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
         return Json(new { success = true, message = r.Message, data = new { id = r.Data!.ID_Solicitud, codigo = r.Data.Codigo } });
@@ -212,11 +227,12 @@ public sealed class SolicitudesController : Controller
         if (fh is null) return Falla("Indique la fecha y la hora de la visita.");
         var r = await _sol.EditarDatosAsync(id, new Dto_Solicitud_Editar
         {
-            Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Personal_Responsable = m.ResponsableId,
+            Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Personal_Responsable = m.ResponsableId > 0 ? m.ResponsableId : null,
             ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null, Motivo_Detalle = Vacio(m.MotivoDetalle),
             Observaciones = Vacio(m.Observaciones), IDs_Zona = m.ZonasIds ?? new(), Copias = Vacio(m.Copias),
             Requiere_Cochera = m.Cochera, Placa_Vehiculo = Vacio(m.Placa), Area_Detalle = Vacio(m.AreaDetalle),
             Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
+            ID_Catalogo_Empresa_Destino = m.EmpresaDestinoId is > 0 ? m.EmpresaDestinoId : null,
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
         return Json(new { success = true, message = r.Message, data = new { reenviadas = r.Data } });
@@ -238,9 +254,14 @@ public sealed class SolicitudesController : Controller
         if (!d.Success) return Falla(d.Message);
         var per = await _sol.PersonasListarAsync(u, id, ct);
         var his = await _sol.HistorialListarAsync(u, id, ct);
+        var tra = await _sol.TransportistasListarAsync(u, id, ct);
+        var dia = await _sol.DiasListarAsync(u, id, ct);
+        if (!tra.Success) return Falla(tra.Message);
+        if (!dia.Success) return Falla(dia.Message);
         if (!per.Success) return Falla(per.Message);
         if (!his.Success) return Falla(his.Message);
         var s = d.Data!;
+        var franjaAprobada = dia.Data!.Count > 0 && (s.Estado == "APROBADA" || s.Estado == "APROBADA_PARCIAL");   // D-227
         return Json(new
         {
             success = true,
@@ -255,15 +276,24 @@ public sealed class SolicitudesController : Controller
                 exigeSctr = s.Exige_SCTR, exigeEpp = s.Exige_EPP, zonasIds = ListaIds(s.Zonas_IDs), zonas = s.Zonas_Nombres, copias = s.Copias,
                 observacionCoordinador = s.Observacion_Coordinador, motivoCancelacion = s.Motivo_Cancelacion, codigoOrigen = s.Codigo_Origen,
                 total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
-                puedeEditar = s.Puede_Editar_Datos, motivoNoEditar = s.Motivo_No_Editar_Datos, puedeModificar = s.Puede_Modificar_Personal,
+                puedeEditar = s.Puede_Editar_Datos && !franjaAprobada,
+                motivoNoEditar = franjaAprobada ? "Una solicitud de contratista aprobada no se modifica. Para ampliar el plazo cree una solicitud nueva (el Coordinador también puede agregar días)." : s.Motivo_No_Editar_Datos, puedeModificar = s.Puede_Modificar_Personal,
                 motivoNoModificar = s.Motivo_No_Modificar_Personal, puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar,
                 puedeReutilizar = s.Puede_Reutilizar, esPropia = s.Es_Propia,
+                empresaDestinoId = s.ID_Empresa_Destino, empresaDestino = s.Empresa_Destino,
+                dias = dia.Data!.Select(x => new { fecha = x.Fecha.ToString("yyyy-MM-dd"), desde = x.Hora_Desde, hasta = x.Hora_Hasta, origen = x.Origen }),
+                transportistas = tra.Data!.Select(t => new
+                {
+                    personaId = t.ID_Persona_Externa, principal = t.Es_Principal, tipoDoc = t.Tipo_Documento, doc = t.Numero_Documento, nombrePersona = t.Nombre_Completo,
+                    ruc = t.Ruc, nombre = t.Nombre, direccion = t.Direccion, placa = t.Placa, marca = t.Marca, licencia = t.Licencia, completos = t.Datos_Completos,
+                }),
                 personas = per.Data!.Select(p => new
                 {
                     id = p.ID_Solicitud_Persona, personaId = p.ID_Persona_Externa, tipoDocId = p.ID_Catalogo_Tipo_Documento, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
                     apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres, nombre = p.Nombre_Completo,
                     aprobacion = p.Aprobacion, mensaje = p.Aprobacion_Mensaje, aprobadoPor = p.Aprobado_Por_Nombre, estado = p.Estado,
                     puedeRetirar = p.Puede_Retirar, puedeCorregir = p.Puede_Corregir, puedeReactivar = p.Puede_Reactivar,
+                    esTransportista = tra.Data!.Any(t => t.ID_Solicitud_Persona == p.ID_Solicitud_Persona),
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }

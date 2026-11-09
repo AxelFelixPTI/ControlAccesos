@@ -67,6 +67,29 @@ public sealed class Dto_Solicitud_Crear
     public string? Licencia_Conducir { get; set; }
     /// <summary>Transportista principal (debe estar entre las personas); sin él no procede nadie.</summary>
     public long? ID_Persona_Principal { get; set; }
+
+    /// <summary>D-223: transportistas de la entrega, cada uno con sus datos opcionales; el primero es el principal.
+    /// Si trae al menos uno, la solicitud se crea con ERP_CAF_SOLICITUD_CREAR_PROVEEDOR (todo o nada).</summary>
+    public List<Dto_Transportista_Entrada> Transportistas { get; set; } = new();
+
+    /// <summary>D-227: contratista por franja: días autorizados «AAAA-MM-DD» (la web expande rangos y días sueltos).
+    /// Si trae al menos uno, la solicitud se crea con ERP_CAF_SOLICITUD_CREAR_CONTRATISTA (todo o nada).</summary>
+    public List<string> Dias { get; set; } = new();
+    /// <summary>Horario opcional «HH:MM», igual para todos los días; van juntas o ninguna.</summary>
+    public string? Hora_Desde { get; set; }
+    public string? Hora_Hasta { get; set; }
+}
+
+/// <summary>Datos opcionales de un transportista (la persona ya está entre las personas de la solicitud).</summary>
+public sealed class Dto_Transportista_Entrada
+{
+    public long ID_Persona_Externa { get; set; }
+    public string? Ruc { get; set; }
+    public string? Nombre { get; set; }
+    public string? Direccion { get; set; }
+    public string? Placa { get; set; }
+    public string? Marca { get; set; }
+    public string? Licencia { get; set; }
 }
 
 /// <summary>Resultado de crear: identificador y código visible (SOL-00001).</summary>

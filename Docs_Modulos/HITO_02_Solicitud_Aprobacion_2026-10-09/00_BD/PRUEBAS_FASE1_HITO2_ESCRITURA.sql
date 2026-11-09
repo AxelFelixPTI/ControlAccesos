@@ -61,6 +61,7 @@ DECLARE
     v_p1 BIGINT; v_p2 BIGINT; v_p3 BIGINT; v_p4 BIGINT; v_p5 BIGINT;
     v_paso_doc BIGINT; v_paso_serv BIGINT; v_paso_cierre BIGINT; v_dummy BIGINT;
     v_ad BIGINT; v_ad1 BIGINT; v_ad2 BIGINT; v_ad3 BIGINT; v_adsp BIGINT;
+    v_tr_n BIGINT; v_tr1 TEXT; v_tr2 TEXT; v_ids BIGINT;
     v_mag BIGINT; v_zmag BIGINT; v_ctr BIGINT; v_sc BIGINT; v_sm BIGINT; v_sk BIGINT; v_mcon BIGINT; v_pctr BIGINT;
 BEGIN
     -- ===================================================== PREPARACIÓN
@@ -312,40 +313,40 @@ BEGIN
     -- ===================================================== F. CORRECCIÓN DE EMERGENCIA: agregar (D-169, P-98)
     -- Solo vale sobre una solicitud ya aprobada, con sustento y hasta el día de la visita.
     PERFORM pg_temp.chk('Emergencia: el procedimiento anterior (agregar aprobada) ya no existe', '0', pg_temp.q('SELECT COUNT(*) FROM pg_proc WHERE proname = ''ERP_CAF_SOLICITUD_PERSONA_AGREGAR_APROBADA'''), 'no puede convivir con la aprobación normal');
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, 'Llegó sin avisar', v_u_sol, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, 'Llegó sin avisar', v_u_sol, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: el solicitante no puede', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, 'Llegó sin avisar', v_u_alm, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, 'Llegó sin avisar', v_u_alm, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: el aprobador de almacén no decide pasos de este flujo', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_a, v_e6, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_a, v_e6, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: con la solicitud por decidir no vale', '409', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: la solicitud por decidir sigue PENDIENTE', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_a), '');
     CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_s1, v_paso_ext, 'APROBADA', NULL, v_p1::TEXT, v_u_coo, v_cant, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: preparación, el Coordinador aprueba a una persona', 'APROBADA_PARCIAL', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_s1), 'ya hay algo aprobado');
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, NULL, v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, NULL, v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: sin sustento', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, '    ', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, '    ', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: sustento en blanco', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, REPEAT('x', 301), v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e6, REPEAT('x', 301), v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: sustento de más de 300 caracteres', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e1, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_e1, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: quien ya está en la solicitud', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, 888888, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, 888888, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: persona no registrada', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(999999, v_e6, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(999999, v_e6, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: solicitud inexistente', '404', v_cod::TEXT, v_msg);
     SELECT "ID_Solicitud_Persona" INTO v_dummy FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_s1 AND "ID_Persona_Externa" = v_e6;
     CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR"(v_dummy, v_u_sol, v_cod, v_msg);
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'71000007','Nueva','Persona','Julia',0, v_d, v_cod, v_msg);
     UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_pas WHERE "ID_Solicitud" = v_s1;
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: una visita de fecha pasada no se corrige', '409', v_cod::TEXT, v_msg);
     UPDATE "CAF_Solicitud" SET "Fecha_Hora_Prevista" = v_fut WHERE "ID_Solicitud" = v_s1;
     UPDATE "CAF_Solicitud" SET "Estado" = 'CANCELADA' WHERE "ID_Solicitud" = v_s1;
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: una solicitud cancelada no se corrige', '409', v_cod::TEXT, v_msg);
     UPDATE "CAF_Solicitud" SET "Estado" = 'APROBADA_PARCIAL' WHERE "ID_Solicitud" = v_s1;
     PERFORM pg_temp.chk('Emergencia agregar: lo rechazado no dejó nada escrito', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "ID_Persona_Externa" = ' || v_d), '');
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_s1, v_d, 'Llegó sin avisar', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: el Coordinador agrega a quien llegó', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Emergencia agregar: queda APROBADA al instante', 'APROBADA|AGREGADA_COORDINADOR', pg_temp.q('SELECT "Aprobacion" || ''|'' || "Origen" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), 'resuelve el caso del teléfono');
     PERFORM pg_temp.chk('Emergencia agregar: la bitácora guarda el sustento', 'Nueva Persona, Julia · Emergencia: Llegó sin avisar', pg_temp.q('SELECT "Detalle" FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_s1 || ' AND "Accion" = ''AGREGAR_EMERGENCIA'''), '');
@@ -598,10 +599,10 @@ BEGIN
     PERFORM pg_temp.chk('Varios pasos: quien llega después HEREDA el paso por solicitud', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Decision" WHERE "ID_Solicitud_Persona" = ' || v_p4 || ' AND "ID_Tipo_Acceso_Paso_Aprobacion" = ' || v_paso_serv || ' AND "Vigente" = ''Y'''), 'no vuelve a pasar por el área');
     PERFORM pg_temp.chk('Varios pasos: solo le faltan los pasos que dependen de ella', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p4), '');
     PERFORM pg_temp.chk('Varios pasos: avisa solo a quien decide su paso pendiente', 'roberto@ejemplo.pe', pg_temp.q('SELECT "Destinatarios" FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_c || ' AND "Tipo" = ''PERSONA_POR_APROBAR'' ORDER BY "ID_Correo_Pendiente" DESC LIMIT 1'), 'no al área, que ya aprobó');
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_c, v_e5, 'Prueba de varios pasos', v_u_coo, v_p5, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_c, v_e5, 'Prueba de varios pasos', v_u_coo, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_p5, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: quien decide 2 pasos aprueba a quien llegó en ambos, en orden', 'APROBADA', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_p5), 'hereda el servicio');
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'71000008','Otra','Visita','Pilar',0, v_dummy, v_cod, v_msg);
-    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_c, v_dummy, 'Prueba de varios pasos', v_u_alm, v_d, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_c, v_dummy, 'Prueba de varios pasos', v_u_alm, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_d, v_cod, v_msg);
     PERFORM pg_temp.chk('Varios pasos: el área agrega a alguien; solo hereda el suyo', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Varios pasos: y le faltan los pasos de otros roles', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_d), '');
 
@@ -658,8 +659,19 @@ BEGIN
     PERFORM pg_temp.chk('Adjuntos: solicitud inexistente', '404', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'planilla.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', convert_to('PK planilla', 'UTF8'), v_u_sol, v_ad2, v_cod, v_msg);
     PERFORM pg_temp.chk('Adjuntos: el segundo documento se acepta', '100', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'tercero.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', convert_to('PK tercero', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
-    PERFORM pg_temp.chk('Adjuntos: el tercero se rechaza (máximo 2 por solicitud)', '409', v_cod::TEXT, v_msg);
+    -- Límite: hasta 10 documentos y 20 MB en total (D-222). Se llenan, se prueban los dos topes y se vuelve a 2 documentos.
+    FOR i IN 3..10 LOOP
+        CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'extra' || i || '.pdf', 'application/pdf', convert_to('%PDF extra ' || i, 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+        PERFORM pg_temp.chk('Adjuntos: el documento ' || i || ' se acepta (hasta 10)', '100', v_cod::TEXT, v_msg);
+    END LOOP;
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'once.pdf', 'application/pdf', convert_to('%PDF once', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: el undécimo se rechaza (máximo 10 por solicitud)', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud_Adjunto" SET "Eliminado" = 'Y' WHERE "ID_Solicitud" = v_ad AND "Nombre_Archivo" LIKE 'extra%' AND "Nombre_Archivo" NOT IN ('extra3.pdf','extra4.pdf');
+    UPDATE "CAF_Solicitud_Adjunto" SET "Tamano_Bytes" = 5242880 WHERE "ID_Solicitud" = v_ad AND "Eliminado" = 'N';
+    CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'pesado.pdf', 'application/pdf', convert_to('%PDF pesado', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('Adjuntos: si los documentos ya suman 20 MB se rechaza otro (el correo no podría llevarlos)', '409', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud_Adjunto" SET "Eliminado" = 'Y' WHERE "ID_Solicitud" = v_ad AND "Nombre_Archivo" IN ('extra3.pdf','extra4.pdf');
+    UPDATE "CAF_Solicitud_Adjunto" SET "Tamano_Bytes" = LENGTH("Contenido") WHERE "ID_Solicitud" = v_ad;
 
     PERFORM pg_temp.chk('Adjuntos: el solicitante ve sus 2 documentos', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_sol || ', ' || v_ad || ')'), '');
     PERFORM pg_temp.chk('Adjuntos: el solicitante puede retirarlos mientras edita', 'Y', pg_temp.q('SELECT DISTINCT "Puede_Quitar" FROM "ERP_CAF_SOLICITUD_ADJUNTO_LISTAR"(' || v_u_sol || ', ' || v_ad || ')'), '');
@@ -692,7 +704,7 @@ BEGIN
     PERFORM pg_temp.chk('Adjuntos: retirar dos veces el mismo documento da 404', '404', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'tercero.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', convert_to('PK tercero', 'UTF8'), v_u_sol, v_ad3, v_cod, v_msg);
     PERFORM pg_temp.chk('Adjuntos: al retirar uno se puede adjuntar otro', '100', v_cod::TEXT, v_msg);
-    PERFORM pg_temp.chk('Adjuntos: la bitácora registra los documentos agregados y retirados', '4', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_ad || ' AND "Accion" IN (''ADJUNTO_AGREGAR'',''ADJUNTO_QUITAR'')'), '3 agregados y 1 retirado');
+    PERFORM pg_temp.chk('Adjuntos: la bitácora registra los documentos agregados y retirados', '12', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_ad || ' AND "Accion" IN (''ADJUNTO_AGREGAR'',''ADJUNTO_QUITAR'')'), '10 agregados (2 + 8 de la prueba del límite) y 1 retirado + 1 del flujo previo');
     CALL "ERP_CAF_SOLICITUD_CANCELAR"(v_ad, 'prueba', v_u_sol, v_cod, v_msg);
     CALL "ERP_CAF_SOLICITUD_ADJUNTO_AGREGAR"(v_ad, 'tarde.pdf', 'application/pdf', convert_to('%PDF tarde', 'UTF8'), v_u_sol, v_dummy, v_cod, v_msg);
     PERFORM pg_temp.chk('Adjuntos: en una solicitud cancelada ya no se agregan documentos', '409', v_cod::TEXT, v_msg);
@@ -853,12 +865,12 @@ BEGIN
     PERFORM pg_temp.chk('Proveedor crear: Magdalena no recibe proveedores', '400', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, 'ABC-123', NULL, NULL, '999111222', NULL, v_emp, '2012345678', 'Av. Los Olivos 123', 'Volvo', 'Q12345678', v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor crear: el RUC debe tener 11 dígitos', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, NULL, NULL, NULL, '999111222', NULL, v_emp, '20123456789', 'Av. Los Olivos 123', 'Volvo', 'Q12345678', v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
-    PERFORM pg_temp.chk('Proveedor crear: la placa es obligatoria', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, 'AB', NULL, NULL, '999111222', NULL, v_emp, '20123456789', 'Av. Los Olivos 123', 'Volvo', 'Q12345678', v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Proveedor crear: la placa, si se escribe, debe tener 5 a 8 caracteres', '400', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, 'ABC-123', NULL, NULL, '999111222', NULL, v_emp, '20123456789', 'Av. Los Olivos 123', NULL, 'Q12345678', v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
-    PERFORM pg_temp.chk('Proveedor crear: la marca es obligatoria', '400', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Proveedor crear: la marca es opcional (puede ir en los adjuntos)', '100', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, 'ABC-123', NULL, NULL, '999111222', NULL, v_emp, '20123456789', 'Av. Los Olivos 123', 'Volvo', NULL, v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
-    PERFORM pg_temp.chk('Proveedor crear: la licencia de conducir es obligatoria', '400', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Proveedor crear: la licencia es opcional (puede ir en los adjuntos)', '100', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, 'ABC-123', NULL, NULL, '123', NULL, v_emp, '20123456789', 'Av. Los Olivos 123', 'Volvo', 'Q12345678', v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor crear: el teléfono es obligatorio', '400', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, NULL, v_q1::TEXT, NULL, NULL, NULL, 'ABC-123', NULL, NULL, '999111222', NULL, NULL, '20123456789', 'Av. Los Olivos 123', 'Volvo', 'Q12345678', v_q1, v_usp, v_id, v_cs2, v_cod, v_msg);
@@ -883,10 +895,52 @@ BEGIN
     PERFORM pg_temp.chk('Proveedor crear: motivo fijo', 'ENTREGA_PROVEEDOR', pg_temp.q('SELECT M."Codigo" FROM "CAF_Solicitud" S JOIN "Catalogo_Motivo_Visita" M ON M."ID_Catalogo_Motivo_Visita" = S."ID_Catalogo_Motivo_Visita" WHERE S."ID_Solicitud" = ' || v_sa), '');
     PERFORM pg_temp.chk('Proveedor crear: guarda placa normalizada, RUC, marca y licencia', 'ABC123|20123456789|Volvo|Q12345678',
         pg_temp.q('SELECT "Placa_Vehiculo" || ''|'' || "Proveedor_RUC" || ''|'' || "Vehiculo_Marca" || ''|'' || "Licencia_Conducir" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sa), '');
-    PERFORM pg_temp.chk('Proveedor crear: no guarda contacto ni cochera del visitante', 'N|(nulo)|(nulo)',
+    PERFORM pg_temp.chk('Proveedor crear: guarda el responsable de la entrega y no la cochera ni el área', 'N|x|(nulo)',
         pg_temp.q('SELECT "Requiere_Cochera" || ''|'' || COALESCE("Contacto_Nombre", ''(nulo)'') || ''|'' || COALESCE("Area_Detalle", ''(nulo)'') FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sa), '');
     PERFORM pg_temp.chk('Proveedor crear: un solo transportista principal', '1|' || v_q1, pg_temp.q('SELECT COUNT(*) || ''|'' || MAX("ID_Persona_Externa") FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_sa || ' AND "Es_Principal" = ''Y'''), '');
     PERFORM pg_temp.chk('Proveedor crear: todavía no hay operación (nada aprobado)', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sa), '');
+
+    -- ===== Varios transportistas, cada uno con sus datos opcionales (D-223) =====
+    PERFORM pg_temp.chk('Transportistas: CREAR directo deja la fila del principal con sus datos', '1|20123456789|ABC123|Volvo|Q12345678',
+        pg_temp.q('SELECT COUNT(*) || ''|'' || MAX("Ruc") || ''|'' || MAX("Placa") || ''|'' || MAX("Marca") || ''|'' || MAX("Licencia") FROM "CAF_Solicitud_Transportista" WHERE "ID_Solicitud" = ' || v_sa), '');
+    v_tr_n := (SELECT COUNT(*) FROM "CAF_Solicitud");
+    v_tr1 := v_q1::TEXT || CHR(31) || '20123456789' || CHR(31) || 'Transportes Rápido SAC' || CHR(31) || 'Av. Argentina 100' || CHR(31) || 'abc-123' || CHR(31) || 'Volvo' || CHR(31) || 'Q12345678';
+    v_tr2 := v_q2::TEXT || CHR(31) || CHR(31) || 'Fletes Pedro' || CHR(31) || CHR(31) || 'xyz 987' || CHR(31) || CHR(31);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1 || ',' || v_q2, NULL, NULL, 'Luis Jefe', '999111222', v_emp, NULL, v_usp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: sin ninguno marcado no procede', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1::TEXT, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_tr2, v_usp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: el transportista debe estar entre las personas', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1 || ',' || v_q2, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_tr1 || CHR(30) || v_tr1, v_usp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: una persona no puede marcarse dos veces', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1 || ',' || v_q2, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_tr1 || CHR(30) || v_q2::TEXT || CHR(31) || '123', v_usp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: el RUC del segundo debe tener 11 dígitos', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1 || ',' || v_q2, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_tr1, v_uvp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: Vigilancia de proveedores no solicita', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1 || ',' || v_q2, NULL, NULL, 'Luis Jefe', '12', v_emp, v_tr1, v_usp, v_id, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: el teléfono del responsable sigue siendo obligatorio', '400', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Transportistas: los intentos fallidos no dejan nada creado', '0', ((SELECT COUNT(*) FROM "CAF_Solicitud") - v_tr_n)::TEXT, '');
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', 'Dos camiones', v_q1 || ',' || v_q2, NULL, NULL, 'Luis Jefe', '999 111 222', v_emp, v_tr1 || CHR(30) || v_tr2, v_usp, v_ids, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: dos transportistas, correcto', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Transportistas: el primero es el principal (uno solo)', '1|' || v_q1, pg_temp.q('SELECT COUNT(*) || ''|'' || MAX("ID_Persona_Externa") FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_ids || ' AND "Es_Principal" = ''Y'''), '');
+    PERFORM pg_temp.chk('Transportistas: dos filas de datos', '2', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Transportista" WHERE "ID_Solicitud" = ' || v_ids), '');
+    PERFORM pg_temp.chk('Transportistas: los datos del principal también van a la solicitud (calendario)', 'ABC123|20123456789|Volvo|Q12345678|Luis Jefe',
+        pg_temp.q('SELECT "Placa_Vehiculo" || ''|'' || "Proveedor_RUC" || ''|'' || "Vehiculo_Marca" || ''|'' || "Licencia_Conducir" || ''|'' || "Contacto_Nombre" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_ids), '');
+    PERFORM pg_temp.chk('Transportistas: el segundo guarda solo lo que se escribió (placa normalizada, el resto vacío)', 'XYZ987|Fletes Pedro|(nulo)|(nulo)',
+        pg_temp.q('SELECT T."Placa" || ''|'' || T."Nombre" || ''|'' || COALESCE(T."Ruc", ''(nulo)'') || ''|'' || COALESCE(T."Marca", ''(nulo)'') FROM "CAF_Solicitud_Transportista" T JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud_Persona" = T."ID_Solicitud_Persona" WHERE T."ID_Solicitud" = ' || v_ids || ' AND P."ID_Persona_Externa" = ' || v_q2), '');
+    PERFORM pg_temp.chk('Transportistas: el solicitante ve a sus dos transportistas (principal primero; datos completos Y/N)', 'YY,NN',
+        pg_temp.q('SELECT STRING_AGG(X."Es_Principal" || X."Datos_Completos", '','' ORDER BY X."Es_Principal" DESC) FROM "ERP_CAF_SOLICITUD_TRANSPORTISTAS"(' || v_usp || ',' || v_ids || ') X'), '');
+    PERFORM pg_temp.chk('Transportistas: otro solicitante no ve los transportistas ajenos', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_TRANSPORTISTAS"(' || v_u_sol2 || ',' || v_ids || ')'), '');
+    PERFORM pg_temp.chk('Transportistas: Coordinación ve los transportistas para decidir', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_TRANSPORTISTAS"(' || v_u_coo || ',' || v_ids || ')'), '');
+    -- D-224: quien puede solicitar proveedores gestiona sus propias solicitudes (ver, editar, personas)
+    PERFORM pg_temp.chk('D-224: el solicitante de proveedores ve su solicitud en «Mis solicitudes»', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_MIS_LISTAR"(' || v_usp || ') X WHERE X."ID_Solicitud" = ' || v_ids), '');
+    PERFORM pg_temp.chk('D-224: ve el detalle de su solicitud y puede editarla', '1|Y', pg_temp.q('SELECT COUNT(*) || ''|'' || MAX(X."Puede_Editar_Datos") FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_usp || ',' || v_ids || ') X'), '');
+    PERFORM pg_temp.chk('D-224: ve las personas de su solicitud', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_PERSONAS_LISTAR"(' || v_usp || ',' || v_ids || ')'), '');
+    PERFORM pg_temp.chk('D-224: el permiso de proveedor no abre otros tipos de ingreso', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_TIPOS_OPCIONES"(' || v_usp || ') WHERE "Codigo" <> ''PROVEEDOR'' AND "Usable" = ''Y'''), '');
+    PERFORM pg_temp.chk('D-224: otro solicitante sigue sin ver la solicitud ajena', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_DETALLE"(' || v_u_sol2 || ',' || v_ids || ')'), '');
+    CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_ids, v_fut, 'Distribuidora Andina S.A.', NULL, NULL, NULL, 'Cambia solo la observación', NULL, NULL, NULL, NULL, NULL, 'Luis Jefe', '999111222', NULL, v_emp, NULL, NULL, NULL, NULL, v_usp, v_reab, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: editar sin datos de transportista conserva los guardados', '100|ABC123|20123456789|1', v_cod::TEXT || '|' || pg_temp.q('SELECT "Placa_Vehiculo" || ''|'' || "Proveedor_RUC" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_ids) || '|' || pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Transportista" T WHERE T."ID_Solicitud" = ' || v_ids || ' AND T."Placa" = ''ABC123'' AND T."Ruc" = ''20123456789'''), v_msg);
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Distribuidora Andina S.A.', NULL, v_q1::TEXT, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_q1::TEXT, v_usp, v_ids, v_cs2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Transportistas: se puede enviar solo con los datos mínimos (irán en los adjuntos)', '100|(nulo)|(nulo)', v_cod::TEXT || '|' || pg_temp.q('SELECT COALESCE("Placa_Vehiculo", ''(nulo)'') FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_ids) || '|' || pg_temp.q('SELECT COALESCE("Proveedor_RUC", ''(nulo)'') FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_ids), v_msg);
     PERFORM pg_temp.chk('Proveedor crear: Almacén va en copia desde el registro', 'true', pg_temp.q('SELECT COALESCE("ERP_CAF_FN_COPIA_CORREO"(' || v_sa || ', ''N'', ''N'', ''N'', ''N'') LIKE ''%almacen.prov@ejemplo.pe%'', false)'), '');
     PERFORM pg_temp.chk('Proveedor crear: el aviso de aprobación va al Coordinador de proveedores', 'true',
         pg_temp.q('SELECT COALESCE(STRING_AGG("Destinatarios", '';''), '''') LIKE ''%coordprov@ejemplo.pe%'' FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_sa || ' AND "Tipo" = ''SOLICITUD_NUEVA'''), '');
@@ -942,7 +996,8 @@ BEGIN
     PERFORM pg_temp.chk('Proveedor verificación: la Vigilancia convencional no verifica proveedores', '101', v_cod::TEXT, v_msg);
     v_it := pg_temp.q('SELECT STRING_AGG("ID_Catalogo_Item_Checklist" || '':Y'', '','') FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_sp2 || ', ''INGRESO'', ''N'', ''N'')');
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sp2, v_it, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
-    PERFORM pg_temp.chk('Proveedor verificación: el apoyo no se registra antes que el principal', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Proveedor verificación: el ayudante puede verificarse por adelantado (D-225)', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Proveedor verificación: verificar al ayudante no mueve la entrega (solo los transportistas la mueven)', 'PROGRAMADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_sb), '');
     v_it := pg_temp.q('SELECT STRING_AGG("ID_Catalogo_Item_Checklist" || '':Y'', '','') FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_sp1 || ', ''INGRESO'', ''N'', ''N'')');
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sp1, v_it, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor verificación: el principal queda verificado', '100|INGRESA', v_cod::TEXT || '|' || v_res2, v_msg);
@@ -958,7 +1013,7 @@ BEGIN
     PERFORM pg_temp.chk('Proveedor cancelar: tras la verificación ya no se cancela', '409', v_cod::TEXT, v_msg);
     v_it := pg_temp.q('SELECT STRING_AGG("ID_Catalogo_Item_Checklist" || '':Y'', '','') FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_sp2 || ', ''INGRESO'', ''N'', ''N'')');
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sp2, v_it, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
-    PERFORM pg_temp.chk('Proveedor verificación: el apoyo no ingresa mientras el principal solo está verificado', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Proveedor verificación: el ayudante ya verificado no se verifica dos veces', '409', v_cod::TEXT, v_msg);
 
     -- Ingreso físico: exige la disponibilidad de Almacén
     CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(v_sb, v_uvp, v_cod, v_msg);
@@ -983,11 +1038,10 @@ BEGIN
         pg_temp.q('SELECT O."Estado_Operativo" || ''|'' || P."Estado" || ''|'' || (P."Fecha_Hora_Ingreso" IS NOT NULL AND O."Fecha_Ingreso" IS NOT NULL)::TEXT FROM "CAF_Solicitud_Operacion" O JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = O."ID_Solicitud" AND P."Es_Principal" = ''Y'' WHERE O."ID_Solicitud" = ' || v_sb), '');
     CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(v_sb, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor ingreso físico: repetido es 409', '409', v_cod::TEXT, v_msg);
-    v_it := pg_temp.q('SELECT STRING_AGG("ID_Catalogo_Item_Checklist" || '':Y'', '','') FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_sp2 || ', ''INGRESO'', ''N'', ''N'')');
-    CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sp2, v_it, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
-    PERFORM pg_temp.chk('Proveedor ingreso: el apoyo ingresa después del principal', '100|INGRESA', v_cod::TEXT || '|' || v_res2, v_msg);
-    PERFORM pg_temp.chk('Proveedor ingreso: el checklist del apoyo guarda 3 respuestas y queda dentro', '3|DENTRO',
-        pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Registro_Checklist" WHERE "ID_Registro_Acceso" = ' || v_reg2 || ') || ''|'' || "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_sp2), '');
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_sb, v_sp2::TEXT, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('Proveedor ingreso: el ayudante ya verificado ingresa (con el transportista dentro)', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Proveedor ingreso: el checklist del ayudante guardó 3 respuestas y queda dentro', '3|DENTRO',
+        pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Registro_Checklist" C JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = C."ID_Registro_Acceso" WHERE R."ID_Solicitud_Persona" = ' || v_sp2 || ' AND R."Tipo_Movimiento" = ''INGRESO'') || ''|'' || "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_sp2), '');
 
     CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(v_sp1, COALESCE(pg_temp.items(v_sp1, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_reg2, v_des2, v_res2, v_cod, v_msg);
     PERFORM pg_temp.chk('Proveedor salida: el principal no sale antes de la recepción', '409', v_cod::TEXT, v_msg);
@@ -1437,6 +1491,324 @@ BEGIN
     PERFORM pg_temp.chk('Cancelar disponibilidad: deja la esclusa libre', 'true', pg_temp.q('SELECT ("ID_Solicitud_Actual" IS NULL)::TEXT FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves), '');
     PERFORM pg_temp.chk('Calendario: la entrega denegada sigue visible con su estado', 'INGRESO_DENEGADO',
         pg_temp.q('SELECT "Estado_Operativo" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_s4), '');
+
+    -- ===================================================== Q. VARIOS TRANSPORTISTAS Y AYUDANTES (D-225)
+    DECLARE
+        v_gT1 BIGINT; v_gT2 BIGINT; v_gA1 BIGINT; v_gA2 BIGINT; v_gs BIGINT; v_gcs VARCHAR(20); v_gtr TEXT;
+        v_pT1 BIGINT; v_pT2 BIGINT; v_pA1 BIGINT; v_pA2 BIGINT; v_gs2 BIGINT; v_gs3 BIGINT; v_gU BIGINT; v_gV BIGINT;
+        v_pU BIGINT; v_pV BIGINT; v_gu_r TEXT;
+    BEGIN
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000031','Trans','Uno','Tito',0, v_gT1, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000032','Trans','Dos','Teo',0,  v_gT2, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000033','Ayu','Uno','Alba',0,   v_gA1, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000034','Ayu','Dos','Abel',0,   v_gA2, v_cod, v_msg);
+    v_gtr := v_gT1::TEXT || CHR(31) || '20111111111' || CHR(31) || 'Fletes Uno' || CHR(31) || 'Calle 1' || CHR(31) || 'GGG-001' || CHR(31) || 'Volvo' || CHR(31) || 'Q1000001'
+          || CHR(30) || v_gT2::TEXT || CHR(31) || '20222222222' || CHR(31) || 'Fletes Dos' || CHR(31) || 'Calle 2' || CHR(31) || 'GGG-002' || CHR(31) || 'Scania' || CHR(31) || 'Q1000002';
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fhoy, 'Grupo S.A.', NULL, v_gT1 || ',' || v_gT2 || ',' || v_gA1 || ',' || v_gA2, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_gtr, v_usp, v_gs, v_gcs, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225: solicitud con 2 transportistas y 2 ayudantes creada', '100', v_cod::TEXT, v_msg);
+    v_pT1 := pg_temp.sp(v_gs, v_gT1); v_pT2 := pg_temp.sp(v_gs, v_gT2); v_pA1 := pg_temp.sp(v_gs, v_gA1); v_pA2 := pg_temp.sp(v_gs, v_gA2);
+    PERFORM pg_temp.chk('D-225: dos transportistas y dos ayudantes', '2|2',
+        pg_temp.q('SELECT SUM(CASE WHEN "ERP_CAF_FN_ES_TRANSPORTISTA"("ID_Solicitud_Persona") = ''Y'' THEN 1 ELSE 0 END) || ''|'' || SUM(CASE WHEN "ERP_CAF_FN_ES_TRANSPORTISTA"("ID_Solicitud_Persona") = ''Y'' THEN 0 ELSE 1 END) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_gs), '');
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_gs, v_paso_p, 'APROBADA', NULL, v_pT1 || ',' || v_pT2 || ',' || v_pA1 || ',' || v_pA2, v_ucp, v_cant, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225: aprobada, la entrega queda PROGRAMADO', '100|PROGRAMADO', v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs), v_msg);
+
+    -- Checklist por rol: el ítem de placa solo aplica a transportistas
+    PERFORM pg_temp.chk('D-225: el ayudante tiene menos ítems de ingreso que el transportista', 'true',
+        pg_temp.q('SELECT ((SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_pA1 || ', ''INGRESO'', ''N'', ''N'')) < (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_pT1 || ', ''INGRESO'', ''N'', ''N'')))::TEXT'), '');
+    PERFORM pg_temp.chk('D-225: la placa no figura para el ayudante', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_pA1 || ', ''INGRESO'', ''N'', ''N'') WHERE "Codigo" = ''ING_PLACA'''), '');
+
+    -- Verificar en grupo
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, '', pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: sin selección no procede', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, 'a,b', pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: lista mal formada', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1::TEXT, pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_ud, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: sin permiso de Vigilancia no verifica', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: al transportista le faltan ítems de su checklist (placa)', '400', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: el rechazo no dejó nada guardado', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "Fecha_Verificacion" IS NOT NULL AND "ID_Solicitud" = ' || v_gs), '');
+
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: un ayudante se verifica por adelantado', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: verificar al ayudante no mueve la entrega', 'PROGRAMADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs), '');
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: quien ya está verificado no se verifica dos veces', '409', v_cod::TEXT, v_msg);
+
+    -- Selección mixta: un transportista y un ayudante con UN solo checklist (unión de ítems)
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1 || ',' || v_pA2, pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: selección mixta con un solo checklist', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: cada uno guardó solo las respuestas que le aplican', 
+        (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_pT1, 'INGRESO', 'N', 'N'))::TEXT || '|' || (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_pA2, 'INGRESO', 'N', 'N'))::TEXT,
+        pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Registro_Checklist" C JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = C."ID_Registro_Acceso" WHERE R."ID_Solicitud_Persona" = ' || v_pT1 || ' AND R."Tipo_Movimiento" = ''INGRESO'') || ''|'' || (SELECT COUNT(*) FROM "CAF_Registro_Checklist" C JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = C."ID_Registro_Acceso" WHERE R."ID_Solicitud_Persona" = ' || v_pA2 || ' AND R."Tipo_Movimiento" = ''INGRESO'')'), '');
+    PERFORM pg_temp.chk('D-225: falta el transportista 2, la entrega sigue PROGRAMADO (los ayudantes no bloquean)', 'PROGRAMADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs), '');
+    PERFORM pg_temp.chk('D-225: calendario cuenta transportistas 2, verificados 1, ayudantes 2', '2|1|0|2',
+        pg_temp.q('SELECT "Transportistas_Total" || ''|'' || "Transportistas_Verificados" || ''|'' || "Transportistas_Dentro" || ''|'' || "Ayudantes_Total" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_gs), '');
+    PERFORM pg_temp.chk('D-225: Vigilancia ve a cada persona con su rol y verificación', 'Y|Y|N|Y|Y|N',
+        pg_temp.q('SELECT (SELECT "Es_Transportista" || ''|'' || "Verificada" FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, NULL) WHERE "ID_Solicitud_Persona" = ' || v_pT1 || ') || ''|'' || (SELECT "Es_Transportista" || ''|'' || "Verificada" FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, NULL) WHERE "ID_Solicitud_Persona" = ' || v_pA2 || ') || ''|'' || (SELECT "Es_Transportista" || ''|'' || "Verificada" FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, NULL) WHERE "ID_Solicitud_Persona" = ' || v_pT2 || ')'), '');
+
+    -- El transportista 2 no coincide en la placa: desviación; el coordinador autorizó restringido
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT2::TEXT, pg_temp.items(v_pT2, 'INGRESO', 'N', 'N', 'ING_EPP'), NULL, 'No porta EPP completo; el coordinador autoriza restringido.', v_u_coo, v_t_rest, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: verificación con desviación autorizada', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 grupo: la desviación quedó a nombre de esa persona', '1',
+        pg_temp.q('SELECT COUNT(*) FROM "CAF_Desviacion" D JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = D."ID_Registro_Acceso" WHERE R."ID_Solicitud_Persona" = ' || v_pT2), '');
+    PERFORM pg_temp.chk('D-225: con todos los transportistas verificados la entrega pasa a EN_ESPERA', 'EN_ESPERA', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs), '');
+
+    -- Ingreso físico: exige la reserva de Almacén, la verificación y respeta la capacidad
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pT1::TEXT, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: sin la disponibilidad de Almacén no se ingresa', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(v_gs, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: Almacén confirma una sola vez para toda la entrega', '100', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pT1::TEXT, v_ud, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: sin permiso de Vigilancia no ingresa', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pA1::TEXT, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: un ayudante no entra sin su transportista', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pT1 || ',' || v_pT2, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: capacidad 1, los dos camiones a la vez no caben', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: el rechazo no movió a nadie', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "Estado" = ''DENTRO'' AND "ID_Solicitud" = ' || v_gs), '');
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pT1 || ',' || v_pA1 || ',' || v_pA2, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: un camión con sus dos ayudantes entra junto', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: la entrega pasa a INGRESO y hay 3 personas dentro', 'INGRESO|3',
+        pg_temp.q('SELECT (SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs || ') || ''|'' || (SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "Estado" = ''DENTRO'' AND "ID_Solicitud" = ' || v_gs || ')'), '');
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pT2::TEXT, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: el segundo camión espera su turno (capacidad 1)', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('EXCLUSA_CAPACIDAD', 'abc', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 capacidad: un valor no numérico se rechaza', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('EXCLUSA_CAPACIDAD', '0', v_u_coo, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 capacidad: cero se rechaza', '400', v_cod::TEXT, v_msg);
+
+    -- Salida del primer camión mientras el segundo espera
+    CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(v_gs, v_pT1 || ',' || v_pA1, COALESCE(pg_temp.items(v_pT1, 'SALIDA', 'N', 'N', ''), '') || ',' || COALESCE(pg_temp.items(v_pA1, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 salida: el camión 1 y un ayudante salen para dar paso al camión 2', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 salida: la entrega sigue en INGRESO y queda 1 ayudante dentro', 'INGRESO|1',
+        pg_temp.q('SELECT (SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs || ') || ''|'' || (SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "Estado" = ''DENTRO'' AND "ID_Solicitud" = ' || v_gs || ')'), '');
+    CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_gs, v_pT2::TEXT, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 ingreso: libre el cupo, entra el camión 2 (con su desviación autorizada)', '100', v_cod::TEXT, v_msg);
+
+    -- Almacén atiende y termina una sola vez
+    CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_gs, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 almacén: inicia la atención una sola vez', '100', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_RECEPCION"(v_gs, 'CONFORME', NULL, v_ual, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 almacén: una sola conformidad para la entrega', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 almacén: la entrega queda RECEPCIONADO (aún hay gente dentro)', 'RECEPCIONADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs), '');
+    CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(v_gs, v_pT2 || ',' || v_pA2, COALESCE(pg_temp.items(v_pT2, 'SALIDA', 'N', 'N', ''), '') || ',' || COALESCE(pg_temp.items(v_pA2, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 salida: sale el resto en grupo', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 salida: sale el último y la entrega pasa a SALIO con la esclusa libre', 'SALIO|true',
+        pg_temp.q('SELECT O."Estado_Operativo" || ''|'' || (X."ID_Solicitud_Actual" IS NULL)::TEXT FROM "CAF_Solicitud_Operacion" O, "CAF_Exclusa" X WHERE X."ID_Catalogo_Sede" = ' || v_ves || ' AND O."ID_Solicitud" = ' || v_gs), '');
+
+    -- Retiro sin ingresar de varias personas; sin transportistas pendientes la entrega termina
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000035','Trans','Tres','Tulio',0, v_gU, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000036','Ayu','Tres','Aida',0,   v_gV, v_cod, v_msg);
+    v_gtr := v_gU::TEXT || CHR(31) || '20333333333' || CHR(31) || 'Fletes Tres' || CHR(31) || 'Calle 3' || CHR(31) || 'GGG-003' || CHR(31) || 'Volvo' || CHR(31) || 'Q1000003';
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fhoy, 'Retiro S.A.', NULL, v_gU || ',' || v_gV, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_gtr, v_usp, v_gs2, v_gcs, v_cod, v_msg);
+    v_pU := pg_temp.sp(v_gs2, v_gU); v_pV := pg_temp.sp(v_gs2, v_gV);
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_gs2, v_paso_p, 'APROBADA', NULL, v_pU || ',' || v_pV, v_ucp, v_cant, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs2, v_pU || ',' || v_pV, pg_temp.items(v_pU, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: verificados los dos, la entrega está EN_ESPERA', '100|EN_ESPERA', v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs2), v_msg);
+    CALL "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS"(v_gs2, v_pV::TEXT, 'Se fue el ayudante', 'N', v_ud, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: sin permiso de Vigilancia no procede', '101', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS"(v_gs2, v_pV::TEXT, '', 'N', v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: pide el motivo', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS"(v_gs2, v_pV::TEXT, 'Se fue el ayudante', 'N', v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: se retira un ayudante', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: el ayudante queda NO_SE_PRESENTO y la entrega sigue EN_ESPERA', 'NO_SE_PRESENTO|EN_ESPERA',
+        pg_temp.q('SELECT (SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_pV || ') || ''|'' || (SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs2 || ')'), '');
+    CALL "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS"(v_gs2, v_pU::TEXT, 'No ingresó el camión', 'N', v_uvp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: se retira al único transportista', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 retiro: sin transportistas por ingresar la entrega termina como RETIRO_SIN_INGRESO', 'RETIRO_SIN_INGRESO',
+        pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs2), '');
+
+    -- Quitar al único transportista: avisa que la solicitud se rechaza
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000037','Trans','Cuatro','Tomas',0, v_gU, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000038','Ayu','Cuatro','Ana',0,     v_gV, v_cod, v_msg);
+    v_gtr := v_gU::TEXT || CHR(31) || '20444444444' || CHR(31) || 'Fletes Cuatro' || CHR(31) || 'Calle 4' || CHR(31) || 'GGG-004' || CHR(31) || 'Volvo' || CHR(31) || 'Q1000004';
+    CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fut, 'Unico S.A.', NULL, v_gU || ',' || v_gV, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_gtr, v_usp, v_gs3, v_gcs, v_cod, v_msg);
+    v_pU := pg_temp.sp(v_gs3, v_gU); v_pV := pg_temp.sp(v_gs3, v_gV);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR"(v_pU, v_usp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 único: el solicitante no puede quitar a su único transportista', '101', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 único: el aviso sugiere corregir o cancelar', 'true', (POSITION('Corregir persona' IN v_msg) > 0 AND POSITION('cancele' IN v_msg) > 0)::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_gs3, v_paso_p, 'APROBADA', NULL, v_pU || ',' || v_pV, v_ucp, v_cant, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 único: aprobada con su ayudante', '100', v_cod::TEXT, v_msg);
+    UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'ESPERADA' WHERE "ID_Solicitud_Persona" = v_pU;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_RETIRAR_EMERGENCIA"(v_pU, 'Error de nombre', 'N', v_ucp, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-225 único: el coordinador debe confirmar el rechazo (aunque queden ayudantes)', '409', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-225 único: el aviso explica que la solicitud quedará RECHAZADA', 'true', (POSITION('RECHAZADA' IN v_msg) > 0)::TEXT, v_msg);
+
+    -- D-226: emergencia en proveedor: se elige transportista o ayudante de descarga
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000039','Nuevo','Cinco','Nora',0, v_gU, v_cod, v_msg);
+    CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000040','Nuevo','Seis','Nico',0,  v_gV, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_gs3, v_gV, 'Llegó otro', v_ucp, 'X', NULL, NULL, NULL, NULL, NULL, NULL, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: el rol debe ser Y o N', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(pg_temp.q('SELECT S."ID_Solicitud" FROM "CAF_Solicitud" S JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" WHERE T."Codigo" <> ''PROVEEDOR'' AND S."Estado" IN (''APROBADA'',''APROBADA_PARCIAL'') AND CAST(S."Fecha_Hora_Prevista" AS DATE) >= CURRENT_DATE ORDER BY 1 LIMIT 1')::BIGINT, v_gV, 'Llegó otro', v_u_coo, 'Y', NULL, NULL, NULL, NULL, NULL, NULL, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: fuera de proveedor no hay transportistas', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_gs3, v_gV, 'Llegó otro', v_ucp, 'Y', '123', NULL, NULL, NULL, NULL, NULL, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: RUC inválido se rechaza', '400', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: el rechazo no dejó a la persona', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_gs3 || ' AND "ID_Persona_Externa" = ' || v_gV), '');
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_gs3, v_gV, 'Llegó otro', v_ucp, 'N', NULL, NULL, NULL, NULL, NULL, NULL, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: se agrega un ayudante', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: el ayudante no es transportista', 'N', "ERP_CAF_FN_ES_TRANSPORTISTA"(v_dummy)::TEXT, '');
+    UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'EN_ESPERA' WHERE "ID_Solicitud" = v_gs3;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_gs3, v_gU, 'Llegó otro camión', v_ucp, 'Y', '20555555555', 'Fletes Cinco', NULL, 'hh-005', 'Volvo', NULL, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: se agrega un transportista', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: queda como transportista con la placa normalizada', 'Y|HH005|20555555555',
+        "ERP_CAF_FN_ES_TRANSPORTISTA"(v_dummy)::TEXT || '|' || pg_temp.q('SELECT "Placa" || ''|'' || "Ruc" FROM "CAF_Solicitud_Transportista" WHERE "ID_Solicitud_Persona" = ' || v_dummy || ' AND "Eliminado" = ''N'''), '');
+    PERFORM pg_temp.chk('D-226 emergencia: la entrega que esperaba vuelve a PROGRAMADO (falta verificarlo)', 'PROGRAMADO',
+        pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs3), '');
+    CALL "ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA"(v_gs2, v_gU, 'Llegó otro camión', v_ucp, 'Y', NULL, NULL, NULL, NULL, NULL, NULL, v_dummy, v_cod, v_msg);
+    PERFORM pg_temp.chk('D-226 emergencia: con la entrega terminada no se agrega transportista', '409', v_cod::TEXT, v_msg);
+
+    -- D-227: contratista con franja de días (ingresos múltiples, fuera de franja, extensión y cierre forzado)
+    DECLARE
+        v_cxa BIGINT; v_cxb BIGINT; v_cxc BIGINT; v_cxd BIGINT; v_cxcod VARCHAR(20); v_pa BIGINT; v_pb BIGINT; v_pc BIGINT; v_pd BIGINT;
+        v_ra BIGINT; v_de BIGINT; v_rs VARCHAR(30); v_ttr BIGINT; v_paso_c BIGINT; v_agr INT; v_hoy_t VARCHAR(10); v_h1 VARCHAR(5); v_h2 VARCHAR(5);
+        v_ppa BIGINT; v_ppb BIGINT; v_ppc BIGINT; v_ppd BIGINT; v_l93 VARCHAR(2000);
+    BEGIN
+        SELECT STRING_AGG(TO_CHAR(CURRENT_DATE + g, 'YYYY-MM-DD'), ',') INTO v_l93 FROM GENERATE_SERIES(0, 92) g;
+        v_hoy_t := TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD');
+        SELECT "ID_Catalogo_Tratamiento_Desviacion" INTO v_ttr FROM "Catalogo_Tratamiento_Desviacion" WHERE "Codigo" = 'LIBERACION';
+        SELECT "ID_Tipo_Acceso_Paso_Aprobacion" INTO v_paso_c FROM "Tipo_Acceso_Paso_Aprobacion" P JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = P."ID_Catalogo_Tipo_Acceso" WHERE T."Codigo" = 'CONTRATISTA' LIMIT 1;
+        -- un horario que NUNCA contiene la hora actual
+        IF CURRENT_TIME < TIME '12:00' THEN v_h1 := '22:00'; v_h2 := '23:59'; ELSE v_h1 := '00:00'; v_h2 := '10:00'; END IF;
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000041','Contra','Uno','Carlos',0, v_gU, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000042','Contra','Dos','Clara',0,  v_gV, v_cod, v_msg);
+        v_pa := v_gU; v_pb := v_gV;
+
+        -- Validaciones de la lista de días y del horario
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', '', NULL, NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: sin días se rechaza', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', '10/11/2026', NULL, NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: formato de día inválido', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', '2026-02-30', NULL, NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: un día que no existe en el calendario', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', TO_CHAR(CURRENT_DATE - 1, 'YYYY-MM-DD'), NULL, NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: no admite días pasados', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', v_hoy_t || ',' || v_hoy_t, NULL, NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: un día repetido', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', v_hoy_t, '25:00', NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: el formato de hora', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', v_hoy_t, '17:00', '08:00', v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: la hora de salida debe ser posterior', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', v_l93, NULL, NULL, v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: más de 92 días se rechaza', '400', v_cod::TEXT, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: los rechazos no dejaron solicitudes de contratista', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud" WHERE "Empresa_Visitante" = ''Montajes Franja S.A.C.'''), '');
+
+        -- Solicitud A: hoy, +2 y +5 (sueltos), todo el día, sin responsable
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Franja S.A.C.', 'Cambio de tablero', NULL, v_z_adm::TEXT, v_pa::TEXT || ',' || v_pb::TEXT, NULL, NULL, NULL, NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe',
+             v_hoy_t || ',' || TO_CHAR(CURRENT_DATE + 2, 'YYYY-MM-DD') || ',' || TO_CHAR(CURRENT_DATE + 5, 'YYYY-MM-DD'), '00:00', '23:59', v_u_sol, v_cxa, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: días sueltos sin responsable de atención', '100', v_cod::TEXT, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: guarda los 3 días y no tiene responsable', '3|true|Y',
+            pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Solicitud_Dia" WHERE "ID_Solicitud" = ' || v_cxa || ')::TEXT || ''|'' || (SELECT "ID_Personal_Responsable" IS NULL FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_cxa || ')::TEXT || ''|'' || "ERP_CAF_FN_ES_FRANJA"(' || v_cxa || ')'), '');
+        PERFORM pg_temp.chk('D-227 crear: la fecha de la solicitud es el primer día', 'true', pg_temp.q('SELECT (CAST("Fecha_Hora_Prevista" AS DATE) = CURRENT_DATE)::TEXT FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_cxa), '');
+        PERFORM pg_temp.chk('D-227 crear: una solicitud sin días no es de franja', 'N', "ERP_CAF_FN_ES_FRANJA"(v_s1), '');
+        v_ppa := pg_temp.sp(v_cxa, v_pa); v_ppb := pg_temp.sp(v_cxa, v_pb);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_cxa, v_paso_c, 'APROBADA', NULL, v_ppa || ',' || v_ppb, v_u_coo, v_cant, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 aprobar: el Coordinador aprueba a las dos personas', '100', v_cod::TEXT, v_msg);
+
+        -- Ingresos y salidas varias veces
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppa, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 ingreso: dentro de la franja ingresa sin desviación', '100|INGRESA|0', v_cod::TEXT || '|' || COALESCE(v_rs, '') || '|' || v_de, v_msg);
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppa, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 ingreso: no se ingresa dos veces sin salir', '409', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(v_ppa, pg_temp.items(v_ppa, 'SALIDA', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 salida: sale y queda ESPERADA porque le quedan días', '100|ESPERADA', v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_ppa), v_msg);
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppa, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 ingreso: vuelve a ingresar el mismo día', '100|INGRESA', v_cod::TEXT || '|' || COALESCE(v_rs, ''), v_msg);
+        PERFORM pg_temp.chk('D-227 ingreso: quedan 2 ingresos y 1 salida registrados', '2|1',
+            pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Registro_Acceso" WHERE "ID_Solicitud_Persona" = ' || v_ppa || ' AND "Tipo_Movimiento" = ''INGRESO'')::TEXT || ''|'' || (SELECT COUNT(*) FROM "CAF_Registro_Acceso" WHERE "ID_Solicitud_Persona" = ' || v_ppa || ' AND "Tipo_Movimiento" = ''SALIDA'')::TEXT'), '');
+
+        -- Lectura de Vigilancia para la franja
+        PERFORM pg_temp.chk('D-227 vigilancia: hoy (día autorizado) aparecen las 2 personas, franja DENTRO', '2|DENTRO',
+            pg_temp.q('SELECT COUNT(*)::TEXT || ''|'' || MIN("Franja_Estado") FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ', NULL, CURRENT_DATE) WHERE "ID_Solicitud" = ' || v_cxa), '');
+        PERFORM pg_temp.chk('D-227 vigilancia: un día no autorizado no la muestra', '0',
+            pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_u_vig || ', NULL, CURRENT_DATE + 200) WHERE "ID_Solicitud" = ' || v_cxa), '');
+        PERFORM pg_temp.chk('D-227 vigilancia: la consulta de aprobadas la encuentra por sus días', '2',
+            pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"(' || v_u_vig || ', NULL, CURRENT_DATE, CURRENT_DATE) WHERE "ID_Solicitud" = ' || v_cxa), '');
+
+        -- Cierre forzado del día: sigue dentro desde ayer
+        UPDATE "CAF_Solicitud_Persona" SET "Fecha_Hora_Ingreso" = (CURRENT_DATE - 1) + TIME '10:00' WHERE "ID_Solicitud_Persona" = v_ppa;
+        CALL "ERP_CAF_CONTRATISTA_CIERRE_DIA"(CURRENT_DATE, 0, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 cierre: cierra a quien siguió dentro de un día anterior', '100|1', v_cod::TEXT || '|' || v_agr, v_msg);
+        PERFORM pg_temp.chk('D-227 cierre: queda ESPERADA (le quedan días) con salida a las 23:59 de ayer', 'ESPERADA|23:59',
+            pg_temp.q('SELECT "Estado" || ''|'' || TO_CHAR("Fecha_Hora_Salida", ''HH24:MI'') FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_ppa), '');
+        PERFORM pg_temp.chk('D-227 cierre: queda el registro de salida forzada y el aviso al Coordinador', '1|1',
+            pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Registro_Acceso" WHERE "ID_Solicitud_Persona" = ' || v_ppa || ' AND "Observacion" LIKE ''Cierre forzado%'')::TEXT || ''|'' || (SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_cxa || ' AND "Asunto" LIKE ''Salida no registrada de contratista%'')::TEXT'), '');
+        CALL "ERP_CAF_CONTRATISTA_CIERRE_DIA"(CURRENT_DATE, 0, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 cierre: repetirlo no cierra nada más', '100|0', v_cod::TEXT || '|' || v_agr, v_msg);
+        PERFORM pg_temp.chk('D-227 cierre: la solicitud sigue vigente', 'APROBADA', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_cxa), '');
+
+        -- Fuera de franja: otro día
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000043','Contra','Tres','Cesar',0, v_gU, v_cod, v_msg);
+        v_pc := v_gU;
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Otro Dia S.A.C.', 'Pintura', NULL, v_z_adm::TEXT, v_pc::TEXT, NULL, NULL, NULL, NULL, 'Patio', 'Juan Pérez', '999 888 777', 'juan@montajes.pe',
+             TO_CHAR(CURRENT_DATE + 3, 'YYYY-MM-DD'), NULL, NULL, v_u_sol, v_cxb, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: un solo día futuro sin horario', '100', v_cod::TEXT, v_msg);
+        v_ppc := pg_temp.sp(v_cxb, v_pc);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_cxb, v_paso_c, 'APROBADA', NULL, v_ppc::TEXT, v_u_coo, v_cant, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 aprobar: solicitud de otro día', '100', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppc, pg_temp.items(v_ppc, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 fuera de franja: sin desviación no ingresa', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppc, pg_temp.items(v_ppc, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, 'Llegó un día antes por urgencia del cliente.', v_u_coo, v_ttr, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 fuera de franja: con desviación autorizada ingresa', '100|INGRESA', v_cod::TEXT || '|' || COALESCE(v_rs, ''), v_msg);
+        PERFORM pg_temp.chk('D-227 fuera de franja: la desviación queda identificada', 'true',
+            pg_temp.q('SELECT ("Descripcion" LIKE ''Ingreso fuera de la franja autorizada. Llegó un día antes%'')::TEXT FROM "CAF_Desviacion" WHERE "ID_Desviacion" = ' || v_de), '');
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppb, pg_temp.items(v_ppb, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, 'Sin permiso', v_u_coo, v_ttr, NULL, NULL, NULL, v_u_sol, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 fuera de franja: sin permiso de Vigilancia no registra', '101', v_cod::TEXT, v_msg);
+
+        -- Fuera de franja: mismo día pero fuera del horario
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000044','Contra','Cuatro','Cecilia',0, v_gU, v_cod, v_msg);
+        v_pd := v_gU;
+        CALL "ERP_CAF_SOLICITUD_CREAR_CONTRATISTA"(v_ves, NULL, 'Montajes Horario S.A.C.', 'Soldadura', NULL, v_z_adm::TEXT, v_pd::TEXT, NULL, NULL, NULL, NULL, 'Taller', 'Juan Pérez', '999 888 777', 'juan@montajes.pe',
+             TO_CHAR(CURRENT_DATE + 1, 'YYYY-MM-DD'), v_h1, v_h2, v_u_sol, v_cxc, v_cxcod, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 crear: día de mañana con horas aproximadas', '100', v_cod::TEXT, v_msg);
+        v_ppd := pg_temp.sp(v_cxc, v_pd);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_cxc, v_paso_c, 'APROBADA', NULL, v_ppd::TEXT, v_u_coo, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppd, pg_temp.items(v_ppd, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 fuera de franja: otro día pide desviación', '400', v_cod::TEXT, v_msg);
+        PERFORM pg_temp.chk('D-227 franja: el estado según el momento', 'FUERA|DENTRO|NA',
+            "ERP_CAF_FN_FRANJA_ESTADO"(v_cxc, CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) || '|' || "ERP_CAF_FN_FRANJA_ESTADO"(v_cxa, CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) || '|' || "ERP_CAF_FN_FRANJA_ESTADO"(v_s1, CAST(CURRENT_TIMESTAMP AS TIMESTAMP)), '');
+
+        -- Extensión del Coordinador
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxa, TO_CHAR(CURRENT_DATE + 7, 'YYYY-MM-DD'), NULL, NULL, 'Se amplía el trabajo', v_u_sol, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: el solicitante no puede', '101', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxa, TO_CHAR(CURRENT_DATE + 7, 'YYYY-MM-DD'), NULL, NULL, '  ', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: exige sustento', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxa, TO_CHAR(CURRENT_DATE - 1, 'YYYY-MM-DD'), NULL, NULL, 'Se amplía el trabajo', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: no admite días pasados', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxa, TO_CHAR(CURRENT_DATE + 2, 'YYYY-MM-DD'), NULL, NULL, 'Se amplía el trabajo', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: un día ya autorizado', '409', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxa, '2026-02-30', NULL, NULL, 'Se amplía el trabajo', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: una fecha que no existe', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_s1, TO_CHAR(CURRENT_DATE + 7, 'YYYY-MM-DD'), NULL, NULL, 'Se amplía el trabajo', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: solo contratistas con franja', '409', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxa, TO_CHAR(CURRENT_DATE + 7, 'YYYY-MM-DD') || ',' || TO_CHAR(CURRENT_DATE + 8, 'YYYY-MM-DD'), '07:00', '17:00', 'Se amplía el trabajo', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: el Coordinador agrega 2 días', '100|2', v_cod::TEXT || '|' || v_agr, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: 5 días, 2 de extensión y la solicitud sigue aprobada', '5|2|APROBADA',
+            pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Solicitud_Dia" WHERE "ID_Solicitud" = ' || v_cxa || ')::TEXT || ''|'' || (SELECT COUNT(*) FROM "CAF_Solicitud_Dia" WHERE "ID_Solicitud" = ' || v_cxa || ' AND "Origen" = ''EXTENSION'')::TEXT || ''|'' || (SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_cxa || ')'), '');
+        PERFORM pg_temp.chk('D-227 extender: queda en la bitácora y se avisa por correo', '1|1',
+            pg_temp.q('SELECT (SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_cxa || ' AND "Accion" = ''EXTENDER_DIAS'')::TEXT || ''|'' || (SELECT COUNT(*) FROM "CAF_Correo_Pendiente" WHERE "ID_Solicitud" = ' || v_cxa || ' AND "Asunto" LIKE ''Se amplió el plazo autorizado%'')::TEXT'), '');
+        -- Franja terminada
+        UPDATE "CAF_Solicitud_Dia" SET "Fecha" = "Fecha" - 30 WHERE "ID_Solicitud" = v_cxb;
+        CALL "ERP_CAF_SOLICITUD_DIAS_EXTENDER"(v_cxb, TO_CHAR(CURRENT_DATE + 7, 'YYYY-MM-DD'), NULL, NULL, 'Se amplía el trabajo', v_u_coo, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 extender: con la franja terminada hay que crear otra solicitud', '409', v_cod::TEXT, v_msg);
+
+        -- Fin de franja: el último día pasó
+        UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'ESPERADA' WHERE "ID_Solicitud_Persona" IN (v_ppc, v_ppd);
+        UPDATE "CAF_Solicitud_Dia" SET "Fecha" = CURRENT_DATE - 1 WHERE "ID_Solicitud" = v_cxc;
+        CALL "ERP_CAF_PORTERIA_NO_SE_PRESENTO_MARCAR"(CURRENT_DATE, 0, v_cant, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 fin de franja: quien nunca ingresó queda NO_SE_PRESENTO y quien ya ingresó SALIO', 'SALIO|NO_SE_PRESENTO',
+            pg_temp.q('SELECT (SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_ppc || ') || ''|'' || (SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_ppd || ')'), v_msg);
+        PERFORM pg_temp.chk('D-227 fin de franja: con días pendientes nadie se marca', 'ESPERADA', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_ppb), '');
+
+        -- Un solo día que ya pasó: la persona que seguía dentro sale como SALIO
+        UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'DENTRO', "Fecha_Hora_Ingreso" = (CURRENT_DATE - 1) + TIME '09:00' WHERE "ID_Solicitud_Persona" = v_ppd;
+        CALL "ERP_CAF_CONTRATISTA_CIERRE_DIA"(CURRENT_DATE, 0, v_agr, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 cierre: si era el último día queda SALIO', '1|SALIO', v_agr || '|' || pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_ppd), v_msg);
+
+        -- Editar: una solicitud de franja aprobada no se modifica
+        CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_cxa, CAST(CURRENT_DATE + 20 AS TIMESTAMP), 'Montajes Franja S.A.C.', NULL, NULL, 'Cambio de tablero', NULL, v_z_adm::TEXT, NULL, 'N', NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-227 editar: una solicitud de contratista aprobada no se modifica', '409', v_cod::TEXT, v_msg);
+    END;
+    END;
     END;
     END;
 END;

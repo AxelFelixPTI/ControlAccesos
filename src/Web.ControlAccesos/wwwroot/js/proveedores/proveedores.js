@@ -237,7 +237,11 @@
         ]);
         if (!marcas.firstChild) c.removeChild(marcas);
         function linea(rotulo, valor) { if (valor) c.appendChild(el('div', { class: 'pv-linea' }, [el('b', { text: rotulo + ' ' }), valor])); }
-        linea('Transportista:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo ? ' (+' + e.apoyo + ' apoyo)' : ''));
+        // D-225: con varios transportistas o con ayudantes de descarga se muestra el avance por persona
+        var porPersona = e.transportistas > 1 || e.ayudantes > 0;
+        linea('Transportista:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
+        if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' transportista' : ' transportistas') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
+            (e.salieron ? ' · salieron ' + e.salieron : '') + (e.ayudantes ? ' · ' + e.ayudantes + (e.ayudantes === 1 ? ' ayudante' : ' ayudantes') + ' de descarga' : ''));
         linea('Vehículo:', [e.placa, e.marca].filter(Boolean).join(' · '));
         linea('Recibe:', e.destino);
         linea('RUC:', e.ruc);

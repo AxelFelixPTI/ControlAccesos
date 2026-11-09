@@ -42,4 +42,6 @@ public sealed class Dto_Porteria_Ficha
     public bool Puede_Registrar_Ingreso_Tardio { get; set; }
     public bool Puede_Registrar_Salida { get; set; }
     public string? Motivo_No_Salida { get; set; }
+    /// <summary>D-227: el contratista llega fuera de sus días u horario; el ingreso exige registrar una desviación.</summary>
+    public bool Fuera_Franja { get; set; }
 }

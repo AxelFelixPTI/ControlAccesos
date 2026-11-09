@@ -1,11 +1,11 @@
 // Documentos adjuntos de una solicitud (Entrega J). Tres usos:
-//   ADJ.selector(...)  en «Nueva solicitud»: elegir hasta 2 archivos, verlos, quitarlos y subirlos al crear.
+//   ADJ.selector(...)  en «Nueva solicitud»: elegir hasta 10 archivos, verlos, quitarlos y subirlos al crear.
 //   ADJ.panel(...)     en el detalle, Coordinación y Vigilancia: lista con descarga; el dueño puede adjuntar y retirar.
 // La validación del navegador es solo ayuda (el servidor vuelve a validar extensión, tamaño y firma del archivo).
 var ADJ = (function () {
     'use strict';
     var el = CAF.el;
-    var MAX_BYTES = 5 * 1024 * 1024, MAX_ARCHIVOS = 2, EXT = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+    var MAX_BYTES = 5 * 1024 * 1024, MAX_ARCHIVOS = 10, EXT = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
     var PERMITIDOS = 'PDF, Word (DOC, DOCX) y Excel (XLS, XLSX)';
 
     function tamano(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
@@ -65,7 +65,7 @@ var ADJ = (function () {
         pintar();
         var nodo = el('div', { class: 'stack' }, [
             el('h4', { text: 'Documentos de respaldo (opcional)' }),
-            el('p', { class: 'field-h', text: 'Por ejemplo el SCTR con los nombres de las personas. Hasta ' + MAX_ARCHIVOS + ' archivos de 5 MB: ' + PERMITIDOS + '. Llegan a Coordinación y, desde la primera aprobación, a Vigilancia.' }),
+            el('p', { class: 'field-h', text: 'Por ejemplo el SCTR con los nombres de las personas. Hasta ' + MAX_ARCHIVOS + ' archivos de 5 MB (20 MB en total): ' + PERMITIDOS + '. Llegan a Coordinación y, desde la primera aprobación, a Vigilancia.' }),
             lista, error, el('div', { class: 'row-end' }, [boton]), entrada]);
         return {
             nodo: nodo,
@@ -105,7 +105,7 @@ var ADJ = (function () {
             caja.appendChild(ul);
             if (o.puedeAdjuntar && cantidad < MAX_ARCHIVOS)
                 caja.appendChild(el('div', { class: 'row-end' }, [el('button', { type: 'button', class: 'btn btn-sm', text: '+ Adjuntar documento', onclick: function () { entrada.click(); } })]));
-            if (o.puedeAdjuntar) caja.appendChild(el('p', { class: 'field-h', text: 'Hasta ' + MAX_ARCHIVOS + ' archivos de 5 MB: ' + PERMITIDOS + '.' }));
+            if (o.puedeAdjuntar) caja.appendChild(el('p', { class: 'field-h', text: 'Hasta ' + MAX_ARCHIVOS + ' archivos de 5 MB (20 MB en total): ' + PERMITIDOS + '.' }));
         }
         function recargar() { return CAF.pedir(o.urlListar + '?solicitudId=' + o.solicitudId).then(pintar); }
         function quitar(a) {

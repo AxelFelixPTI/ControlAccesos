@@ -26,7 +26,9 @@
         var acc = [];
         if (s.puedeEditar) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Editar datos', onclick: editarDatos }));
         else if (s.motivoNoEditar) acc.push(el('span', { class: 'field-h', text: s.motivoNoEditar }));
-        if (s.puedeReutilizar) acc.push(el('a', { class: 'btn btn-sm', href: d.urlNueva + '?reutilizar=' + s.id, text: 'Reutilizar' }));
+        var franjaVigente = s.dias && s.dias.length && s.esPropia !== false && (s.estado === 'APROBADA' || s.estado === 'APROBADA_PARCIAL');
+        if (franjaVigente) acc.push(el('a', { class: 'btn btn-sm', href: d.urlNueva + '?reutilizar=' + s.id, text: 'Ampliar plazo (solicitud nueva)' }));
+        else if (s.puedeReutilizar) acc.push(el('a', { class: 'btn btn-sm', href: d.urlNueva + '?reutilizar=' + s.id, text: 'Reutilizar' }));
         if (s.puedeCancelar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar solicitud', onclick: cancelar }));
         else if (s.estado !== 'CANCELADA' && s.motivoNoCancelar) acc.push(el('span', { class: 'field-h', text: s.motivoNoCancelar }));
         cab.appendChild(el('div', { class: 'det-h' }, [el('h2', { text: s.codigo }), SOL.chipEstado(s.estado),
@@ -34,21 +36,24 @@
         if (s.estado === 'CANCELADA' && s.motivoCancelacion) cab.appendChild(el('div', { class: 'aviso a-info', text: 'Motivo de la cancelación: ' + s.motivoCancelacion }));
         if (s.observacionCoordinador && s.observadas) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Coordinación: ' + s.observacionCoordinador }));
         var dl = el('dl', { class: 'dl' });
-        var c = s.tipoCodigo === 'CONTRATISTA';
-        var filas = [['Tipo de ingreso', s.tipo || '—'], [c ? 'Servicio' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede],
-            [c ? 'Empresa contratista' : 'Empresa', s.empresa || '—']];
-        if (c) {
+        var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';
+        var filas = [['Tipo de ingreso', s.tipo || '—'], (c && s.dias && s.dias.length) ? ['Días de trabajo (' + s.dias.length + ')', s.dias.map(function (x) { return SOL.fechaLarga(x.fecha) + (x.origen === 'EXTENSION' ? ' (ampliado)' : ''); }).join(', ') + ' · ' + SOL.textoHoras(s.dias[0].desde, s.dias[0].hasta) + ' · ' + s.sede] : [c ? 'Servicio' : pv ? 'Entrega' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede],
+            [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
+        if (pv) {
+            filas.push(['Empresa que recibe', s.empresaDestino || '—'], ['Responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')]);
+        } else if (c) {
             filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
         } else {
             filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
         }
-        filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+        if (!pv) filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
         if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
         filas.push(['Detalles adicionales', s.observaciones || '—'], ['Correos en copia', s.copias || '—']);
         filas
             .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
         cab.appendChild(dl);
+        if (pv) cab.appendChild(SOL.transportistasNodo(s.transportistas));
         if (s.exigeSctr || s.exigeEpp) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Vigilancia verificará ' + [s.exigeSctr ? 'el SCTR' : '', s.exigeEpp ? 'el uso de EPP' : ''].filter(Boolean).join(' y ') + ' al ingreso.' }));
     }
 
@@ -151,7 +156,7 @@
             if (p.puedeReactivar) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver a agregar', onclick: function () { accion(d.urlAgregar, { solicitudId: id, personaId: p.personaId }, null, null, 'Persona agregada de nuevo.'); } }));
             ul.appendChild(el('li', { class: p.aprobacion === 'RETIRADA' ? 'ret' : '' }, [
                 el('div', { class: 'plist-m' }, [
-                    el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p)]),
+                    el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), s.tipoCodigo === 'PROVEEDOR' ? el('span', { class: 'chip c-line', text: p.esTransportista ? 'Transportista' : 'Ayudante de descarga' }) : null]),
                     el('div', { class: 'field-h', text: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }),
                     nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null
                 ]),

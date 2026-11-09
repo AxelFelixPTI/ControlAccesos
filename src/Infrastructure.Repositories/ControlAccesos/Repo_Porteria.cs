@@ -283,6 +283,7 @@ public sealed class Repo_Porteria : RepoHelpers, IRepo_Porteria
         Puede_Registrar_Ingreso_Tardio = RdBool(rd, "Puede_Registrar_Ingreso_Tardio"),
         Puede_Registrar_Salida         = RdBool(rd, "Puede_Registrar_Salida"),
         Motivo_No_Salida               = RdStrN(rd, "Motivo_No_Salida"),
+        Fuera_Franja                   = RdBool(rd, "Fuera_Franja"),
     };
 
     private static Dto_Porteria_Movimiento MapPorteria_Movimiento(DbDataReader rd) => new()

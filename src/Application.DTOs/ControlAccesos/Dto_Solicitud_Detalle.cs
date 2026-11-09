@@ -75,4 +75,7 @@ public sealed class Dto_Solicitud_Detalle
     public string? Contacto_Nombre { get; set; }
     public string? Contacto_Telefonos { get; set; }
     public string? Contacto_Correos { get; set; }
+    /// <summary>Proveedor (D-223): empresa del grupo que recibe la entrega.</summary>
+    public long? ID_Empresa_Destino { get; set; }
+    public string? Empresa_Destino { get; set; }
 }

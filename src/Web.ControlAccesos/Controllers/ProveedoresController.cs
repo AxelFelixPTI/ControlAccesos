@@ -65,7 +65,7 @@ public sealed class ProveedoresController : Controller
             {
                 id = e.ID_Solicitud, codigo = e.Codigo, fecha = e.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = e.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, telefono = e.Telefono,
-                placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,
+                placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, transportistas = e.Transportistas_Total, verificados = e.Transportistas_Verificados, dentro = e.Transportistas_Dentro, salieron = e.Transportistas_Salieron, ayudantes = e.Ayudantes_Total, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,
                 disponible = e.Disponibilidad_Confirmada, disponibleDesde = Hora(e.Fecha_Disponibilidad),
                 llegada = Hora(e.Fecha_Llegada), ingreso = Hora(e.Fecha_Ingreso), inicio = Hora(e.Fecha_Inicio_Atencion), recepcion = Hora(e.Fecha_Recepcion), salida = Hora(e.Fecha_Salida),
                 resultado = e.Resultado_Recepcion, programadoId = e.ID_Personal_Programado, programado = e.Programado_Nombre, efectivo = e.Efectivo_Nombre,

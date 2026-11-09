@@ -83,7 +83,7 @@ BEGIN
     IF lv_n = 0 OR "HV_ID_Usuario" IS NULL THEN RETURN 'N'; END IF;
 
     IF lv_owner = "HV_ID_Usuario"
-       AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_SOLICITUD_PROPIA', lv_sede) = 'Y' THEN
+       AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_ID_Usuario", lv_sede) = 'Y' THEN
         RETURN 'Y';
     END IF;
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_SOLICITUD_VER_TODAS', lv_sede) = 'Y' THEN
@@ -147,23 +147,23 @@ BEGIN
                        ELSE 'POR_INICIAR' END
                 END AS VARCHAR),
            -- Editar los datos de la visita
-           CAST(CASE WHEN S."Estado" IN ('CANCELADA','RECHAZADA') OR CAST(S."Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE
+           CAST(CASE WHEN S."Estado" IN ('CANCELADA','RECHAZADA') OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE
                           OR COALESCE(PC.mov, 0) > 0 THEN 'N' ELSE 'Y' END AS CHAR(1)),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud está cancelada.'
                      WHEN S."Estado" = 'RECHAZADA' THEN 'Todas las personas fueron rechazadas. Use «Reutilizar» para crear una solicitud nueva.'
-                     WHEN CAST(S."Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE THEN 'La fecha de la visita ya pasó. Use «Reutilizar».'
+                     WHEN COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'La fecha de la visita ya pasó. Use «Reutilizar».'
                      WHEN COALESCE(PC.mov, 0) > 0 THEN 'Ya ingresó una persona: los datos de la visita no se cambian. Puede modificar el personal.'
                 END AS VARCHAR),
            -- Agregar, retirar o corregir personas
-           CAST(CASE WHEN S."Estado" = 'CANCELADA' OR CAST(S."Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE THEN 'N' ELSE 'Y' END AS CHAR(1)),
+           CAST(CASE WHEN S."Estado" = 'CANCELADA' OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'N' ELSE 'Y' END AS CHAR(1)),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud está cancelada.'
-                     WHEN CAST(S."Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE THEN 'La fecha de la visita ya pasó.'
+                     WHEN COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'La fecha de la visita ya pasó.'
                 END AS VARCHAR),
            -- Cancelar la solicitud
-           CAST(CASE WHEN S."Estado" = 'CANCELADA' OR CAST(S."Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE
+           CAST(CASE WHEN S."Estado" = 'CANCELADA' OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE
                           OR COALESCE(PC.mov, 0) > 0 THEN 'N' ELSE 'Y' END AS CHAR(1)),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud ya está cancelada.'
-                     WHEN CAST(S."Fecha_Hora_Prevista" AS DATE) < CURRENT_DATE THEN 'La fecha de la visita ya pasó.'
+                     WHEN COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'La fecha de la visita ya pasó.'
                      WHEN COALESCE(PC.mov, 0) > 0 THEN 'Ya ingresó una persona: no se puede cancelar. Retire a quienes faltan.'
                 END AS VARCHAR)
       FROM "CAF_Solicitud" S
@@ -261,7 +261,7 @@ BEGIN
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
       LEFT JOIN "CAF_Solicitud" O ON O."ID_Solicitud" = S."ID_Solicitud_Origen"
      WHERE S."Eliminado" = 'N' AND S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-       AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+       AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
        AND ("HV_Estado" IS NULL OR LENGTH(TRIM("HV_Estado")) = 0 OR S."Estado" = UPPER(TRIM("HV_Estado")))
        AND ("HV_Fecha_Desde" IS NULL OR CAST(S."Fecha_Hora_Prevista" AS DATE) >= "HV_Fecha_Desde")
@@ -380,7 +380,7 @@ BEGIN
       FROM "CAF_Solicitud" S
      WHERE S."Eliminado" = 'N' AND S."ID_Usuario_Solicitante" = "HV_UsuarioID" AND S."Estado" <> 'CANCELADA'
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
-       AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+       AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
        AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Persona" P
                     WHERE P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'OBSERVADA');
 
@@ -422,12 +422,14 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Puede_Cancelar" CHAR(1), "Motivo_No_Cancelar" VARCHAR, "Puede_Reutilizar" CHAR(1),
                "Puede_Decidir" CHAR(1), "Por_Decidir_Mis" INT,
                "Tipo_Acceso_Codigo" VARCHAR, "Requiere_Cochera" CHAR(1), "Placa_Vehiculo" VARCHAR, "Area_Detalle" VARCHAR,
-               "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR)
+               "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR,
+               "ID_Empresa_Destino" BIGINT, "Empresa_Destino" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_dec INT := 0;
 BEGIN
+    -- V1.2 2026-11-06 (D-223: empresa del grupo que recibe la entrega de proveedor)
     -- V1.1 2026-10-29 (Entrega H: tipo de ingreso, cochera y datos del contratista)
     IF "ERP_CAF_FN_SOLICITUD_VISIBLE"("HV_UsuarioID", "HV_ID_Solicitud") <> 'Y' THEN RETURN; END IF;
     SELECT CAST(COUNT(DISTINCT X."ID_Solicitud_Persona") AS INT) INTO lv_dec
@@ -466,29 +468,31 @@ BEGIN
            S."CreateDate",
            I."Total_Personas", I."Autorizadas", I."Observadas", I."Pendientes", I."Rechazadas", I."Retiradas",
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                      AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+                      AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
                      THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                      AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+                      AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
                      THEN I."Editar_Datos" ELSE 'N' END AS CHAR(1)),
            CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID" THEN I."Motivo_Editar_Datos" END,
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                      AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+                      AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
                      THEN I."Modificar_Personal" ELSE 'N' END AS CHAR(1)),
            CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID" THEN I."Motivo_Modificar_Personal" END,
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                      AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+                      AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
                      THEN I."Cancelar" ELSE 'N' END AS CHAR(1)),
            CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID" THEN I."Motivo_Cancelar" END,
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                      AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+                      AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
                      THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST(CASE WHEN lv_dec > 0 THEN 'Y' ELSE 'N' END AS CHAR(1)), lv_dec,
            TA."Codigo", S."Requiere_Cochera", S."Placa_Vehiculo", S."Area_Detalle",
-           S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos"
+           S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos",
+           S."ID_Catalogo_Empresa_Grupo_Destino", EG."Descripcion"
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
       LEFT JOIN "Catalogo_Tipo_Acceso" TA ON TA."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Area" AR ON AR."ID_Catalogo_Area" = R."ID_Catalogo_Area"
@@ -528,7 +532,7 @@ BEGIN
     -- V1.0 2026-10-17
     IF "ERP_CAF_FN_SOLICITUD_VISIBLE"("HV_UsuarioID", "HV_ID_Solicitud") <> 'Y' THEN RETURN; END IF;
     SELECT CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                 AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', S."ID_Catalogo_Sede") = 'Y'
+                 AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
                 THEN 'Y' ELSE 'N' END
       INTO lv_owner FROM "CAF_Solicitud" S WHERE S."ID_Solicitud" = "HV_ID_Solicitud";
 
@@ -717,7 +721,7 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Solicitud" BIGINT, "Codigo" VA
                "Estado" VARCHAR, "Grupo" VARCHAR, "Fecha_Hora_Ingreso" TIMESTAMP, "Fecha_Hora_Salida" TIMESTAMP,
                "Acceso_Restringido" CHAR(1), "Trae_Equipos" CHAR(1), "Trae_Herramientas" CHAR(1),
                "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR, "Es_Proveedor" CHAR(1), "Estado_Operativo" VARCHAR, "Disponibilidad_Confirmada" CHAR(1),
-               "Tipo_Acceso" VARCHAR)
+               "Tipo_Acceso" VARCHAR, "Es_Transportista" CHAR(1), "Verificada" CHAR(1), "Franja_Estado" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -725,6 +729,9 @@ DECLARE
     lv_txt   VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
     lv_grupo VARCHAR(30)  := UPPER(TRIM(COALESCE("HV_Grupo", 'TODOS')));
 BEGIN
+    -- V1.5 2026-11-09 (D-227): contratista por franja: aparece en cada día autorizado; con texto de búsqueda también hoy aunque
+    --   no sea día autorizado (llegada fuera de franja). + Franja_Estado (NA / DENTRO / FUERA según el momento actual)
+    -- V1.4 2026-11-09 (D-225): + Es_Transportista y Verificada; el estado operativo de la entrega viaja en TODAS sus personas
     -- V1.3 2026-11-06: + Tipo_Acceso (filtro por tipo en pantalla)
     -- V1.2 2026-11-06: + quien sigue DENTRO de una entrega con CIERRE_FORZADO (salida tardía)
     IF LENGTH(lv_grupo) = 0 THEN lv_grupo := 'TODOS'; END IF;
@@ -744,20 +751,27 @@ BEGIN
                    FROM "CAF_Solicitud_Zona" Z
                    JOIN "Catalogo_Zona_Acceso" ZA ON ZA."ID_Catalogo_Zona_Acceso" = Z."ID_Catalogo_Zona_Acceso"
                   WHERE Z."ID_Solicitud" = S."ID_Solicitud" AND Z."Eliminado" = 'N') AS VARCHAR),
-           -- Entrega de proveedor (solo el transportista principal): estado operativo y si Almacén ya reservó la exclusa
+           -- Entrega de proveedor (todas sus personas): estado operativo y si Almacén ya reservó la exclusa
            CAST(CASE WHEN O."ID_Solicitud" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST(O."Estado_Operativo" AS VARCHAR),
            CAST(CASE WHEN EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = S."ID_Solicitud" AND X."Eliminado" = 'N') THEN 'Y' ELSE 'N' END AS CHAR(1)),
-           CAST(TX."Descripcion" AS VARCHAR)
+           CAST(TX."Descripcion" AS VARCHAR),
+           CAST("ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") AS CHAR(1)),
+           CAST(CASE WHEN P."Fecha_Verificacion" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
+           CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR)
       FROM "CAF_Solicitud" S
       LEFT JOIN "Catalogo_Tipo_Acceso" TX ON TX."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
       JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
-      LEFT JOIN "CAF_Solicitud_Operacion" O ON O."ID_Solicitud" = S."ID_Solicitud" AND O."Eliminado" = 'N' AND O."Activa" = 'Y' AND P."Es_Principal" = 'Y'
+      LEFT JOIN "CAF_Solicitud_Operacion" O ON O."ID_Solicitud" = S."ID_Solicitud" AND O."Eliminado" = 'N' AND O."Activa" = 'Y'
      WHERE S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
-       AND (CAST(S."Fecha_Hora_Prevista" AS DATE) = lv_fecha
+       AND (CASE WHEN "ERP_CAF_FN_ES_FRANJA"(S."ID_Solicitud") = 'Y'
+                 THEN (EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D WHERE D."ID_Solicitud" = S."ID_Solicitud" AND D."Eliminado" = 'N' AND D."Fecha" = lv_fecha)
+                       OR (lv_fecha = CURRENT_DATE AND LENGTH(lv_txt) > 0
+                           AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D WHERE D."ID_Solicitud" = S."ID_Solicitud" AND D."Eliminado" = 'N' AND D."Fecha" >= CURRENT_DATE)))
+                 ELSE CAST(S."Fecha_Hora_Prevista" AS DATE) = lv_fecha END
             -- D-218: quien quedó DENTRO de una entrega cerrada a la fuerza sigue en la lista de hoy para registrar su salida tardía
             OR (lv_fecha = CURRENT_DATE AND P."Estado" = 'DENTRO'
                 AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" OC WHERE OC."ID_Solicitud" = S."ID_Solicitud" AND OC."Eliminado" = 'N'
