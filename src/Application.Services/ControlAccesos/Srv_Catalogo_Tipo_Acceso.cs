@@ -121,6 +121,40 @@ public sealed class Srv_Catalogo_Tipo_Acceso : ISrv_Catalogo_Tipo_Acceso
         }
     }
 
+    public async Task<Result<List<Dto_Tipo_Acceso_Admin>>> ListarAdminAsync(CancellationToken ct = default)
+    {
+        try { return await _repo.ListarAdminAsync(ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LISTAR_ADMIN Catalogo_Tipo_Acceso ERROR");
+            return Result<List<Dto_Tipo_Acceso_Admin>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(CancellationToken ct = default)
+    {
+        try { return await _repo.ListarSubtiposAsync(ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LISTAR_SUBTIPOS ERROR");
+            return Result<List<Dto_Subtipo>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> PrepararAsync(long idTipo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.PrepararAsync(idTipo, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PREPARAR Catalogo_Tipo_Acceso ERROR ID={ID}", idTipo);
+            return Result.Fail(ex.Message);
+        }
+    }
+
     private static List<ResultError> Validar(Dto_Catalogo_Universal dto)
     {
         var errors = new List<ResultError>();

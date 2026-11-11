@@ -109,6 +109,14 @@ Nota 2026-10-30: `restaurar_bd.ps1` y `PRUEBAS_FASE1_HITO0.sql` corregidos (D-19
 
 **D-226 (emergencia con rol):** «Agregar persona (emergencia)» en proveedor permite elegir transportista (datos opcionales) o ayudante; el transportista nuevo devuelve la entrega EN_ESPERA a PROGRAMADO; no procede con la entrega terminada. SP `AGREGAR_EMERGENCIA` V1.2 (firma nueva, DROP de la anterior). HITO2 escritura 711 pruebas.
 
+**D-232 (tipos y subtipos administrables):** `TiposIngresoController`, `tipos.js`, `SP_CAF_TIPO_ACCESO_ADMIN_ALL.sql`, script 28 (`Tipo_Acceso_Subtipo`, `Tipo_Acceso_Item_Checklist.ID_Tipo_Acceso_Subtipo`), `ERP_CAF_FN_SUBTIPO_PERSONA` en `SP_CAF_PROVEEDOR_ALL.sql`, `ITEMS_APLICABLES` V1.2. Pruebas `PRUEBAS_FASE1_CHECKLIST_ADMIN.sql` 41/41. Pendiente: recorrer en vivo una solicitud con un tipo nuevo.
+
+**D-231 (SOLO_AYUDANTE):** script 27, `ITEMS_APLICABLES` V1.1, ítem `SAL_AYUDANTE_VERIFICADO` para los ayudantes del proveedor.
+
+**D-230 (checklist administrable):** sección «Checklist de portería» en Catálogos (`ChecklistPorteriaController`, `checklist.js`), SP `SP_CAF_ITEM_CHECKLIST_ADMIN_ALL.sql` (ADMIN_LISTAR, ASIGNAR_TIPOS), etapa bloqueada si el ítem ya se usó; T-39 para HANA. Pruebas `PRUEBAS_FASE1_CHECKLIST_ADMIN.sql` 21/21.
+
 **D-227 (contratista por franja):** tabla `CAF_Solicitud_Dia` (script 25), `SP_CAF_CONTRATISTA_FRANJA_ALL.sql` (CREAR_CONTRATISTA, DIAS_EXTENDER, CIERRE_DIA, SOLICITUD_DIAS, FN_ES_FRANJA/FRANJA_ESTADO/FRANJA_FIN). Ingresos múltiples; fuera de franja = desviación; cierre forzado solo del día; aprobada no se modifica (solicitud nueva o Coordinador suma días). Web: selector de rango + días sueltos (`SOL.selectorDias`), «Ampliar días (emergencia)» en Coordinación. Pendiente Entrega 2: ajustes de campos y refinamientos de correcciones; luego Entrega D (P-96/P-97) y E (P-95).
 
 **D-228 (datos de prueba por escenarios):** `DATOS_DEMO_ESCENARIOS.sql` y `LIMPIAR_DEMO_ESCENARIOS.sql` en HITO_02/00_BD (manuales, solo PostgreSQL). 35 solicitudes de los 3 tipos con todos los estados; marca DNI `7400NNNN`. No combinar con DATOS_DEMO_PROVEEDOR (exclusa única).
+
+**D-229 (correo por tipo):** `PlantillaCorreo.Armar` arma las filas según proveedor/contratista/visitante; proveedor muestra contacto como «Responsable de la entrega», empresa que recibe y rol de personas; contratista muestra días en tramos y horas aprox.

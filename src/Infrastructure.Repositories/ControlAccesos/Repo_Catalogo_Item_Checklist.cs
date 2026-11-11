@@ -152,6 +152,52 @@ public sealed class Repo_Catalogo_Item_Checklist : RepoHelpers, IRepo_Catalogo_I
         }
     }
 
+    // ── PANTALLA «CHECKLIST DE PORTERÍA» ──────────────────────────
+    public async Task<Result<List<Dto_Item_Checklist_Admin>>> ListarAdminAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR",
+                bind: _ => { },
+                map: rd => new Dto_Item_Checklist_Admin
+                {
+                    ID_Catalogo_Item_Checklist = RdLong(rd, "ID_Catalogo_Item_Checklist"),
+                    Codigo      = RdStr(rd, "Codigo"),
+                    Descripcion = RdStr(rd, "Descripcion"),
+                    Ayuda       = RdStrN(rd, "Ayuda"),
+                    Etapa       = RdStr(rd, "Etapa"),
+                    Condicion   = RdStr(rd, "Condicion"),
+                    Es_Critico  = RdStr(rd, "Es_Critico"),
+                    Orden       = RdLong(rd, "Orden"),
+                    Activo      = RdStr(rd, "Activo"),
+                    Tipos_IDs   = RdStrN(rd, "Tipos_IDs"),
+                    Usos        = RdLong(rd, "Usos"),
+                },
+                ct: ct);
+            return Result<List<Dto_Item_Checklist_Admin>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Item_Checklist_Admin>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<ResultSp> AsignarTiposAsync(long idItem, IReadOnlyCollection<(long Tipo, long? Subtipo)> tipos, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Catalogo_Item_Checklist", idItem);
+                AddStr(p, "HV_IDs_Tipo", string.Join(",", tipos.Select(t => t.Subtipo is null ? t.Tipo.ToString() : t.Tipo + ":" + t.Subtipo)));   // «tipo» o «tipo:subtipo»
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
     // ══════════════════════════════════════════════════════════════
     // MAPPERS (columnas = las que devuelve cada rutina)
     // ══════════════════════════════════════════════════════════════

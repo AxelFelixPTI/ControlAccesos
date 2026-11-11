@@ -128,8 +128,7 @@ public sealed class Srv_Porteria : ISrv_Porteria
             return Result<Dto_Porteria_Registrado>.Validation("Datos inválidos.", new List<ResultError> { new ResultError("dto", "Faltan los datos del movimiento.") });
         if (dto.ID_Solicitud_Persona <= 0)
             errors.Add(new ResultError(nameof(dto.ID_Solicitud_Persona), "Falta la persona."));
-        if (dto.Items is null || dto.Items.Count == 0)
-            errors.Add(new ResultError(nameof(dto.Items), "Responda el checklist."));
+        // La salida puede no tener ítems (p. ej. un ayudante de descarga): el procedimiento exige los que apliquen y rechaza si falta alguno.
         if (errors.Count > 0)
             return Result<Dto_Porteria_Registrado>.Validation("Datos inválidos.", errors);
 

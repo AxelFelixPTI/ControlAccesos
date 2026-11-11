@@ -128,3 +128,35 @@ public sealed class SolicitudCancelarVM
     public long SolicitudId { get; set; }
     public string? Motivo { get; set; }
 }
+
+/// <summary>Formulario de un ítem del checklist de portería (pantalla «Checklist de portería»).</summary>
+public sealed class ChecklistItemGuardarVM
+{
+    public long Id { get; set; }                               // 0 = nuevo
+    public string Descripcion { get; set; } = string.Empty;
+    public string? Ayuda { get; set; }
+    public string Etapa { get; set; } = "INGRESO";             // INGRESO | SALIDA
+    public string Condicion { get; set; } = "SIEMPRE";
+    public bool EsCritico { get; set; }
+    public int? Orden { get; set; }                            // nulo = al final de su etapa
+    public bool Activo { get; set; } = true;
+    public List<TipoAsignadoVM> Tipos { get; set; } = new();   // tipos de ingreso a los que se ofrece (con subtipo opcional)
+}
+
+/// <summary>Un tipo de ingreso al que se asigna un ítem; Subtipo nulo = a todas las personas del tipo.</summary>
+public sealed class TipoAsignadoVM
+{
+    public long Tipo { get; set; }
+    public long? Subtipo { get; set; }
+}
+
+/// <summary>Formulario de un tipo de ingreso (pantalla «Tipos de ingreso»).</summary>
+public sealed class TipoIngresoGuardarVM
+{
+    public long Id { get; set; }                               // 0 = nuevo
+    public string Descripcion { get; set; } = string.Empty;
+    public bool RequiereAprobacion { get; set; } = true;
+    public bool Disponible { get; set; }
+    public int? Orden { get; set; }                            // nulo = al final
+    public bool Activo { get; set; } = true;
+}

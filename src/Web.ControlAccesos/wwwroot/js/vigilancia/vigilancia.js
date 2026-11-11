@@ -320,7 +320,7 @@
             cuerpo.appendChild(zonaCheck); cuerpo.appendChild(zonaDesv);
             ctx.obs = el('textarea', { rows: '2', maxlength: '1000', placeholder: 'Observación (opcional)' });
             cuerpo.appendChild(SOL.campo('Observación', ctx.obs)); cuerpo.appendChild(ctx.error);
-            if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: 'No hay ítems configurados.' })); return; }
+            if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: ctx.etapa === 'SALIDA' ? 'Para esta salida no hay ítems de checklist: puede registrarla directamente.' : 'No hay ítems configurados.' })); return; }
             u.items.forEach(function (i) { ctx.resp[i.id] = false; });
             function pintar2() {
                 zonaCheck.textContent = '';
@@ -356,7 +356,7 @@
         var ingreso = ctx.etapa === 'INGRESO';
         ctx.error.hidden = true;
         function falla(t) { ctx.error.textContent = t; ctx.error.hidden = false; }
-        if (!ctx.items.length) { falla('No hay ítems de checklist para responder.'); return; }
+        if (!ctx.items.length && ingreso) { falla('No hay ítems de checklist para responder.'); return; }   // la salida puede no tener ítems (p. ej. un ayudante de descarga)
         if (ctx.fallan && ctx.fallan.length && !ctx.desv) { falla('Espere a que se carguen las opciones de la desviación.'); return; }
         var cuerpo = {
             solicitudId: ctx.s.solicitudId, personasIds: ids(ctx.personas),
@@ -462,7 +462,7 @@
 
         function pintarChecklist() {
             zonaCheck.textContent = '';
-            if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: 'No hay ítems configurados.' })); return; }
+            if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: ctx.etapa === 'SALIDA' ? 'Para esta salida no hay ítems de checklist: puede registrarla directamente.' : 'No hay ítems configurados.' })); return; }
             var todos = el('input', { type: 'checkbox' });
             todos.addEventListener('change', function () { ctx.items.forEach(function (i) { ctx.resp[i.id] = todos.checked; }); pintarChecklist(); sincDesv(); });
             zonaCheck.appendChild(el('label', { class: 'chk-all' }, [todos, el('span', { text: 'Marcar todo como cumplido' })]));
@@ -614,7 +614,7 @@
         var ingreso = ctx.etapa === 'INGRESO';
         ctx.error.hidden = true;
         function falla(t) { ctx.error.textContent = t; ctx.error.hidden = false; }
-        if (!ctx.items.length) { falla('No hay ítems de checklist para responder.'); return; }
+        if (!ctx.items.length && ingreso) { falla('No hay ítems de checklist para responder.'); return; }   // la salida puede no tener ítems (p. ej. un ayudante de descarga)
         var tardio = ctx.tardio.checked;
         if (tardio && !ctx.hora.value) { falla('Indique la hora real.'); return; }
         if (tardio && !ctx.obs.value.trim()) { falla('Explique por qué el registro es tardío.'); return; }

@@ -121,6 +121,30 @@ public sealed class Srv_Catalogo_Item_Checklist : ISrv_Catalogo_Item_Checklist
         }
     }
 
+    public async Task<Result<List<Dto_Item_Checklist_Admin>>> ListarAdminAsync(CancellationToken ct = default)
+    {
+        try { return await _repo.ListarAdminAsync(ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LISTAR_ADMIN Catalogo_Item_Checklist ERROR");
+            return Result<List<Dto_Item_Checklist_Admin>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> AsignarTiposAsync(long idItem, IReadOnlyCollection<(long Tipo, long? Subtipo)> tipos, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.AsignarTiposAsync(idItem, tipos, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ASIGNAR_TIPOS Catalogo_Item_Checklist ERROR ID={ID}", idItem);
+            return Result.Fail(ex.Message);
+        }
+    }
+
     private static List<ResultError> Validar(Dto_Catalogo_Universal dto)
     {
         var errors = new List<ResultError>();

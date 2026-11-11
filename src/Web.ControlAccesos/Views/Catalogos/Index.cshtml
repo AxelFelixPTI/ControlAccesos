@@ -1,5 +1,7 @@
 @{ ViewData["Titulo"] = "Catálogos"; ViewData["Migas"] = "Administración · Sede VES"; }
-<div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")">
+<div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")"
+     data-url-ck-listar="@Url.Action("Listar", "ChecklistPorteria")" data-url-ck-guardar="@Url.Action("Guardar", "ChecklistPorteria")"
+     data-url-tp-listar="@Url.Action("Listar", "TiposIngreso")" data-url-tp-guardar="@Url.Action("Guardar", "TiposIngreso")">
     @Html.AntiForgeryToken()
 
     <section class="card">
@@ -14,6 +16,38 @@
             <table class="tabla">
                 <thead><tr><th class="stk">Zona</th><th>Tipo</th><th>Exige SCTR</th><th>Exige EPP</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="cat-zona"><tr><td colspan="6" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card" id="caf-tipos">
+        <div class="card-hd">
+            <div>
+                <h3>Tipos de ingreso</h3>
+                <p class="small muted">Los tipos que se ofrecen al crear una solicitud. Un tipo nuevo usa el flujo estándar de visitante; luego se le ajusta el checklist más abajo.</p>
+            </div>
+            <button type="button" class="btn" id="tp-nuevo">+ Nuevo tipo</button>
+        </div>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th class="stk">Tipo</th><th>Aprobación</th><th>Disponible</th><th>Orden</th><th>Subtipos de persona</th><th>Configurado</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="tp-filas"><tr><td colspan="8" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card" id="caf-checklist">
+        <div class="card-hd">
+            <div>
+                <h3>Checklist de portería</h3>
+                <p class="small muted">Lo que el vigilante verifica al registrar un ingreso o una salida. Elija a qué tipos de ingreso se ofrece cada ítem y cuándo aplica.</p>
+            </div>
+            <button type="button" class="btn" id="ck-nuevo">+ Nuevo ítem</button>
+        </div>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th class="stk">Ítem</th><th>Etapa</th><th>Aplica</th><th>Crítico</th><th>Orden</th><th>Se ofrece a</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="ck-filas"><tr><td colspan="8" class="vacio">Cargando...</td></tr></tbody>
             </table>
         </div>
     </section>
@@ -57,3 +91,5 @@
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="~/js/caf.js" asp-append-version="true"></script>
 <script src="~/js/catalogos/catalogos.js" asp-append-version="true"></script>
+<script src="~/js/catalogos/tipos.js" asp-append-version="true"></script>
+<script src="~/js/catalogos/checklist.js" asp-append-version="true"></script>

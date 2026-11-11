@@ -55,7 +55,7 @@ RETURNS TABLE ("ID_Catalogo_Item_Checklist" BIGINT, "Codigo" VARCHAR, "Descripci
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 BEGIN
-    -- V1.0 2026-10-17
+    -- V1.2 2026-11-11 (subtipo por asignación, D-232) · V1.1 (SOLO_AYUDANTE) · V1.0 2026-10-17
     RETURN QUERY
     SELECT I."ID_Catalogo_Item_Checklist", I."Codigo", I."Descripcion", I."Ayuda", I."Es_Critico", I."Orden"
       FROM "CAF_Solicitud_Persona" P
@@ -65,12 +65,15 @@ BEGIN
                                       AND I."Eliminado" = 'N' AND I."Activo" = 'Y'
      WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona"
        AND I."Etapa" = UPPER(TRIM(COALESCE("HV_Etapa", '')))
+       AND (T."ID_Tipo_Acceso_Subtipo" IS NULL OR T."ID_Tipo_Acceso_Subtipo" = "ERP_CAF_FN_SUBTIPO_PERSONA"(P."ID_Solicitud_Persona"))   -- D-232: ítem solo para un subtipo
        AND (I."Condicion" = 'SIEMPRE'
             OR (I."Condicion" = 'ZONA_EXIGE_SCTR'   AND S."Exige_SCTR" = 'Y')
             OR (I."Condicion" = 'ZONA_EXIGE_EPP'    AND S."Exige_EPP" = 'Y')
             OR (I."Condicion" = 'TRAE_EQUIPOS'      AND COALESCE("HV_Trae_Equipos", 'N') = 'Y')
             OR (I."Condicion" = 'TRAE_HERRAMIENTAS' AND COALESCE("HV_Trae_Herramientas", 'N') = 'Y')
-            OR (I."Condicion" = 'SOLO_PRINCIPAL'    AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y'))   -- D-225: «principal» = transportista
+            OR (I."Condicion" = 'SOLO_PRINCIPAL'    AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y')   -- D-225: «principal» = transportista
+            OR (I."Condicion" = 'SOLO_AYUDANTE'     AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'N'
+                AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Transportista" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N')))   -- D-231: ayudante = persona de una entrega con transportistas que no es transportista
      ORDER BY I."Orden", I."ID_Catalogo_Item_Checklist";
 END;
 $$;

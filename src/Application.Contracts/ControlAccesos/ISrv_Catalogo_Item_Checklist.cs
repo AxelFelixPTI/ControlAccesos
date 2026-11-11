@@ -22,4 +22,7 @@ public interface ISrv_Catalogo_Item_Checklist
     Task<Result> ActualizarAsync(long id, Dto_Catalogo_Universal dto, long usuarioId, CancellationToken ct = default);
     Task<Result> EliminarAsync(long id, long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Catalogo_Universal>>> ObtenerDropdownAsync(string? etapa, CancellationToken ct = default);
+    // Pantalla «Checklist de portería» (V1.1 2026-11-10)
+    Task<Result<List<Dto_Item_Checklist_Admin>>> ListarAdminAsync(CancellationToken ct = default);
+    Task<Result> AsignarTiposAsync(long idItem, IReadOnlyCollection<(long Tipo, long? Subtipo)> tipos, long usuarioId, CancellationToken ct = default);
 }

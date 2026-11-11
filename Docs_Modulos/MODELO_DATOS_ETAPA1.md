@@ -8,7 +8,7 @@ Estado: **BORRADOR para revisión**. Todos los scripts (01 a 08) están probados
 | Schema | Hito | Script | Tablas |
 | --- | --- | --- | --- |
 | `CAF_GOVERNANCE` | 0 | 02 | `Catalogo_Sede`, `Catalogo_Area`, `Catalogo_Cargo`, `Catalogo_Tipo_Documento`, `Catalogo_Empresa_Grupo`, `Catalogo_Licencia`, `Personal`, `Usuario`, `Usuario_Licencia` (9) |
-| `TRIANONSATELITAL_CAF_PRODD` | 1 | 03, 04 | `Catalogo_Tipo_Acceso`, `Catalogo_Zona_Acceso`, `Catalogo_Motivo_Visita`, `Catalogo_Tratamiento_Desviacion`, `Catalogo_Tipo_Incidencia`, `Catalogo_Item_Checklist`, `Tipo_Acceso_Item_Checklist`, `CAF_Persona_Externa` (8) |
+| `TRIANONSATELITAL_CAF_PRODD` | 1 | 03, 04 | `Catalogo_Tipo_Acceso`, `Catalogo_Zona_Acceso`, `Catalogo_Motivo_Visita`, `Catalogo_Tratamiento_Desviacion`, `Catalogo_Tipo_Incidencia`, `Catalogo_Item_Checklist`, `Tipo_Acceso_Item_Checklist` (+ columna opcional `ID_Tipo_Acceso_Subtipo`, script 28), `Tipo_Acceso_Subtipo` (nueva, script 28: subtipos de persona por tipo, ej. Proveedor → Transportista / Ayudante de descarga), `CAF_Persona_Externa` (9) |
 | `TRIANONSATELITAL_CAF_PRODD` | 2 | 06 | `CAF_Solicitud`, `CAF_Solicitud_Version`, `CAF_Solicitud_Zona`, `CAF_Solicitud_Persona`, `CAF_Solicitud_Copia_Correo`, `CAF_Evento` (6) |
 | `TRIANONSATELITAL_CAF_PRODD` | 3 | 07 | `CAF_Registro_Acceso`, `CAF_Registro_Checklist`, `CAF_Respaldo`, `CAF_Respaldo_Persona`, `CAF_Desviacion` (5) |
 | `TRIANONSATELITAL_CAF_PRODD` | 4 | 08 | `CAF_Incidencia`, `CAF_Incidencia_Persona`, `CAF_Correo_Pendiente` (3) |

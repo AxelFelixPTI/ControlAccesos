@@ -22,4 +22,8 @@ public interface ISrv_Catalogo_Tipo_Acceso
     Task<Result> ActualizarAsync(long id, Dto_Catalogo_Universal dto, long usuarioId, CancellationToken ct = default);
     Task<Result> EliminarAsync(long id, long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Catalogo_Universal>>> ObtenerDropdownAsync(CancellationToken ct = default);
+    // Pantalla «Tipos de ingreso» (V1.1 2026-11-11, D-232)
+    Task<Result<List<Dto_Tipo_Acceso_Admin>>> ListarAdminAsync(CancellationToken ct = default);
+    Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(CancellationToken ct = default);
+    Task<Result> PrepararAsync(long idTipo, long usuarioId, CancellationToken ct = default);
 }

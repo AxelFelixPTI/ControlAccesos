@@ -4,7 +4,7 @@
 -- Schema  : TRIANONSATELITAL_CAF_PRODD
 -- Hito    : 1 - Catálogos del módulo | Fase 1 - Procedimientos
 -- Entidad : Catalogo_Item_Checklist (catálogo)
--- Versión : V1.0 2026-10-11
+-- Versión : V1.1 2026-11-10 (acepta la condición SOLO_PRINCIPAL; no cambia la etapa de un ítem ya usado) · V1.0 2026-10-11
 -- Estado  : CANDIDATO - probado en PostgreSQL 16 (ver PRUEBAS_FASE1_HITO1.sql)
 -- Generado: gen_catalogos.py V1.1 (misma plantilla que los catálogos transversales del Hito 0)
 -- =============================================================================
@@ -83,8 +83,8 @@ BEGIN
         IF "HV_Etapa" IS NULL OR UPPER(TRIM("HV_Etapa")) NOT IN ('INGRESO','SALIDA') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La etapa debe ser INGRESO o SALIDA.'; RETURN;
         END IF;
-        IF "HV_Condicion" IS NULL OR UPPER(TRIM("HV_Condicion")) NOT IN ('SIEMPRE','ZONA_EXIGE_SCTR','ZONA_EXIGE_EPP','TRAE_EQUIPOS','TRAE_HERRAMIENTAS') THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La condición debe ser SIEMPRE, ZONA_EXIGE_SCTR, ZONA_EXIGE_EPP, TRAE_EQUIPOS o TRAE_HERRAMIENTAS.'; RETURN;
+        IF "HV_Condicion" IS NULL OR UPPER(TRIM("HV_Condicion")) NOT IN ('SIEMPRE','ZONA_EXIGE_SCTR','ZONA_EXIGE_EPP','TRAE_EQUIPOS','TRAE_HERRAMIENTAS','SOLO_PRINCIPAL') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La condición debe ser SIEMPRE, ZONA_EXIGE_SCTR, ZONA_EXIGE_EPP, TRAE_EQUIPOS, TRAE_HERRAMIENTAS o SOLO_PRINCIPAL.'; RETURN;
         END IF;
         IF COALESCE("HV_Es_Critico",'N') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Es_Critico debe ser Y o N.'; RETURN;
@@ -157,6 +157,7 @@ LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_existe    INT := 0;
     lv_duplicado INT := 0;
+    lv_usado     INT := 0;
 BEGIN
     -- V1.0 2026-10-11
     "HV_Codigo_Resp" := 500;
@@ -174,8 +175,8 @@ BEGIN
         IF "HV_Etapa" IS NULL OR UPPER(TRIM("HV_Etapa")) NOT IN ('INGRESO','SALIDA') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La etapa debe ser INGRESO o SALIDA.'; RETURN;
         END IF;
-        IF "HV_Condicion" IS NULL OR UPPER(TRIM("HV_Condicion")) NOT IN ('SIEMPRE','ZONA_EXIGE_SCTR','ZONA_EXIGE_EPP','TRAE_EQUIPOS','TRAE_HERRAMIENTAS') THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La condición debe ser SIEMPRE, ZONA_EXIGE_SCTR, ZONA_EXIGE_EPP, TRAE_EQUIPOS o TRAE_HERRAMIENTAS.'; RETURN;
+        IF "HV_Condicion" IS NULL OR UPPER(TRIM("HV_Condicion")) NOT IN ('SIEMPRE','ZONA_EXIGE_SCTR','ZONA_EXIGE_EPP','TRAE_EQUIPOS','TRAE_HERRAMIENTAS','SOLO_PRINCIPAL') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La condición debe ser SIEMPRE, ZONA_EXIGE_SCTR, ZONA_EXIGE_EPP, TRAE_EQUIPOS, TRAE_HERRAMIENTAS o SOLO_PRINCIPAL.'; RETURN;
         END IF;
         IF COALESCE("HV_Es_Critico",'N') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Es_Critico debe ser Y o N.'; RETURN;
@@ -193,6 +194,14 @@ BEGIN
          WHERE UPPER(TRIM("Codigo")) = UPPER(TRIM("HV_Codigo")) AND "ID_Catalogo_Item_Checklist" <> "HV_ID_Catalogo_Item_Checklist";
         IF lv_duplicado > 0 THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Ya existe otro registro con ese código.'; RETURN;
+        END IF;
+
+        -- V1.1: la etapa no se cambia si el ítem ya se usó en algún registro (se alteraría el historial)
+        SELECT COUNT(*) INTO lv_usado FROM "Catalogo_Item_Checklist" I
+         WHERE I."ID_Catalogo_Item_Checklist" = "HV_ID_Catalogo_Item_Checklist" AND I."Etapa" <> UPPER(TRIM("HV_Etapa"))
+           AND EXISTS (SELECT 1 FROM "CAF_Registro_Checklist" R WHERE R."ID_Catalogo_Item_Checklist" = I."ID_Catalogo_Item_Checklist");
+        IF lv_usado > 0 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'El ítem ya se usó en registros: no se puede cambiar su etapa. Desactívelo y cree otro.'; RETURN;
         END IF;
 
         UPDATE "Catalogo_Item_Checklist"

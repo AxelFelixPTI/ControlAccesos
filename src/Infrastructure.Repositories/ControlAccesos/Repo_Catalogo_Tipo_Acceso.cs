@@ -148,6 +148,75 @@ public sealed class Repo_Catalogo_Tipo_Acceso : RepoHelpers, IRepo_Catalogo_Tipo
         }
     }
 
+    // ── PANTALLA «TIPOS DE INGRESO» ───────────────────────────────
+    public async Task<Result<List<Dto_Tipo_Acceso_Admin>>> ListarAdminAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_TIPO_ACCESO_ADMIN_LISTAR",
+                bind: _ => { },
+                map: rd => new Dto_Tipo_Acceso_Admin
+                {
+                    ID_Catalogo_Tipo_Acceso = RdLong(rd, "ID_Catalogo_Tipo_Acceso"),
+                    Codigo              = RdStr(rd, "Codigo"),
+                    Descripcion         = RdStr(rd, "Descripcion"),
+                    Requiere_Aprobacion = RdStr(rd, "Requiere_Aprobacion"),
+                    Disponible          = RdStr(rd, "Disponible"),
+                    Orden               = RdLong(rd, "Orden"),
+                    Activo              = RdStr(rd, "Activo"),
+                    Subtipos            = RdStrN(rd, "Subtipos"),
+                    Pasos               = RdLong(rd, "Pasos"),
+                    Items               = RdLong(rd, "Items"),
+                    Solicitudes         = RdLong(rd, "Solicitudes"),
+                },
+                ct: ct);
+            return Result<List<Dto_Tipo_Acceso_Admin>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Tipo_Acceso_Admin>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SUBTIPO_LISTAR",
+                bind: _ => { },
+                map: rd => new Dto_Subtipo
+                {
+                    ID_Tipo_Acceso_Subtipo  = RdLong(rd, "ID_Tipo_Acceso_Subtipo"),
+                    ID_Catalogo_Tipo_Acceso = RdLong(rd, "ID_Catalogo_Tipo_Acceso"),
+                    Codigo      = RdStr(rd, "Codigo"),
+                    Descripcion = RdStr(rd, "Descripcion"),
+                },
+                ct: ct);
+            return Result<List<Dto_Subtipo>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Subtipo>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<ResultSp> PrepararAsync(long idTipo, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_TIPO_ACCESO_PREPARAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Catalogo_Tipo_Acceso", idTipo);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
     // ══════════════════════════════════════════════════════════════
     // MAPPERS (columnas = las que devuelve cada rutina)
     // ══════════════════════════════════════════════════════════════
