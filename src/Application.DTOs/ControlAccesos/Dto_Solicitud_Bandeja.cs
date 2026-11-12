@@ -35,6 +35,8 @@ public sealed class Dto_Solicitud_Bandeja
     public int Rechazadas { get; set; }
     public int Retiradas { get; set; }
     public int Por_Decidir_Mis { get; set; }
-    public string? Personas_Nombres { get; set; }
+    public string? Personas_Nombres { get; set; }          // D-233: ahora con el documento («... · DNI 123 | ...»)
+    public string? Tipo_Acceso_Codigo { get; set; }
+    public string? Empresa_Destino_Codigo { get; set; }
     public DateTime? Fecha_Envio { get; set; }
 }

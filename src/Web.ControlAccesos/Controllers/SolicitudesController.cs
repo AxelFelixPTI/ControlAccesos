@@ -61,7 +61,8 @@ public sealed class SolicitudesController : Controller
         var filas = r.Data!.Select(s => new
         {
             id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
-            empresa = s.Empresa_Visitante, tipo = s.Tipo_Acceso, estado = s.Estado, responsable = s.Responsable_Nombre, codigoOrigen = s.Codigo_Origen,
+            empresa = s.Empresa_Visitante, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, personasResumen = s.Personas_Resumen,
+            estado = s.Estado, responsable = s.Responsable_Nombre, codigoOrigen = s.Codigo_Origen,
             total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
             puedeEditar = s.Puede_Editar_Datos, motivoNoEditar = s.Motivo_No_Editar_Datos,
             puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar, puedeReutilizar = s.Puede_Reutilizar,
@@ -268,7 +269,7 @@ public sealed class SolicitudesController : Controller
             data = new
             {
                 id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, sedeId = s.ID_Catalogo_Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso,
-                tipoCodigo = s.Tipo_Acceso_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo, areaDetalle = s.Area_Detalle,
+                tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo, areaDetalle = s.Area_Detalle,
                 contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos, estado = s.Estado, avance = s.Avance,
                 fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"), empresa = s.Empresa_Visitante,
                 responsableId = s.ID_Personal_Responsable, responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area,

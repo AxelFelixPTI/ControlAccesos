@@ -34,11 +34,11 @@
             if (s.observadas) detalle.push(s.observadas + ' observada(s)');
             if (s.rechazadas) detalle.push(s.rechazadas + ' rechazada(s)');
             cuerpo.appendChild(el('tr', { class: s.esHoy ? 'hoy' : (s.estado === 'CANCELADA' ? 'off' : '') }, [
-                el('td', {}, [el('button', { type: 'button', class: 'link', text: s.codigo, onclick: function () { revisar(s.id); } })]),
+                el('td', {}, [el('button', { type: 'button', class: 'link', text: s.codigo, onclick: function () { revisar(s.id); } }), el('div', {}, [SOL.chipTipo(s.tipoCodigo, s.tipo)])]),
                 el('td', {}, [el('span', { text: SOL.fechaLarga(s.fecha) + ' · ' + s.hora }), s.esHoy ? el('span', { class: 'chip c-obs', text: 'Hoy' }) : null]),
-                el('td', { text: s.empresa || '' }),
+                el('td', {}, [el('div', { text: s.empresa || '' }), SOL.chipEmpresa(s.empresaCodigo)]),
                 el('td', { text: s.solicitante || '' }),
-                el('td', {}, [el('div', { text: String(s.total) }), el('div', { class: 'field-h', text: detalle.join(' · ') }),
+                el('td', {}, [SOL.personasLista(s.personas), el('div', { class: 'field-h', text: s.total + ' persona(s)' }), el('div', { class: 'field-h', text: detalle.join(' · ') }),
                               s.porDecidirMis ? el('div', { class: 'field-h', text: s.porDecidirMis + ' por decidir por usted' }) : null]),
                 el('td', {}, [SOL.chipEstado(s.estado)]),
                 el('td', {}, [el('button', { type: 'button', class: 'btn btn-sm' + (s.porDecidirMis ? ' btn-primary' : ''), text: s.porDecidirMis ? 'Revisar' : 'Ver', onclick: function () { revisar(s.id); } })])
@@ -78,7 +78,7 @@
 
         function pintar() {
             cont.textContent = '';
-            cont.appendChild(el('div', { class: 'det-h' }, [el('h3', { text: s.codigo }), SOL.chipEstado(s.estado), s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null]));
+            cont.appendChild(el('div', { class: 'det-h' }, [el('h3', { text: s.codigo }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo), SOL.chipEstado(s.estado), s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null]));
             if (s.estado === 'CANCELADA') cont.appendChild(el('div', { class: 'aviso a-info', text: 'Solicitud cancelada' + (s.motivoCancelacion ? ': ' + s.motivoCancelacion : '.') }));
             var dl = el('dl', { class: 'dl' });
             var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';

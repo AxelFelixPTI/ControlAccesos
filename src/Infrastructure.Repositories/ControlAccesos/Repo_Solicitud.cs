@@ -593,6 +593,9 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Puede_Cancelar               = RdBool(rd, "Puede_Cancelar"),
         Motivo_No_Cancelar           = RdStrN(rd, "Motivo_No_Cancelar"),
         Puede_Reutilizar             = RdBool(rd, "Puede_Reutilizar"),
+        Tipo_Acceso_Codigo           = RdStrN(rd, "Tipo_Acceso_Codigo"),
+        Empresa_Destino_Codigo       = RdStrN(rd, "Empresa_Destino_Codigo"),
+        Personas_Resumen             = RdStrN(rd, "Personas_Resumen"),
     };
 
     private static Dto_Solicitud_Bandeja MapSolicitud_Bandeja(DbDataReader rd) => new()
@@ -618,6 +621,8 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Por_Decidir_Mis        = RdInt(rd, "Por_Decidir_Mis"),
         Personas_Nombres       = RdStrN(rd, "Personas_Nombres"),
         Fecha_Envio            = RdDtN(rd, "Fecha_Envio"),
+        Tipo_Acceso_Codigo     = RdStrN(rd, "Tipo_Acceso_Codigo"),
+        Empresa_Destino_Codigo = RdStrN(rd, "Empresa_Destino_Codigo"),
     };
 
     private static Dto_Solicitud_Contadores MapSolicitud_Contadores(DbDataReader rd) => new()
@@ -671,6 +676,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Contacto_Correos             = RdStrN(rd, "Contacto_Correos"),
         ID_Empresa_Destino           = RdLongN(rd, "ID_Empresa_Destino"),
         Empresa_Destino              = RdStrN(rd, "Empresa_Destino"),
+        Empresa_Destino_Codigo       = RdStrN(rd, "Empresa_Destino_Codigo"),
         Copias                       = RdStrN(rd, "Copias"),
         CreateDate                   = RdDtN(rd, "CreateDate"),
         Total_Personas               = RdInt(rd, "Total_Personas"),

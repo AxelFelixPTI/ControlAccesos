@@ -557,6 +557,37 @@ var SOL = (function () {
         return caja;
     }
 
-    return { textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
+    // Etiqueta de tipo de ingreso (D-233): mismo color en todo el ciclo de vida. El color sale del código del tipo (CSS .tp-*);
+    // un tipo creado desde Administración sin color propio usa el neutro.
+    function chipTipo(codigo, texto) {
+        var cl = 'tp-' + String(codigo || 'otro').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        return el('span', { class: 'chip tp ' + cl, title: 'Tipo de ingreso: ' + (texto || codigo || ''), text: texto || codigo || '' });
+    }
+
+    // Etiqueta abreviada de la empresa del grupo que recibe (proveedor): mismas siglas y colores que el calendario de proveedores.
+    var EMPRESAS = { TRIANON_ENERGO: ['Trianon Energo', 'TE', 'em-te'], POWER_TECHNOLOGY: ['Power Technology', 'PT', 'em-pt'],
+                     TRIANON_ASCENSORES: ['Trianon Ascensores', 'TA', 'em-ta'], TRIANON_SOSTENIBLE: ['Trianon Sostenible', 'TS', 'em-ts'] };
+    // Acepta un código o una lista de códigos (preparado para que una solicitud tenga más de una empresa que recibe).
+    function chipEmpresa(codigos) {
+        var lista = Array.isArray(codigos) ? codigos : (codigos ? [codigos] : []);
+        var nodos = lista.map(function (c) {
+            var e = EMPRESAS[c];
+            return e ? el('span', { class: 'chip-em ' + e[2], title: 'Recibe: ' + e[0], text: e[1] }) : null;
+        }).filter(Boolean);
+        return nodos.length ? el('span', { class: 'chips-em' }, nodos) : null;
+    }
+
+    // Personas que ingresan, una por línea con su documento («Apellidos, Nombres · DNI 123»): las primeras «max» y «+N más».
+    // El texto completo queda en el tooltip y en el buscador del listado.
+    function personasLista(resumen, max) {
+        var lim = max || 3, items = String(resumen || '').split(' | ').filter(Boolean);
+        if (!items.length) return el('span', { class: 'field-h', text: '—' });
+        var caja = el('div', { class: 'pers-mini', title: items.join('\n') });
+        items.slice(0, lim).forEach(function (t) { caja.appendChild(el('div', { class: 'pers-linea', text: t })); });
+        if (items.length > lim) caja.appendChild(el('div', { class: 'field-h', text: '+' + (items.length - lim) + ' más' }));
+        return caja;
+    }
+
+    return { chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
              errores: errores, cargarOpciones: cargarOpciones, formDatos: formDatos, formPersona: formPersona };
 })();

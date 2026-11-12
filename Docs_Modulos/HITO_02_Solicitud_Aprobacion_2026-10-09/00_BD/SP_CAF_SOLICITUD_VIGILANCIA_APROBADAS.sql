@@ -3,7 +3,7 @@
 -- Proyecto: Control de Accesos (piloto PostgreSQL, destino SAP HANA)
 -- Schema  : TRIANONSATELITAL_CAF_PRODD
 -- Hito    : 2 - Solicitud y aprobación | Vigilancia: consulta de aprobadas (otras fechas)
--- Versión : V1.1 2026-11-09 (+ Es_Transportista, Verificada y Franja_Estado: mismas columnas que LISTAR; D-227)
+-- Versión : V1.2 2026-11-11 (+ Tipo_Acceso_Codigo y Empresa_Destino_Codigo, D-233); V1.1 2026-11-09 (+ Es_Transportista, Verificada y Franja_Estado: mismas columnas que LISTAR; D-227)
 -- Estado  : CANDIDATO
 -- Requiere: SP_CAF_SOLICITUD_LECTURA_ALL.sql (ERP_CAF_FN_NORMALIZAR) y la función de permisos.
 -- Objeto  : ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS (función, solo lectura)
@@ -13,7 +13,7 @@
 -- =============================================================================
 DROP FUNCTION IF EXISTS "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"(BIGINT, BIGINT, DATE, DATE, VARCHAR);
 CREATE OR REPLACE FUNCTION "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_SOLICITUD_VIGILANCIA_APROBADAS"("HV_UsuarioID" bigint, "HV_ID_Catalogo_Sede" bigint DEFAULT NULL::bigint, "HV_Fecha_Desde" date DEFAULT NULL::date, "HV_Fecha_Hasta" date DEFAULT NULL::date, "HV_Texto" character varying DEFAULT NULL::character varying)
- RETURNS TABLE("ID_Solicitud_Persona" bigint, "ID_Solicitud" bigint, "Codigo" character varying, "ID_Catalogo_Sede" bigint, "Fecha_Hora_Prevista" timestamp without time zone, "Empresa_Visitante" character varying, "Responsable_Nombre" character varying, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Estado" character varying, "Grupo" character varying, "Fecha_Hora_Ingreso" timestamp without time zone, "Fecha_Hora_Salida" timestamp without time zone, "Acceso_Restringido" character, "Trae_Equipos" character, "Trae_Herramientas" character, "Exige_SCTR" character, "Exige_EPP" character, "Zonas_Nombres" character varying, "Es_Proveedor" character, "Estado_Operativo" character varying, "Disponibilidad_Confirmada" character, "Tipo_Acceso" character varying, "Es_Transportista" character, "Verificada" character, "Franja_Estado" character varying)
+ RETURNS TABLE("ID_Solicitud_Persona" bigint, "ID_Solicitud" bigint, "Codigo" character varying, "ID_Catalogo_Sede" bigint, "Fecha_Hora_Prevista" timestamp without time zone, "Empresa_Visitante" character varying, "Responsable_Nombre" character varying, "Tipo_Documento" character varying, "Numero_Documento" character varying, "Persona_Nombre" character varying, "Estado" character varying, "Grupo" character varying, "Fecha_Hora_Ingreso" timestamp without time zone, "Fecha_Hora_Salida" timestamp without time zone, "Acceso_Restringido" character, "Trae_Equipos" character, "Trae_Herramientas" character, "Exige_SCTR" character, "Exige_EPP" character, "Zonas_Nombres" character varying, "Es_Proveedor" character, "Estado_Operativo" character varying, "Disponibilidad_Confirmada" character, "Tipo_Acceso" character varying, "Es_Transportista" character, "Verificada" character, "Franja_Estado" character varying, "Tipo_Acceso_Codigo" character varying, "Empresa_Destino_Codigo" character varying)
  LANGUAGE plpgsql
  STABLE
  SET search_path TO 'TRIANONSATELITAL_CAF_PRODD'
@@ -42,7 +42,8 @@ BEGIN
            CAST('N' AS CHAR(1)), CAST(NULL AS VARCHAR), CAST('N' AS CHAR(1)),   -- los proveedores no aparecen aquí
            CAST(TX."Descripcion" AS VARCHAR),
            CAST('N' AS CHAR(1)), CAST('N' AS CHAR(1)),   -- consulta: sin verificación ni transportistas (los proveedores no aparecen aquí)
-           CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR)
+           CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR),
+           CAST(TX."Codigo" AS VARCHAR), CAST(NULL AS VARCHAR)   -- la empresa que recibe es solo de proveedor (no aparece aquí)
       FROM "CAF_Solicitud" S
       LEFT JOIN "Catalogo_Tipo_Acceso" TX ON TX."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
       JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'

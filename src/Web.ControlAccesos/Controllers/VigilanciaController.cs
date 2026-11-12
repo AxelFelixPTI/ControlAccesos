@@ -61,7 +61,7 @@ public sealed class VigilanciaController : Controller
                 nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
                 exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
-                esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
+                esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, tipoCodigo = p.Tipo_Acceso_Codigo, empresaCodigo = p.Empresa_Destino_Codigo, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
                 esTransportista = p.Es_Transportista, verificada = p.Verificada, franja = p.Franja_Estado,
             })
         });
@@ -87,6 +87,7 @@ public sealed class VigilanciaController : Controller
                 nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
                 exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
+                tipo = p.Tipo_Acceso, tipoCodigo = p.Tipo_Acceso_Codigo, empresaCodigo = p.Empresa_Destino_Codigo,
             })
         });
     }

@@ -43,5 +43,7 @@ public sealed class Dto_Vigilancia_Persona
     public bool Es_Transportista { get; set; }             // D-225: transportista (conduce un vehículo) frente a ayudante de descarga
     public bool Verificada { get; set; }
     /// <summary>D-227: NA (no es de franja), DENTRO o FUERA de la franja autorizada en este momento.</summary>
+    public string? Tipo_Acceso_Codigo { get; set; }       // D-233
+    public string? Empresa_Destino_Codigo { get; set; }   // D-233
     public string Franja_Estado { get; set; } = "NA";                   // D-225: Vigilancia ya verificó sus datos
 }

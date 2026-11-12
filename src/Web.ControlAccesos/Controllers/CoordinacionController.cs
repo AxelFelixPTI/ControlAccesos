@@ -51,7 +51,7 @@ public sealed class CoordinacionController : Controller
             data = r.Data!.Select(s => new
             {
                 id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
-                esHoy = s.Es_Hoy, tipo = s.Tipo_Acceso, empresa = s.Empresa_Visitante, solicitante = s.Solicitante_Nombre, estado = s.Estado, total = s.Total_Personas,
+                esHoy = s.Es_Hoy, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, empresa = s.Empresa_Visitante, solicitante = s.Solicitante_Nombre, estado = s.Estado, total = s.Total_Personas,
                 autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, porDecidirMis = s.Por_Decidir_Mis,
                 personas = s.Personas_Nombres,
             })
@@ -84,7 +84,7 @@ public sealed class CoordinacionController : Controller
             success = true,
             data = new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
+                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
                 areaDetalle = s.Area_Detalle, contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos,
                 estado = s.Estado, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = s.Empresa_Visitante, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, zonas = s.Zonas_Nombres, observaciones = s.Observaciones,

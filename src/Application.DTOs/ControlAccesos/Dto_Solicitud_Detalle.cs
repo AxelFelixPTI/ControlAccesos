@@ -78,4 +78,5 @@ public sealed class Dto_Solicitud_Detalle
     /// <summary>Proveedor (D-223): empresa del grupo que recibe la entrega.</summary>
     public long? ID_Empresa_Destino { get; set; }
     public string? Empresa_Destino { get; set; }
+    public string? Empresa_Destino_Codigo { get; set; }
 }

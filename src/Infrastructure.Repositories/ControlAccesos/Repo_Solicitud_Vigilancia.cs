@@ -134,6 +134,8 @@ public sealed class Repo_Solicitud_Vigilancia : RepoHelpers, IRepo_Solicitud_Vig
         Es_Transportista     = RdBool(rd, "Es_Transportista"),
         Verificada           = RdBool(rd, "Verificada"),
         Franja_Estado        = RdStrN(rd, "Franja_Estado") ?? "NA",
+        Tipo_Acceso_Codigo   = RdStrN(rd, "Tipo_Acceso_Codigo"),
+        Empresa_Destino_Codigo = RdStrN(rd, "Empresa_Destino_Codigo"),
     };
 
     private static Dto_Vigilancia_No_Autorizada MapVigilancia_No_Autorizada(DbDataReader rd) => new()

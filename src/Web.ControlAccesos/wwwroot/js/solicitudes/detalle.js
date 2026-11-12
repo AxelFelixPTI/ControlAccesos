@@ -31,7 +31,7 @@
         else if (s.puedeReutilizar) acc.push(el('a', { class: 'btn btn-sm', href: d.urlNueva + '?reutilizar=' + s.id, text: 'Reutilizar' }));
         if (s.puedeCancelar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar solicitud', onclick: cancelar }));
         else if (s.estado !== 'CANCELADA' && s.motivoNoCancelar) acc.push(el('span', { class: 'field-h', text: s.motivoNoCancelar }));
-        cab.appendChild(el('div', { class: 'det-h' }, [el('h2', { text: s.codigo }), SOL.chipEstado(s.estado),
+        cab.appendChild(el('div', { class: 'det-h' }, [el('h2', { text: s.codigo }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo), SOL.chipEstado(s.estado),
             s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null, el('div', { class: 'acc acc-r' }, acc)]));
         if (s.estado === 'CANCELADA' && s.motivoCancelacion) cab.appendChild(el('div', { class: 'aviso a-info', text: 'Motivo de la cancelación: ' + s.motivoCancelacion }));
         if (s.observacionCoordinador && s.observadas) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Coordinación: ' + s.observacionCoordinador }));

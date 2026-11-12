@@ -65,10 +65,10 @@
             if (s.puedeReutilizar) acc.push(el('a', { class: 'btn btn-sm', href: url.nueva + '?reutilizar=' + s.id, text: 'Reutilizar' }));
             if (s.puedeCancelar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar', onclick: function () { cancelar(s); } }));
             cuerpo.appendChild(el('tr', { class: (s.estado === 'CANCELADA' ? 'off' : '') + '', 'data-id': String(s.id) }, [
-                el('td', {}, [el('a', { class: 'link', href: verUrl(s.id), text: s.codigo }), s.codigoOrigen ? el('div', { class: 'field-h', text: 'de ' + s.codigoOrigen }) : null]),
+                el('td', {}, [el('a', { class: 'link', href: verUrl(s.id), text: s.codigo }), el('div', {}, [SOL.chipTipo(s.tipoCodigo, s.tipo)]), s.codigoOrigen ? el('div', { class: 'field-h', text: 'de ' + s.codigoOrigen }) : null]),
                 el('td', { text: SOL.fechaLarga(s.fecha) + ' · ' + s.hora }),
-                el('td', { text: s.empresa || '' }),
-                el('td', { text: s.responsable || '' }),
+                el('td', {}, [el('div', { text: s.empresa || '' }), SOL.chipEmpresa(s.empresaCodigo)]),
+                el('td', {}, [SOL.personasLista(s.personasResumen)]),
                 el('td', {}, [personas(s)]),
                 el('td', {}, [SOL.chipEstado(s.estado)]),
                 el('td', {}, [el('div', { class: 'acc' }, acc)])

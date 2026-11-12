@@ -43,4 +43,7 @@ public sealed class Dto_Solicitud_Lista
     public bool Puede_Cancelar { get; set; }
     public string? Motivo_No_Cancelar { get; set; }
     public bool Puede_Reutilizar { get; set; }
+    public string? Tipo_Acceso_Codigo { get; set; }        // D-233: etiqueta de tipo
+    public string? Empresa_Destino_Codigo { get; set; }    // D-233: etiqueta de la empresa que recibe (proveedor)
+    public string? Personas_Resumen { get; set; }          // D-233: «Apellidos, Nombres · DNI 123 | ...»
 }

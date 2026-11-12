@@ -120,7 +120,7 @@
             return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: q.nombre }), el('div', { class: 'field-h', text: q.doc + det })])]);
         }));
         var docs = adj ? adj.archivos() : [];
-        var tipo = el('div', { class: 'aviso a-info', text: 'Tipo de ingreso: ' + v.tipoTexto + '. Coordinación revisará la solicitud y decidirá persona por persona.' });
+        var tipo = el('div', { class: 'aviso a-info' }, ['Tipo de ingreso: ', SOL.chipTipo(v.tipoCodigo, v.tipoTexto), ' Coordinación revisará la solicitud y decidirá persona por persona.']);
         return el('div', { class: 'stack' }, [dl, el('h3', { text: 'Personas (' + personas.length + ')' }), lista,
             el('h3', { text: 'Documentos adjuntos (' + docs.length + ')' }),
             docs.length ? el('ul', { class: 'plist' }, docs.map(function (f) { return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: f.name }), el('div', { class: 'field-h', text: (f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB') })])]); })) : el('p', { class: 'field-h', text: 'Sin documentos adjuntos.' }),

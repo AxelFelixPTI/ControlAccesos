@@ -4,6 +4,8 @@ Actualizado: 2026-10-29
 
 ## Dónde estamos
 
+- **2026-11-11 · Entrega 1A: etiquetas de tipo y «Personas que ingresan» (D-233).** Etiqueta de color por tipo en todo el ciclo (Mis solicitudes, Detalle, Nueva/revisión, Coordinación, Control de accesos), sigla de empresa del proveedor (TE/PT/TA/TS, lista para varias empresas) y listados con personas + DNI en vez del responsable. SP nuevo `ERP_CAF_FN_PERSONAS_RESUMEN`; `MIS_LISTAR`/`BANDEJA_LISTAR` V1.1 con DROP; sin tablas nuevas. Sigue **1B (subtipos, D-234…, script 29)**; Entrega 2 (proveedor con varias empresas) en pausa hasta que Sandra defina conceptos. Pendiente en el repo: falta el script `27_*.sql` (D-231).
+
 - **2026-10-29 · Entrega J: adjuntos (D-183 a D-186).** Tabla `CAF_Solicitud_Adjunto` (script 15), 6 rutinas `ERP_CAF_SOLICITUD_ADJUNTO_*`, `AdjuntosController`, `adjuntos.js` en Nueva, Detalle, Coordinación y Vigilancia, y adjuntos en los correos de nueva, Vigilancia y corrección (retención `Correo:RetencionSegundos`). Pruebas: HITO2 escritura 286/286, arnés de correo 49/49, navegador con servicios simulados.
 - **2026-10-29 · Entrega F (D-181, D-182) y E (D-179, D-180).** Aviso propio a Vigilancia en aprobación parcial, un solo aviso de decisión por revisión; hilo de correo con asunto estable y «Responder a todos».
 - **2026-10-29 · Corrección a la entrega D (D-178).** «Control de accesos» queda en el menú del Coordinador (solo consulta + incidencias, con `PER_CAF_PORTERIA_VER`); el rol «Vigilancia» del selector exige `PER_CAF_PORTERIA_REGISTRAR`. Solo `MenuCaf.cs`. Probado con Playwright (Coordinador, Vigilante puro y administrador).

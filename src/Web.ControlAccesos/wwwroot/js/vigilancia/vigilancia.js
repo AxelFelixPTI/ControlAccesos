@@ -105,7 +105,7 @@
             var l = por[sid], s = l[0];
             var exige = [s.exigeSctr ? 'SCTR' : null, s.exigeEpp ? 'EPP' : null].filter(Boolean).join(' y ');
             var cab = el('div', { class: 'blk-h' }, [
-                el('div', {}, [el('strong', { text: s.empresa || '(sin empresa)' }), el('div', { class: 'field-h', text: s.codigo + ' · ' + (soloLectura ? 'visita ' + SOL.fechaLarga(s.fecha) + ' ' + s.hora : 'hora prevista ' + s.hora) + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
+                el('div', {}, [el('div', { class: 'blk-t' }, [el('strong', { text: s.empresa || '(sin empresa)' }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo)]), el('div', { class: 'field-h', text: s.codigo + ' · ' + (soloLectura ? 'visita ' + SOL.fechaLarga(s.fecha) + ' ' + s.hora : 'hora prevista ' + s.hora) + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
                 el('div', { class: 'vrow-e' }, [s.zonas ? el('span', { class: 'field-h', text: 'Zonas: ' + s.zonas }) : null, exige ? chip('Exige ' + exige, 'c-obs') : null,
                     el('button', { type: 'button', class: 'btn btn-sm', text: 'Documentos', onclick: function () { documentos(s); } })])
             ]);

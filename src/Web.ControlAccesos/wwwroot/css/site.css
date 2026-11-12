@@ -237,3 +237,14 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
 .dias-lista{list-style:none;margin:0;padding:6px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--sf);min-height:120px;max-height:280px;overflow:auto}
 .dias-lista li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line2)}.dias-lista li:last-child{border-bottom:0}
 @media(max-width:720px){.dias-sel{grid-template-columns:1fr}}
+
+/* D-233: etiqueta de tipo de ingreso (misma en todo el ciclo) y sigla de empresa que recibe (igual que el calendario de proveedores) */
+:root{--tp-bg:#ECEFF1;--tp-ac:#455A64;--em-ts-bg:#E6F3D4;--em-ts-ac:#4D7C0F;--em-te-bg:#FFF0C2;--em-te-ac:#8A5F00;--em-pt-bg:#DCEBFA;--em-pt-ac:#1E5F9E;--em-ta-bg:#F6DDE6;--em-ta-ac:#8E2650}
+:root[data-theme="dark"]{--tp-bg:#263238;--tp-ac:#B0BEC5;--em-ts-bg:#1F3012;--em-ts-ac:#A5D86A;--em-te-bg:#3A2E0A;--em-te-ac:#F0C64A;--em-pt-bg:#13294A;--em-pt-ac:#8EC0F0;--em-ta-bg:#3F1428;--em-ta-ac:#F09AC0}
+.chip.tp{background:var(--tp-bg);color:var(--tp-ac);border:1px solid var(--tp-ac);margin:2px 4px 2px 0}
+.chip.tp.tp-visita-externa{--tp-bg:#DDF3F0;--tp-ac:#0F766E}.chip.tp.tp-contratista{--tp-bg:#EDE7F6;--tp-ac:#5B3FA0}.chip.tp.tp-proveedor{--tp-bg:#FFE8D6;--tp-ac:#B4540A}
+:root[data-theme="dark"] .chip.tp.tp-visita-externa{--tp-bg:#0F3330;--tp-ac:#5EEAD4}:root[data-theme="dark"] .chip.tp.tp-contratista{--tp-bg:#2A1F4A;--tp-ac:#C4B0F5}:root[data-theme="dark"] .chip.tp.tp-proveedor{--tp-bg:#4A2508;--tp-ac:#FFB57A}
+.em-ts{--em-bg:var(--em-ts-bg);--em-ac:var(--em-ts-ac)}.em-te{--em-bg:var(--em-te-bg);--em-ac:var(--em-te-ac)}.em-pt{--em-bg:var(--em-pt-bg);--em-ac:var(--em-pt-ac)}.em-ta{--em-bg:var(--em-ta-bg);--em-ac:var(--em-ta-ac)}
+.chips-em{display:inline-flex;gap:4px;flex-wrap:wrap}
+.chip-em{display:inline-block;background:var(--em-bg);color:var(--em-ac);border:1px solid var(--em-ac);border-radius:6px;padding:1px 6px;font-size:12px;font-weight:800;letter-spacing:.03em}
+.pers-mini .pers-linea{font-size:13px;line-height:1.35}.blk-t{display:flex;align-items:center;gap:6px;flex-wrap:wrap}

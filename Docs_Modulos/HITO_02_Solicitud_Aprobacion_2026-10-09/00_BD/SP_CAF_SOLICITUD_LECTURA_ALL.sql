@@ -217,12 +217,38 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- 4-bis. ERP_CAF_FN_PERSONAS_RESUMEN  (D-233)
+--        Personas vigentes de una solicitud, «Apellidos, Nombres · DNI 12345678», separadas por « | ». Sirve a los listados
+--        (Mis solicitudes y bandeja del Coordinador) para identificar y buscar a quien va a ingresar sin abrir la solicitud.
+--        HANA: STRING_AGG con ORDER BY ya admitido; LEFT(...) -> SUBSTRING(...,1,n).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_PERSONAS_RESUMEN"("HV_ID_Solicitud" BIGINT)
+RETURNS VARCHAR
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_r VARCHAR(2000);
+BEGIN
+    -- V1.0 2026-11-11
+    SELECT CAST(LEFT(STRING_AGG(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres"
+                                || ' · ' || COALESCE(TD."Codigo", 'Doc') || ' ' || PE."Numero_Documento",
+                                ' | ' ORDER BY P."ID_Solicitud_Persona"), 2000) AS VARCHAR)
+      INTO lv_r
+      FROM "CAF_Solicitud_Persona" P
+      JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
+     WHERE P."ID_Solicitud" = "HV_ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" <> 'RETIRADA';
+    RETURN lv_r;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- 5. ERP_CAF_SOLICITUD_MIS_LISTAR  («Mis solicitudes»)
 --    Solo las del propio usuario, en las sedes donde tiene PER_CAF_SOLICITUD_PROPIA.
 --    HV_Texto busca en código, empresa y en las personas (nombre o documento).
 --    HV_Estado: PENDIENTE, OBSERVADA, APROBADA, APROBADA_PARCIAL, RECHAZADA o CANCELADA.
 --    Fechas: sobre la fecha de la visita. Todos los filtros son opcionales (NULL).
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_MIS_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, DATE, DATE);
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_MIS_LISTAR"(
     "HV_UsuarioID"        BIGINT,
     "HV_ID_Catalogo_Sede" BIGINT  DEFAULT NULL,
@@ -238,12 +264,14 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Responsable_Nombre" VARCHAR, "Codigo_Origen" VARCHAR, "Fecha_Envio" TIMESTAMP, "CreateDate" TIMESTAMP,
                "Puede_Editar_Datos" CHAR(1), "Motivo_No_Editar_Datos" VARCHAR,
                "Puede_Modificar_Personal" CHAR(1), "Motivo_No_Modificar_Personal" VARCHAR,
-               "Puede_Cancelar" CHAR(1), "Motivo_No_Cancelar" VARCHAR, "Puede_Reutilizar" CHAR(1))
+               "Puede_Cancelar" CHAR(1), "Motivo_No_Cancelar" VARCHAR, "Puede_Reutilizar" CHAR(1),
+               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "Personas_Resumen" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
 BEGIN
+    -- V1.1 2026-11-11 (D-233): + Tipo_Acceso_Codigo, Empresa_Destino_Codigo (etiquetas) y Personas_Resumen (personas con su documento)
     -- V1.0 2026-10-17
     RETURN QUERY
     SELECT S."ID_Solicitud", S."Codigo", S."ID_Catalogo_Sede", SE."Descripcion",
@@ -253,11 +281,13 @@ BEGIN
            CAST(R."Apellido_Paterno" || COALESCE(' ' || R."Apellido_Materno", '') || ', ' || R."Nombres" AS VARCHAR),
            O."Codigo", S."Fecha_Envio", S."CreateDate",
            I."Editar_Datos", I."Motivo_Editar_Datos", I."Modificar_Personal", I."Motivo_Modificar_Personal",
-           I."Cancelar", I."Motivo_Cancelar", CAST('Y' AS CHAR(1))
+           I."Cancelar", I."Motivo_Cancelar", CAST('Y' AS CHAR(1)),
+           CAST(TA."Codigo" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR), "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud")
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
       LEFT JOIN "Catalogo_Tipo_Acceso" TA ON TA."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
       LEFT JOIN "CAF_Solicitud" O ON O."ID_Solicitud" = S."ID_Solicitud_Origen"
      WHERE S."Eliminado" = 'N' AND S."ID_Usuario_Solicitante" = "HV_UsuarioID"
@@ -290,6 +320,7 @@ $$;
 --    visita exacta y estado.
 --    Por_Decidir_Mis = personas que este usuario puede decidir ahora en esa solicitud.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_BANDEJA_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, DATE, VARCHAR);
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_BANDEJA_LISTAR"(
     "HV_UsuarioID"        BIGINT,
     "HV_ID_Catalogo_Sede" BIGINT  DEFAULT NULL,
@@ -305,7 +336,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Empresa_Visitante" VARCHAR, "ID_Usuario_Solicitante" BIGINT, "Solicitante_Nombre" VARCHAR,
                "Estado" VARCHAR, "Avance" VARCHAR,
                "Total_Personas" INT, "Autorizadas" INT, "Observadas" INT, "Pendientes" INT, "Rechazadas" INT, "Retiradas" INT,
-               "Por_Decidir_Mis" INT, "Personas_Nombres" VARCHAR, "Fecha_Envio" TIMESTAMP)
+               "Por_Decidir_Mis" INT, "Personas_Nombres" VARCHAR, "Fecha_Envio" TIMESTAMP,
+               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -314,6 +346,7 @@ DECLARE
     lv_sol  VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Solicitante", '')));
     lv_per  VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Persona", '')));
 BEGIN
+    -- V1.1 2026-11-11 (D-233): + Tipo_Acceso_Codigo y Empresa_Destino_Codigo (etiquetas); Personas_Nombres ahora trae el documento
     -- V1.0 2026-10-17
     IF lv_pest NOT IN ('POR_DECIDIR', 'TODAS') THEN RETURN; END IF;
     RETURN QUERY
@@ -326,14 +359,11 @@ BEGIN
            S."Estado", I."Avance",
            I."Total_Personas", I."Autorizadas", I."Observadas", I."Pendientes", I."Rechazadas", I."Retiradas",
            CAST(COALESCE(D.n, 0) AS INT),
-           CAST(LEFT((SELECT STRING_AGG(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres",
-                                        ' | ' ORDER BY P."ID_Solicitud_Persona")
-                        FROM "CAF_Solicitud_Persona" P
-                        JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
-                       WHERE P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" <> 'RETIRADA'), 1000) AS VARCHAR),
-           S."Fecha_Envio"
+           "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud"),
+           S."Fecha_Envio", CAST(TA."Codigo" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR)
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
       LEFT JOIN (SELECT X."ID_Solicitud" AS id_sol, COUNT(DISTINCT X."ID_Solicitud_Persona") AS n
                    FROM "ERP_CAF_SOLICITUD_PASOS_DECIDIBLES"("HV_UsuarioID", NULL) X
                   GROUP BY X."ID_Solicitud") D ON D.id_sol = S."ID_Solicitud"
@@ -423,7 +453,7 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Puede_Decidir" CHAR(1), "Por_Decidir_Mis" INT,
                "Tipo_Acceso_Codigo" VARCHAR, "Requiere_Cochera" CHAR(1), "Placa_Vehiculo" VARCHAR, "Area_Detalle" VARCHAR,
                "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR,
-               "ID_Empresa_Destino" BIGINT, "Empresa_Destino" VARCHAR)
+               "ID_Empresa_Destino" BIGINT, "Empresa_Destino" VARCHAR, "Empresa_Destino_Codigo" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -488,7 +518,7 @@ BEGIN
            CAST(CASE WHEN lv_dec > 0 THEN 'Y' ELSE 'N' END AS CHAR(1)), lv_dec,
            TA."Codigo", S."Requiere_Cochera", S."Placa_Vehiculo", S."Area_Detalle",
            S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos",
-           S."ID_Catalogo_Empresa_Grupo_Destino", EG."Descripcion"
+           S."ID_Catalogo_Empresa_Grupo_Destino", EG."Descripcion", CAST(EG."Codigo" AS VARCHAR)
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
@@ -721,7 +751,8 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Solicitud" BIGINT, "Codigo" VA
                "Estado" VARCHAR, "Grupo" VARCHAR, "Fecha_Hora_Ingreso" TIMESTAMP, "Fecha_Hora_Salida" TIMESTAMP,
                "Acceso_Restringido" CHAR(1), "Trae_Equipos" CHAR(1), "Trae_Herramientas" CHAR(1),
                "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR, "Es_Proveedor" CHAR(1), "Estado_Operativo" VARCHAR, "Disponibilidad_Confirmada" CHAR(1),
-               "Tipo_Acceso" VARCHAR, "Es_Transportista" CHAR(1), "Verificada" CHAR(1), "Franja_Estado" VARCHAR)
+               "Tipo_Acceso" VARCHAR, "Es_Transportista" CHAR(1), "Verificada" CHAR(1), "Franja_Estado" VARCHAR,
+               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -729,6 +760,7 @@ DECLARE
     lv_txt   VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
     lv_grupo VARCHAR(30)  := UPPER(TRIM(COALESCE("HV_Grupo", 'TODOS')));
 BEGIN
+    -- V1.6 2026-11-11 (D-233): + Tipo_Acceso_Codigo y Empresa_Destino_Codigo (etiquetas de tipo y de empresa que recibe)
     -- V1.5 2026-11-09 (D-227): contratista por franja: aparece en cada día autorizado; con texto de búsqueda también hoy aunque
     --   no sea día autorizado (llegada fuera de franja). + Franja_Estado (NA / DENTRO / FUERA según el momento actual)
     -- V1.4 2026-11-09 (D-225): + Es_Transportista y Verificada; el estado operativo de la entrega viaja en TODAS sus personas
@@ -758,9 +790,11 @@ BEGIN
            CAST(TX."Descripcion" AS VARCHAR),
            CAST("ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") AS CHAR(1)),
            CAST(CASE WHEN P."Fecha_Verificacion" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
-           CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR)
+           CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR),
+           CAST(TX."Codigo" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR)
       FROM "CAF_Solicitud" S
       LEFT JOIN "Catalogo_Tipo_Acceso" TX ON TX."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
       JOIN "CAF_Solicitud_Persona" P ON P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N' AND P."Aprobacion" = 'APROBADA'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
