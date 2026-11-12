@@ -44,7 +44,7 @@ public sealed class ChecklistPorteriaController : Controller
         var t = await _tipos.ObtenerDropdownAsync(ct);
         if (!t.Success) return Json(new { success = false, message = t.Message });
 
-        var s = await _tipos.ListarSubtiposAsync(ct);
+        var s = await _tipos.ListarSubtiposAsync(true, ct);   // D-234: también los desactivados, para no perder lo ya asignado
         if (!s.Success) return Json(new { success = false, message = s.Message });
 
         var filas = r.Data!.Select(x => new
@@ -55,7 +55,7 @@ public sealed class ChecklistPorteriaController : Controller
             tipos = (x.Tipos_IDs ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Par).ToList(),
         }).ToList();
         var tipos = t.Data!.Select(x => new { id = x.ID_Catalogo, codigo = x.Codigo, nombre = x.Descripcion }).ToList();
-        var subtipos = s.Data!.Select(x => new { id = x.ID_Tipo_Acceso_Subtipo, tipoId = x.ID_Catalogo_Tipo_Acceso, nombre = x.Descripcion }).ToList();
+        var subtipos = s.Data!.Select(x => new { id = x.ID_Tipo_Acceso_Subtipo, tipoId = x.ID_Catalogo_Tipo_Acceso, nombre = x.Descripcion, activo = x.Activo == "Y" }).ToList();
         return Json(new { success = true, message = "", data = new { items = filas, tipos, subtipos } });
     }
 
@@ -121,7 +121,8 @@ public sealed class ChecklistPorteriaController : Controller
             if (!a.Success) return Respuesta(a);
         }
 
-        var asig = await _items.AsignarTiposAsync(id, m.Tipos.GroupBy(t => t.Tipo).Select(g => (g.Key, g.First().Subtipo)).ToList(), usuario, ct);
+        // D-234: un tipo puede repetirse con varios subtipos
+        var asig = await _items.AsignarTiposAsync(id, m.Tipos.Select(t => (t.Tipo, t.Subtipo)).Distinct().ToList(), usuario, ct);
         if (!asig.Success) return Falla("El ítem se guardó, pero no se pudo asignar a los tipos de ingreso: " + asig.Message);
         return Json(new { success = true, message = "" });
     }

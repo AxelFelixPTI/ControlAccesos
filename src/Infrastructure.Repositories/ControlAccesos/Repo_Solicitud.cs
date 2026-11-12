@@ -724,6 +724,8 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Puede_Reactivar            = RdBool(rd, "Puede_Reactivar"),
         Puede_Decidir              = RdBool(rd, "Puede_Decidir"),
         Pasos_Mis_Decidir          = RdStrN(rd, "Pasos_Mis_Decidir"),
+        ID_Tipo_Acceso_Subtipo     = RdLongN(rd, "ID_Tipo_Acceso_Subtipo"),
+        Subtipo                    = RdStrN(rd, "Subtipo"),
     };
 
     private static Dto_Solicitud_Paso MapSolicitud_Paso(DbDataReader rd) => new()

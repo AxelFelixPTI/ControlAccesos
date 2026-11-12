@@ -25,8 +25,14 @@ public sealed class Dto_Tipo_Acceso_Admin
 
 public sealed class Dto_Subtipo
 {
+    // V1.1 2026-11-12 (D-234): + Orden, Activo, Es_Predeterminado, Es_Sistema, Personas
     public long ID_Tipo_Acceso_Subtipo { get; set; }
     public long ID_Catalogo_Tipo_Acceso { get; set; }
     public string Codigo { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
+    public long Orden { get; set; }
+    public string Activo { get; set; } = "Y";
+    public string Es_Predeterminado { get; set; } = "N";
+    public string Es_Sistema { get; set; } = "N";   // TRANSPORTISTA: lo usa el flujo de proveedores, no se desactiva
+    public long Personas { get; set; }              // personas de solicitudes que ya tienen este rol
 }

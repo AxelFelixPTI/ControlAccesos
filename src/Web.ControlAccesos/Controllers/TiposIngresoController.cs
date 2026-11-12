@@ -43,6 +43,61 @@ public sealed class TiposIngresoController : Controller
         return Json(new { success = true, message = "", data = filas });
     }
 
+    // ── Subtipos (roles de persona) del tipo (D-234) ──────────────────────────────────
+    [HttpGet]
+    public async Task<IActionResult> Subtipos(long tipoId, CancellationToken ct)
+    {
+        var r = await _tipos.ListarSubtiposAsync(true, ct);
+        if (!r.Success) return Falla(r.Message);
+        var filas = r.Data!.Where(x => x.ID_Catalogo_Tipo_Acceso == tipoId).Select(x => new
+        {
+            id = x.ID_Tipo_Acceso_Subtipo, codigo = x.Codigo, descripcion = x.Descripcion, orden = x.Orden, activo = x.Activo == "Y",
+            predeterminado = x.Es_Predeterminado == "Y", sistema = x.Es_Sistema == "Y", personas = x.Personas,
+        }).ToList();
+        return Json(new { success = true, message = "", data = filas });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubtipoGuardar([FromBody] SubtipoGuardarVM m, CancellationToken ct)
+    {
+        var descripcion = (m.Descripcion ?? string.Empty).Trim();
+        if (descripcion.Length == 0) return Falla("Escriba el nombre del subtipo.");
+        if (descripcion.Length > 200) return Falla("El nombre no puede superar 200 caracteres.");
+        if (m.Orden is < 0 or > 9999) return Falla("El orden debe estar entre 0 y 9999.");
+        var usuario = User.UsuarioId();
+
+        var todos = await _tipos.ListarSubtiposAsync(true, ct);
+        if (!todos.Success) return Falla(todos.Message);
+        if (m.Id == 0)
+        {
+            if (m.TipoId <= 0) return Falla("Elija el tipo de ingreso.");
+            var delTipo = todos.Data!.Where(x => x.ID_Catalogo_Tipo_Acceso == m.TipoId).ToList();
+            if (delTipo.Any(x => Norm(x.Descripcion) == Norm(descripcion))) return Falla("Ya existe un subtipo con ese nombre en este tipo de ingreso.");
+            var c = await _tipos.SubtipoCrearAsync(m.TipoId, CodigoSubtipo(descripcion, delTipo), descripcion, m.CopiarDeId is > 0 ? m.CopiarDeId : null, usuario, ct);
+            return Json(new { success = c.Success, message = c.Message, errors = c.Errors.Select(e => new { field = e.Field, message = e.Message }) });
+        }
+        var actual = todos.Data!.FirstOrDefault(x => x.ID_Tipo_Acceso_Subtipo == m.Id);
+        if (actual is null) return Falla("Subtipo no encontrado.");
+        if (todos.Data!.Any(x => x.ID_Catalogo_Tipo_Acceso == actual.ID_Catalogo_Tipo_Acceso && x.ID_Tipo_Acceso_Subtipo != m.Id && Norm(x.Descripcion) == Norm(descripcion)))
+            return Falla("Ya existe un subtipo con ese nombre en este tipo de ingreso.");
+        var a = await _tipos.SubtipoActualizarAsync(m.Id, descripcion, m.Orden, usuario, ct);
+        return Json(new { success = a.Success, message = a.Message, errors = a.Errors.Select(e => new { field = e.Field, message = e.Message }) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubtipoEstado([FromBody] SubtipoEstadoVM m, CancellationToken ct)
+    {
+        var r = await _tipos.SubtipoEstadoAsync(m.Id, m.Activo, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubtipoPredeterminado([FromBody] SubtipoEstadoVM m, CancellationToken ct)
+    {
+        var r = await _tipos.SubtipoPredeterminadoAsync(m.Id, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message });
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Guardar([FromBody] TipoIngresoGuardarVM m, CancellationToken ct)
     {
@@ -103,6 +158,18 @@ public sealed class TiposIngresoController : Controller
         var sb = new StringBuilder();
         foreach (var c in d) if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
         return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    /// <summary>Código del subtipo desde su nombre (MAYUSCULAS_CON_GUION_BAJO, sin tildes); si ya existe en el tipo se agrega _2, _3...</summary>
+    private static string CodigoSubtipo(string texto, List<Dto_Subtipo> delTipo)
+    {
+        var baseCod = Regex.Replace(Quitar(texto).ToUpperInvariant(), "[^A-Z0-9]+", "_").Trim('_');
+        if (baseCod.Length == 0 || !char.IsLetter(baseCod[0])) baseCod = "ROL_" + baseCod;
+        baseCod = baseCod.Trim('_');
+        if (baseCod.Length > 44) baseCod = baseCod[..44].TrimEnd('_');
+        var cod = baseCod; var n = 2;
+        while (delTipo.Any(x => string.Equals(x.Codigo, cod, StringComparison.OrdinalIgnoreCase))) cod = baseCod + "_" + n++;
+        return cod;
     }
 
     /// <summary>MAYUSCULAS_CON_GUION_BAJO, sin tildes, hasta 50 caracteres; si ya existe se agrega _2, _3...</summary>

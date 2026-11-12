@@ -6,7 +6,7 @@
 -- Qué hace: apoyo de la pantalla de administración «Tipos de ingreso» (Catálogos). Crear/editar/activar usa
 --   ERP_CATALOGO_TIPO_ACCESO_CREAR / _ACTUALIZAR (ya existen). Este archivo agrega:
 --   1 ERP_CAF_TIPO_ACCESO_ADMIN_LISTAR  tipos con sus subtipos, pasos de aprobación, ítems de checklist y solicitudes
---   2 ERP_CAF_SUBTIPO_LISTAR            subtipos de persona por tipo (los define el desarrollo con el flujo)
+--   2 (ERP_CAF_SUBTIPO_LISTAR se movió a SP_CAF_SUBTIPO_ALL.sql, D-234)
 --   3 ERP_CAF_TIPO_ACCESO_PREPARAR      deja listo un tipo NUEVO: copia del tipo «Visita externa» sus pasos de aprobación y su checklist
 --                                       (si el tipo aún no tiene). Es el flujo estándar de visitante.
 -- =============================================================================
@@ -22,7 +22,7 @@ BEGIN
     RETURN QUERY
     SELECT T."ID_Catalogo_Tipo_Acceso", T."Codigo", T."Descripcion", T."Requiere_Aprobacion", T."Disponible", T."Orden", T."Activo",
            CAST((SELECT STRING_AGG(X."Descripcion", ', ' ORDER BY X."Orden", X."ID_Tipo_Acceso_Subtipo") FROM "Tipo_Acceso_Subtipo" X
-                  WHERE X."ID_Catalogo_Tipo_Acceso" = T."ID_Catalogo_Tipo_Acceso" AND X."Eliminado" = 'N') AS VARCHAR),
+                  WHERE X."ID_Catalogo_Tipo_Acceso" = T."ID_Catalogo_Tipo_Acceso" AND X."Eliminado" = 'N' AND X."Activo" = 'Y') AS VARCHAR),
            CAST((SELECT COUNT(*) FROM "Tipo_Acceso_Paso_Aprobacion" P WHERE P."ID_Catalogo_Tipo_Acceso" = T."ID_Catalogo_Tipo_Acceso" AND P."Eliminado" = 'N') AS BIGINT),
            CAST((SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" I WHERE I."ID_Catalogo_Tipo_Acceso" = T."ID_Catalogo_Tipo_Acceso" AND I."Eliminado" = 'N') AS BIGINT),
            CAST((SELECT COUNT(*) FROM "CAF_Solicitud" S WHERE S."ID_Catalogo_Tipo_Acceso" = T."ID_Catalogo_Tipo_Acceso") AS BIGINT)
@@ -33,20 +33,7 @@ END;
 $$;
 -- Prueba: SELECT * FROM "ERP_CAF_TIPO_ACCESO_ADMIN_LISTAR"();
 
-CREATE OR REPLACE FUNCTION "ERP_CAF_SUBTIPO_LISTAR"()
-RETURNS TABLE ("ID_Tipo_Acceso_Subtipo" BIGINT, "ID_Catalogo_Tipo_Acceso" BIGINT, "Codigo" VARCHAR, "Descripcion" VARCHAR)
-LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
-#variable_conflict use_column
-BEGIN
-    -- V1.0 2026-11-11
-    RETURN QUERY
-    SELECT X."ID_Tipo_Acceso_Subtipo", X."ID_Catalogo_Tipo_Acceso", X."Codigo", X."Descripcion"
-      FROM "Tipo_Acceso_Subtipo" X
-     WHERE X."Eliminado" = 'N' AND X."Activo" = 'Y'
-     ORDER BY X."ID_Catalogo_Tipo_Acceso", X."Orden", X."ID_Tipo_Acceso_Subtipo";
-END;
-$$;
--- Prueba: SELECT * FROM "ERP_CAF_SUBTIPO_LISTAR"();
+-- ERP_CAF_SUBTIPO_LISTAR pasó a SP_CAF_SUBTIPO_ALL.sql (HITO_02, D-234): ahora también administra los subtipos.
 
 CREATE OR REPLACE PROCEDURE "ERP_CAF_TIPO_ACCESO_PREPARAR"(
     IN    "HV_ID_Catalogo_Tipo_Acceso" BIGINT,

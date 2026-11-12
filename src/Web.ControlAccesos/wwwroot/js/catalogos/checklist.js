@@ -30,7 +30,7 @@
         if (!asig.length) return null;
         return asig.map(function (a) {
             var t = estado.tipos.filter(function (x) { return x.id === a.tipo; })[0];
-            return (t ? t.nombre : ('#' + a.tipo)) + (a.subtipo ? ' (solo ' + nombreSubtipo(a.subtipo).toLowerCase() + ')' : '');
+            return (t ? t.nombre : ('#' + a.tipo)) + (a.subtipo ? ' (' + nombreSubtipo(a.subtipo).toLowerCase() + ')' : '');
         }).join(', ');
     }
     document.addEventListener('caf:tipos-cambiaron', function () { cargar(); });
@@ -100,17 +100,26 @@
         var error = el('p', { class: 'field-e' });
 
         var cajasTipos = estado.tipos.map(function (t) {
-            var actual = item ? item.tipos.filter(function (a) { return a.tipo === t.id; })[0] : null;
-            var c = casilla(t.nombre, !!actual);
-            c.id = t.id;
+            var asignadas = item ? item.tipos.filter(function (a) { return a.tipo === t.id; }) : [];
             var subs = estado.subtipos.filter(function (x) { return x.tipoId === t.id; });
-            if (subs.length) {
-                c.sub = combo([['', 'A todas las personas del tipo']].concat(subs.map(function (x) { return [String(x.id), 'Solo: ' + x.nombre]; })), actual && actual.subtipo ? String(actual.subtipo) : '');
-                c.sub.disabled = !c.input.checked;
-                c.input.addEventListener('change', function () { c.sub.disabled = !c.input.checked; });
-                c.nodo = el('div', { class: 'stack' }, [c.nodo, c.sub]);
+            if (!subs.length) {
+                // Tipo sin subtipos: el checklist se define a nivel de tipo
+                var c = casilla(t.nombre, asignadas.length > 0);
+                c.elegidos = function () { return c.input.checked ? [{ tipo: t.id, subtipo: null }] : []; };
+                return c;
             }
-            return c;
+            // D-234: tipo con subtipos: el checklist se define POR SUBTIPO (una casilla por rol)
+            var porTodos = asignadas.some(function (a) { return !a.subtipo; });
+            var cs = subs.map(function (x) {
+                var marcada = porTodos || asignadas.some(function (a) { return a.subtipo === x.id; });
+                var k = casilla(x.nombre + (x.activo ? '' : ' (desactivado)'), marcada);
+                k.id = x.id;
+                return k;
+            });
+            return {
+                nodo: el('div', { class: 'stack' }, [el('strong', { text: t.nombre }), el('div', { class: 'stack sub-rol' }, cs.map(function (k) { return k.nodo; }))]),
+                elegidos: function () { return cs.filter(function (k) { return k.input.checked; }).map(function (k) { return { tipo: t.id, subtipo: k.id }; }); }
+            };
         });
 
         var cuerpo = el('div', { class: 'stack' });
@@ -139,9 +148,7 @@
                         id: item ? item.id : 0, descripcion: texto.value, ayuda: ayuda.value, etapa: etapa.value, condicion: condicion.value,
                         esCritico: critico.input.checked, activo: activo.input.checked,
                         orden: orden.value === '' ? null : parseInt(orden.value, 10),
-                        tipos: cajasTipos.filter(function (c) { return c.input.checked; }).map(function (c) {
-                            return { tipo: c.id, subtipo: c.sub && c.sub.value ? parseInt(c.sub.value, 10) : null };
-                        })
+                        tipos: cajasTipos.reduce(function (acc, c) { return acc.concat(c.elegidos()); }, [])
                     };
                     CAF.pedir(urlGuardar, { method: 'POST', body: envio }).then(function (r) {
                         if (!r.success) { error.textContent = r.message || 'No se pudo guardar.'; return; }

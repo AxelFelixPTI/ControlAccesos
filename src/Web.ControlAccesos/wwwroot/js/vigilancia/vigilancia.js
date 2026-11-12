@@ -10,9 +10,9 @@
     var modos = document.getElementById('v-modos'), desde = document.getElementById('v-desde'), hasta = document.getElementById('v-hasta');
     var cajaTexto = document.getElementById('v-texto'), pills = document.getElementById('v-pills');
     var panelNoAut = document.getElementById('v-noaut'), bloques = document.getElementById('v-bloques');
-    var opDesv = {}, sel = {};   // sel: personas marcadas para una acción en grupo (D-225), por id de persona
+    var opDesv = {};
 
-    var GRUPOS = [['TODOS', 'Todos'], ['POR_INGRESAR', 'Por ingresar'], ['DENTRO', 'Dentro'], ['SALIERON', 'Salieron'], ['DENEGADOS_NO_VINIERON', 'Denegados o no vinieron']];
+    var GRUPOS = [['TODOS', 'Todos'], ['POR_INGRESAR', 'Por ingresar'], ['DENTRO', 'Dentro'], ['CIERRE_FORZADO', 'Cierre forzado'], ['SALIERON', 'Salieron'], ['DENEGADOS_NO_VINIERON', 'Denegados o no vinieron']];
     var ESTADO = {
         ESPERADA: ['Por ingresar', 'c-pend'], DENTRO: ['Dentro', 'c-ok'], SALIO: ['Salió', 'c-line'],
         DENEGADA: ['Ingreso denegado', 'c-rec'], NO_SE_PRESENTO: ['No se presentó', 'c-can']
@@ -81,7 +81,9 @@
         });
     }
 
-    function cuenta(g) { return g === 'TODOS' ? todas.length : todas.filter(function (p) { return p.grupo === g; }).length; }
+    // El cierre forzado del día (la entrega se cerró sola y falta registrar la salida) es una categoría aparte: no se mezcla con «Dentro».
+    function grupoDe(p) { return p.estado === 'DENTRO' && p.estadoOp === 'CIERRE_FORZADO' ? 'CIERRE_FORZADO' : p.grupo; }
+    function cuenta(g) { return g === 'TODOS' ? todas.length : todas.filter(function (p) { return grupoDe(p) === g; }).length; }
 
     function pintar() {
         pills.textContent = '';
@@ -91,26 +93,24 @@
             pills.appendChild(el('button', { type: 'button', class: 'pill' + (grupo === g[0] ? ' on' : ''), text: g[1] + ' (' + cuenta(g[0]) + ')', onclick: function () { grupo = g[0]; pintar(); } }));
         });
         bloques.textContent = '';
-        var visibles = soloLectura ? todas : todas.filter(function (p) { return grupo === 'TODOS' || p.grupo === grupo; });
+        var visibles = soloLectura ? todas : todas.filter(function (p) { return grupo === 'TODOS' || grupoDe(p) === grupo; });
         if (!visibles.length) {
             bloques.appendChild(el('section', { class: 'card' }, [el('p', { class: 'vacio', text: todas.length ? 'No hay personas en este grupo.' : (texto ? 'Nadie coincide con la búsqueda.' : (soloLectura ? 'No hay personas aprobadas en esas fechas.' : 'No hay personas autorizadas para hoy.')) })]));
             return;
         }
         var orden = [], por = {};
         visibles.forEach(function (p) { if (!por[p.solicitudId]) { por[p.solicitudId] = []; orden.push(p.solicitudId); } por[p.solicitudId].push(p); });
-        // La selección solo conserva a quienes siguen en la lista (la lista se refresca sola).
-        var vivos = {}; todas.forEach(function (x) { vivos[x.id] = true; });
-        Object.keys(sel).forEach(function (k) { if (!vivos[k]) delete sel[k]; });
         orden.forEach(function (sid) {
             var l = por[sid], s = l[0];
             var exige = [s.exigeSctr ? 'SCTR' : null, s.exigeEpp ? 'EPP' : null].filter(Boolean).join(' y ');
             var cab = el('div', { class: 'blk-h' }, [
                 el('div', {}, [el('div', { class: 'blk-t' }, [el('strong', { text: s.empresa || '(sin empresa)' }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo)]), el('div', { class: 'field-h', text: s.codigo + ' · ' + (soloLectura ? 'visita ' + SOL.fechaLarga(s.fecha) + ' ' + s.hora : 'hora prevista ' + s.hora) + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
                 el('div', { class: 'vrow-e' }, [s.zonas ? el('span', { class: 'field-h', text: 'Zonas: ' + s.zonas }) : null, exige ? chip('Exige ' + exige, 'c-obs') : null,
-                    el('button', { type: 'button', class: 'btn btn-sm', text: 'Documentos', onclick: function () { documentos(s); } })])
+                    el('button', { type: 'button', class: 'btn btn-sm', text: 'Documentos', onclick: function () { documentos(s); } }),
+                    botonGrupo(s)])
             ]);
             var blk = el('section', { class: 'card blk' }, [cab]);
-            if (!soloLectura && s.esProveedor) blk.appendChild(barraGrupo(s, todas.filter(function (x) { return x.solicitudId === s.solicitudId; })));
+            if (!soloLectura && s.esProveedor) blk.appendChild(chipsEntrega(todas.filter(function (x) { return x.solicitudId === s.solicitudId; })));
             l.forEach(function (p) { blk.appendChild(fila(p, soloLectura)); });
             bloques.appendChild(blk);
         });
@@ -150,10 +150,6 @@
                 else if (op === 'CIERRE_FORZADO') extra = chip('Cerrada por el sistema · falta registrar su salida', 'c-rec');
                 else if (salidaProveedor(p, grp)) extra = chip('Puede salir para dar paso al siguiente vehículo', 'c-par');
             } else if (p.estado === 'NO_SE_PRESENTO') extra = chip(op === 'RETIRO_SIN_INGRESO' ? 'Se retiró sin ingresar' : 'No ingresó', 'c-can');
-            var cb = el('input', { type: 'checkbox', 'aria-label': 'Seleccionar a ' + p.nombre });
-            cb.checked = !!sel[p.id];
-            cb.addEventListener('change', function () { if (cb.checked) sel[p.id] = true; else delete sel[p.id]; pintar(); });
-            selector = el('label', { class: 'vsel' }, [cb]);
         }
         if (!prov && puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
         if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || salidaProveedor(p, todas.filter(function (x) { return x.solicitudId === p.solicitudId; })))) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: p.estadoOp === 'CIERRE_FORZADO' ? 'Registrar salida (tardía)' : 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
@@ -185,36 +181,107 @@
     function esVerificable(p) { var o = p.estadoOp; return p.estado === 'ESPERADA' && !p.verificada && (o === 'PROGRAMADO' || o === 'EN_ESPERA' || o === 'INGRESO' || o === 'EN_ATENCION'); }
     function esIngresable(p) { var o = p.estadoOp; return p.estado === 'ESPERADA' && p.verificada && (o === 'EN_ESPERA' || o === 'INGRESO' || o === 'EN_ATENCION'); }
 
-    // Barra de la entrega: contadores, selección por rol y acciones sobre lo marcado (un solo checklist para todos los marcados).
-    function barraGrupo(s, l) {
+    // Contadores de la entrega (proveedor): quedan como resumen; las acciones en grupo están en «Verificación en grupo».
+    function chipsEntrega(l) {
         var tr = l.filter(function (x) { return x.esTransportista; }), ay = l.filter(function (x) { return !x.esTransportista; });
         function n(arr, f) { return arr.filter(f).length; }
-        var marcadas = l.filter(function (x) { return sel[x.id]; });
-        var cont = el('div', { class: 'vrow-e vbar-c' }, [
+        return el('div', { class: 'vbar' }, [el('div', { class: 'vrow-e vbar-c' }, [
             chip('Transportistas: verificados ' + n(tr, function (x) { return x.verificada; }) + '/' + tr.length + ' · dentro ' + n(tr, function (x) { return x.estado === 'DENTRO'; }) +
                 (n(tr, function (x) { return x.estado === 'SALIO'; }) ? ' · salieron ' + n(tr, function (x) { return x.estado === 'SALIO'; }) : ''), 'c-line'),
-            ay.length ? chip('Ayudantes de descarga: ' + ay.length + ' · dentro ' + n(ay, function (x) { return x.estado === 'DENTRO'; }), 'c-line') : null]);
-        function marcar(f) { l.forEach(function (x) { if (f(x)) sel[x.id] = true; else delete sel[x.id]; }); pintar(); }
-        var seleccion = el('div', { class: 'vrow-e' }, [el('span', { class: 'field-h', text: 'Marcar:' }),
-            el('button', { type: 'button', class: 'btn btn-sm', text: 'Transportistas', onclick: function () { marcar(function (x) { return x.esTransportista; }); } }),
-            ay.length ? el('button', { type: 'button', class: 'btn btn-sm', text: 'Ayudantes', onclick: function () { marcar(function (x) { return !x.esTransportista; }); } }) : null,
-            el('button', { type: 'button', class: 'btn btn-sm', text: 'Todos', onclick: function () { marcar(function () { return true; }); } }),
-            marcadas.length ? el('button', { type: 'button', class: 'btn btn-sm', text: 'Ninguno', onclick: function () { marcar(function () { return false; }); } }) : null]);
-        var acc = [];
-        if (marcadas.length) {
-            var t = ' (' + marcadas.length + ')';
-            var todos = function (f) { return marcadas.every(f); };
-            if (puede && todos(esVerificable)) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Verificar datos' + t, onclick: function () { checklistGrupo('INGRESO', s, marcadas); } }));
-            if (puedeProv && todos(esIngresable)) {
-                var bi = el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar ingreso' + t });
-                if (marcadas[0].almacenListo) bi.addEventListener('click', function () { registrarIngreso(marcadas); }); else { bi.disabled = true; bi.classList.add('is-off'); bi.title = 'Almacén aún no confirmó su disponibilidad'; }
-                acc.push(bi);
-                acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Retiró sin ingresar' + t, onclick: function () { retiroPersonas(marcadas); } }));
-            }
-            if (puede && todos(function (x) { return salidaProveedor(x, l); })) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar salida' + t, onclick: function () { checklistGrupo('SALIDA', s, marcadas); } }));
-            if (!acc.length) acc.push(el('span', { class: 'field-h', text: 'Los marcados están en pasos distintos: marque solo a quienes estén en el mismo paso.' }));
+            ay.length ? chip('Ayudantes de descarga: ' + ay.length + ' · dentro ' + n(ay, function (x) { return x.estado === 'DENTRO'; }), 'c-line') : null])]);
+    }
+
+    // ── Verificación en grupo (2A): un solo botón por solicitud con 2 o más personas; modal por pasos ──────────
+    // Paso 1: qué acción (con cuántas personas pueden hacerla). Paso 2: a quiénes. Paso 3: el checklist o la confirmación de siempre.
+    function personasDe(s) { return todas.filter(function (x) { return x.solicitudId === s.solicitudId; }); }
+    function botonGrupo(s) {
+        if (modo === 'APROBADAS' || !(puede || puedeProv) || personasDe(s).length < 2) return null;
+        var hay = accionesGrupo(s, personasDe(s)).some(function (a) { return a.elegibles.length; });
+        var b = el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Verificación en grupo' });
+        // Sin ninguna acción posible el botón queda bloqueado (no abre un modal vacío); se habilita solo cuando alguien pueda avanzar.
+        if (hay) b.addEventListener('click', function () { grupoModal(s); });
+        else { b.disabled = true; b.classList.add('is-off'); b.title = 'Por ahora ninguna persona de esta solicitud tiene una acción disponible'; }
+        return b;
+    }
+    // Acciones posibles según el tipo. Proveedor: verificar → ingreso físico (o retiro) → salida. Resto de tipos: validar ingreso (checklist + registro en un paso) → salida.
+    function accionesGrupo(s, l) {
+        var prov = !!s.esProveedor, a = [];
+        if (prov) {
+            a.push({ id: 'VERIFICAR', titulo: 'Verificar datos', ayuda: 'Checklist de ingreso para todos los elegidos.', ok: puede, elegibles: l.filter(esVerificable),
+                abre: function (ps) { checklistGrupo('INGRESO', s, ps, true); } });
+            var ing = l.filter(esIngresable);
+            a.push({ id: 'INGRESO', titulo: 'Registrar ingreso', ayuda: 'Ya verificados; Almacén debe haber confirmado su disponibilidad.', ok: puedeProv, elegibles: ing.filter(function (x) { return x.almacenListo; }),
+                nota: ing.length && !ing.filter(function (x) { return x.almacenListo; }).length ? 'Almacén aún no confirmó su disponibilidad.' : null, abre: registrarIngreso });
+            a.push({ id: 'RETIRO', titulo: 'Retiró sin ingresar', ayuda: 'Ya verificados que se retiran sin ingresar (motivo obligatorio).', ok: puedeProv, elegibles: ing, abre: retiroPersonas });
+            a.push({ id: 'SALIDA', titulo: 'Registrar salida', ayuda: 'Checklist de salida para todos los elegidos.', ok: puede, elegibles: l.filter(function (x) { return salidaProveedor(x, l); }),
+                abre: function (ps) { checklistGrupo('SALIDA', s, ps, true); } });
+        } else {
+            a.push({ id: 'INGRESO', titulo: 'Validar ingreso', ayuda: 'Un solo checklist; quien trae equipos o herramientas se valida de forma individual.', ok: puede,
+                elegibles: l.filter(function (x) { return x.estado === 'ESPERADA' && !x.traeEquipos && !x.traeHerramientas; }), abre: function (ps) { checklistGrupo('INGRESO', s, ps, false); } });
+            a.push({ id: 'SALIDA', titulo: 'Registrar salida', ayuda: 'Checklist de salida para todos los elegidos.', ok: puede, elegibles: l.filter(function (x) { return x.estado === 'DENTRO'; }),
+                abre: function (ps) { checklistGrupo('SALIDA', s, ps, false); } });
         }
-        return el('div', { class: 'vbar' }, [cont, seleccion, acc.length ? el('div', { class: 'vrow-e' }, acc) : null]);
+        return a.filter(function (x) { return x.ok; });
+    }
+    // opc.accion + opc.saltar: abre directo en el paso 2 con esa acción y todos sus elegibles marcados (acceso directo del calendario).
+    function grupoModal(s, opc) {
+        opc = opc || {};
+        var l = personasDe(s), acciones = accionesGrupo(s, l), elegida = null, marcados = {};
+        var cuerpo = el('div', { class: 'stack' });
+        var mod = CAF.modal('Verificación en grupo · ' + s.codigo, cuerpo, [{ texto: 'Cancelar', onclick: function (c) { c(); } }], 'ancho');
+        function paso1() {
+            cuerpo.textContent = '';
+            cuerpo.appendChild(el('p', { class: 'field-h', text: (s.empresa || '') + ' · ' + s.codigo + ' · ' + l.length + ' personas' }));
+            cuerpo.appendChild(el('h4', { text: 'Paso 1 de 3 · ¿Qué desea hacer?' }));
+            var hay = false;
+            acciones.forEach(function (a) {
+                var n = a.elegibles.length, off = !n; if (n) hay = true;
+                var b = el('button', { type: 'button', class: 'btn vgrp-op' + (off ? ' is-off' : ''), onclick: function () { elegir(a); } }, [
+                    el('strong', { text: a.titulo }), el('span', { class: 'field-h', text: ' · ' + n + (n === 1 ? ' persona puede' : ' personas pueden') }),
+                    el('span', { class: 'field-h', text: ' — ' + (off && a.nota ? a.nota : a.ayuda) })]);
+                if (off) { b.disabled = true; }
+                cuerpo.appendChild(b);
+            });
+            if (!acciones.length) cuerpo.appendChild(el('p', { class: 'vacio', text: 'Su perfil no permite registrar acciones en esta solicitud.' }));
+            else if (!hay) cuerpo.appendChild(el('p', { class: 'vacio', text: 'Por ahora ninguna persona de esta solicitud tiene una acción disponible.' }));
+        }
+        function elegir(a) { elegida = a; marcados = {}; a.elegibles.forEach(function (x) { marcados[x.id] = true; }); paso2(); }
+        function paso2() {
+            cuerpo.textContent = '';
+            var a = elegida, prov = !!s.esProveedor;
+            cuerpo.appendChild(el('h4', { text: 'Paso 2 de 3 · ¿A quiénes? (' + a.titulo + ')' }));
+            function marcar(f) { marcados = {}; a.elegibles.forEach(function (x) { if (f(x)) marcados[x.id] = true; }); paso2(); }
+            var atajos = [el('span', { class: 'field-h', text: 'Atajos:' })];
+            if (prov) {
+                if (a.elegibles.some(function (x) { return x.esTransportista; })) atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Transportistas', onclick: function () { marcar(function (x) { return x.esTransportista; }); } }));
+                if (a.elegibles.some(function (x) { return !x.esTransportista; })) atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Ayudantes', onclick: function () { marcar(function (x) { return !x.esTransportista; }); } }));
+            }
+            atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Todos', onclick: function () { marcar(function () { return true; }); } }));
+            atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Ninguno', onclick: function () { marcar(function () { return false; }); } }));
+            cuerpo.appendChild(el('div', { class: 'vrow-e' }, atajos));
+            var ul = el('div', { class: 'stack' });
+            l.forEach(function (x) {
+                var puedeX = a.elegibles.indexOf(x) >= 0;
+                var cb = el('input', { type: 'checkbox', 'aria-label': 'Elegir a ' + x.nombre });
+                cb.checked = !!marcados[x.id]; cb.disabled = !puedeX;
+                cb.addEventListener('change', function () { if (cb.checked) marcados[x.id] = true; else delete marcados[x.id]; sinc(); });
+                var rol = prov ? (x.esTransportista ? 'Transportista' : 'Ayudante de descarga') : (x.subtipo || '');
+                ul.appendChild(el('label', { class: 'chk' + (puedeX ? '' : ' is-off') }, [cb, el('span', {}, [el('strong', { text: x.nombre }),
+                    el('span', { class: 'field-h', text: ' ' + docTexto(x) + (rol ? ' · ' + rol : '') + ' · ' + (ESTADO[x.estado] || [x.estado])[0] + (puedeX ? '' : ' · no disponible para esta acción') })])]));
+            });
+            cuerpo.appendChild(ul);
+            var sig = el('button', { type: 'button', class: 'btn btn-primary', text: 'Siguiente' });
+            function sinc() { var n = Object.keys(marcados).length; sig.disabled = !n; sig.textContent = 'Siguiente (' + n + ')'; }
+            sig.addEventListener('click', function () {
+                var ps = a.elegibles.filter(function (x) { return marcados[x.id]; });
+                if (!ps.length) return;
+                mod.cerrar(); a.abre(ps);   // paso 3: el checklist o la confirmación de siempre
+            });
+            sinc();
+            cuerpo.appendChild(el('div', { class: 'vrow-e' }, [el('button', { type: 'button', class: 'btn', text: 'Atrás', onclick: function () { opc.saltar = false; paso1(); } }), sig]));
+        }
+        var inicial = opc.accion ? acciones.filter(function (x) { return x.id === opc.accion && x.elegibles.length; })[0] : null;
+        if (opc.saltar && inicial) elegir(inicial); else paso1();
     }
 
     desde.addEventListener('change', cargar); hasta.addEventListener('change', cargar);
@@ -252,11 +319,11 @@
     }
     function nombres(personas) {
         var ul = el('ul', { class: 'vlista' });
-        personas.forEach(function (x) { ul.appendChild(el('li', { text: x.nombre + ' · ' + (x.esTransportista ? 'Transportista' : 'Ayudante de descarga') })); });
+        personas.forEach(function (x) { ul.appendChild(el('li', { text: x.nombre + (x.esProveedor ? ' · ' + (x.esTransportista ? 'Transportista' : 'Ayudante de descarga') : '') })); });
         return ul;
     }
     function ids(personas) { return personas.map(function (x) { return x.id; }); }
-    function listo(personas) { personas.forEach(function (x) { delete sel[x.id]; }); }
+    function listo() { }   // (2A) la selección ahora vive dentro del modal «Verificación en grupo»
 
     function registrarIngreso(personas) {
         var env = false;
@@ -300,12 +367,12 @@
     }
 
     // Verificar datos o registrar salida de varias personas con UN solo checklist; las respuestas se guardan por persona.
-    function checklistGrupo(etapa, s, personas) {
+    function checklistGrupo(etapa, s, personas, verif) {
         var ingreso = etapa === 'INGRESO', enviando = false, ctx = null;
         var cuerpo = el('div', { class: 'stack' }, [el('p', { class: 'vacio', text: 'Cargando...' })]);
-        CAF.modal((ingreso ? 'Verificar datos · ' : 'Registrar salida · ') + personas.length + ' persona(s)', cuerpo, [
+        CAF.modal((ingreso ? (verif ? 'Verificar datos · ' : 'Validar ingreso · ') : 'Registrar salida · ') + personas.length + ' persona(s)', cuerpo, [
             { texto: 'Cancelar', onclick: function (c) { c(); } },
-            { texto: ingreso ? 'Registrar verificación' : 'Registrar salida', tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviarGrupo(ctx, c, function (v) { enviando = v; }); } }
+            { texto: ingreso ? (verif ? 'Registrar verificación' : 'Registrar ingreso') : 'Registrar salida', tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviarGrupo(ctx, c, function (v) { enviando = v; }); } }
         ], 'ancho');
         itemsUnion(etapa, personas).then(function (u) {
             cuerpo.textContent = '';
@@ -640,6 +707,14 @@
     function abrirDirecta(id) {
         var l = brutas.filter(function (x) { return String(x.solicitudId) === id && x.esProveedor; });
         if (!l.length) { CAF.aviso('Esa entrega no está en la lista de hoy: solo se atiende el día programado.', 'warn'); return; }
+        // 2A: con 2 o más personas se abre «Verificación en grupo» ya en el paso 2, con la acción que toca y todos sus elegibles marcados
+        // (si la entrega ya fue recepcionada o cerrada, la acción es Registrar salida para todos, no solo para el chofer).
+        if (l.length > 1 && (puede || puedeProv)) {
+            var acs = accionesGrupo(l[0], l), pref = (l[0].estadoOp === 'RECEPCIONADO' || l[0].estadoOp === 'CIERRE_FORZADO') ? ['SALIDA', 'VERIFICAR', 'INGRESO'] : ['VERIFICAR', 'INGRESO', 'SALIDA'];
+            var hallada = null;
+            pref.forEach(function (k) { if (!hallada && acs.some(function (a) { return a.id === k && a.elegibles.length; })) hallada = k; });
+            if (hallada) { grupoModal(l[0], { accion: hallada, saltar: true }); return; }
+        }
         var op = l[0].estadoOp, pv = l.filter(esVerificable)[0], pi = l.filter(function (x) { return esIngresable(x) && x.esTransportista; })[0], ps = l.filter(function (x) { return puede && salidaProveedor(x, l); })[0];
         if (puede && pv) movimiento(pv, 'INGRESO', true);
         else if (puedeProv && pi && pi.almacenListo) registrarIngreso([pi]);

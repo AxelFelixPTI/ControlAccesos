@@ -28,6 +28,7 @@ public sealed class CorreccionAgregarVM
     public long SolicitudId { get; set; }
     public long PersonaId { get; set; }
     public string? Sustento { get; set; }
+    public long? SubtipoId { get; set; }               // D-234: rol de la persona (si el tipo tiene subtipos)
     /// <summary>D-226: solo en solicitudes de proveedor; si es transportista, sus datos son opcionales.</summary>
     public bool EsTransportista { get; set; }
     public string? Ruc { get; set; }

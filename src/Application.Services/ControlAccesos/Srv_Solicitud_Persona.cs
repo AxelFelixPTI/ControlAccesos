@@ -65,6 +65,20 @@ public sealed class Srv_Solicitud_Persona : ISrv_Solicitud_Persona
         }
     }
 
+    public async Task<Result> SubtipoAsignarAsync(long solicitudId, long personaExternaId, long subtipoId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.SubtipoAsignarAsync(solicitudId, personaExternaId, subtipoId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SUBTIPO_ASIGNAR Solicitud={ID} ERROR", solicitudId);
+            return Result.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result> RetirarAsync(long solicitudPersonaId, long usuarioId, CancellationToken ct = default)
     {
         try

@@ -831,8 +831,8 @@ BEGIN
     PERFORM pg_temp.chk('Proveedor: el tipo queda disponible', 'Y', pg_temp.q('SELECT "Disponible" FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = ''PROVEEDOR'''), '');
     PERFORM pg_temp.chk('Proveedor: solo VES lo recibe', 'VES', pg_temp.q('SELECT STRING_AGG("Codigo", '','') FROM "CAF_GOVERNANCE"."Catalogo_Sede" WHERE "Aplica_Proveedor" = ''Y'''), '');
     PERFORM pg_temp.chk('Proveedor: la esclusa vehicular exige SCTR y EPP', 'Y|Y', pg_temp.q('SELECT "Exige_SCTR" || ''|'' || "Exige_EPP" FROM "Catalogo_Zona_Acceso" WHERE "ID_Catalogo_Zona_Acceso" = ' || v_z_esc), '');
-    PERFORM pg_temp.chk('Proveedor: checklist = ingreso (identificación, SCTR, EPP, placa) y salida (documentación de la carga)', 'ING_EPP,ING_IDENTIDAD,ING_PLACA,ING_SCTR,SAL_PROVEEDOR_DOCUMENTOS',
-        pg_temp.q('SELECT STRING_AGG(I."Codigo", '','' ORDER BY I."Codigo") FROM "Tipo_Acceso_Item_Checklist" T JOIN "Catalogo_Item_Checklist" I ON I."ID_Catalogo_Item_Checklist" = T."ID_Catalogo_Item_Checklist" WHERE T."ID_Catalogo_Tipo_Acceso" = ' || v_prov), '');
+    PERFORM pg_temp.chk('Proveedor: checklist = ingreso (identificación, SCTR, EPP, placa) y salida (documentación de la carga)', 'ING_EPP,ING_IDENTIDAD,ING_PLACA,ING_SCTR,' || CASE WHEN EXISTS (SELECT 1 FROM "Catalogo_Item_Checklist" WHERE "Codigo" = 'SAL_AYUDANTE_VERIFICADO') THEN 'SAL_AYUDANTE_VERIFICADO,' ELSE '' END || 'SAL_PROVEEDOR_DOCUMENTOS',
+        pg_temp.q('SELECT STRING_AGG(DISTINCT I."Codigo", '','' ORDER BY I."Codigo") FROM "Tipo_Acceso_Item_Checklist" T JOIN "Catalogo_Item_Checklist" I ON I."ID_Catalogo_Item_Checklist" = T."ID_Catalogo_Item_Checklist" WHERE T."Eliminado" = ''N'' AND T."ID_Catalogo_Tipo_Acceso" = ' || v_prov), '');   -- D-234: una fila por subtipo (DISTINCT); SAL_AYUDANTE_VERIFICADO lo crea el script 27
     PERFORM pg_temp.chk('Proveedor: un paso de aprobación con la licencia de Coordinador de proveedores', '1|LIC_CAF_COORD_PROVEEDOR',
         pg_temp.q('SELECT COUNT(*) || ''|'' || MAX(L."Codigo") FROM "Tipo_Acceso_Paso_Aprobacion" S JOIN "CAF_GOVERNANCE"."Catalogo_Licencia" L ON L."ID_Catalogo_Licencia" = S."ID_Catalogo_Licencia" WHERE S."ID_Catalogo_Tipo_Acceso" = ' || v_prov), '');
 
@@ -903,6 +903,34 @@ BEGIN
     -- ===== Varios transportistas, cada uno con sus datos opcionales (D-223) =====
     PERFORM pg_temp.chk('Transportistas: CREAR directo deja la fila del principal con sus datos', '1|20123456789|ABC123|Volvo|Q12345678',
         pg_temp.q('SELECT COUNT(*) || ''|'' || MAX("Ruc") || ''|'' || MAX("Placa") || ''|'' || MAX("Marca") || ''|'' || MAX("Licencia") FROM "CAF_Solicitud_Transportista" WHERE "ID_Solicitud" = ' || v_sa), '');
+    -- ---------- D-234: el rol (subtipo) se guarda en la persona
+    PERFORM pg_temp.chk('Subtipo: el transportista de la entrega nace con el rol TRANSPORTISTA', 'TRANSPORTISTA',
+        pg_temp.q('SELECT MAX(X."Codigo") FROM "CAF_Solicitud_Persona" P JOIN "Tipo_Acceso_Subtipo" X ON X."ID_Tipo_Acceso_Subtipo" = P."ID_Tipo_Acceso_Subtipo" JOIN "CAF_Solicitud_Transportista" T ON T."ID_Solicitud_Persona" = P."ID_Solicitud_Persona" WHERE P."ID_Solicitud" = ' || v_sa), '');
+    PERFORM pg_temp.chk('Subtipo: quien no es transportista nace con el predeterminado (ayudante de descarga)', 'AYUDANTE_DESCARGA',
+        pg_temp.q('SELECT MAX(X."Codigo") FROM "CAF_Solicitud_Persona" P JOIN "Tipo_Acceso_Subtipo" X ON X."ID_Tipo_Acceso_Subtipo" = P."ID_Tipo_Acceso_Subtipo" WHERE P."ID_Solicitud" = ' || v_sa || ' AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Transportista" T WHERE T."ID_Solicitud_Persona" = P."ID_Solicitud_Persona")'), '');
+    CALL "ERP_CAF_SUBTIPO_CREAR"(v_prov, 'CONDUCTOR_PRB', 'Conductor de prueba', NULL, 0, v_id, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: crear uno nuevo (queda neutro y no predeterminado)', '100|N', v_cod || '|' || pg_temp.q('SELECT "Es_Predeterminado" FROM "Tipo_Acceso_Subtipo" WHERE "ID_Tipo_Acceso_Subtipo" = ' || v_id), v_msg);
+    SELECT P."ID_Persona_Externa" INTO v_q3 FROM "CAF_Solicitud_Persona" P WHERE P."ID_Solicitud" = v_sa AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Transportista" T WHERE T."ID_Solicitud_Persona" = P."ID_Solicitud_Persona") LIMIT 1;
+    IF v_q3 IS NOT NULL THEN
+        CALL "ERP_CAF_SOLICITUD_PERSONA_SUBTIPO_ASIGNAR"(v_sa, v_q3, v_id, 0, v_cod, v_msg);
+        PERFORM pg_temp.chk('Subtipo: asignar el rol nuevo a un ayudante', '100|CONDUCTOR_PRB', v_cod || '|' || pg_temp.q('SELECT X."Codigo" FROM "CAF_Solicitud_Persona" P JOIN "Tipo_Acceso_Subtipo" X ON X."ID_Tipo_Acceso_Subtipo" = P."ID_Tipo_Acceso_Subtipo" WHERE P."ID_Solicitud" = ' || v_sa || ' AND P."ID_Persona_Externa" = ' || v_q3), v_msg);
+        CALL "ERP_CAF_SOLICITUD_PERSONA_SUBTIPO_ASIGNAR"(v_sa, v_q3, pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''TRANSPORTISTA''')::BIGINT, 0, v_cod, v_msg);
+        PERFORM pg_temp.chk('Subtipo: Transportista sin datos de transportista se rechaza', '400', v_cod::TEXT, v_msg);
+        CALL "ERP_CAF_SOLICITUD_PERSONA_SUBTIPO_ASIGNAR"(v_sa, v_q3, 0, 0, v_cod, v_msg);
+        PERFORM pg_temp.chk('Subtipo: un rol que no es de este tipo de ingreso se rechaza', '400', v_cod::TEXT, v_msg);
+    END IF;
+    CALL "ERP_CAF_SOLICITUD_PERSONA_SUBTIPO_ASIGNAR"(v_sa, 0, v_id, 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: persona que no está en la solicitud', '404', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SUBTIPO_ESTADO"(v_id, 'N', 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: desactivar uno que no es predeterminado', '100', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SUBTIPO_ESTADO"(pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''AYUDANTE_DESCARGA''')::BIGINT, 'N', 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: el predeterminado no se desactiva', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SUBTIPO_ESTADO"(pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''TRANSPORTISTA''')::BIGINT, 'N', 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: Transportista no se desactiva', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SUBTIPO_CREAR"(v_prov, 'CONDUCTOR_PRB', 'Repetido', NULL, 0, v_id, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: código repetido en el mismo tipo', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SUBTIPO_CREAR"(v_prov, 'x y', 'Mal código', NULL, 0, v_id, v_cod, v_msg);
+    PERFORM pg_temp.chk('Subtipo: código no válido', '400', v_cod::TEXT, v_msg);
     v_tr_n := (SELECT COUNT(*) FROM "CAF_Solicitud");
     v_tr1 := v_q1::TEXT || CHR(31) || '20123456789' || CHR(31) || 'Transportes Rápido SAC' || CHR(31) || 'Av. Argentina 100' || CHR(31) || 'abc-123' || CHR(31) || 'Volvo' || CHR(31) || 'Q12345678';
     v_tr2 := v_q2::TEXT || CHR(31) || CHR(31) || 'Fletes Pedro' || CHR(31) || CHR(31) || 'xyz 987' || CHR(31) || CHR(31);
@@ -1703,6 +1731,24 @@ BEGIN
         v_ppa := pg_temp.sp(v_cxa, v_pa); v_ppb := pg_temp.sp(v_cxa, v_pb);
         CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_cxa, v_paso_c, 'APROBADA', NULL, v_ppa || ',' || v_ppb, v_u_coo, v_cant, v_cod, v_msg);
         PERFORM pg_temp.chk('D-227 aprobar: el Coordinador aprueba a las dos personas', '100', v_cod::TEXT, v_msg);
+
+        -- 2A: el ingreso y la salida EN GRUPO sirven para cualquier tipo con 2 o más personas (aquí, contratista); se deshace al terminar el bloque
+        DECLARE
+            g_t1 TEXT; g_t2 TEXT; g_t3 TEXT; g_t4 TEXT;
+        BEGIN
+            BEGIN
+                CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_cxa, v_ppa || ',' || v_ppb, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_cod, v_msg);
+                g_t1 := v_cod::TEXT;
+                g_t2 := pg_temp.q('SELECT STRING_AGG("Estado", ''|'' ORDER BY "ID_Solicitud_Persona") FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" IN (' || v_ppa || ',' || v_ppb || ')');
+                CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(v_cxa, v_ppa || ',' || v_ppb, COALESCE(pg_temp.items(v_ppa, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_cod, v_msg);
+                g_t3 := v_cod::TEXT;
+                g_t4 := pg_temp.q('SELECT COUNT(*) FROM "CAF_Registro_Acceso" WHERE "ID_Solicitud_Persona" IN (' || v_ppa || ',' || v_ppb || ') AND "Tipo_Movimiento" = ''SALIDA''');
+                RAISE EXCEPTION 'deshacer';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+            PERFORM pg_temp.chk('2A grupo (contratista): ingresar a 2 personas a la vez', '100|DENTRO|DENTRO', g_t1 || '|' || COALESCE(g_t2, ''), '');
+            PERFORM pg_temp.chk('2A grupo (contratista): salida de las 2 a la vez deja 2 registros de salida', '100|2', g_t3 || '|' || COALESCE(g_t4, ''), '');
+        END;
 
         -- Ingresos y salidas varias veces
         CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_ppa, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_ra, v_de, v_rs, v_cod, v_msg);

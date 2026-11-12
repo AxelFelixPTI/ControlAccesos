@@ -101,29 +101,25 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 2-ter. ERP_CAF_FN_SUBTIPO_PERSONA  (por solicitud-persona; D-232)
---        Id del subtipo (Tipo_Acceso_Subtipo) al que pertenece la persona dentro del tipo de su solicitud; NULL si el tipo no tiene
---        subtipos. ÚNICO lugar donde se codifica la regla: un flujo nuevo con subtipos agrega aquí su rama.
---        Proveedor: TRANSPORTISTA si figura en CAF_Solicitud_Transportista; si no, AYUDANTE_DESCARGA.
+-- 2-ter. ERP_CAF_FN_SUBTIPO_PERSONA  (por solicitud-persona; D-232, V1.1 D-234)
+--        Id del subtipo (Tipo_Acceso_Subtipo) de la persona dentro del tipo de su solicitud; NULL si el tipo no tiene subtipos.
+--        Desde D-234 el rol se GUARDA en CAF_Solicitud_Persona.ID_Tipo_Acceso_Subtipo (lo fija un trigger con el predeterminado del tipo y
+--        pasa a TRANSPORTISTA si la persona figura en CAF_Solicitud_Transportista). Si por algún motivo está vacío, se usa el predeterminado.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION "ERP_CAF_FN_SUBTIPO_PERSONA"("HV_ID_Solicitud_Persona" BIGINT)
 RETURNS BIGINT
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
-    lv_tipo BIGINT;
-    lv_cod  VARCHAR(50);
     lv_sub  BIGINT;
+    lv_tipo BIGINT;
 BEGIN
-    -- V1.0 2026-11-11
-    SELECT S."ID_Catalogo_Tipo_Acceso", T."Codigo" INTO lv_tipo, lv_cod
-      FROM "CAF_Solicitud_Persona" P
-      JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
-      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
+    -- V1.1 2026-11-12 (rol guardado en la persona) · V1.0 2026-11-11
+    SELECT P."ID_Tipo_Acceso_Subtipo", S."ID_Catalogo_Tipo_Acceso" INTO lv_sub, lv_tipo
+      FROM "CAF_Solicitud_Persona" P JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
      WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
-    IF lv_cod = 'PROVEEDOR' THEN
-        SELECT MAX(X."ID_Tipo_Acceso_Subtipo") INTO lv_sub FROM "Tipo_Acceso_Subtipo" X
-         WHERE X."ID_Catalogo_Tipo_Acceso" = lv_tipo AND X."Eliminado" = 'N'
-           AND X."Codigo" = CASE WHEN "ERP_CAF_FN_ES_TRANSPORTISTA"("HV_ID_Solicitud_Persona") = 'Y' THEN 'TRANSPORTISTA' ELSE 'AYUDANTE_DESCARGA' END;
+    IF lv_sub IS NULL AND lv_tipo IS NOT NULL THEN
+        SELECT X."ID_Tipo_Acceso_Subtipo" INTO lv_sub FROM "Tipo_Acceso_Subtipo" X
+         WHERE X."ID_Catalogo_Tipo_Acceso" = lv_tipo AND X."Es_Predeterminado" = 'Y' AND X."Eliminado" = 'N';
     END IF;
     RETURN lv_sub;
 END;

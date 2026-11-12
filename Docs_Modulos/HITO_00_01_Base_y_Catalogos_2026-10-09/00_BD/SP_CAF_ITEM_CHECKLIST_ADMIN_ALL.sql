@@ -2,7 +2,7 @@
 -- Archivo : SP_CAF_ITEM_CHECKLIST_ADMIN_ALL.sql
 -- Proyecto: Control de Accesos (piloto PostgreSQL, destino SAP HANA)
 -- Schema  : TRIANONSATELITAL_CAF_PRODD
--- Versión : V1.1 2026-11-11 (subtipo por asignación: «tipo:subtipo») · V1.0 2026-11-10
+-- Versión : V1.2 2026-11-12 (una fila por subtipo, D-234) · V1.1 2026-11-11 · V1.0 2026-11-10
 -- Qué hace: apoyo de la pantalla de administración «Checklist de portería» (Catálogos).
 --   1 ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR  ítems (activos e inactivos, sin eliminados) con los tipos de acceso a los que aplican
 --                                           y cuántas veces se usaron (si se usaron no se les cambia la etapa)
@@ -35,11 +35,32 @@ END;
 $$;
 -- Prueba: SELECT * FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"();
 
+-- Auxiliar: deja activa la fila (ítem, tipo, subtipo); la crea si no existe o la reactiva si estaba quitada.
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_ITEM_ASIGNAR_FILA"("HV_Item" BIGINT, "HV_Tipo" BIGINT, "HV_Subtipo" BIGINT, "HV_UsuarioID" BIGINT)
+RETURNS INT
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_fila BIGINT;
+BEGIN
+    SELECT MAX("ID_Tipo_Acceso_Item_Checklist") INTO lv_fila FROM "Tipo_Acceso_Item_Checklist"
+     WHERE "ID_Catalogo_Tipo_Acceso" = "HV_Tipo" AND "ID_Catalogo_Item_Checklist" = "HV_Item" AND COALESCE("ID_Tipo_Acceso_Subtipo", 0) = COALESCE("HV_Subtipo", 0);
+    IF lv_fila IS NULL THEN
+        INSERT INTO "Tipo_Acceso_Item_Checklist" ("ID_Catalogo_Tipo_Acceso","ID_Catalogo_Item_Checklist","ID_Tipo_Acceso_Subtipo","UsuarioID_Create")
+        VALUES ("HV_Tipo", "HV_Item", "HV_Subtipo", "HV_UsuarioID");
+    ELSE
+        UPDATE "Tipo_Acceso_Item_Checklist" SET "Eliminado" = 'N', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+         WHERE "ID_Tipo_Acceso_Item_Checklist" = lv_fila AND "Eliminado" = 'Y';
+    END IF;
+    RETURN 1;
+END;
+$$;
+
 -- -----------------------------------------------------------------------------
--- 2. ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS
---    HV_IDs_Tipo: tipos de acceso separados por coma ('' = ninguno); cada uno es «idTipo» (aplica a todas las personas del tipo)
---    o «idTipo:idSubtipo» (solo a las personas de ese subtipo, ej. '3:7'). Los tipos que no están en la lista se quitan (borrado lógico)
---    y los que están se asignan o reactivan con su subtipo. Un subtipo que no pertenece al tipo -> 400 sin cambiar nada.
+-- 2. ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS   (V1.2 2026-11-12, D-234: una fila por subtipo)
+--    HV_IDs_Tipo: lista separada por coma ('' = ninguno) con elementos «idTipo» o «idTipo:idSubtipo». Un tipo puede repetirse con varios
+--    subtipos ('3:7,3:8'). REGLA: si el tipo tiene subtipos activos el ítem se define por subtipo; un «idTipo» solo (sin subtipo) se toma
+--    como «todos los subtipos activos» de ese tipo. Un tipo sin subtipos se asigna con «idTipo». Lo que no está en la lista se quita
+--    (borrado lógico). Un tipo o subtipo inválido -> 400 sin cambiar nada (atómico).
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE PROCEDURE "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(
     IN    "HV_ID_Catalogo_Item_Checklist" BIGINT,
@@ -51,17 +72,15 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_n      INT := 0;
-    lv_lista  VARCHAR(520);
-    lv_tipo   BIGINT;
-    lv_quiere CHAR(1);
-    lv_sub    BIGINT;
-    lv_pos    INT;
     lv_resto  VARCHAR(520);
-    lv_fila   BIGINT;
-    lv_elim   CHAR(1);
+    lv_item   VARCHAR(40);
+    lv_tipo   BIGINT;
+    lv_sub    BIGINT;
+    lv_x      BIGINT;
     lv_pase   INT;
+    lv_p      INT;
 BEGIN
-    -- V1.1 2026-11-11 (subtipo) · V1.0 2026-11-10
+    -- V1.2 2026-11-12 (varios subtipos por tipo) · V1.1 2026-11-11 (subtipo) · V1.0 2026-11-10
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS';
     BEGIN
@@ -71,52 +90,52 @@ BEGIN
         SELECT COUNT(*) INTO lv_n FROM "Catalogo_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = "HV_ID_Catalogo_Item_Checklist" AND "Eliminado" = 'N';
         IF lv_n = 0 THEN "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El ítem no existe.'; RETURN; END IF;
 
-        -- La lista solo admite dígitos, «:» y comas
-        lv_lista := ',' || REPLACE(COALESCE(TRIM("HV_IDs_Tipo"), ''), ' ', '') || ',';
         IF COALESCE(TRIM("HV_IDs_Tipo"), '') <> '' AND REPLACE(TRIM("HV_IDs_Tipo"), ' ', '') !~ '^[0-9]+(:[0-9]+)?(,[0-9]+(:[0-9]+)?)*$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La lista de tipos de ingreso no es válida.'; RETURN;
         END IF;
 
-        -- Pase 1: validar (no cambia nada). Pase 2: aplicar.
+        -- Pase 1: validar (no cambia nada). Pase 2: quitar todo lo del ítem y reasignar lo pedido (todo en una transacción).
         FOR lv_pase IN 1..2 LOOP
-            lv_tipo := 0;
-            LOOP
-                SELECT MIN("ID_Catalogo_Tipo_Acceso") INTO lv_tipo FROM "Catalogo_Tipo_Acceso" WHERE "Eliminado" = 'N' AND "ID_Catalogo_Tipo_Acceso" > lv_tipo;
-                EXIT WHEN lv_tipo IS NULL;
-                lv_sub := NULL;
-                IF POSITION(',' || lv_tipo || ',' IN lv_lista) > 0 THEN
-                    lv_quiere := 'Y';
-                ELSIF POSITION(',' || lv_tipo || ':' IN lv_lista) > 0 THEN
-                    lv_quiere := 'Y';
-                    lv_pos   := POSITION(',' || lv_tipo || ':' IN lv_lista);
-                    lv_resto := SUBSTRING(lv_lista FROM lv_pos + LENGTH(',' || lv_tipo || ':'));
-                    lv_sub   := CAST(SUBSTRING(lv_resto FROM 1 FOR POSITION(',' IN lv_resto) - 1) AS BIGINT);
-                    SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Subtipo"
-                     WHERE "ID_Tipo_Acceso_Subtipo" = lv_sub AND "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "Eliminado" = 'N';
-                    IF lv_n = 0 THEN
-                        "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El subtipo elegido no pertenece a ese tipo de ingreso.'; RETURN;
-                    END IF;
+            IF lv_pase = 2 THEN
+                UPDATE "Tipo_Acceso_Item_Checklist" SET "Eliminado" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+                 WHERE "ID_Catalogo_Item_Checklist" = "HV_ID_Catalogo_Item_Checklist" AND "Eliminado" = 'N'
+                   AND ("ID_Tipo_Acceso_Subtipo" IS NULL OR NOT (',' || REPLACE(TRIM(COALESCE("HV_IDs_Tipo", '')), ' ', '') || ',' LIKE
+                        '%,' || "ID_Catalogo_Tipo_Acceso" || ':' || "ID_Tipo_Acceso_Subtipo" || ',%'));
+                -- (lo que quedó activo es exactamente lo pedido con subtipo; el resto se reasigna abajo)
+            END IF;
+            lv_resto := REPLACE(TRIM(COALESCE("HV_IDs_Tipo", '')), ' ', '');
+            WHILE lv_resto <> '' LOOP
+                lv_p := POSITION(',' IN lv_resto);
+                IF lv_p = 0 THEN lv_item := lv_resto; lv_resto := ''; ELSE lv_item := SUBSTRING(lv_resto FROM 1 FOR lv_p - 1); lv_resto := SUBSTRING(lv_resto FROM lv_p + 1); END IF;
+                IF POSITION(':' IN lv_item) > 0 THEN
+                    lv_tipo := CAST(SUBSTRING(lv_item FROM 1 FOR POSITION(':' IN lv_item) - 1) AS BIGINT);
+                    lv_sub  := CAST(SUBSTRING(lv_item FROM POSITION(':' IN lv_item) + 1) AS BIGINT);
                 ELSE
-                    lv_quiere := 'N';
+                    lv_tipo := CAST(lv_item AS BIGINT); lv_sub := NULL;
+                END IF;
+                SELECT COUNT(*) INTO lv_n FROM "Catalogo_Tipo_Acceso" WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "Eliminado" = 'N';
+                CONTINUE WHEN lv_n = 0;   -- un tipo que no existe se ignora (igual que antes)
+                IF lv_sub IS NOT NULL THEN
+                    SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Subtipo" WHERE "ID_Tipo_Acceso_Subtipo" = lv_sub AND "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "Eliminado" = 'N';
+                    IF lv_n = 0 THEN "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El subtipo elegido no pertenece a ese tipo de ingreso.'; RETURN; END IF;
                 END IF;
                 CONTINUE WHEN lv_pase = 1;
 
-                SELECT MAX("ID_Tipo_Acceso_Item_Checklist"), MAX("Eliminado") INTO lv_fila, lv_elim
-                  FROM "Tipo_Acceso_Item_Checklist"
-                 WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "ID_Catalogo_Item_Checklist" = "HV_ID_Catalogo_Item_Checklist";
-                IF lv_quiere = 'Y' THEN
-                    IF lv_fila IS NULL THEN
-                        INSERT INTO "Tipo_Acceso_Item_Checklist" ("ID_Catalogo_Tipo_Acceso","ID_Catalogo_Item_Checklist","ID_Tipo_Acceso_Subtipo","UsuarioID_Create")
-                        VALUES (lv_tipo, "HV_ID_Catalogo_Item_Checklist", lv_sub, "HV_UsuarioID");
+                IF lv_sub IS NOT NULL THEN
+                    PERFORM "ERP_CAF_FN_ITEM_ASIGNAR_FILA"("HV_ID_Catalogo_Item_Checklist", lv_tipo, lv_sub, "HV_UsuarioID");
+                ELSE
+                    SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Subtipo" WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "Eliminado" = 'N' AND "Activo" = 'Y';
+                    IF lv_n = 0 THEN
+                        PERFORM "ERP_CAF_FN_ITEM_ASIGNAR_FILA"("HV_ID_Catalogo_Item_Checklist", lv_tipo, NULL, "HV_UsuarioID");
                     ELSE
-                        UPDATE "Tipo_Acceso_Item_Checklist" SET "Eliminado" = 'N', "ID_Tipo_Acceso_Subtipo" = lv_sub,
-                               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-                         WHERE "ID_Tipo_Acceso_Item_Checklist" = lv_fila
-                           AND ("Eliminado" = 'Y' OR "ID_Tipo_Acceso_Subtipo" IS DISTINCT FROM lv_sub);
+                        lv_x := 0;
+                        LOOP
+                            SELECT MIN("ID_Tipo_Acceso_Subtipo") INTO lv_x FROM "Tipo_Acceso_Subtipo"
+                             WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo AND "Eliminado" = 'N' AND "Activo" = 'Y' AND "ID_Tipo_Acceso_Subtipo" > lv_x;
+                            EXIT WHEN lv_x IS NULL;
+                            PERFORM "ERP_CAF_FN_ITEM_ASIGNAR_FILA"("HV_ID_Catalogo_Item_Checklist", lv_tipo, lv_x, "HV_UsuarioID");
+                        END LOOP;
                     END IF;
-                ELSIF lv_fila IS NOT NULL AND lv_elim = 'N' THEN
-                    UPDATE "Tipo_Acceso_Item_Checklist" SET "Eliminado" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-                     WHERE "ID_Tipo_Acceso_Item_Checklist" = lv_fila;
                 END IF;
             END LOOP;
         END LOOP;
@@ -129,4 +148,4 @@ BEGIN
     END;
 END;
 $$;
--- Prueba: CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(1, '1,3:7', 0);
+-- Prueba: CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(1, '1,3:7,3:8', 0);

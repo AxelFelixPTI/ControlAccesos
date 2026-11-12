@@ -41,4 +41,6 @@ public sealed class Dto_Solicitud_Persona
     public bool Puede_Reactivar { get; set; }
     public bool Puede_Decidir { get; set; }
     public string? Pasos_Mis_Decidir { get; set; }
+    public long? ID_Tipo_Acceso_Subtipo { get; set; }      // D-234: rol de la persona (nulo si el tipo no tiene subtipos)
+    public string? Subtipo { get; set; }                   // D-234: nombre del rol
 }

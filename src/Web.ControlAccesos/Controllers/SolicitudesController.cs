@@ -79,6 +79,8 @@ public sealed class SolicitudesController : Controller
         var motivos = await _motivos.ListarAsync(false, ct);
         var td = await _tiposDoc.ObtenerDropdownAsync(ct);
         var grupo = await _empresasGrupo.ObtenerDropdownAsync(ct);
+        var subs = await _tipos.ListarSubtiposAsync(false, ct);   // D-234: roles de persona activos por tipo
+        if (!subs.Success) return Falla(subs.Message);
         var falla = new[] { tipos.Success ? null : tipos.Message, sedes.Success ? null : sedes.Message, motivos.Success ? null : motivos.Message, td.Success ? null : td.Message, grupo.Success ? null : grupo.Message }.FirstOrDefault(x => x is not null);
         if (falla is not null) return Falla(falla);
         if (!tipos.Data!.Any(t => t.Usable)) return Falla("No hay un tipo de ingreso disponible. Pida al administrador que lo habilite en Catálogos.");
@@ -108,6 +110,8 @@ public sealed class SolicitudesController : Controller
                 tiposDoc = td.Data!.Select(x => new { id = x.ID_Catalogo, texto = x.Codigo }),
                 // Proveedor: empresas del grupo que pueden recibir la entrega
                 empresasGrupo = grupo.Data!.Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion }),
+                // D-234: roles (subtipos) por tipo de ingreso; si un tipo no tiene, no se pide el rol
+                subtipos = subs.Data!.Select(x => new { id = x.ID_Tipo_Acceso_Subtipo, tipoId = x.ID_Catalogo_Tipo_Acceso, codigo = x.Codigo, texto = x.Descripcion, predeterminado = x.Es_Predeterminado == "Y" }),
             }
         });
     }
@@ -218,7 +222,9 @@ public sealed class SolicitudesController : Controller
             }).ToList(),
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
-        return Json(new { success = true, message = r.Message, data = new { id = r.Data!.ID_Solicitud, codigo = r.Data.Codigo } });
+        // D-234: rol de cada persona (la solicitud ya existe; quien no trae rol queda con el predeterminado del tipo)
+        var avisoRoles = await AplicarRolesAsync(r.Data!.ID_Solicitud, m.Subtipos, ct);
+        return Json(new { success = true, message = r.Message, data = new { id = r.Data!.ID_Solicitud, codigo = r.Data.Codigo, avisoRoles } });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -295,6 +301,7 @@ public sealed class SolicitudesController : Controller
                     aprobacion = p.Aprobacion, mensaje = p.Aprobacion_Mensaje, aprobadoPor = p.Aprobado_Por_Nombre, estado = p.Estado,
                     puedeRetirar = p.Puede_Retirar, puedeCorregir = p.Puede_Corregir, puedeReactivar = p.Puede_Reactivar,
                     esTransportista = tra.Data!.Any(t => t.ID_Solicitud_Persona == p.ID_Solicitud_Persona),
+                    subtipoId = p.ID_Tipo_Acceso_Subtipo, subtipo = p.Subtipo,   // D-234: rol de la persona
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }
@@ -305,7 +312,24 @@ public sealed class SolicitudesController : Controller
     public async Task<IActionResult> PersonaAgregar([FromBody] SolicitudPersonaVM m, CancellationToken ct)
     {
         var r = await _solPer.AgregarAsync(m.SolicitudId, m.PersonaId, User.UsuarioId(), ct);
+        if (r.Success && m.SubtipoId is > 0)
+        {
+            var s = await _solPer.SubtipoAsignarAsync(m.SolicitudId, m.PersonaId, m.SubtipoId.Value, User.UsuarioId(), ct);
+            if (!s.Success) return Json(new { success = true, message = r.Message + " Pero no se pudo fijar su rol: " + s.Message, errors = Errores(r) });
+        }
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-234: fija el rol de cada persona tras crear la solicitud. Devuelve un aviso si alguno no se pudo fijar (la solicitud ya existe).</summary>
+    private async Task<string?> AplicarRolesAsync(long solicitudId, List<SubtipoPersonaVM>? roles, CancellationToken ct)
+    {
+        string? aviso = null;
+        foreach (var x in (roles ?? new()).Where(x => x.PersonaId > 0 && x.SubtipoId > 0))
+        {
+            var s = await _solPer.SubtipoAsignarAsync(solicitudId, x.PersonaId, x.SubtipoId, User.UsuarioId(), ct);
+            if (!s.Success) aviso = "No se pudo fijar el rol de alguna persona: " + s.Message;
+        }
+        return aviso;
     }
 
     [HttpPost, ValidateAntiForgeryToken]

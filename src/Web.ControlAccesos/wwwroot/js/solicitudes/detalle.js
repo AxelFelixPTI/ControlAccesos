@@ -156,7 +156,7 @@
             if (p.puedeReactivar) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver a agregar', onclick: function () { accion(d.urlAgregar, { solicitudId: id, personaId: p.personaId }, null, null, 'Persona agregada de nuevo.'); } }));
             ul.appendChild(el('li', { class: p.aprobacion === 'RETIRADA' ? 'ret' : '' }, [
                 el('div', { class: 'plist-m' }, [
-                    el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), s.tipoCodigo === 'PROVEEDOR' ? el('span', { class: 'chip c-line', text: p.esTransportista ? 'Transportista' : 'Ayudante de descarga' }) : null]),
+                    el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), (p.subtipo || s.tipoCodigo === 'PROVEEDOR') ? el('span', { class: 'chip c-line', text: p.subtipo || (p.esTransportista ? 'Transportista' : 'Ayudante de descarga') }) : null]),
                     el('div', { class: 'field-h', text: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }),
                     nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null
                 ]),

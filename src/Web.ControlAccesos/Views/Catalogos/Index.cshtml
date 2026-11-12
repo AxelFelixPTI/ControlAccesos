@@ -1,7 +1,9 @@
 @{ ViewData["Titulo"] = "Catálogos"; ViewData["Migas"] = "Administración · Sede VES"; }
 <div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")"
      data-url-ck-listar="@Url.Action("Listar", "ChecklistPorteria")" data-url-ck-guardar="@Url.Action("Guardar", "ChecklistPorteria")"
-     data-url-tp-listar="@Url.Action("Listar", "TiposIngreso")" data-url-tp-guardar="@Url.Action("Guardar", "TiposIngreso")">
+     data-url-tp-listar="@Url.Action("Listar", "TiposIngreso")" data-url-tp-guardar="@Url.Action("Guardar", "TiposIngreso")"
+     data-url-sub-listar="@Url.Action("Subtipos", "TiposIngreso")" data-url-sub-guardar="@Url.Action("SubtipoGuardar", "TiposIngreso")"
+     data-url-sub-estado="@Url.Action("SubtipoEstado", "TiposIngreso")" data-url-sub-pred="@Url.Action("SubtipoPredeterminado", "TiposIngreso")">
     @Html.AntiForgeryToken()
 
     <section class="card">

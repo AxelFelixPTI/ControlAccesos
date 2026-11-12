@@ -180,20 +180,25 @@ public sealed class Repo_Catalogo_Tipo_Acceso : RepoHelpers, IRepo_Catalogo_Tipo
         }
     }
 
-    public async Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(CancellationToken ct = default)
+    public async Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(bool incluirInactivos = false, CancellationToken ct = default)
     {
         try
         {
             var lista = await _exec.EjecutarLecturaAsync(
                 clave: Conn,
                 funcion: "ERP_CAF_SUBTIPO_LISTAR",
-                bind: _ => { },
+                bind: p => AddChar1(p, "HV_Incluir_Inactivos", incluirInactivos ? "Y" : "N"),
                 map: rd => new Dto_Subtipo
                 {
                     ID_Tipo_Acceso_Subtipo  = RdLong(rd, "ID_Tipo_Acceso_Subtipo"),
                     ID_Catalogo_Tipo_Acceso = RdLong(rd, "ID_Catalogo_Tipo_Acceso"),
                     Codigo      = RdStr(rd, "Codigo"),
                     Descripcion = RdStr(rd, "Descripcion"),
+                    Orden       = RdLong(rd, "Orden"),
+                    Activo      = RdStr(rd, "Activo"),
+                    Es_Predeterminado = RdStr(rd, "Es_Predeterminado"),
+                    Es_Sistema  = RdStr(rd, "Es_Sistema"),
+                    Personas    = RdLong(rd, "Personas"),
                 },
                 ct: ct);
             return Result<List<Dto_Subtipo>>.Ok(lista);
@@ -202,6 +207,66 @@ public sealed class Repo_Catalogo_Tipo_Acceso : RepoHelpers, IRepo_Catalogo_Tipo
         {
             return Result<List<Dto_Subtipo>>.Fail(ex.InnerException?.Message ?? ex.Message);
         }
+    }
+
+    // ── Subtipos administrables (D-234) ────────────────────────────
+    public async Task<ResultSp<long>> SubtipoCrearAsync(long idTipo, string codigo, string descripcion, long? idSubtipoCopiar, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraConIdAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SUBTIPO_CREAR",
+            columnaId: "HV_ID_Subtipo_Result",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Catalogo_Tipo_Acceso", idTipo);
+                AddStrReq(p, "HV_Codigo", codigo);
+                AddStrReq(p, "HV_Descripcion", descripcion);
+                AddLong(p, "HV_ID_Subtipo_Copiar", idSubtipoCopiar);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> SubtipoActualizarAsync(long idSubtipo, string descripcion, long? orden, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SUBTIPO_ACTUALIZAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Tipo_Acceso_Subtipo", idSubtipo);
+                AddStrReq(p, "HV_Descripcion", descripcion);
+                AddLong(p, "HV_Orden", orden);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> SubtipoEstadoAsync(long idSubtipo, bool activo, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SUBTIPO_ESTADO",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Tipo_Acceso_Subtipo", idSubtipo);
+                AddChar1(p, "HV_Activo", activo ? "Y" : "N");
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> SubtipoPredeterminadoAsync(long idSubtipo, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SUBTIPO_PREDETERMINADO",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Tipo_Acceso_Subtipo", idSubtipo);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
     }
 
     public async Task<ResultSp> PrepararAsync(long idTipo, long usuarioId, CancellationToken ct = default)

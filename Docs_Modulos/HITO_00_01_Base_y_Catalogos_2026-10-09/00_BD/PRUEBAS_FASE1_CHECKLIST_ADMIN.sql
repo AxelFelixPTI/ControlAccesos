@@ -12,6 +12,9 @@ CREATE TEMP TABLE "_Prueba" ("N" SERIAL, "Caso" VARCHAR(200), "Esperado" VARCHAR
 CREATE FUNCTION pg_temp.chk(p_caso TEXT, p_esp TEXT, p_obt TEXT, p_msg TEXT DEFAULT NULL) RETURNS VOID LANGUAGE sql AS $$
     INSERT INTO "_Prueba" ("Caso","Esperado","Obtenido","Mensaje") VALUES (p_caso, p_esp, COALESCE(p_obt,'(nulo)'), p_msg); $$;
 CREATE FUNCTION pg_temp.q(p_sql TEXT) RETURNS TEXT LANGUAGE plpgsql AS $$ DECLARE r TEXT; BEGIN EXECUTE p_sql INTO r; RETURN r; END $$;
+-- Tipos (sin repetir) a los que aplica un ítem; Tipos_IDs trae «tipo» o «tipo:subtipo» y un tipo con subtipos aparece una vez por subtipo (D-234)
+CREATE FUNCTION pg_temp.tp(p_item BIGINT) RETURNS TEXT LANGUAGE sql AS $$
+    SELECT STRING_AGG(DISTINCT SPLIT_PART(x, ':', 1), ',' ORDER BY SPLIT_PART(x, ':', 1)) FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() L, UNNEST(STRING_TO_ARRAY(L."Tipos_IDs", ',')) x WHERE L."ID_Catalogo_Item_Checklist" = p_item $$;
 CREATE FUNCTION pg_temp.tt(p_cod TEXT) RETURNS BIGINT LANGUAGE sql AS $$ SELECT "ID_Catalogo_Tipo_Acceso" FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = p_cod $$;
 
 DO $$
@@ -23,7 +26,7 @@ BEGIN
     SELECT COUNT(*) INTO v_n0 FROM "Catalogo_Item_Checklist" WHERE "Eliminado" = 'N';
     PERFORM pg_temp.chk('Listar: trae todos los ítems no eliminados', v_n0::TEXT, pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"()'));
     PERFORM pg_temp.chk('Listar: la identidad aplica a los 3 tipos y es de ingreso', 'INGRESO|3',
-        pg_temp.q('SELECT "Etapa" || ''|'' || (LENGTH("Tipos_IDs") - LENGTH(REPLACE("Tipos_IDs", '','', '''')) + 1) FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''ING_IDENTIDAD'''));
+        pg_temp.q('SELECT "Etapa" || ''|'' || (SELECT COUNT(DISTINCT SPLIT_PART(x, '':'', 1)) FROM UNNEST(STRING_TO_ARRAY("Tipos_IDs", '','')) x) FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''ING_IDENTIDAD'''));
     PERFORM pg_temp.chk('Listar: el ítem de salida de proveedor es solo del transportista (siempre + subtipo)', 'SALIDA|SIEMPRE|' || v_t3 || ':' || pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''TRANSPORTISTA'''),
         pg_temp.q('SELECT "Etapa" || ''|'' || "Condicion" || ''|'' || "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''SAL_PROVEEDOR_DOCUMENTOS'''));
     PERFORM pg_temp.chk('Listar: INGRESO va antes que SALIDA', 'INGRESO',
@@ -52,13 +55,13 @@ BEGIN
 
     -- ---------- ASIGNAR TIPOS
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t1 || ',' || v_t3, 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Asignar: queda en visita externa y proveedor', '100|' || v_t1 || ',' || v_t3, v_cod || '|' || pg_temp.q('SELECT "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "ID_Catalogo_Item_Checklist" = ' || v_id), v_msg);
+    PERFORM pg_temp.chk('Asignar: queda en visita externa y proveedor', '100|' || v_t1 || ',' || v_t3, v_cod || '|' || pg_temp.tp(v_id), v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t2::TEXT, 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Asignar: reemplaza (solo contratista)', '100|' || v_t2, v_cod || '|' || pg_temp.q('SELECT "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "ID_Catalogo_Item_Checklist" = ' || v_id), v_msg);
+    PERFORM pg_temp.chk('Asignar: reemplaza (solo contratista)', '100|' || v_t2, v_cod || '|' || pg_temp.tp(v_id), v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3 || ', ' || v_t2, 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Asignar: acepta espacios y reactiva sin duplicar filas (3 filas: visita externa queda con borrado lógico)', '100|' || LEAST(v_t2, v_t3) || ',' || GREATEST(v_t2, v_t3) || '|3', v_cod || '|' || pg_temp.q('SELECT "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "ID_Catalogo_Item_Checklist" = ' || v_id) || '|' || pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = ' || v_id), v_msg);
+    PERFORM pg_temp.chk('Asignar: acepta espacios y reactiva sin duplicar filas (4 filas: visita externa con borrado lógico y proveedor una por subtipo)', '100|' || LEAST(v_t2, v_t3) || ',' || GREATEST(v_t2, v_t3) || '|4', v_cod || '|' || pg_temp.tp(v_id) || '|' || pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = ' || v_id), v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, '', 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Asignar: lista vacía = ningún tipo (ya no se ofrece a nadie)', '100|(nulo)', v_cod || '|' || COALESCE(pg_temp.q('SELECT "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "ID_Catalogo_Item_Checklist" = ' || v_id), '(nulo)'), v_msg);
+    PERFORM pg_temp.chk('Asignar: lista vacía = ningún tipo (ya no se ofrece a nadie)', '100|(nulo)', v_cod || '|' || COALESCE(pg_temp.tp(v_id), '(nulo)'), v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, 'a,b', 0, v_cod, v_msg);
     PERFORM pg_temp.chk('Asignar: lista mal escrita', '400', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(999999, '1', 0, v_cod, v_msg);
@@ -66,11 +69,11 @@ BEGIN
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, '1', -1, v_cod, v_msg);
     PERFORM pg_temp.chk('Asignar: usuario no válido', '400', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, '999999', 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Asignar: un tipo que no existe se ignora', '100|(nulo)', v_cod || '|' || COALESCE(pg_temp.q('SELECT "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "ID_Catalogo_Item_Checklist" = ' || v_id), '(nulo)'), v_msg);
+    PERFORM pg_temp.chk('Asignar: un tipo que no existe se ignora', '100|(nulo)', v_cod || '|' || COALESCE(pg_temp.tp(v_id), '(nulo)'), v_msg);
 
     -- El ítem asignado aparece en el checklist de verdad (lo que ve Vigilancia)
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3::TEXT, 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Efecto: un ítem asignado a proveedor se ofrece a ese tipo (TIPO_ACCESO_ITEM_CHECKLIST)', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_TIPO_ACCESO_ITEM_CHECKLIST_LISTAR_POR_PADRE"(' || v_t3 || ') WHERE "ID_Catalogo_Item_Checklist" = ' || v_id));
+    PERFORM pg_temp.chk('Efecto: un ítem asignado a proveedor se ofrece a ese tipo, una fila por subtipo (TIPO_ACCESO_ITEM_CHECKLIST)', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_TIPO_ACCESO_ITEM_CHECKLIST_LISTAR_POR_PADRE"(' || v_t3 || ') WHERE "ID_Catalogo_Item_Checklist" = ' || v_id));
     PERFORM pg_temp.chk('Efecto: y no a otro tipo', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_TIPO_ACCESO_ITEM_CHECKLIST_LISTAR_POR_PADRE"(' || v_t1 || ') WHERE "ID_Catalogo_Item_Checklist" = ' || v_id));
 
     -- ---------- SUBTIPOS (D-232)
@@ -94,7 +97,7 @@ BEGIN
     PERFORM pg_temp.chk('Asignar: el 400 no cambió nada (se valida antes de aplicar)', '2|' || v_ay, pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = ' || v_id || ' AND "Eliminado" = ''N''') || '|' ||
         pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t3 || ' AND "ID_Catalogo_Item_Checklist" = ' || v_id));
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3::TEXT, 0, v_cod, v_msg);
-    PERFORM pg_temp.chk('Asignar: volver a «todos» quita el subtipo', '100|(nulo)', v_cod || '|' || COALESCE(pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t3 || ' AND "ID_Catalogo_Item_Checklist" = ' || v_id), '(nulo)'), v_msg);
+    PERFORM pg_temp.chk('Asignar: volver a «todos» = todos los subtipos activos (D-234)', '100|2', v_cod || '|' || pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t3 || ' AND "ID_Catalogo_Item_Checklist" = ' || v_id || ' AND "Eliminado" = ''N'' AND "ID_Tipo_Acceso_Subtipo" IS NOT NULL'), v_msg);
     CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3 || ':x', 0, v_cod, v_msg);
     PERFORM pg_temp.chk('Asignar: formato inválido con dos puntos', '400', v_cod::TEXT, v_msg);
 
@@ -116,6 +119,30 @@ BEGIN
     PERFORM pg_temp.chk('Preparar: tipo inexistente', '404', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_TIPO_ACCESO_PREPARAR"(v_tn, -1, v_cod, v_msg);
     PERFORM pg_temp.chk('Preparar: usuario no válido', '400', v_cod::TEXT, v_msg);
+
+    -- ---------- D-234: el checklist de un tipo con subtipos se define por subtipo
+    v_tr := pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''TRANSPORTISTA''')::BIGINT;
+    v_ay := pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''AYUDANTE_DESCARGA''')::BIGINT;
+    v_id := pg_temp.q('SELECT "ID_Catalogo_Item_Checklist" FROM "Catalogo_Item_Checklist" WHERE "Codigo" = ''ING_PLACA''')::BIGINT;
+    CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3 || ':' || v_tr, 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Asignar por subtipo: la placa solo al transportista', '100|' || v_tr, v_cod || '|' || pg_temp.q('SELECT STRING_AGG("ID_Tipo_Acceso_Subtipo"::TEXT, '','') FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = ' || v_id || ' AND "ID_Catalogo_Tipo_Acceso" = ' || v_t3 || ' AND "Eliminado" = ''N'''), v_msg);
+    CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3 || ':' || v_tr || ',' || v_t3 || ':' || v_ay, 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Asignar por subtipo: varios subtipos del mismo tipo', '100|2', v_cod || '|' || pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = ' || v_id || ' AND "ID_Catalogo_Tipo_Acceso" = ' || v_t3 || ' AND "Eliminado" = ''N'''), v_msg);
+    CALL "ERP_CAF_ITEM_CHECKLIST_ASIGNAR_TIPOS"(v_id, v_t3 || ':99999', 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Asignar: subtipo que no es de ese tipo', '400', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Asignar: tras ese error no cambió nada', '2', pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Item_Checklist" = ' || v_id || ' AND "ID_Catalogo_Tipo_Acceso" = ' || v_t3 || ' AND "Eliminado" = ''N'''), '');
+    -- Primer subtipo de un tipo que no tenía: hereda el checklist del tipo
+    v_base := pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t1 || ' AND "Eliminado" = ''N''')::BIGINT;
+    CALL "ERP_CAF_SUBTIPO_CREAR"(v_t1, 'GENERAL', 'General', NULL, 0, v_id2, v_cod, v_msg);
+    PERFORM pg_temp.chk('Primer subtipo: nace predeterminado y recibe el checklist del tipo', '100|Y|' || v_base || '|0',
+        v_cod || '|' || pg_temp.q('SELECT "Es_Predeterminado" FROM "Tipo_Acceso_Subtipo" WHERE "ID_Tipo_Acceso_Subtipo" = ' || v_id2) || '|' ||
+        pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Tipo_Acceso_Subtipo" = ' || v_id2 || ' AND "Eliminado" = ''N''') || '|' ||
+        pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t1 || ' AND "ID_Tipo_Acceso_Subtipo" IS NULL AND "Eliminado" = ''N'''), v_msg);
+    CALL "ERP_CAF_SUBTIPO_CREAR"(v_t1, 'SEGUNDO', 'Segundo', v_id2, 0, v_id, v_cod, v_msg);
+    PERFORM pg_temp.chk('Segundo subtipo: copia el checklist del que se indica', '100|' || v_base, v_cod || '|' || pg_temp.q('SELECT COUNT(*) FROM "Tipo_Acceso_Item_Checklist" WHERE "ID_Tipo_Acceso_Subtipo" = ' || v_id || ' AND "Eliminado" = ''N'''), v_msg);
+    CALL "ERP_CAF_SUBTIPO_PREDETERMINADO"(v_id, 0, v_cod, v_msg);
+    PERFORM pg_temp.chk('Predeterminado: pasa al segundo y el primero deja de serlo', '100|Y|N', v_cod || '|' || pg_temp.q('SELECT "Es_Predeterminado" FROM "Tipo_Acceso_Subtipo" WHERE "ID_Tipo_Acceso_Subtipo" = ' || v_id) || '|' || pg_temp.q('SELECT "Es_Predeterminado" FROM "Tipo_Acceso_Subtipo" WHERE "ID_Tipo_Acceso_Subtipo" = ' || v_id2), v_msg);
+    PERFORM pg_temp.chk('Listar subtipos: con inactivos incluye todos los del tipo', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SUBTIPO_LISTAR"(''Y'') WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t1), '');
 END $$;
 
 SELECT "N", "Caso", "Esperado", "Obtenido", CASE WHEN "Esperado" = "Obtenido" THEN 'OK' ELSE '*** FALLA ***' END AS "Estado", "Mensaje" FROM "_Prueba" ORDER BY "N";

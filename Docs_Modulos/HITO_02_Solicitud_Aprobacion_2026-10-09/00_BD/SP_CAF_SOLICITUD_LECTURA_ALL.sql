@@ -545,6 +545,7 @@ $$;
 --      Puede_Decidir    ... quien aprueba, si hay un paso que ahora le toca
 --    Pasos_Mis_Decidir = identificadores de los pasos que puede decidir, en texto con comas.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_PERSONAS_LISTAR"(BIGINT, BIGINT);   -- V1.1: columnas nuevas al final
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_PERSONAS_LISTAR"("HV_UsuarioID" BIGINT, "HV_ID_Solicitud" BIGINT)
 RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Persona_Externa" BIGINT, "ID_Catalogo_Tipo_Documento" BIGINT,
                "Tipo_Documento" VARCHAR, "Numero_Documento" VARCHAR,
@@ -553,13 +554,14 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Persona_Externa" BIGINT, "ID_C
                "Origen" VARCHAR, "Estado" VARCHAR, "Acceso_Restringido" CHAR(1), "Trae_Equipos" CHAR(1), "Trae_Herramientas" CHAR(1),
                "Fecha_Hora_Ingreso" TIMESTAMP, "Fecha_Hora_Salida" TIMESTAMP,
                "Puede_Retirar" CHAR(1), "Puede_Corregir" CHAR(1), "Puede_Reactivar" CHAR(1),
-               "Puede_Decidir" CHAR(1), "Pasos_Mis_Decidir" VARCHAR)
+               "Puede_Decidir" CHAR(1), "Pasos_Mis_Decidir" VARCHAR,
+               "ID_Tipo_Acceso_Subtipo" BIGINT, "Subtipo" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_owner CHAR(1) := 'N';
 BEGIN
-    -- V1.0 2026-10-17
+    -- V1.1 2026-11-12 (D-234: + ID_Tipo_Acceso_Subtipo y Subtipo, el rol de la persona) · V1.0 2026-10-17
     IF "ERP_CAF_FN_SOLICITUD_VISIBLE"("HV_UsuarioID", "HV_ID_Solicitud") <> 'Y' THEN RETURN; END IF;
     SELECT CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID"
                  AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
@@ -591,9 +593,11 @@ BEGIN
                      THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST((SELECT STRING_AGG(CAST(X."ID_Tipo_Acceso_Paso_Aprobacion" AS VARCHAR), ',' ORDER BY X."Paso_Orden", X."ID_Tipo_Acceso_Paso_Aprobacion")
                    FROM "ERP_CAF_SOLICITUD_PASOS_DECIDIBLES"("HV_UsuarioID", "HV_ID_Solicitud") X
-                  WHERE X."ID_Solicitud_Persona" = P."ID_Solicitud_Persona") AS VARCHAR)
+                  WHERE X."ID_Solicitud_Persona" = P."ID_Solicitud_Persona") AS VARCHAR),
+           P."ID_Tipo_Acceso_Subtipo", CAST(SB."Descripcion" AS VARCHAR)
       FROM "CAF_Solicitud_Persona" P
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = P."ID_Solicitud"
+      LEFT JOIN "Tipo_Acceso_Subtipo" SB ON SB."ID_Tipo_Acceso_Subtipo" = P."ID_Tipo_Acceso_Subtipo"
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
       LEFT JOIN "CAF_GOVERNANCE"."Usuario" UA ON UA."ID_Usuario" = P."ID_Usuario_Aprobacion"

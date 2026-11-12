@@ -6,6 +6,10 @@
     if (!raiz || !cuerpoTabla) return;
     var urlListar = raiz.getAttribute('data-url-tp-listar');
     var urlGuardar = raiz.getAttribute('data-url-tp-guardar');
+    var urlSubListar = raiz.getAttribute('data-url-sub-listar');
+    var urlSubGuardar = raiz.getAttribute('data-url-sub-guardar');
+    var urlSubEstado = raiz.getAttribute('data-url-sub-estado');
+    var urlSubPred = raiz.getAttribute('data-url-sub-pred');
     var el = CAF.el;
     var filas = [];
 
@@ -29,7 +33,7 @@
                 el('td', {}, [t.subtipos ? el('span', { text: t.subtipos }) : el('span', { class: 'small muted', text: 'Sin subtipos' })]),
                 el('td', { class: 'small', text: t.pasos + ' paso(s) de aprobación · ' + t.items + ' ítem(s) de checklist · ' + t.solicitudes + ' solicitud(es)' }),
                 el('td', {}, [el('span', { class: 'chip ' + (t.activo ? 'c-ok' : 'c-can'), text: t.activo ? 'Activo' : 'Inactivo' })]),
-                el('td', {}, [el('button', { type: 'button', class: 'btn btn-sm', text: 'Editar', onclick: function () { formulario(t); } })])
+                el('td', {}, [el('button', { type: 'button', class: 'btn btn-sm', text: 'Editar', onclick: function () { formulario(t); } }), ' ', el('button', { type: 'button', class: 'btn btn-sm', text: 'Subtipos', onclick: function () { subtipos(t); } })])
             ]));
         });
     }
@@ -89,6 +93,77 @@
                 }
             }
         ]);
+    }
+
+    // ── Subtipos (roles de persona) del tipo (D-234) ─────────────────────────────────────────
+    // Sin subtipos, el checklist se define por tipo. Con subtipos, el checklist se define por subtipo (pantalla «Checklist de portería»).
+    function subtipos(tipo) {
+        var lista = el('div', { class: 'stack' });
+        var aviso = el('p', { class: 'field-e' });
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('div', { class: 'aviso a-info', text: 'Cada persona de una solicitud de «' + tipo.descripcion + '» tiene un rol. Si el tipo tiene subtipos, su checklist se define por subtipo (en «Checklist de portería»). Un subtipo no se elimina: se desactiva y deja de ofrecerse.' }),
+            lista, aviso
+        ]);
+        var datos = [];
+
+        function recargar() {
+            return CAF.pedir(urlSubListar + '?tipoId=' + tipo.id).then(function (r) {
+                if (!r.success) { aviso.textContent = r.message || 'No se pudieron cargar los subtipos.'; return; }
+                datos = r.data; pintarLista();
+            });
+        }
+        function llamar(url, cuerpoEnvio, ok) {
+            aviso.textContent = '';
+            CAF.pedir(url, { method: 'POST', body: cuerpoEnvio }).then(function (r) {
+                if (!r.success) { aviso.textContent = r.message || 'No se pudo completar.'; return; }
+                if (ok) CAF.aviso(ok);
+                recargar().then(function () { cargar(); });
+            });
+        }
+        function pintarLista() {
+            lista.textContent = '';
+            if (!datos.length) lista.appendChild(el('p', { class: 'small muted', text: 'Este tipo no tiene subtipos: todas sus personas comparten un mismo checklist.' }));
+            datos.forEach(function (s) {
+                var acciones = [el('button', { type: 'button', class: 'btn btn-sm', text: 'Editar', onclick: function () { editar(s); } })];
+                if (s.activo && !s.predeterminado) acciones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Hacer predeterminado', onclick: function () { llamar(urlSubPred, { id: s.id }, 'Predeterminado actualizado.'); } }));
+                if (!s.activo) acciones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Activar', onclick: function () { llamar(urlSubEstado, { id: s.id, activo: true }, 'Subtipo activado.'); } }));
+                else if (!s.predeterminado && !s.sistema) acciones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Desactivar', onclick: function () { llamar(urlSubEstado, { id: s.id, activo: false }, 'Subtipo desactivado.'); } }));
+                lista.appendChild(el('div', { class: 'vrow' + (s.activo ? '' : ' off') }, [
+                    el('div', {}, [el('strong', { text: s.descripcion }), ' ',
+                        s.predeterminado ? el('span', { class: 'chip c-ok', text: 'Predeterminado' }) : null,
+                        s.activo ? null : el('span', { class: 'chip c-can', text: 'Desactivado' }),
+                        el('div', { class: 'small muted', text: s.codigo + ' · ' + s.personas + ' persona(s) con este rol' })]),
+                    el('div', { class: 'vrow-e' }, acciones)
+                ]));
+            });
+            lista.appendChild(el('div', {}, [el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: '+ Agregar subtipo', onclick: function () { editar(null); } })]));
+        }
+        function editar(s) {
+            var nombre = el('input', { type: 'text', maxlength: '200', autocomplete: 'off' });
+            nombre.value = s ? s.descripcion : '';
+            var orden = el('input', { type: 'number', min: '0', max: '9999' });
+            orden.value = s ? String(s.orden) : ''; orden.placeholder = 'Al final';
+            var copiar = el('select');
+            copiar.appendChild(el('option', { value: '', text: 'Sin checklist (lo defino después)' }));
+            datos.forEach(function (x) { copiar.appendChild(el('option', { value: String(x.id), text: 'Copiar el de «' + x.descripcion + '»' })); });
+            var err = el('p', { class: 'field-e' });
+            var hijos = [campo('Nombre *', nombre), campo('Orden', orden, 'Posición en la lista.')];
+            if (!s && datos.some(function (x) { return x.activo; })) hijos.push(campo('Checklist inicial', copiar, 'El subtipo nuevo nace con el checklist que elija; luego puede ajustarlo en «Checklist de portería».'));
+            if (!s && !datos.some(function (x) { return x.activo; })) hijos.push(el('div', { class: 'aviso a-info', text: 'Será el primer subtipo: queda como predeterminado, recibe el checklist que hoy tiene el tipo y las personas ya registradas pasan a este rol.' }));
+            hijos.push(err);
+            CAF.modal(s ? 'Editar subtipo' : 'Nuevo subtipo', el('div', { class: 'stack' }, hijos), [
+                { texto: 'Cancelar', onclick: function (c) { c(); } },
+                { texto: 'Guardar', tipo: 'primary', onclick: function (c) {
+                    err.textContent = '';
+                    CAF.pedir(urlSubGuardar, { method: 'POST', body: { id: s ? s.id : 0, tipoId: tipo.id, descripcion: nombre.value, orden: orden.value === '' ? null : parseInt(orden.value, 10), copiarDeId: copiar.value ? parseInt(copiar.value, 10) : null } }).then(function (r) {
+                        if (!r.success) { err.textContent = r.message || 'No se pudo guardar.'; return; }
+                        c(); CAF.aviso('Se guardó el subtipo.'); recargar().then(function () { cargar(); });
+                    });
+                } }
+            ]);
+        }
+        CAF.modal('Subtipos · ' + tipo.descripcion, cuerpo, [{ texto: 'Cerrar', onclick: function (c) { c(); } }]);
+        recargar();
     }
 
     document.getElementById('tp-nuevo').addEventListener('click', function () { formulario(null); });

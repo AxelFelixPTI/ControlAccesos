@@ -140,7 +140,7 @@
                 ul.appendChild(el('li', { class: p.aprobacion === 'RETIRADA' ? 'ret' : '' }, [
                     chk ? el('label', { class: 'chk' }, [chk]) : null,
                     el('div', { class: 'plist-m' }, [
-                        el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), s.tipoCodigo === 'PROVEEDOR' ? el('span', { class: 'chip c-line', text: p.esTransportista ? 'Transportista' : 'Ayudante de descarga' }) : null, p.origen === 'AGREGADA_COORDINADOR' ? el('span', { class: 'chip c-line', text: 'Agregada por coordinación' }) : null]),
+                        el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), (p.subtipo || s.tipoCodigo === 'PROVEEDOR') ? el('span', { class: 'chip c-line', text: p.subtipo || (p.esTransportista ? 'Transportista' : 'Ayudante de descarga') }) : null, p.origen === 'AGREGADA_COORDINADOR' ? el('span', { class: 'chip c-line', text: 'Agregada por coordinación' }) : null]),
                         el('div', { class: 'field-h', text: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }),
                         nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null,
                         yaIngreso ? el('div', { class: 'field-h', text: 'Ya ingresó: no se quita. Vigilancia registra su salida con una observación.' }) : null
@@ -241,8 +241,16 @@
                 var sus = campoSustento('Por qué se agrega a esta persona ahora (por ejemplo: llegó a portería, lo pidió el responsable de atención).');
                 // D-226: en una entrega de proveedor se indica si viene como transportista o como ayudante de descarga
                 var pv = s && s.tipoCodigo === 'PROVEEDOR', rol = null, dt = null, ins = {};
+                // D-234: la persona agregada por emergencia también lleva su rol (subtipo), si el tipo de ingreso los tiene
+                var subs = (o.subtipos || []).filter(function (x) { return s && x.tipoId === s.tipoId; });
+                function rolActual() { return rol ? subs.filter(function (x) { return String(x.id) === rol.value; })[0] : null; }
+                function esTransp() { var r = rolActual(); return !!(pv && r && r.codigo === 'TRANSPORTISTA'); }
+                if (subs.length) {
+                    rol = el('select');
+                    subs.forEach(function (x) { rol.appendChild(el('option', { value: String(x.id), text: x.texto })); });
+                    rol.value = String((subs.filter(function (x) { return x.predeterminado; })[0] || subs[0]).id);
+                }
                 if (pv) {
-                    rol = el('select', {}, [el('option', { value: 'A', text: 'Ayudante de descarga' }), el('option', { value: 'T', text: 'Transportista (conductor)' })]);
                     var cam = [['ruc', 'RUC del transportista', 11, '11 dígitos.'], ['nombre', 'Razón social', 200, ''], ['direccion', 'Dirección', 300, ''],
                         ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, '']];
                     dt = el('div', { class: 'stack', hidden: 'hidden' }, [el('p', { class: 'ayuda', text: 'Datos del transportista (opcionales: Vigilancia los completa al verificarlo).' })].concat(cam.map(function (c) {
@@ -250,12 +258,12 @@
                         if (c[0] === 'placa') i.style.textTransform = 'uppercase';
                         return el('label', { class: 'field' }, [el('span', { class: 'field-l', text: c[1] }), i]);
                     })));
-                    rol.addEventListener('change', function () { if (rol.value === 'T') dt.removeAttribute('hidden'); else dt.setAttribute('hidden', 'hidden'); });
-                }
+                    }
+                if (rol) rol.addEventListener('change', function () { if (dt) { if (esTransp()) dt.removeAttribute('hidden'); else dt.setAttribute('hidden', 'hidden'); } });
                 CAF.modal('Agregar persona (emergencia)', el('div', { class: 'stack' }, [
                     el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: la persona queda autorizada de inmediato. Vigilancia la verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
                     fp.nodo,
-                    pv ? el('label', { class: 'field' }, [el('span', { class: 'field-l', text: '¿Con qué función viene?' }), rol]) : null,
+                    rol ? el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Rol de la persona' }), rol]) : null,
                     pv ? dt : null,
                     pv ? el('div', { class: 'aviso a-info', text: 'Si agrega un transportista cuando la entrega ya esperaba, vuelve a «Programado» hasta que Vigilancia lo verifique. Un transportista no se puede agregar si la entrega ya terminó.' }) : null,
                     sus.nodo, err]), [
@@ -267,7 +275,8 @@
                             fp.guardar().then(function (r) {
                                 if (!r.success) { err.textContent = SOL.errores(r); return; }
                                 var cuerpo = { solicitudId: id, personaId: r.data.id, sustento: sus.area.value };
-                                if (pv && rol.value === 'T') {
+                                if (rol) cuerpo.subtipoId = Number(rol.value);
+                                if (esTransp()) {
                                     cuerpo.esTransportista = true;
                                     Object.keys(ins).forEach(function (k) { cuerpo[k] = ins[k].value.trim() || null; });
                                     if (cuerpo.placa) cuerpo.placa = cuerpo.placa.toUpperCase().replace(/[\s-]/g, '');

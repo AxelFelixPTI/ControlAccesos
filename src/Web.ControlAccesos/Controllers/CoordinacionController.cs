@@ -84,7 +84,7 @@ public sealed class CoordinacionController : Controller
             success = true,
             data = new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
+                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
                 areaDetalle = s.Area_Detalle, contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos,
                 estado = s.Estado, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = s.Empresa_Visitante, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, zonas = s.Zonas_Nombres, observaciones = s.Observaciones,
@@ -114,6 +114,7 @@ public sealed class CoordinacionController : Controller
                     // D-215: quitar a la única persona vigente rechaza la solicitud (la web avisa antes; la rutina exige la confirmación)
                     esUnica = tIds.Count > 0 ? tIds.Contains(p.ID_Solicitud_Persona) && tVivos == 1 : per.Data!.Count(q => q.Aprobacion != "RETIRADA") == 1,
                     esTransportista = tIds.Contains(p.ID_Solicitud_Persona),
+                    subtipoId = p.ID_Tipo_Acceso_Subtipo, subtipo = p.Subtipo,   // D-234: rol de la persona
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }
@@ -170,6 +171,11 @@ public sealed class CoordinacionController : Controller
             ? new Dto_Transportista_Entrada { ID_Persona_Externa = m.PersonaId, Ruc = m.Ruc, Nombre = m.Nombre, Direccion = m.Direccion, Placa = m.Placa, Marca = m.Marca, Licencia = m.Licencia }
             : null;
         var r = await _solPer.AgregarEmergenciaAsync(m.SolicitudId, m.PersonaId, m.Sustento, User.UsuarioId(), t, ct);
+        if (r.Success && m.SubtipoId is > 0)
+        {
+            var s = await _solPer.SubtipoAsignarAsync(m.SolicitudId, m.PersonaId, m.SubtipoId.Value, User.UsuarioId(), ct);
+            if (!s.Success) return Json(new { success = true, message = r.Message + " Pero no se pudo fijar su rol: " + s.Message, errors = Errores(r) });
+        }
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

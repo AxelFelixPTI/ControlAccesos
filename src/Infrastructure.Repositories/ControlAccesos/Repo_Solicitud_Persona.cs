@@ -42,6 +42,21 @@ public sealed class Repo_Solicitud_Persona : RepoHelpers, IRepo_Solicitud_Person
             ct: ct);
     }
 
+    public async Task<ResultSp> SubtipoAsignarAsync(long solicitudId, long personaExternaId, long subtipoId, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_PERSONA_SUBTIPO_ASIGNAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_ID_Persona_Externa", personaExternaId);
+                AddLongReq(p, "HV_ID_Tipo_Acceso_Subtipo", subtipoId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
     public async Task<ResultSp<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string sustento, long usuarioId, Dto_Transportista_Entrada? transportista = null, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraConIdAsync(

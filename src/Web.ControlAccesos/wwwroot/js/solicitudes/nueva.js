@@ -18,11 +18,13 @@
     // ── Proveedor (D-223): cada persona puede marcarse «Es transportista»; sus datos de transportista y vehículo son opcionales ──
     var CAMPOS_T = [['ruc', 'RUC del transportista', 11, 'Opcional. 11 dígitos.'], ['nombre', 'Nombre de transportista', 200, ''], ['direccion', 'Dirección de transportista', 300, ''],
                     ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, 'Es la del transportista.']];
+    // Roles (subtipos) activos del tipo de ingreso elegido (D-234); vacío si el tipo no tiene.
+    function subtiposDelTipo() { var v = formDatos ? formDatos.leer() : null; return v ? (op.subtipos || []).filter(function (x) { return x.tipoId === v.tipoId; }) : []; }
     function esProv() { return !!formDatos && formDatos.leer().tipoCodigo === 'PROVEEDOR'; }
     function completos(p) { return CAMPOS_T.every(function (c) { return p.datos && String(p.datos[c[0]] || '').trim(); }); }
     function faltanDatos() { return personas.some(function (p) { return p.transp && !completos(p); }); }
     function bloqueTransportista() {
-        var es = el('input', { type: 'checkbox' }), sw = el('input', { type: 'checkbox' }), ins = {};
+        var sw = el('input', { type: 'checkbox' }), ins = {}, activo = false;
         var panel = el('div', { class: 'stack' }), sub = el('div', { class: 'stack' });
         CAMPOS_T.forEach(function (c) {
             ins[c[0]] = el('input', { type: 'text', maxlength: String(c[2]) });
@@ -32,16 +34,17 @@
         panel.appendChild(el('label', { class: 'chk' }, [sw, el('span', { text: 'Registrar datos del transportista y del vehículo' })]));
         panel.appendChild(el('p', { class: 'field-h', text: 'Todos son opcionales: llene los que tenga. Lo que no ponga aquí debe constar en los documentos adjuntos (se pedirá al menos uno).' }));
         panel.appendChild(sub);
-        function sinc() { panel.hidden = !es.checked; sub.hidden = !sw.checked; }
-        es.addEventListener('change', sinc); sw.addEventListener('change', sinc); sinc();
-        var nodo = el('div', { class: 'stack' }, [el('label', { class: 'chk' }, [es, el('span', { text: 'Es transportista (conduce el vehículo de la entrega)' })]), panel]);
+        function sinc() { panel.hidden = !activo; sub.hidden = !sw.checked; }
+        sw.addEventListener('change', sinc); sinc();
+        var nodo = el('div', { class: 'stack' }, [panel]);
         return {
             nodo: nodo,
             leer: function () {
                 var d = {}; CAMPOS_T.forEach(function (c) { d[c[0]] = sw.checked ? ins[c[0]].value.trim() : ''; });
                 if (d.placa) d.placa = d.placa.toUpperCase().replace(/[\s-]/g, '');
-                return { transp: es.checked, datos: d };
-            }
+                return { datos: d };
+            },
+            activar: function (b) { activo = !!b; sinc(); }   // D-234: se muestra solo cuando el rol elegido es Transportista
         };
     }
 
@@ -73,6 +76,15 @@
         }
         var prov = esProv(), bt = prov ? bloqueTransportista() : null;
         var error = el('p', { class: 'field-e' });
+        // D-234: «Rol de la persona»: un solo rol por persona, solo si el tipo de ingreso tiene subtipos; viene marcado el predeterminado
+        var subs = subtiposDelTipo(), rolSel = null;
+        if (subs.length) {
+            rolSel = el('select');
+            subs.forEach(function (x) { rolSel.appendChild(el('option', { value: String(x.id), text: x.texto })); });
+            rolSel.value = String((subs.filter(function (x) { return x.predeterminado; })[0] || subs[0]).id);
+            rolSel.addEventListener('change', function () { if (bt) bt.activar(rolActual() && rolActual().codigo === 'TRANSPORTISTA'); });
+        }
+        function rolActual() { return rolSel ? subs.filter(function (x) { return String(x.id) === rolSel.value; })[0] : null; }
         formPer = SOL.formPersona(op, d.urlBuscar, d.urlPersona);
         var agregar = el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona' });
         agregar.addEventListener('click', function () {
@@ -80,20 +92,21 @@
             formPer.guardar().then(function (r) {
                 if (!r.success) { error.textContent = SOL.errores(r); return; }
                 if (personas.some(function (p) { return p.id === r.data.id; })) { error.textContent = 'Esa persona ya está en la lista.'; return; }
-                var t = bt ? bt.leer() : { transp: false, datos: {} };
-                personas.push({ id: r.data.id, nombre: r.data.nombreCompleto, doc: r.data.doc, transp: t.transp, datos: t.datos });
+                var rol = rolActual(), transp = !!(bt && rol && rol.codigo === 'TRANSPORTISTA');
+                var t = bt && transp ? bt.leer() : { datos: {} };
+                personas.push({ id: r.data.id, nombre: r.data.nombreCompleto, doc: r.data.doc, transp: transp, datos: t.datos, subtipoId: rol ? rol.id : null, subtipoTexto: rol ? rol.texto : '' });
                 formPer = SOL.formPersona(op, d.urlBuscar, d.urlPersona);   // formulario limpio para la siguiente
                 caja.textContent = ''; caja.appendChild(formPer.nodo);
-                if (bt) { bt = bloqueTransportista(); cajaT.textContent = ''; cajaT.appendChild(bt.nodo); }
+                if (bt) { bt = bloqueTransportista(); cajaT.textContent = ''; cajaT.appendChild(bt.nodo); bt.activar(rolActual() && rolActual().codigo === 'TRANSPORTISTA'); }
                 pintarLista();
             });
         });
         var caja = el('div'); caja.appendChild(formPer.nodo);
-        var cajaT = el('div'); if (bt) cajaT.appendChild(bt.nodo);
+        var cajaT = el('div'); if (bt) { cajaT.appendChild(bt.nodo); bt.activar(rolActual() && rolActual().codigo === 'TRANSPORTISTA'); }
         pintarLista();
         if (!adj) adj = ADJ.selector(d.urlAdj);
         var guia = prov ? el('div', { class: 'aviso a-info', text: 'Todas las personas necesitan documento y nombres (con eso las valida Coordinación y las recibe Vigilancia). Marque «Es transportista» en quien conduce un vehículo: debe haber al menos uno; el primero que marque es el principal.' }) : null;
-        return el('div', { class: 'stack' }, [guia, titulo, lista, el('hr'), el('h4', { text: 'Agregar persona' }), caja, cajaT, error, el('div', { class: 'row-end' }, [agregar]), el('hr'), adj.nodo]);
+        return el('div', { class: 'stack' }, [guia, titulo, lista, el('hr'), el('h4', { text: 'Agregar persona' }), caja, rolSel ? SOL.campo('Rol de la persona', rolSel, 'Cada persona tiene un solo rol; con él se define qué verifica Vigilancia.') : null, cajaT, error, el('div', { class: 'row-end' }, [agregar]), el('hr'), adj.nodo]);
     }
 
     function paso3() {
@@ -157,7 +170,8 @@
         var transportistas = esProv() ? personas.filter(function (p) { return p.transp; }).map(function (p) {
             return { personaId: p.id, ruc: p.datos.ruc, nombre: p.datos.nombre, direccion: p.datos.direccion, placa: p.datos.placa, marca: p.datos.marca, licencia: p.datos.licencia };
         }) : [];
-        CAF.pedir(d.urlCrear, { method: 'POST', body: Object.assign({}, v, { personasIds: personas.map(function (p) { return p.id; }), origenId: origen || null, transportistas: transportistas }) }).then(function (r) {
+        CAF.pedir(d.urlCrear, { method: 'POST', body: Object.assign({}, v, { personasIds: personas.map(function (p) { return p.id; }), origenId: origen || null, transportistas: transportistas,
+            subtipos: personas.filter(function (p) { return p.subtipoId; }).map(function (p) { return { personaId: p.id, subtipoId: p.subtipoId }; }) }) }).then(function (r) {
             enviando = false; sigue.disabled = false;
             if (!r.success) { err.textContent = SOL.errores(r); return; }
             var destino = d.urlDetalle.replace('__ID__', r.data.id) + '?nueva=1';

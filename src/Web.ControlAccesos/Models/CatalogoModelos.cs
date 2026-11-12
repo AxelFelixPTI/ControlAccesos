@@ -89,6 +89,7 @@ public sealed class SolicitudGuardarVM
     public string? ContactoCorreos { get; set; }
     public long? EmpresaDestinoId { get; set; }            // proveedor: empresa del grupo que recibe (D-223)
     public List<TransportistaVM> Transportistas { get; set; } = new();   // proveedor, solo al crear
+    public List<SubtipoPersonaVM> Subtipos { get; set; } = new();         // D-234: rol de cada persona, solo al crear
     public List<string>? Dias { get; set; }                // contratista por franja (D-227): «AAAA-MM-DD», solo al crear
     public string? HoraDesde { get; set; }                 // contratista: horario opcional «HH:mm»
     public string? HoraHasta { get; set; }
@@ -116,8 +117,16 @@ public sealed class PersonaExternaVM
     public string Nombres { get; set; } = string.Empty;
 }
 
+/// <summary>Rol (subtipo) elegido para una persona externa de la solicitud (D-234).</summary>
+public sealed class SubtipoPersonaVM
+{
+    public long PersonaId { get; set; }
+    public long SubtipoId { get; set; }
+}
+
 public sealed class SolicitudPersonaVM
 {
+    public long? SubtipoId { get; set; }               // D-234: rol de la persona que se agrega
     public long SolicitudId { get; set; }
     public long SolicitudPersonaId { get; set; }
     public long PersonaId { get; set; }
@@ -159,4 +168,20 @@ public sealed class TipoIngresoGuardarVM
     public bool Disponible { get; set; }
     public int? Orden { get; set; }                            // nulo = al final
     public bool Activo { get; set; } = true;
+}
+
+/// <summary>Alta o edición de un subtipo (rol de persona) de un tipo de ingreso (D-234). Id = 0 crea; el código se genera del nombre.</summary>
+public sealed class SubtipoGuardarVM
+{
+    public long Id { get; set; }
+    public long TipoId { get; set; }                   // solo al crear
+    public string? Descripcion { get; set; }
+    public int? Orden { get; set; }
+    public long? CopiarDeId { get; set; }              // solo al crear: subtipo del que se copia el checklist
+}
+
+public sealed class SubtipoEstadoVM
+{
+    public long Id { get; set; }
+    public bool Activo { get; set; }
 }

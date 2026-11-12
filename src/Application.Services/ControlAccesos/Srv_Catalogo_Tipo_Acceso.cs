@@ -131,13 +131,70 @@ public sealed class Srv_Catalogo_Tipo_Acceso : ISrv_Catalogo_Tipo_Acceso
         }
     }
 
-    public async Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(CancellationToken ct = default)
+    public async Task<Result<List<Dto_Subtipo>>> ListarSubtiposAsync(bool incluirInactivos = false, CancellationToken ct = default)
     {
-        try { return await _repo.ListarSubtiposAsync(ct).ConfigureAwait(false); }
+        try { return await _repo.ListarSubtiposAsync(incluirInactivos, ct).ConfigureAwait(false); }
         catch (Exception ex)
         {
             _logger.LogError(ex, "LISTAR_SUBTIPOS ERROR");
             return Result<List<Dto_Subtipo>>.Fail(ex.Message);
+        }
+    }
+
+    // ── Subtipos administrables (D-234): solo formulario; las reglas viven en los procedimientos ──
+    public async Task<Result<long>> SubtipoCrearAsync(long idTipo, string codigo, string descripcion, long? idSubtipoCopiar, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.SubtipoCrearAsync(idTipo, codigo, descripcion, idSubtipoCopiar, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result<long>.Ok(sp.Data!, sp.Mensaje) : Result<long>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SUBTIPO_CREAR ERROR Tipo={ID}", idTipo);
+            return Result<long>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> SubtipoActualizarAsync(long idSubtipo, string descripcion, long? orden, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.SubtipoActualizarAsync(idSubtipo, descripcion, orden, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SUBTIPO_ACTUALIZAR ERROR ID={ID}", idSubtipo);
+            return Result.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> SubtipoEstadoAsync(long idSubtipo, bool activo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.SubtipoEstadoAsync(idSubtipo, activo, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SUBTIPO_ESTADO ERROR ID={ID}", idSubtipo);
+            return Result.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> SubtipoPredeterminadoAsync(long idSubtipo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.SubtipoPredeterminadoAsync(idSubtipo, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SUBTIPO_PREDETERMINADO ERROR ID={ID}", idSubtipo);
+            return Result.Fail(ex.Message);
         }
     }
 

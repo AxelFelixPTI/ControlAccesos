@@ -19,6 +19,8 @@ public interface ISrv_Solicitud_Persona
     Task<Result<long>> AgregarAsync(long solicitudId, long personaExternaId, long usuarioId, CancellationToken ct = default);
     /// <summary>Corrección de emergencia (D-169): el coordinador agrega una persona ya aprobada a una solicitud aprobada, con sustento.</summary>
     Task<Result<long>> AgregarEmergenciaAsync(long solicitudId, long personaExternaId, string? sustento, long usuarioId, Dto_Transportista_Entrada? transportista = null, CancellationToken ct = default);
+    /// <summary>D-234: fija el rol (subtipo) de una persona justo después de crear la solicitud o de agregarla.</summary>
+    Task<Result> SubtipoAsignarAsync(long solicitudId, long personaExternaId, long subtipoId, long usuarioId, CancellationToken ct = default);
     Task<Result> RetirarAsync(long solicitudPersonaId, long usuarioId, CancellationToken ct = default);
     /// <summary>Corrección de emergencia (D-169): el coordinador quita a una persona autorizada que aún no ingresó, con sustento.</summary>
     /// <remarks>D-215: si es la única persona, exige confirmarRechazo y la solicitud queda RECHAZADA.</remarks>
