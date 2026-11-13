@@ -41,4 +41,8 @@ public interface ISrv_Solicitud
     Task<Result<Dto_Solicitud_Creada>> CrearAsync(Dto_Solicitud_Crear dto, long usuarioId, CancellationToken ct = default);
     Task<Result<bool>> EditarDatosAsync(long solicitudId, Dto_Solicitud_Editar dto, long usuarioId, CancellationToken ct = default);
     Task<Result> CancelarAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-236: reemplaza las empresas que reciben la solicitud de proveedor (la primera queda como principal).</summary>
+    Task<Result> EmpresasAsignarAsync(long solicitudId, IReadOnlyList<long> empresasIds, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-237: OC, empresa transportista, franja y correos del responsable de una entrega de proveedor.</summary>
+    Task<Result> ProveedorDatosGuardarAsync(long solicitudId, Dto_Proveedor_Datos dto, long usuarioId, CancellationToken ct = default);
 }

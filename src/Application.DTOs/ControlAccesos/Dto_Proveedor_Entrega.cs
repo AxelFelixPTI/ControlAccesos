@@ -31,6 +31,10 @@ public sealed class Dto_Proveedor_Entrega
     public int Transportistas_Dentro { get; set; }
     public int Transportistas_Salieron { get; set; }
     public int Ayudantes_Total { get; set; }
+    // D-237
+    public string? Numeros_OC { get; set; }
+    public string? Empresa_Transportista { get; set; }     // vacía = el mismo proveedor transporta
+    public string? Hora_Hasta { get; set; }                // «HH:mm»: fin de la franja estimada (informativa)
     public string Estado_Operativo { get; set; } = string.Empty;
     public bool Con_Desviacion { get; set; }
     public bool Disponibilidad_Confirmada { get; set; }       // «Almacén listo»: la esclusa está reservada para esta entrega

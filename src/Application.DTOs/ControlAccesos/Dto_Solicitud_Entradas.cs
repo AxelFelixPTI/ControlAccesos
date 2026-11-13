@@ -77,7 +77,13 @@ public sealed class Dto_Solicitud_Crear
     public List<string> Dias { get; set; } = new();
     /// <summary>Horario opcional «HH:MM», igual para todos los días; van juntas o ninguna.</summary>
     public string? Hora_Desde { get; set; }
+    /// <summary>Contratista: fin del horario. Proveedor (D-237): fin de la franja estimada de llegada (solo informativa).</summary>
     public string? Hora_Hasta { get; set; }
+
+    /// <summary>D-237 (proveedor): números de OC de la entrega, separados por «;» (al menos una; la rutina valida y normaliza).</summary>
+    public string? Numeros_OC { get; set; }
+    /// <summary>D-237 (proveedor): empresa transportista; vacía = el mismo proveedor hace el transporte.</summary>
+    public string? Empresa_Transportista { get; set; }
 }
 
 /// <summary>Datos opcionales de un transportista (la persona ya está entre las personas de la solicitud).</summary>
@@ -90,6 +96,16 @@ public sealed class Dto_Transportista_Entrada
     public string? Placa { get; set; }
     public string? Marca { get; set; }
     public string? Licencia { get; set; }
+}
+
+/// <summary>D-237: datos propios del formulario de entrega de proveedor que se guardan al editar (ERP_CAF_SOLICITUD_PROVEEDOR_DATOS_GUARDAR).</summary>
+public sealed class Dto_Proveedor_Datos
+{
+    public string? Numeros_OC { get; set; }
+    public string? Empresa_Transportista { get; set; }
+    /// <summary>«HH:mm» o vacío.</summary>
+    public string? Hora_Hasta { get; set; }
+    public string? Contacto_Correos { get; set; }
 }
 
 /// <summary>Resultado de crear: identificador y código visible (SOL-00001).</summary>

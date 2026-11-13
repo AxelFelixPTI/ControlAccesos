@@ -110,13 +110,15 @@ public static class PlantillaCorreo
         var url = string.IsNullOrWhiteSpace(urlBase) ? null : $"{urlBase.TrimEnd('/')}/Solicitudes/Detalle/{d.ID_Solicitud}";
 
         var contratista = d.Tipo_Acceso_Codigo == "CONTRATISTA";
+        var proveedor = d.Tipo_Acceso_Codigo == "PROVEEDOR";   // D-237
         var datos = new List<(string, string)>
         {
             ("Código", d.Codigo),
             ("Sede", d.Sede ?? "-"),
             ("Tipo de acceso", d.Tipo_Acceso ?? "-"),
-            (contratista ? "Servicio previsto" : "Visita prevista", d.Fecha_Hora_Prevista.ToString("dd/MM/yyyy HH:mm")),
-            (contratista ? "Empresa contratista" : "Empresa visitante", d.Empresa_Visitante),
+            (contratista ? "Servicio previsto" : proveedor ? "Entrega prevista" : "Visita prevista",
+                d.Fecha_Hora_Prevista.ToString("dd/MM/yyyy HH:mm") + (proveedor && !string.IsNullOrWhiteSpace(d.Hora_Hasta) ? $" – {d.Hora_Hasta} (estimada)" : "")),
+            (contratista ? "Empresa contratista" : proveedor ? "Empresa proveedora" : "Empresa visitante", d.Empresa_Visitante),
             ("Responsable", Responsable(d)),
             contratista
                 ? ("Actividad(es)", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? "-" : d.Motivo_Detalle!)
@@ -124,6 +126,17 @@ public static class PlantillaCorreo
             (contratista ? "Área de trabajo" : "Zonas", (d.Zonas_Nombres ?? "-") + (string.IsNullOrWhiteSpace(d.Area_Detalle) ? "" : $" — {d.Area_Detalle}")),
             ("Solicitante", string.IsNullOrWhiteSpace(d.Solicitante_Correo) ? (d.Solicitante_Nombre ?? "-") : $"{d.Solicitante_Nombre} ({d.Solicitante_Correo})"),
         };
+        if (proveedor)
+        {
+            // D-237: la OC y quién transporta van junto a la empresa proveedora; el contacto de la entrega reemplaza al responsable de atención (no existe en proveedor)
+            var i = datos.FindIndex(x => x.Item1 == "Empresa proveedora");
+            var extra = new List<(string, string)>();
+            if (!string.IsNullOrWhiteSpace(d.Numeros_OC)) extra.Add(("OC", d.Numeros_OC!.Replace(";", ", ")));
+            extra.Add(("Transporte", string.IsNullOrWhiteSpace(d.Empresa_Transportista) ? "El mismo proveedor" : d.Empresa_Transportista!));
+            datos.InsertRange(i + 1, extra);
+            var r = datos.FindIndex(x => x.Item1 == "Responsable");
+            if (r >= 0) datos[r] = ("Contacto de la entrega", ContactoEntrega(d));
+        }
         if (!vig) { datos.Insert(1, ("Estado", EtiquetaEstado(d.Estado))); datos.Add(("Personas", Resumen(d))); }
         if (contratista && !string.IsNullOrWhiteSpace(d.Contacto_Nombre))
             datos.Add(("Contacto", $"{d.Contacto_Nombre} · {d.Contacto_Telefonos} · {d.Contacto_Correos}"));
@@ -212,6 +225,16 @@ public static class PlantillaCorreo
         x.AppendLine().AppendLine(PieHtml(responderANombre));
 
         return new CorreoArmado(Asunto(d, esRespuesta), h.ToString(), x.ToString());
+    }
+
+    /// <summary>D-237: contacto de la entrega de proveedor: nombre · celulares · correos (lo que se haya indicado).</summary>
+    private static string ContactoEntrega(Dto_Correo_Solicitud d)
+    {
+        var partes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(d.Contacto_Nombre)) partes.Add(d.Contacto_Nombre!);
+        if (!string.IsNullOrWhiteSpace(d.Contacto_Telefonos)) partes.Add(d.Contacto_Telefonos!.Replace(";", ", "));
+        if (!string.IsNullOrWhiteSpace(d.Contacto_Correos)) partes.Add(d.Contacto_Correos!.Replace(";", ", "));
+        return partes.Count == 0 ? "-" : string.Join(" · ", partes);
     }
 
     private static string Responsable(Dto_Correo_Solicitud d)

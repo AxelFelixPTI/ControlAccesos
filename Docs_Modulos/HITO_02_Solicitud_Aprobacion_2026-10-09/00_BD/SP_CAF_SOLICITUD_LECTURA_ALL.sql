@@ -282,7 +282,7 @@ BEGIN
            O."Codigo", S."Fecha_Envio", S."CreateDate",
            I."Editar_Datos", I."Motivo_Editar_Datos", I."Modificar_Personal", I."Motivo_Modificar_Personal",
            I."Cancelar", I."Motivo_Cancelar", CAST('Y' AS CHAR(1)),
-           CAST(TA."Codigo" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR), "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud")
+           CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'), "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud")
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
@@ -360,7 +360,7 @@ BEGIN
            I."Total_Personas", I."Autorizadas", I."Observadas", I."Pendientes", I."Rechazadas", I."Retiradas",
            CAST(COALESCE(D.n, 0) AS INT),
            "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud"),
-           S."Fecha_Envio", CAST(TA."Codigo" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR)
+           S."Fecha_Envio", CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C')
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
@@ -453,7 +453,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Puede_Decidir" CHAR(1), "Por_Decidir_Mis" INT,
                "Tipo_Acceso_Codigo" VARCHAR, "Requiere_Cochera" CHAR(1), "Placa_Vehiculo" VARCHAR, "Area_Detalle" VARCHAR,
                "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR,
-               "ID_Empresa_Destino" BIGINT, "Empresa_Destino" VARCHAR, "Empresa_Destino_Codigo" VARCHAR)
+               "ID_Empresa_Destino" BIGINT, "Empresa_Destino" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "IDs_Empresa_Destino" VARCHAR,
+               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta_Prevista" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -518,7 +519,9 @@ BEGIN
            CAST(CASE WHEN lv_dec > 0 THEN 'Y' ELSE 'N' END AS CHAR(1)), lv_dec,
            TA."Codigo", S."Requiere_Cochera", S."Placa_Vehiculo", S."Area_Detalle",
            S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos",
-           S."ID_Catalogo_Empresa_Grupo_Destino", EG."Descripcion", CAST(EG."Codigo" AS VARCHAR)
+           S."ID_Catalogo_Empresa_Grupo_Destino", CAST("ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'N') AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'),
+           "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'I'),
+           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR)   -- D-237
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
@@ -795,7 +798,7 @@ BEGIN
            CAST("ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") AS CHAR(1)),
            CAST(CASE WHEN P."Fecha_Verificacion" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR),
-           CAST(TX."Codigo" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR)
+           CAST(TX."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C')
       FROM "CAF_Solicitud" S
       LEFT JOIN "Catalogo_Tipo_Acceso" TX ON TX."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"

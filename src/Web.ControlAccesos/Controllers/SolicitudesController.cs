@@ -215,6 +215,7 @@ public sealed class SolicitudesController : Controller
             Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
             ID_Catalogo_Empresa_Destino = m.EmpresaDestinoId is > 0 ? m.EmpresaDestinoId : null,
             Dias = dias, Hora_Desde = Vacio(m.HoraDesde), Hora_Hasta = Vacio(m.HoraHasta),
+            Numeros_OC = OcTexto(m), Empresa_Transportista = Vacio(m.EmpresaTransportista),   // D-237
             Transportistas = (m.Transportistas ?? new()).Select(t => new Dto_Transportista_Entrada
             {
                 ID_Persona_Externa = t.PersonaId, Ruc = Vacio(t.Ruc), Nombre = Vacio(t.Nombre), Direccion = Vacio(t.Direccion),
@@ -224,7 +225,8 @@ public sealed class SolicitudesController : Controller
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
         // D-234: rol de cada persona (la solicitud ya existe; quien no trae rol queda con el predeterminado del tipo)
         var avisoRoles = await AplicarRolesAsync(r.Data!.ID_Solicitud, m.Subtipos, ct);
-        return Json(new { success = true, message = r.Message, data = new { id = r.Data!.ID_Solicitud, codigo = r.Data.Codigo, avisoRoles } });
+        var avisoEmpresas = await AplicarEmpresasAsync(r.Data.ID_Solicitud, m, ct);   // D-236
+        return Json(new { success = true, message = r.Message, data = new { id = r.Data!.ID_Solicitud, codigo = r.Data.Codigo, avisoRoles, avisoEmpresas } });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -242,7 +244,17 @@ public sealed class SolicitudesController : Controller
             ID_Catalogo_Empresa_Destino = m.EmpresaDestinoId is > 0 ? m.EmpresaDestinoId : null,
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
-        return Json(new { success = true, message = r.Message, data = new { reenviadas = r.Data } });
+        // D-237: OC, empresa transportista, franja y correo del responsable (solo proveedor: la web manda la lista de OC aunque vaya vacía)
+        if (m.NumerosOc is not null)
+        {
+            var pd = await _sol.ProveedorDatosGuardarAsync(id, new Dto_Proveedor_Datos
+            {
+                Numeros_OC = OcTexto(m), Empresa_Transportista = Vacio(m.EmpresaTransportista), Hora_Hasta = Vacio(m.HoraHasta), Contacto_Correos = Vacio(m.ContactoCorreos),
+            }, User.UsuarioId(), ct);
+            if (!pd.Success) return Json(new { success = false, message = pd.Message, errors = Errores(pd) });
+        }
+        var avisoEmpresas = await AplicarEmpresasAsync(id, m, ct);   // D-236
+        return Json(new { success = true, message = r.Message, data = new { reenviadas = r.Data, avisoEmpresas } });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -288,6 +300,9 @@ public sealed class SolicitudesController : Controller
                 motivoNoModificar = s.Motivo_No_Modificar_Personal, puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar,
                 puedeReutilizar = s.Puede_Reutilizar, esPropia = s.Es_Propia,
                 empresaDestinoId = s.ID_Empresa_Destino, empresaDestino = s.Empresa_Destino,
+                numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),   // D-237
+                empresaTransportista = s.Empresa_Transportista, horaHasta = s.Hora_Hasta_Prevista,
+                empresasIds = (s.IDs_Empresa_Destino ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => long.Parse(x)).ToList(),   // D-236
                 dias = dia.Data!.Select(x => new { fecha = x.Fecha.ToString("yyyy-MM-dd"), desde = x.Hora_Desde, hasta = x.Hora_Hasta, origen = x.Origen }),
                 transportistas = tra.Data!.Select(t => new
                 {
@@ -321,6 +336,19 @@ public sealed class SolicitudesController : Controller
     }
 
     /// <summary>D-234: fija el rol de cada persona tras crear la solicitud. Devuelve un aviso si alguno no se pudo fijar (la solicitud ya existe).</summary>
+    /// <summary>D-237: las OC de la web como texto «OC-1;OC-2» (la rutina valida y normaliza). Nulo si no se envió la lista.</summary>
+    private static string? OcTexto(SolicitudGuardarVM m)
+        => m.NumerosOc is null ? null : string.Join(";", m.NumerosOc.Select(x => (x ?? "").Trim()).Where(x => x.Length > 0));
+
+    /// <summary>D-236: empresas que reciben la solicitud de proveedor (1 a 4). Con una sola o ninguna lista nueva, la empresa de siempre manda.</summary>
+    private async Task<string?> AplicarEmpresasAsync(long solicitudId, SolicitudGuardarVM m, CancellationToken ct)
+    {
+        var ids = (m.EmpresasIds ?? new()).Where(x => x > 0).Distinct().ToList();
+        if (ids.Count == 0) return null;
+        var s = await _sol.EmpresasAsignarAsync(solicitudId, ids, User.UsuarioId(), ct);
+        return s.Success ? null : "No se pudieron guardar todas las empresas: " + s.Message;
+    }
+
     private async Task<string?> AplicarRolesAsync(long solicitudId, List<SubtipoPersonaVM>? roles, CancellationToken ct)
     {
         string? aviso = null;

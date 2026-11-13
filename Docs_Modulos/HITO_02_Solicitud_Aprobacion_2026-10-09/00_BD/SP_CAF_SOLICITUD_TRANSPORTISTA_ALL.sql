@@ -35,7 +35,8 @@ BEGIN
     IF LENGTH(TRIM(COALESCE("HV_Nombre", ''))) > 200 THEN RETURN 'El nombre del transportista no puede superar 200 caracteres.'; END IF;
     IF LENGTH(TRIM(COALESCE("HV_Direccion", ''))) > 300 THEN RETURN 'La dirección del transportista no puede superar 300 caracteres.'; END IF;
     lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa");
-    IF lv_placa IS NOT NULL AND lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
+    IF lv_placa IS NULL THEN RETURN 'Indique la placa del vehículo del conductor.'; END IF;   -- D-237: obligatoria
+    IF lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
     IF LENGTH(TRIM(COALESCE("HV_Marca", ''))) > 50 THEN RETURN 'La marca del vehículo no puede superar 50 caracteres.'; END IF;
     IF LENGTH(TRIM(COALESCE("HV_Licencia", ''))) > 20 THEN RETURN 'La licencia de conducir no puede superar 20 caracteres.'; END IF;
     RETURN '';
@@ -47,6 +48,8 @@ $$;
 --    400 validación | 101 sin permiso (lo decide ERP_CAF_SOLICITUD_CREAR) | 500 error. Todo o nada.
 --    Pide al menos un transportista (el primero es el principal) y que cada uno esté entre las personas.
 -- -----------------------------------------------------------------------------
+-- D-237: se agregan parámetros (OC, empresa transportista, franja «Hasta», correos del responsable); se retira la firma anterior.
+DROP PROCEDURE IF EXISTS "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(BIGINT, TIMESTAMP, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BIGINT, VARCHAR, VARCHAR, BIGINT, VARCHAR, BIGINT, BIGINT, VARCHAR, INT, VARCHAR);
 CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(
     IN    "HV_ID_Catalogo_Sede"         BIGINT,
     IN    "HV_Fecha_Hora_Prevista"      TIMESTAMP,
@@ -59,6 +62,10 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(
     IN    "HV_Contacto_Telefonos"       VARCHAR(100),
     IN    "HV_ID_Empresa_Destino"       BIGINT,
     IN    "HV_Transportistas"           VARCHAR(8000),
+    IN    "HV_Numeros_OC"               VARCHAR(200),
+    IN    "HV_Empresa_Transportista"    VARCHAR(200),
+    IN    "HV_Hora_Hasta"               VARCHAR(5),
+    IN    "HV_Contacto_Correos"         VARCHAR(500),
     IN    "HV_UsuarioID"                BIGINT,
     INOUT "HV_ID_Solicitud_Result"      BIGINT DEFAULT NULL,
     INOUT "HV_Codigo_Solicitud_Result"  VARCHAR(20) DEFAULT NULL,
@@ -81,7 +88,7 @@ DECLARE
     lv_c      INT;
     lv_m      VARCHAR(250);
 BEGIN
-    -- V1.0 2026-11-06 (D-223)
+    -- V1.1 2026-11-13 (D-237: OC obligatoria, empresa transportista, franja informativa, correos del responsable)
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_CREAR_PROVEEDOR';
     "HV_ID_Solicitud_Result" := 0;
@@ -91,10 +98,16 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El tipo de acceso de proveedores no existe.'; RETURN;
         END IF;
 
+        lv_err := "ERP_CAF_FN_PROVEEDOR_DATOS_VALIDAR"("HV_Numeros_OC", "HV_Empresa_Transportista", "HV_Fecha_Hora_Prevista", "HV_Hora_Hasta", "HV_Contacto_Correos");
+        IF lv_err = '' THEN lv_err := "ERP_CAF_FN_TELEFONOS_VALIDAR"("HV_Contacto_Telefonos"); END IF;   -- sobre lo escrito, antes de normalizar
+        IF lv_err <> '' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := lv_err; RETURN;
+        END IF;
+
         lv_regs := STRING_TO_ARRAY(NULLIF(TRIM(COALESCE("HV_Transportistas", '')), ''), CHR(30));
         lv_n := COALESCE(ARRAY_LENGTH(lv_regs, 1), 0);
         IF lv_n = 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Marque al menos un transportista entre las personas de la solicitud.'; RETURN;
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Marque al menos un conductor entre las personas de la solicitud.'; RETURN;
         END IF;
         lv_ids := REPLACE(REPLACE(COALESCE("HV_IDs_Persona_Externa", ''), ' ', ''), ';', ',');
         lv_listaP := ',' || lv_ids || ',';
@@ -104,10 +117,10 @@ BEGIN
             lv_reg := lv_regs[lv_i];
             lv_pid := CASE WHEN SPLIT_PART(lv_reg, CHR(31), 1) ~ '^[0-9]+$' THEN CAST(SPLIT_PART(lv_reg, CHR(31), 1) AS BIGINT) ELSE NULL END;
             IF lv_pid IS NULL OR lv_listaP NOT LIKE '%,' || CAST(lv_pid AS VARCHAR) || ',%' THEN
-                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Cada transportista debe estar entre las personas de la solicitud.'; RETURN;
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Cada conductor debe estar entre las personas de la solicitud.'; RETURN;
             END IF;
             IF lv_vistos LIKE '%,' || CAST(lv_pid AS VARCHAR) || ',%' THEN
-                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Una persona está marcada dos veces como transportista.'; RETURN;
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Una persona está marcada dos veces como conductor.'; RETURN;
             END IF;
             lv_vistos := lv_vistos || CAST(lv_pid AS VARCHAR) || ',';
             lv_err := "ERP_CAF_FN_TRANSPORTISTA_VALIDAR"(SPLIT_PART(lv_reg, CHR(31), 2), SPLIT_PART(lv_reg, CHR(31), 3), SPLIT_PART(lv_reg, CHR(31), 4),
@@ -129,11 +142,19 @@ BEGIN
 
         CALL "ERP_CAF_SOLICITUD_CREAR"("HV_ID_Catalogo_Sede", lv_tipo, NULL, "HV_Fecha_Hora_Prevista", "HV_Empresa_Visitante", NULL, NULL, "HV_Observaciones",
                                        NULL, "HV_IDs_Persona_Externa", "HV_Copias", "HV_ID_Solicitud_Origen", NULL, lv_p_pla, NULL,
-                                       "HV_Contacto_Nombre", "HV_Contacto_Telefonos", NULL, "HV_ID_Empresa_Destino", lv_p_ruc, lv_p_dir, lv_p_mar, lv_p_lic,
+                                       "HV_Contacto_Nombre", "ERP_CAF_FN_TELEFONOS_NORMALIZAR"("HV_Contacto_Telefonos"), NULL, "HV_ID_Empresa_Destino", lv_p_ruc, lv_p_dir, lv_p_mar, lv_p_lic,
                                        lv_p_id, "HV_UsuarioID", "HV_ID_Solicitud_Result", "HV_Codigo_Solicitud_Result", lv_c, lv_m);
         IF lv_c <> 100 THEN
             "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; "HV_ID_Solicitud_Result" := 0; "HV_Codigo_Solicitud_Result" := NULL; RETURN;
         END IF;
+
+        -- D-237: OC, empresa transportista, franja informativa y correos del responsable (ya validados arriba)
+        UPDATE "CAF_Solicitud"
+           SET "Numeros_OC"            = "ERP_CAF_FN_OC_NORMALIZAR"("HV_Numeros_OC"),
+               "Empresa_Transportista" = NULLIF(TRIM("HV_Empresa_Transportista"), ''),
+               "Hora_Hasta_Prevista"   = CASE WHEN NULLIF(TRIM(COALESCE("HV_Hora_Hasta", '')), '') IS NULL THEN NULL ELSE CAST(TRIM("HV_Hora_Hasta") AS TIME) END,
+               "Contacto_Correos"      = NULLIF(TRIM("HV_Contacto_Correos"), '')
+         WHERE "ID_Solicitud" = "HV_ID_Solicitud_Result";
 
         -- Nombre del transportista principal (CREAR ya guardó RUC, dirección, placa, marca y licencia)
         UPDATE "CAF_Solicitud_Transportista" T SET "Nombre" = lv_p_nom

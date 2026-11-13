@@ -38,4 +38,8 @@ public interface IRepo_Solicitud
     Task<ResultSp<Dto_Solicitud_Creada>> CrearAsync(Dto_Solicitud_Crear dto, long usuarioId, CancellationToken ct = default);
     Task<ResultSp<bool>> EditarDatosAsync(long solicitudId, Dto_Solicitud_Editar dto, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> CancelarAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-236: reemplaza las empresas que reciben la solicitud de proveedor (la primera queda como principal).</summary>
+    Task<ResultSp> EmpresasAsignarAsync(long solicitudId, IReadOnlyList<long> empresasIds, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-237: guarda OC, empresa transportista, franja «Hasta» y correos del responsable de una entrega de proveedor (después de editar los datos).</summary>
+    Task<ResultSp> ProveedorDatosGuardarAsync(long solicitudId, Dto_Proveedor_Datos dto, long usuarioId, CancellationToken ct = default);
 }

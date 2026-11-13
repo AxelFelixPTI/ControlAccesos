@@ -78,5 +78,10 @@ public sealed class Dto_Solicitud_Detalle
     /// <summary>Proveedor (D-223): empresa del grupo que recibe la entrega.</summary>
     public long? ID_Empresa_Destino { get; set; }
     public string? Empresa_Destino { get; set; }
-    public string? Empresa_Destino_Codigo { get; set; }
+    public string? Empresa_Destino_Codigo { get; set; }   // D-236: con varias empresas, los códigos separados por coma
+    public string? IDs_Empresa_Destino { get; set; }      // D-236: ids de las empresas, separados por coma
+    // D-237: entrega de proveedor
+    public string? Numeros_OC { get; set; }               // OC separadas por «;»
+    public string? Empresa_Transportista { get; set; }    // vacía = el mismo proveedor transporta
+    public string? Hora_Hasta_Prevista { get; set; }      // «HH:mm»: fin de la franja estimada (informativa)
 }

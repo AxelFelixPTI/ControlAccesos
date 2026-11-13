@@ -40,7 +40,8 @@
         var filas = [['Tipo de ingreso', s.tipo || '—'], (c && s.dias && s.dias.length) ? ['Días de trabajo (' + s.dias.length + ')', s.dias.map(function (x) { return SOL.fechaLarga(x.fecha) + (x.origen === 'EXTENSION' ? ' (ampliado)' : ''); }).join(', ') + ' · ' + SOL.textoHoras(s.dias[0].desde, s.dias[0].hasta) + ' · ' + s.sede] : [c ? 'Servicio' : pv ? 'Entrega' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede],
             [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
         if (pv) {
-            filas.push(['Empresa que recibe', s.empresaDestino || '—'], ['Responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')]);
+            filas.push(['N.º de OC', (s.numerosOc || []).join(', ') || '—'], ['Transporte', s.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', s.empresaDestino || '—'],
+                ['Contacto del responsable', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
         } else if (c) {
             filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
@@ -156,7 +157,7 @@
             if (p.puedeReactivar) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver a agregar', onclick: function () { accion(d.urlAgregar, { solicitudId: id, personaId: p.personaId }, null, null, 'Persona agregada de nuevo.'); } }));
             ul.appendChild(el('li', { class: p.aprobacion === 'RETIRADA' ? 'ret' : '' }, [
                 el('div', { class: 'plist-m' }, [
-                    el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), (p.subtipo || s.tipoCodigo === 'PROVEEDOR') ? el('span', { class: 'chip c-line', text: p.subtipo || (p.esTransportista ? 'Transportista' : 'Ayudante de descarga') }) : null]),
+                    el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), (p.subtipo || s.tipoCodigo === 'PROVEEDOR') ? el('span', { class: 'chip c-line', text: p.subtipo || (p.esTransportista ? 'Conductor' : 'Ayudante de descarga') }) : null]),
                     el('div', { class: 'field-h', text: (p.tipoDoc ? p.tipoDoc + ' ' : '') + p.doc }),
                     nota(p) ? el('div', { class: 'field-h', text: nota(p) }) : null
                 ]),

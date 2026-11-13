@@ -23,6 +23,9 @@ var SOL = (function () {
     function hoy() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
     function fechaLarga(f) { var p = String(f).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; }
     function campo(etiqueta, control, ayuda) { return el('label', { class: 'field' }, [el('span', { class: 'field-l', text: etiqueta }), control, ayuda ? el('span', { class: 'field-h', text: ayuda }) : null]); }
+    // D-237: filas compactas. Cada campo se dimensiona según su dato: f-xs 120 px (placa), f-s 170 (fecha, hora), f-m 280 (listas), f-l ocupa lo que quede (textos).
+    function fila(hijos) { return el('div', { class: 'fila' }, hijos); }
+    function w(cls, nodo) { nodo.classList.add(cls); return nodo; }
     function texto(valor, max, ph) { var i = el('input', { type: 'text', maxlength: String(max), autocomplete: 'off', placeholder: ph || '' }); i.value = valor || ''; return i; }
     function errores(r) {
         var det = (r.errors || []).map(function (e) { return e.message; }).filter(Boolean);
@@ -64,6 +67,77 @@ var SOL = (function () {
         });
         input.addEventListener('blur', function () { setTimeout(ocultar, 150); });
         return caja;
+    }
+
+    // D-237: campo opcional compactado. Muestra un botón pequeño «+ …»; el campo aparece solo al pulsarlo y «Quitar» lo oculta y lo limpia.
+    // Devuelve {nodo, abierto(), abrir()}. Si abierto = true (el campo ya trae valor) se muestra desplegado.
+    function opcional(textoBoton, nodoCampo, abierto, limpiar) {
+        var btn = el('button', { type: 'button', class: 'btn-mas', text: '+ ' + textoBoton, 'aria-expanded': 'false' });
+        var quitar = el('button', { type: 'button', class: 'link opc-quitar', text: 'Quitar' });
+        var cuerpo = el('div', { class: 'opc-cuerpo' }, [nodoCampo, quitar]);
+        var abre = false;
+        function poner(x) { abre = !!x; cuerpo.hidden = !abre; btn.hidden = abre; btn.setAttribute('aria-expanded', abre ? 'true' : 'false'); }
+        btn.addEventListener('click', function () { poner(true); var f = cuerpo.querySelector('input,textarea,select'); if (f) f.focus(); });
+        quitar.addEventListener('click', function () { if (limpiar) limpiar(); poner(false); });
+        poner(abierto);
+        return { nodo: el('div', { class: 'opc' }, [btn, cuerpo]), abierto: function () { return abre; }, abrir: function () { poner(true); } };
+    }
+
+    // D-237: lista de textos como etiquetas (teléfonos, números de OC). cfg: {norm(x) → texto normalizado o null si no vale, sep (RegExp), max, msg(x), inputmode}.
+    // Enter, «;» o «,» agregan; la × quita. Expone .value («a;b», incluye lo escrito y no confirmado), lista(), confirmar() (true si no quedó nada inválido).
+    function chipsTexto(valor, ph, cfg) {
+        var lista = [];
+        var caja = el('div', { class: 'chips-box' }), input = el('input', { type: 'text', autocomplete: 'off', placeholder: ph || '', inputmode: cfg.inputmode || 'text' });
+        var aviso = el('p', { class: 'field-h' }), raiz = el('div', { class: 'sug-wrap' });
+        function partir(t) { return String(t || '').split(cfg.sep).map(function (x) { return x.trim(); }).filter(Boolean); }
+        function pintar() {
+            caja.textContent = '';
+            lista.forEach(function (c) {
+                var x = el('button', { type: 'button', class: 'link', text: '×', 'aria-label': 'Quitar ' + c });
+                x.addEventListener('click', function () { lista = lista.filter(function (y) { return y !== c; }); aviso.textContent = ''; pintar(); });
+                caja.appendChild(el('span', { class: 'chip c-line' }, [el('span', { text: c }), x]));
+            });
+            caja.appendChild(input);
+        }
+        function agregar(t) {
+            var malos = [];
+            partir(t).forEach(function (x) {
+                var n = cfg.norm(x);
+                if (n === null) { aviso.textContent = cfg.msg(x); malos.push(x); return; }
+                if (lista.indexOf(n) >= 0) { aviso.textContent = n + ' ya está en la lista.'; return; }
+                if (lista.length >= cfg.max) { aviso.textContent = 'Máximo ' + cfg.max + ' en la lista.'; malos.push(x); return; }
+                lista.push(n); aviso.textContent = '';
+            });
+            input.value = malos.join(' ');
+            pintar();
+            return malos.length === 0;
+        }
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ';' || e.key === ',') { if (input.value.trim()) { e.preventDefault(); agregar(input.value); input.focus(); } else if (e.key === 'Enter') e.preventDefault(); }
+            else if (e.key === 'Backspace' && !input.value && lista.length) { lista.pop(); pintar(); input.focus(); }
+        });
+        input.addEventListener('paste', function (e) { var t = (e.clipboardData || window.clipboardData).getData('text'); if (cfg.sep.test(t.trim())) { e.preventDefault(); agregar(t); input.focus(); } });
+        input.addEventListener('blur', function () { setTimeout(function () { if (input.value.trim()) agregar(input.value); }, 200); });
+        caja.addEventListener('click', function () { input.focus(); });
+        raiz.appendChild(caja); raiz.appendChild(aviso);
+        // Valor inicial (p. ej. al editar): lo que no cumple la regla queda escrito en el campo, con su aviso.
+        agregar(valor);
+        Object.defineProperty(raiz, 'value', {
+            get: function () { var r = lista.slice(), t = input.value.trim(); if (t) r = r.concat(partir(t)); return r.join(';'); }
+        });
+        raiz.lista = function () { return lista.slice(); };
+        raiz.confirmar = function () { return input.value.trim() ? agregar(input.value) : true; };
+        return raiz;
+    }
+
+    // Reglas de las listas de D-237 (iguales a las de la base de datos).
+    function normTelefono(x) { var d = x.replace(/\D/g, ''); return /^[0-9 +()-]+$/.test(x) && d.length >= 9 && d.length <= 15 ? d : null; }
+    function normOc(x) { var o = x.toUpperCase().replace(/\s+/g, ''); return /^[A-Z0-9][-A-Z0-9\/.]{2,19}$/.test(o) ? o : null; }
+    function chipsTelefonos(valor, ph) {
+        return chipsTexto(valor, ph, { norm: normTelefono, sep: /[;,\n]+/, max: 5, inputmode: 'tel', msg: function (x) { return '«' + x + '» no es un celular válido: indique al menos 9 dígitos.'; } });
+    }
+    function chipsOc(valor, ph) {
+        return chipsTexto(valor, ph, { norm: normOc, sep: /[;,\s]+/, max: 5, msg: function (x) { return '«' + x + '» no parece un número de OC (3 a 20 letras, números, guion, punto o barra).'; } });
     }
 
     // D-217: lista de correos como etiquetas. Escriba 2 letras para ver usuarios y correos ya usados; Enter, «;» o «,» agregan;
@@ -189,12 +263,14 @@ var SOL = (function () {
         });
         pintar();
         var izq = el('div', { class: 'stack' }, [
-            campo('Rango: desde', desde), campo('Rango: hasta', hasta), campo('Frecuencia del rango', frec), campo('Fines de semana', fines), el('div', {}, [bRango]),
-            campo('Día suelto', suelto), el('div', {}, [bDia])]);
+            fila([w('f-s', campo('Rango: desde', desde)), w('f-s', campo('Rango: hasta', hasta))]),
+            fila([w('f-s', campo('Frecuencia', frec)), w('f-s', campo('Fines de semana', fines))]),
+            el('div', {}, [bRango]),
+            fila([w('f-s', campo('Día suelto', suelto)), el('div', { class: 'fila-btn' }, [bDia])])]);
         var der = el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Días autorizados *' }), lista, total, el('div', {}, [quitarTodos]), msg]);
         var nodo = el('div', { class: 'stack' }, [
             el('div', { class: 'dias-sel' }, [izq, der]),
-            el('div', { class: 'grid g2' }, [campo('Hora de ingreso aproximada (opcional)', horaD), campo('Hora de salida aproximada (opcional)', horaH, 'Es solo referencia para Vigilancia: no restringe el ingreso ni la salida. Se aplica a todos los días.')])
+            opcional('Indicar horas aproximadas de ingreso y salida', el('div', { class: 'stack' }, [fila([w('f-s', campo('Ingreso aprox.', horaD)), w('f-s', campo('Salida aprox.', horaH))]), el('span', { class: 'field-h', text: 'Es solo referencia para Vigilancia: no restringe el ingreso ni la salida. Se aplica a todos los días.' })]), !!(hd || hh), function () { horaD.value = ''; horaH.value = ''; }).nodo
         ]);
         return { nodo: nodo, dias: expandir, horaDesde: function () { return horaD.value; }, horaHasta: function () { return horaH.value; } };
     }
@@ -267,18 +343,33 @@ var SOL = (function () {
 
         // ── Proveedor de abastecimiento (D-223): empresa que recibe y responsable de la entrega (contacto). Los datos de cada
         //    transportista se piden en el paso «Personas». No tiene responsable de atención (lo define Almacén), zonas ni cochera. ──
-        var grupo = el('select'); grupo.appendChild(el('option', { value: '', text: 'Elija la empresa del grupo' }));
-        (op.empresasGrupo || []).forEach(function (g) { grupo.appendChild(el('option', { value: String(g.id), text: g.texto })); });
-        grupo.value = v.empresaDestinoId && (op.empresasGrupo || []).some(function (g) { return g.id === v.empresaDestinoId; }) ? String(v.empresaDestinoId) : '';
+        // D-236: una solicitud puede estar ligada a 1 a 4 empresas del grupo (casillas)
+        var empresasSel = {};
+        (v.empresasIds && v.empresasIds.length ? v.empresasIds : (v.empresaDestinoId ? [v.empresaDestinoId] : [])).forEach(function (i) { empresasSel[i] = true; });
+        var grupo = el('div', { class: 'chk-fila' });
+        (op.empresasGrupo || []).forEach(function (g) {
+            var cb = el('input', { type: 'checkbox' }); cb.checked = !!empresasSel[g.id];
+            cb.addEventListener('change', function () { if (cb.checked) empresasSel[g.id] = true; else delete empresasSel[g.id]; });
+            grupo.appendChild(el('label', { class: 'chk' }, [cb, el('span', { text: g.texto })]));
+        });
+        function empresasElegidas() { return (op.empresasGrupo || []).filter(function (g) { return empresasSel[g.id]; }); }
         var pNombre = texto(v.contactoNombre, 200, 'Quién responde por esta entrega');
-        var pTel = texto(v.contactoTelefonos, 100, '999 111 222');
+        // D-237: teléfonos celulares como etiquetas (mínimo 1, cada uno de 9 dígitos o más), OC como etiquetas (mínimo 1), campos opcionales compactados.
+        var pTel = chipsTelefonos(v.contactoTelefonos, 'Escriba un celular y pulse Enter');
+        var ocChips = chipsOc((v.numerosOc || []).join(';'), 'Escriba la OC y pulse Enter');
+        var horaFin = el('input', { type: 'time' }); horaFin.value = v.horaHasta || '';
+        var opcFranja = opcional('Indicar franja horaria (informativa)', w('f-s', campo('Franja: hasta', horaFin)), !!v.horaHasta, function () { horaFin.value = ''; });
+        var transpEmp = texto(v.empresaTransportista, 200, 'Empresa que transporta la carga');
+        var opcTransp = opcional('Añadir empresa transportista', w('f-m', campo('Empresa transportista', transpEmp, 'Vacía = el mismo proveedor transporta.')), !!v.empresaTransportista, function () { transpEmp.value = ''; });
+        var pCorreo = chipsCorreo(v.contactoCorreos, urlCorreos, 'responsable@empresa.com');
+        var opcCorreo = opcional('Añadir correo del responsable', campo('Correo del responsable', pCorreo, 'Solo es un dato de contacto: no recibe los avisos.'), !!(v.contactoCorreos && String(v.contactoCorreos).trim()), function () { pCorreo = chipsCorreo('', urlCorreos, 'responsable@empresa.com'); opcCorreo.nodo.querySelector('.opc-cuerpo').replaceChild(campo('Correo del responsable', pCorreo, 'Solo es un dato de contacto: no recibe los avisos.'), opcCorreo.nodo.querySelector('.opc-cuerpo').firstChild); });
 
         // ── Cochera ──
         var cochera = el('select', {}, [el('option', { value: 'N', text: 'No' }), el('option', { value: 'Y', text: 'Sí' })]);
         cochera.value = v.cochera ? 'Y' : 'N';
         var placa = texto(v.placa, 8, 'Ej.: ABC123'); placa.style.textTransform = 'uppercase';
         var placaCampo = campo('Placa del vehículo *', placa, 'De 5 a 8 letras o números.');
-        var cocheraBloque = el('div', { class: 'grid g2' }, [campo('¿Requiere cochera?', cochera), placaCampo]);
+        var cocheraBloque = fila([w('f-s', campo('¿Requiere cochera?', cochera)), w('f-s', placaCampo)]);
         function sincCochera() { placaCampo.hidden = cochera.value !== 'Y'; }
         cochera.addEventListener('change', sincCochera); sincCochera();
 
@@ -335,13 +426,18 @@ var SOL = (function () {
             sincZonas();
         }
 
+        // D-237: opcionales del contratista compactados
+        var opcResp = opcional('Indicar responsable de atención', caja, !!resp.id, function () { resp = { id: 0, nombre: '' }; pintarResp(); });
+        var opcArea = opcional('Añadir detalle del área', campo('Detalle del área', areaDetalle), !!(v.areaDetalle && String(v.areaDetalle).trim()), function () { areaDetalle.value = ''; });
+        var OBS_PH = obs.placeholder;
+
         // ── Diseño según el tipo ──
-        var nodo = el('div', { class: 'stack' });
+        var nodo = el('div', { class: 'stack form-c' });
         function armar() {
             var c = esContratista(), t = tipoActual();
             tipoAyuda.textContent = editar ? 'El tipo de ingreso y la sede no se pueden cambiar. Si se equivocó, cancele y cree otra solicitud.' : '';
             nodo.textContent = '';
-            nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Tipo de ingreso *', tipoSel, editar ? null : (t.codigo ? null : 'Elija el tipo de ingreso.')), campo('Sede *', sedeSel)]));
+            nodo.appendChild(fila([w('f-m', campo('Tipo de ingreso *', tipoSel, editar ? null : (t.codigo ? null : 'Elija el tipo de ingreso.'))), w('f-m', campo('Sede *', sedeSel))]));
             if (editar) nodo.appendChild(tipoAyuda);
             if (c && diasFijos) {
                 var hd = textoHoras(v.dias[0].desde, v.dias[0].hasta);
@@ -351,29 +447,35 @@ var SOL = (function () {
             } else if (usaDias()) {
                 nodo.appendChild(selDias.nodo);
             } else {
-                nodo.appendChild(el('div', { class: 'grid g2' }, [campo(c ? 'Fecha del servicio *' : esProveedor() ? 'Fecha de la entrega *' : 'Fecha de la visita *', fecha), campo(c ? 'Hora prevista del servicio *' : 'Hora prevista *', hora)]));
+                nodo.appendChild(fila([w('f-s', campo(c ? 'Fecha del servicio *' : esProveedor() ? 'Fecha de la entrega *' : 'Fecha de la visita *', fecha)), w('f-s', campo(c ? 'Hora prevista del servicio *' : esProveedor() ? 'Hora de entrega prevista *' : 'Hora prevista *', hora))].concat(esProveedor() ? [w('alin', opcFranja.nodo)] : [])));
             }
             var prov = esProveedor();
+            obs.placeholder = prov ? 'Ej.: carga 1.671 TN, requiere montacargas' : OBS_PH;
             empresa.placeholder = c ? 'Nombre de la empresa contratista' : prov ? 'Empresa proveedora que realiza la entrega' : 'Empresa o procedencia de los visitantes';
-            nodo.appendChild(campo(c ? 'Empresa contratista *' : prov ? 'Empresa proveedora *' : 'Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])));
+            var campoEmpresa = w('f-l', campo(c ? 'Empresa contratista *' : prov ? 'Empresa proveedora *' : 'Empresa o procedencia *', el('div', { class: 'sug-wrap' }, [empresa, sugEmpresa])));
+            if (prov) { nodo.appendChild(fila([w('f-m', campo('N.º de OC de la entrega *', ocChips, 'Enter agrega; hasta 5.')), campoEmpresa])); nodo.appendChild(opcTransp.nodo); }
+            else nodo.appendChild(fila([campoEmpresa]));
             if (esProveedor()) {
-                nodo.appendChild(campo('Empresa del grupo que recibe la entrega *', grupo));
-                nodo.appendChild(el('h4', { text: 'Responsable de la entrega' }));
-                nodo.appendChild(el('p', { class: 'field-h', text: 'Persona de contacto de esta entrega: quien necesite comunicarse (Vigilancia, Almacén, Coordinación) la llamará a ella. No tiene que ser el transportista.' }));
-                nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Nombre del responsable *', pNombre), campo('Teléfono *', pTel, 'Mínimo 6 dígitos. Varios, separados por «;».')]));
-                nodo.appendChild(campo('Detalles adicionales (opcional)', obs));
+                nodo.appendChild(campo('Empresa(s) receptora(s) de la entrega (Cliente(s)) *', grupo, 'Marque una o varias (hasta 4).'));
+                nodo.appendChild(el('h4', { text: 'Contacto del responsable de la entrega' }));
+                nodo.appendChild(el('p', { class: 'field-h', text: 'Persona a quien llamarán Vigilancia, Almacén o Coordinación por esta entrega. No tiene que ser el conductor.' }));
+                nodo.appendChild(fila([w('f-l', campo('Nombre completo del responsable *', pNombre)), w('f-m', campo('Teléfono celular *', pTel, 'Mínimo 9 dígitos. Enter agrega; hasta 5.'))]));
+                nodo.appendChild(opcCorreo.nodo);
+                nodo.appendChild(el('hr', { class: 'sep' }));
                 nodo.appendChild(campo('Correos en copia (opcional)', copias, 'Reciben copia de los avisos de la solicitud.'));
+                nodo.appendChild(campo('Detalles adicionales para el correo (opcional)', obs));
                 return;
             }
-            nodo.appendChild(el('div', { class: 'field' }, [el('span', { class: 'field-l', text: c ? 'Responsable de atención (opcional)' : 'Responsable de atención *' }), caja]));
+            if (c) nodo.appendChild(opcResp.nodo);
+            else nodo.appendChild(fila([w('f-l', el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]))]));
             if (c) {
                 nodo.appendChild(campo('Actividad(es) a realizar *', actividades));
                 nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
-                nodo.appendChild(campo('Detalle del área (opcional)', areaDetalle));
+                nodo.appendChild(opcArea.nodo);
                 nodo.appendChild(el('h4', { text: 'Contacto de la empresa contratista' }));
-                nodo.appendChild(el('div', { class: 'grid g3' }, [campo('Nombre del contacto *', cNombre), campo('Teléfonos *', cTel, 'Varios, separados por «;».'), campo('Correos *', cCorreos, 'Varios correos, uno por etiqueta. No se copian solos a los avisos.')]));
+                nodo.appendChild(fila([w('f-l', campo('Nombre del contacto *', cNombre)), w('f-m', campo('Teléfonos *', cTel, 'Varios, separados por «;».')), w('f-l', campo('Correos *', cCorreos, 'No se copian solos a los avisos.'))]));
             } else {
-                nodo.appendChild(el('div', { class: 'grid g2' }, [campo('Motivo de la visita *', motivo), detalleCampo]));
+                nodo.appendChild(fila([w('f-m', campo('Motivo de la visita *', motivo)), w('f-l', detalleCampo)]));
                 nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
             }
             if (sedeActual().cochera) nodo.appendChild(cocheraBloque);
@@ -390,32 +492,40 @@ var SOL = (function () {
             return {
                 tipoId: Number(tipoSel.value) || 0, tipoCodigo: tipoActual().codigo, tipoTexto: tipoActual().texto, sedeId: Number(sedeSel.value) || 0, sedeTexto: sedeActual().texto,
                 fecha: usaDias() ? (selDias.dias()[0] || '') : diasFijos ? v.fecha : fecha.value, hora: usaDias() ? '00:00' : diasFijos ? v.hora : hora.value,
-                dias: usaDias() ? selDias.dias() : [], horaDesde: usaDias() ? selDias.horaDesde() : '', horaHasta: usaDias() ? selDias.horaHasta() : '',
+                dias: usaDias() ? selDias.dias() : [], horaDesde: usaDias() ? selDias.horaDesde() : '', horaHasta: usaDias() ? selDias.horaHasta() : p && opcFranja.abierto() ? horaFin.value : '',
+                numerosOc: p ? ocChips.lista() : null, empresaTransportista: p && opcTransp.abierto() ? transpEmp.value : '',
                 empresa: empresa.value, responsableId: resp.id, responsable: resp.nombre,
                 motivoId: c || p ? null : (motivo.value ? Number(motivo.value) : null),
                 motivoDetalle: p ? '' : c ? actividades.value : detalle.value, observaciones: obs.value,
                 zonasIds: p ? [] : sedeActual().zonas.filter(function (z) { return zonasSel[z.id]; }).map(function (z) { return z.id; }), copias: copias.value,
-                empresaDestinoId: p && grupo.value ? Number(grupo.value) : null, empresaDestino: p ? (grupo.options[grupo.selectedIndex] || {}).text || '' : '',
+                empresaDestinoId: p && empresasElegidas().length ? empresasElegidas()[0].id : null, empresasIds: p ? empresasElegidas().map(function (g) { return g.id; }) : [],
+                empresaDestino: p ? empresasElegidas().map(function (g) { return g.texto; }).join(' / ') : '',
                 cochera: conCochera, placa: conCochera ? placa.value.toUpperCase().replace(/[\s-]/g, '') : '',
-                areaDetalle: c ? areaDetalle.value : '', contactoNombre: c ? cNombre.value : p ? pNombre.value : '', contactoTelefonos: c ? cTel.value : p ? pTel.value : '', contactoCorreos: c ? cCorreos.value : ''
+                areaDetalle: c ? areaDetalle.value : '', contactoNombre: c ? cNombre.value : p ? pNombre.value : '', contactoTelefonos: c ? cTel.value : p ? pTel.value : '', contactoCorreos: c ? cCorreos.value : p && opcCorreo.abierto() ? pCorreo.value : ''
             };
         }
         // Validación mínima de formulario; las reglas de fondo las valida el servidor.
         function validar() {
+            if (esProveedor()) {
+                if (!ocChips.confirmar()) return 'Corrija el número de OC escrito (o bórrelo).';
+                if (!pTel.confirmar()) return 'Corrija el celular escrito (mínimo 9 dígitos) o bórrelo.';
+            }
             var d = leer(), c = esContratista();
             if (!d.tipoId) return 'Elija el tipo de ingreso.';
             if (!d.sedeId) return 'Elija la sede.';
             if (usaDias()) {
                 if (!d.dias.length) return 'Elija al menos un día de trabajo.';
                 if (d.horaDesde && d.horaHasta && d.horaHasta <= d.horaDesde) return 'La hora de salida debe ser posterior a la de ingreso.';
-            } else if (!d.fecha || !d.hora) return c ? 'Indique la fecha y la hora del servicio.' : 'Indique la fecha y la hora de la visita.';
-            if (!usaDias() && !diasFijos && d.fecha < hoy()) return c ? 'La fecha del servicio no puede ser anterior a hoy.' : 'La fecha de la visita no puede ser anterior a hoy.';
+            } else if (!d.fecha || !d.hora) return c ? 'Indique la fecha y la hora del servicio.' : esProveedor() ? 'Indique la fecha y la hora de entrega prevista.' : 'Indique la fecha y la hora de la visita.';
+            if (!usaDias() && !diasFijos && d.fecha < hoy()) return c ? 'La fecha del servicio no puede ser anterior a hoy.' : esProveedor() ? 'La fecha de la entrega no puede ser anterior a hoy.' : 'La fecha de la visita no puede ser anterior a hoy.';
             if (!d.empresa.trim()) return c ? 'Indique la empresa contratista.' : esProveedor() ? 'Indique la empresa proveedora.' : 'Indique la empresa o procedencia.';
             if (esProveedor()) {
                 if (!sedeActual().proveedor && !editar) return 'Esa sede no recibe proveedores de abastecimiento. Elija otra sede.';
-                if (!d.empresaDestinoId) return 'Elija la empresa del grupo que recibe la entrega.';
-                if (!d.contactoNombre.trim()) return 'Indique el nombre del responsable de la entrega.';
-                if (d.contactoTelefonos.replace(/\D/g, '').length < 6) return 'Indique el teléfono del responsable de la entrega (mínimo 6 dígitos).';
+                if (!d.empresasIds.length) return 'Elija al menos una empresa del grupo que recibe la entrega.';
+                if (!d.numerosOc.length) return 'Indique el número de la OC de la entrega (al menos una).';
+                if (d.horaHasta && d.horaHasta <= d.hora) return 'La hora final de la franja debe ser posterior a la hora de entrega prevista.';
+                if (!d.contactoNombre.trim()) return 'Indique el nombre completo del responsable de la entrega.';
+                if (!pTel.lista().length) return 'Indique al menos un teléfono celular del responsable (mínimo 9 dígitos).';
                 return '';
             }
             if (!d.responsableId && !c) return 'Elija al responsable de atención.';
@@ -479,8 +589,8 @@ var SOL = (function () {
             nota.textContent = 'Ya está registrada. Si su nombre está mal, corríjalo aquí y se actualizará.';
         });
         var nodo = el('div', { class: 'stack pform' }, [
-            el('div', { class: 'grid g2' }, [campo('Tipo de documento', tipo), campo('Número *', doc)]),
-            el('div', { class: 'grid g3' }, [campo('Apellido paterno *', el('div', { class: 'sug-wrap' }, [ap, sugPersona]), 'Escriba 3 letras para ver personas ya registradas.'), campo('Apellido materno', am), campo('Nombres *', nom)]),
+            fila([w('f-s', campo('Tipo de documento', tipo)), w('f-m', campo('Número *', doc))]),
+            fila([w('f-l', campo('Apellido paterno *', el('div', { class: 'sug-wrap' }, [ap, sugPersona]), 'Escriba 3 letras para ver personas ya registradas.')), w('f-l', campo('Apellido materno', am)), w('f-l', campo('Nombres *', nom))]),
             nota
         ]);
 
@@ -544,14 +654,14 @@ var SOL = (function () {
     // lista = [{principal,nombrePersona,tipoDoc,doc,ruc,nombre,direccion,placa,marca,licencia,completos}]
     function transportistasNodo(lista) {
         var CAMPOS = [['ruc', 'RUC'], ['nombre', 'Transportista'], ['direccion', 'Dirección'], ['placa', 'Placa'], ['marca', 'Marca'], ['licencia', 'Licencia']];
-        var caja = el('div', { class: 'stack' }, [el('h3', { text: 'Transportistas (' + (lista || []).length + ')' })]);
-        if (!lista || !lista.length) { caja.appendChild(el('p', { class: 'vacio', text: 'Sin transportistas registrados.' })); return caja; }
+        var caja = el('div', { class: 'stack' }, [el('h3', { text: 'Conductores (' + (lista || []).length + ')' })]);
+        if (!lista || !lista.length) { caja.appendChild(el('p', { class: 'vacio', text: 'Sin conductores registrados.' })); return caja; }
         caja.appendChild(el('ul', { class: 'plist' }, lista.map(function (t) {
             var datos = CAMPOS.filter(function (c) { return t[c[0]]; }).map(function (c) { return c[1] + ': ' + t[c[0]]; }).join(' · ');
             return el('li', {}, [el('div', { class: 'plist-m' }, [
                 el('div', { class: 'pn', text: t.nombrePersona + (t.principal ? ' (principal)' : '') }),
                 el('div', { class: 'field-h', text: (t.tipoDoc ? t.tipoDoc + ' ' : '') + (t.doc || '') }),
-                el('div', { class: 'field-h', text: datos || 'Sin datos de transportista aquí: constan en los documentos adjuntos.' }),
+                el('div', { class: 'field-h', text: datos || 'Sin más datos del vehículo.' }),
                 t.completos ? null : (datos ? el('div', { class: 'field-h', text: 'Los datos que faltan constan en los documentos adjuntos.' }) : null)])]);
         })));
         return caja;
@@ -569,7 +679,7 @@ var SOL = (function () {
                      TRIANON_ASCENSORES: ['Trianon Ascensores', 'TA', 'em-ta'], TRIANON_SOSTENIBLE: ['Trianon Sostenible', 'TS', 'em-ts'] };
     // Acepta un código o una lista de códigos (preparado para que una solicitud tenga más de una empresa que recibe).
     function chipEmpresa(codigos) {
-        var lista = Array.isArray(codigos) ? codigos : (codigos ? [codigos] : []);
+        var lista = Array.isArray(codigos) ? codigos : (codigos ? String(codigos).split(',') : []);   // D-236: varias empresas = códigos separados por coma
         var nodos = lista.map(function (c) {
             var e = EMPRESAS[c];
             return e ? el('span', { class: 'chip-em ' + e[2], title: 'Recibe: ' + e[0], text: e[1] }) : null;
@@ -588,6 +698,6 @@ var SOL = (function () {
         return caja;
     }
 
-    return { chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo,
+    return { chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo, fila: fila, w: w, opcional: opcional,
              errores: errores, cargarOpciones: cargarOpciones, formDatos: formDatos, formPersona: formPersona };
 })();

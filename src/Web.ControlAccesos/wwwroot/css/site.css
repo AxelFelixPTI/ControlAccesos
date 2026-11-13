@@ -252,3 +252,31 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
 
 /* 2A: Verificación en grupo (modal por pasos) */
 .vgrp-op{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;padding:10px 12px}.vgrp-op:disabled{opacity:.55;cursor:not-allowed}.chk.is-off{opacity:.55}
+
+/* D-237: campos opcionales compactados («+ Añadir …») y separador de secciones del formulario */
+.opc{display:block}
+.btn-mas{background:transparent;border:1px dashed var(--line2);border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--teal-ink);cursor:pointer}
+.btn-mas:hover,.btn-mas:focus-visible{border-color:var(--teal);background:var(--sf)}
+.opc-cuerpo{display:flex;flex-direction:column;gap:4px}
+.opc-quitar{align-self:flex-start;font-size:13px}
+hr.sep{border:0;border-top:1px solid var(--line2);margin:8px 0}
+
+/* D-237: filas compactas; cada campo según su dato (no todos a ancho completo) */
+.fila{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+.fila>.field,.fila>.opc,.fila>.fila-btn{flex:0 0 auto;min-width:0}
+.fila>.f-xs{width:120px}.fila>.f-s{width:170px}.fila>.f-m{width:280px}.fila>.f-l{flex:1 1 220px}
+.opc .f-xs{width:120px}.opc .f-s{width:170px}.opc .f-m{width:280px}.opc .field{max-width:100%}
+.fila>.opc.alin:not(:has(.opc-cuerpo:not([hidden]))),.fila>.fila-btn{margin-top:23px}
+.chk-fila{display:flex;flex-wrap:wrap;gap:8px}
+.chk-fila .chk{border:1px solid var(--line);border-radius:999px;padding:6px 14px;min-height:36px}
+.zonas{display:flex;flex-wrap:wrap;gap:8px}.zonas legend{flex:0 0 100%}
+.zona{flex:0 0 auto}
+.dias-sel{grid-template-columns:minmax(0,380px) minmax(0,1fr)}
+@media (max-width:560px){
+  .fila>.opc.alin:not(:has(.opc-cuerpo:not([hidden]))),.fila>.fila-btn{margin-top:0}
+  .fila>.f-xs{width:calc(40% - 6px)}.fila>.f-s{width:calc(50% - 6px)}.fila>.f-m,.fila>.f-l{width:100%;flex:1 1 100%}
+}
+@media (max-width:720px){.dias-sel{grid-template-columns:1fr}}
+
+/* D-237: el formulario no se estira en pantallas anchas */
+.form-c{max-width:760px}

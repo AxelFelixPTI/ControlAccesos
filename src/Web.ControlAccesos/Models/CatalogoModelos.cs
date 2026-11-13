@@ -87,7 +87,10 @@ public sealed class SolicitudGuardarVM
     public string? ContactoNombre { get; set; }
     public string? ContactoTelefonos { get; set; }
     public string? ContactoCorreos { get; set; }
-    public long? EmpresaDestinoId { get; set; }            // proveedor: empresa del grupo que recibe (D-223)
+    public long? EmpresaDestinoId { get; set; }            // proveedor: empresa del grupo que recibe (D-223); con varias, la primera
+    public List<long>? EmpresasIds { get; set; }           // D-236: proveedor: todas las empresas que reciben (1 a 4)
+    public List<string>? NumerosOc { get; set; }           // D-237: proveedor: OC de la entrega (al menos una). Nulo = no es proveedor
+    public string? EmpresaTransportista { get; set; }      // D-237: proveedor: vacía = el mismo proveedor transporta (HoraHasta = fin de la franja estimada)
     public List<TransportistaVM> Transportistas { get; set; } = new();   // proveedor, solo al crear
     public List<SubtipoPersonaVM> Subtipos { get; set; } = new();         // D-234: rol de cada persona, solo al crear
     public List<string>? Dias { get; set; }                // contratista por franja (D-227): «AAAA-MM-DD», solo al crear
@@ -184,4 +187,11 @@ public sealed class SubtipoEstadoVM
 {
     public long Id { get; set; }
     public bool Activo { get; set; }
+}
+
+/// <summary>D-236: empresas del grupo a las que da atención un usuario de Almacén.</summary>
+public sealed class AlmacenEmpresaGuardarVM
+{
+    public long UsuarioId { get; set; }
+    public List<long>? EmpresasIds { get; set; }
 }

@@ -46,6 +46,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<IRepo_Catalogo_Motivo_Visita, Repo_Catalogo_Motivo_Visita>();
         s.AddScoped<IRepo_Catalogo_Sede, Repo_Catalogo_Sede>();
         s.AddScoped<IRepo_Catalogo_Tipo_Acceso, Repo_Catalogo_Tipo_Acceso>();
+        s.AddScoped<IRepo_Almacen_Empresa, Repo_Almacen_Empresa>();
         s.AddScoped<IRepo_Catalogo_Tipo_Documento, Repo_Catalogo_Tipo_Documento>();
         s.AddScoped<IRepo_Catalogo_Tipo_Incidencia, Repo_Catalogo_Tipo_Incidencia>();
         s.AddScoped<IRepo_Catalogo_Tratamiento_Desviacion, Repo_Catalogo_Tratamiento_Desviacion>();
@@ -76,6 +77,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<ISrv_Catalogo_Motivo_Visita, Srv_Catalogo_Motivo_Visita>();
         s.AddScoped<ISrv_Catalogo_Sede, Srv_Catalogo_Sede>();
         s.AddScoped<ISrv_Catalogo_Tipo_Acceso, Srv_Catalogo_Tipo_Acceso>();
+        s.AddScoped<ISrv_Almacen_Empresa, Srv_Almacen_Empresa>();
         s.AddScoped<ISrv_Catalogo_Tipo_Documento, Srv_Catalogo_Tipo_Documento>();
         s.AddScoped<ISrv_Catalogo_Tipo_Incidencia, Srv_Catalogo_Tipo_Incidencia>();
         s.AddScoped<ISrv_Catalogo_Tratamiento_Desviacion, Srv_Catalogo_Tratamiento_Desviacion>();

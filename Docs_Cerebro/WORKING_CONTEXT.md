@@ -1,9 +1,11 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-10-29
+Actualizado: 2026-11-13
 
 ## Dónde estamos
 
+- **2026-11-13 · Entrega 2C-0: formulario de proveedor reestructurado (D-237, script 31).** OC obligatoria (etiquetas), hora prevista + franja informativa, empresa transportista opcional, contacto del responsable con celulares en etiquetas, rol Conductor con placa obligatoria y campos opcionales compactados («+ Añadir…») también en contratista. Va antes de 2C-1/2C-2 (esclusa, vehículos informativos, atención por empresa), que se retoman después. Entrega acumulativa con la 2B (aún no subida).
+- **2026-11-12 · Entrega 2B: varias empresas por solicitud de proveedor y «Almacén por empresa» (D-236, script 30).** Una solicitud lleva 1 a 4 empresas; calendario con varios chips; se quita el responsable programado; nueva sección de Catálogos con las empresas que atiende cada almacenero. Sigue 2C (atención por empresa, puntos, esclusa configurable).
 - **2026-11-12 · Entrega 2A: «Verificación en grupo» (D-235).** Botón único por solicitud con 2+ personas y modal por pasos (acción → personas → checklist) para cualquier tipo, en ingreso y salida; el acceso directo del calendario abre este modal en la salida. Sin cambios de BD. Siguen: 2B/2C (varias empresas y atención por empresa).
 - **2026-11-12 · Entrega 1B: subtipos por persona y checklist por subtipo (D-234, script 29).** Rol de cada persona, gestión de subtipos en Catálogos y casillas del checklist por subtipo. Siguen: 2A (verificación en grupo), 2B/2C (varias empresas y atención por empresa).
 - **2026-11-11 · Entrega 1A: etiquetas de tipo y «Personas que ingresan» (D-233).** Etiqueta de color por tipo en todo el ciclo (Mis solicitudes, Detalle, Nueva/revisión, Coordinación, Control de accesos), sigla de empresa del proveedor (TE/PT/TA/TS, lista para varias empresas) y listados con personas + DNI en vez del responsable. SP nuevo `ERP_CAF_FN_PERSONAS_RESUMEN`; `MIS_LISTAR`/`BANDEJA_LISTAR` V1.1 con DROP; sin tablas nuevas. Sigue **1B (subtipos, D-234…, script 29)**; Entrega 2 (proveedor con varias empresas) en pausa hasta que Sandra defina conceptos. Pendiente en el repo: falta el script `27_*.sql` (D-231).

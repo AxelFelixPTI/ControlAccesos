@@ -15,36 +15,36 @@
     var TITULOS = ['Datos de la visita', 'Personas', 'Revisión y envío'];
     var AYUDAS = ['Elija el tipo de ingreso y la sede; indique cuándo, quién atiende y a qué zonas irán.', 'Agregue a cada persona que ingresará. Si ya la registró antes, se completa sola con su documento.', 'Revise y envíe. Coordinación decidirá persona por persona.'];
 
-    // ── Proveedor (D-223): cada persona puede marcarse «Es transportista»; sus datos de transportista y vehículo son opcionales ──
-    var CAMPOS_T = [['ruc', 'RUC del transportista', 11, 'Opcional. 11 dígitos.'], ['nombre', 'Nombre de transportista', 200, ''], ['direccion', 'Dirección de transportista', 300, ''],
-                    ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, 'Es la del transportista.']];
+    // ── Proveedor (D-223/D-237): cada persona lleva un rol (Conductor o Ayudante de descarga). El conductor debe indicar la placa de su
+    //    vehículo; los demás datos del vehículo y del transportista son opcionales y van compactados tras «+ Más datos…». ──
+    var CAMPOS_T = [['ruc', 'RUC del transportista', 11, 'Opcional. 11 dígitos.'], ['nombre', 'Nombre o razón social del transportista', 200, ''], ['direccion', 'Dirección del transportista', 300, ''],
+                    ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, '']];
     // Roles (subtipos) activos del tipo de ingreso elegido (D-234); vacío si el tipo no tiene.
     function subtiposDelTipo() { var v = formDatos ? formDatos.leer() : null; return v ? (op.subtipos || []).filter(function (x) { return x.tipoId === v.tipoId; }) : []; }
     function esProv() { return !!formDatos && formDatos.leer().tipoCodigo === 'PROVEEDOR'; }
-    function completos(p) { return CAMPOS_T.every(function (c) { return p.datos && String(p.datos[c[0]] || '').trim(); }); }
-    function faltanDatos() { return personas.some(function (p) { return p.transp && !completos(p); }); }
+    function limpiaPlaca(t) { return String(t || '').toUpperCase().replace(/[\s-]/g, ''); }
     function bloqueTransportista() {
-        var sw = el('input', { type: 'checkbox' }), ins = {}, activo = false;
-        var panel = el('div', { class: 'stack' }), sub = el('div', { class: 'stack' });
+        var ins = {}, activo = false;
+        var panel = el('div', { class: 'stack' }), mas = SOL.fila([]);
+        var placa = el('input', { type: 'text', maxlength: '8', placeholder: 'Ej.: ABC123' }); placa.style.textTransform = 'uppercase';
         CAMPOS_T.forEach(function (c) {
+            if (c[0] === 'placa') return;
             ins[c[0]] = el('input', { type: 'text', maxlength: String(c[2]) });
-            if (c[0] === 'placa') ins[c[0]].style.textTransform = 'uppercase';
-            sub.appendChild(SOL.campo(c[1], ins[c[0]], c[3] || null));
+            mas.appendChild(SOL.w(c[0] === 'nombre' || c[0] === 'direccion' ? 'f-l' : 'f-s', SOL.campo(c[1], ins[c[0]], null)));
         });
-        panel.appendChild(el('label', { class: 'chk' }, [sw, el('span', { text: 'Registrar datos del transportista y del vehículo' })]));
-        panel.appendChild(el('p', { class: 'field-h', text: 'Todos son opcionales: llene los que tenga. Lo que no ponga aquí debe constar en los documentos adjuntos (se pedirá al menos uno).' }));
-        panel.appendChild(sub);
-        function sinc() { panel.hidden = !activo; sub.hidden = !sw.checked; }
-        sw.addEventListener('change', sinc); sinc();
-        var nodo = el('div', { class: 'stack' }, [panel]);
+        var opc = SOL.opcional('Más datos del vehículo y del transportista', mas, false, function () { Object.keys(ins).forEach(function (k) { ins[k].value = ''; }); });
+        panel.appendChild(SOL.fila([SOL.w('f-xs', SOL.campo('Placa *', placa))]));
+        panel.appendChild(opc.nodo);
+        function sinc() { panel.hidden = !activo; }
+        sinc();
         return {
-            nodo: nodo,
+            nodo: el('div', { class: 'stack' }, [panel]),
+            placaValida: function () { var x = limpiaPlaca(placa.value); return x.length >= 5 && x.length <= 8 && /^[A-Z0-9]+$/.test(x); },
             leer: function () {
-                var d = {}; CAMPOS_T.forEach(function (c) { d[c[0]] = sw.checked ? ins[c[0]].value.trim() : ''; });
-                if (d.placa) d.placa = d.placa.toUpperCase().replace(/[\s-]/g, '');
+                var d = {}; CAMPOS_T.forEach(function (c) { d[c[0]] = c[0] === 'placa' ? limpiaPlaca(placa.value) : (opc.abierto() ? ins[c[0]].value.trim() : ''); });
                 return { datos: d };
             },
-            activar: function (b) { activo = !!b; sinc(); }   // D-234: se muestra solo cuando el rol elegido es Transportista
+            activar: function (b) { activo = !!b; sinc(); }   // D-234: se muestra solo cuando el rol elegido es Conductor
         };
     }
 
@@ -55,7 +55,7 @@
             pasos.appendChild(el('li', { class: n === paso ? 'on' : (n < paso ? 'done' : '') }, [el('button', { type: 'button', onclick: function () { if (n < paso) { paso = n; mostrar(); } } },
                 [el('span', { class: 'sn', text: n < paso ? '✓' : String(n) }), t])]));
         });
-        ayuda.textContent = paso === 2 && esProv() ? 'Agregue a cada persona de la entrega y marque quién es transportista. Los datos del vehículo son opcionales: pueden ir en los adjuntos.' : AYUDAS[paso - 1];
+        ayuda.textContent = paso === 2 && esProv() ? 'Agregue a cada persona de la entrega: el conductor (con la placa de su vehículo) y, si hay, el ayudante de descarga.' : AYUDAS[paso - 1];
         atras.hidden = paso === 1;
         sigue.textContent = paso === 3 ? 'Enviar solicitud' : 'Continuar';
     }
@@ -67,7 +67,7 @@
             lista.textContent = '';
             if (!personas.length) { lista.appendChild(el('li', {}, [el('span', { class: 'vacio', text: 'Aún no agregó personas.' })])); return; }
             personas.forEach(function (p, i) {
-                var etiqueta = !prov ? '' : p.transp ? (personas.filter(function (x) { return x.transp; })[0] === p ? ' · Transportista principal' : ' · Transportista') + (completos(p) ? ' · datos completos' : ' · datos en los adjuntos') : ' · Ayudante de descarga';
+                var etiqueta = !prov ? '' : p.transp ? (personas.filter(function (x) { return x.transp; })[0] === p ? ' · Conductor principal' : ' · Conductor') + ' · placa ' + (p.datos.placa || '—') : ' · Ayudante de descarga';
                 lista.appendChild(el('li', {}, [
                     el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: p.nombre }), el('div', { class: 'field-h', text: p.doc + etiqueta })]),
                     el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Quitar', onclick: function () { personas.splice(i, 1); pintarLista(); } })
@@ -89,6 +89,8 @@
         var agregar = el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona' });
         agregar.addEventListener('click', function () {
             error.textContent = '';
+            var rol0 = rolActual();
+            if (bt && rol0 && rol0.codigo === 'TRANSPORTISTA' && !bt.placaValida()) { error.textContent = 'Indique la placa del vehículo del conductor (de 5 a 8 letras o números).'; return; }
             formPer.guardar().then(function (r) {
                 if (!r.success) { error.textContent = SOL.errores(r); return; }
                 if (personas.some(function (p) { return p.id === r.data.id; })) { error.textContent = 'Esa persona ya está en la lista.'; return; }
@@ -105,8 +107,8 @@
         var cajaT = el('div'); if (bt) { cajaT.appendChild(bt.nodo); bt.activar(rolActual() && rolActual().codigo === 'TRANSPORTISTA'); }
         pintarLista();
         if (!adj) adj = ADJ.selector(d.urlAdj);
-        var guia = prov ? el('div', { class: 'aviso a-info', text: 'Todas las personas necesitan documento y nombres (con eso las valida Coordinación y las recibe Vigilancia). Marque «Es transportista» en quien conduce un vehículo: debe haber al menos uno; el primero que marque es el principal.' }) : null;
-        return el('div', { class: 'stack' }, [guia, titulo, lista, el('hr'), el('h4', { text: 'Agregar persona' }), caja, rolSel ? SOL.campo('Rol de la persona', rolSel, 'Cada persona tiene un solo rol; con él se define qué verifica Vigilancia.') : null, cajaT, error, el('div', { class: 'row-end' }, [agregar]), el('hr'), adj.nodo]);
+        var guia = prov ? el('div', { class: 'aviso a-info', text: 'Todas las personas necesitan documento y nombres (con eso las valida Coordinación y las recibe Vigilancia). Debe haber al menos un conductor, con la placa de su vehículo; el primero que agregue es el principal.' }) : null;
+        return el('div', { class: 'stack' }, [guia, titulo, lista, el('hr'), el('h4', { text: 'Agregar persona' }), caja, SOL.fila([rolSel ? SOL.w('f-m', SOL.campo('Rol de la persona', rolSel)) : null, cajaT]), error, el('div', { class: 'row-end' }, [agregar]), el('hr'), adj.nodo]);
     }
 
     function paso3() {
@@ -116,8 +118,12 @@
         var motivo = (op.motivos.filter(function (m) { return m.id === v.motivoId; })[0] || {}).texto || '';
         var c = v.tipoCodigo === 'CONTRATISTA', p = v.tipoCodigo === 'PROVEEDOR';
         var dl = el('dl', { class: 'dl' });
-        var filas = [['Tipo de ingreso', v.tipoTexto], ['Sede', sede.texto], (c && v.dias && v.dias.length) ? ['Días de trabajo (' + v.dias.length + ')', v.dias.map(function (f) { return SOL.fechaLarga(f); }).join(', ') + ' · ' + SOL.textoHoras(v.horaDesde, v.horaHasta)] : [c ? 'Servicio' : p ? 'Entrega' : 'Visita', SOL.fechaLarga(v.fecha) + ' · ' + v.hora], [c ? 'Empresa contratista' : p ? 'Empresa proveedora' : 'Empresa', v.empresa]];
-        if (p) filas.push(['Empresa que recibe', v.empresaDestino], ['Responsable de la entrega', v.contactoNombre + ' · ' + v.contactoTelefonos]);
+        var filas = [['Tipo de ingreso', v.tipoTexto], ['Sede', sede.texto], (c && v.dias && v.dias.length) ? ['Días de trabajo (' + v.dias.length + ')', v.dias.map(function (f) { return SOL.fechaLarga(f); }).join(', ') + ' · ' + SOL.textoHoras(v.horaDesde, v.horaHasta)] : [c ? 'Servicio' : p ? 'Entrega' : 'Visita', SOL.fechaLarga(v.fecha) + ' · ' + v.hora + (p && v.horaHasta ? ' – ' + v.horaHasta + ' (estimada)' : '')], [c ? 'Empresa contratista' : p ? 'Empresa proveedora' : 'Empresa', v.empresa]];
+        if (p) {
+            filas.push(['N.º de OC', (v.numerosOc || []).join(', ')], ['Transporte', v.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', v.empresaDestino],
+                ['Contacto del responsable', v.contactoNombre + ' · ' + v.contactoTelefonos.split(';').join(', ')]);
+            if (v.contactoCorreos) filas.push(['Correo del responsable', v.contactoCorreos]);
+        }
         else if (c) filas.push(['Actividad(es)', v.motivoDetalle], ['Área de trabajo', zonas + (v.areaDetalle ? ' — ' + v.areaDetalle : '')],
             ['Contacto', v.contactoNombre + ' · ' + v.contactoTelefonos], ['Correos de contacto', v.contactoCorreos]);
         else filas.push(['Motivo', motivo + (v.motivoDetalle ? ' — ' + v.motivoDetalle : '')], ['Zonas', zonas]);
@@ -128,8 +134,8 @@
             .forEach(function (x) { dl.appendChild(el('dt', { text: x[0] })); dl.appendChild(el('dd', { text: x[1] })); });
         var lista = el('ul', { class: 'plist' }, personas.map(function (q) {
             var det = '';
-            if (p && q.transp) det = ' · Transportista' + (personas.filter(function (x) { return x.transp; })[0] === q ? ' principal' : '') + ': ' +
-                (CAMPOS_T.map(function (cc) { return q.datos[cc[0]] ? cc[1] + ' ' + q.datos[cc[0]] : ''; }).filter(Boolean).join(', ') || 'sin datos aquí (constan en los adjuntos)');
+            if (p && q.transp) det = ' · Conductor' + (personas.filter(function (x) { return x.transp; })[0] === q ? ' principal' : '') + ': ' +
+                CAMPOS_T.map(function (cc) { return q.datos[cc[0]] ? cc[1] + ' ' + q.datos[cc[0]] : ''; }).filter(Boolean).join(', ');
             return el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: q.nombre }), el('div', { class: 'field-h', text: q.doc + det })])]);
         }));
         var docs = adj ? adj.archivos() : [];
@@ -160,8 +166,9 @@
         if (paso === 2) {
             if (!personas.length) { CAF.aviso('Agregue al menos una persona.', 'warn'); return; }
             if (esProv()) {
-                if (!personas.some(function (p) { return p.transp; })) { CAF.aviso('Marque al menos un transportista entre las personas.', 'warn'); return; }
-                if (faltanDatos() && !(adj && adj.archivos().length)) { CAF.aviso('Hay transportistas sin todos sus datos: adjunte los documentos donde constan (RUC, placa, licencia…).', 'warn'); return; }
+                if (!personas.some(function (p) { return p.transp; })) { CAF.aviso('Agregue al menos un conductor entre las personas (rol «Conductor»).', 'warn'); return; }
+                var sinPlaca = personas.filter(function (p) { return p.transp && !String(p.datos.placa || '').trim(); })[0];
+                if (sinPlaca) { CAF.aviso('Falta la placa del vehículo de ' + sinPlaca.nombre + '. Quítelo y agréguelo otra vez indicando la placa.', 'warn'); return; }
             }
             paso = 3; mostrar(); return;
         }
@@ -199,7 +206,8 @@
                 empresa: s.empresa, responsableId: s.responsableId, responsable: s.responsable, motivoId: s.motivoId, motivoDetalle: s.motivoDetalle,
                 observaciones: s.observaciones, zonasIds: s.zonasIds, copias: s.copias,
                 tipoId: s.tipoId, sedeId: s.sedeId, cochera: s.cochera, placa: s.placa, areaDetalle: s.areaDetalle,
-                contactoNombre: s.contactoNombre, contactoTelefonos: s.contactoTelefonos, contactoCorreos: s.contactoCorreos, empresaDestinoId: s.empresaDestinoId
+                contactoNombre: s.contactoNombre, contactoTelefonos: s.contactoTelefonos, contactoCorreos: s.contactoCorreos, empresaDestinoId: s.empresaDestinoId, empresasIds: s.empresasIds,
+                numerosOc: s.numerosOc, empresaTransportista: s.empresaTransportista, horaHasta: s.horaHasta
             }, 'crear');
             var tr = {}; (s.transportistas || []).forEach(function (t) { tr[t.personaId] = t; });
             personas = (s.personas || []).filter(function (p) { return p.aprobacion !== 'RETIRADA'; }).map(function (p) {

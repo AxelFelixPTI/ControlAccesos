@@ -160,7 +160,7 @@
         } }));
         if (p.estado !== 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Detalle', onclick: function () { detalle(p); } }));
         return el('div', { class: 'vrow' }, [
-            el('div', { class: 'vrow-n' + (selector ? ' con-sel' : '') }, [selector, el('div', { class: 'vrow-t' }, [el('strong', { text: p.nombre }), el('span', { class: 'field-h', text: docTexto(p) + (prov ? ' · ' + (p.esTransportista ? 'Transportista' : 'Ayudante de descarga') : '') })])]),
+            el('div', { class: 'vrow-n' + (selector ? ' con-sel' : '') }, [selector, el('div', { class: 'vrow-t' }, [el('strong', { text: p.nombre }), el('span', { class: 'field-h', text: docTexto(p) + (prov ? ' · ' + (p.esTransportista ? 'Conductor' : 'Ayudante de descarga') : '') })])]),
             el('div', { class: 'vrow-e' }, [chip(e[0], e[1]), p.franja && p.franja !== 'NA' ? chip(p.franja === 'FUERA' ? 'Fuera de franja' : 'Franja de días', p.franja === 'FUERA' ? 'c-obs' : 'c-line') : null,
                 extra,
                 p.restringido ? chip('Restringido a zona administrativa', 'c-obs') : null,
@@ -186,7 +186,7 @@
         var tr = l.filter(function (x) { return x.esTransportista; }), ay = l.filter(function (x) { return !x.esTransportista; });
         function n(arr, f) { return arr.filter(f).length; }
         return el('div', { class: 'vbar' }, [el('div', { class: 'vrow-e vbar-c' }, [
-            chip('Transportistas: verificados ' + n(tr, function (x) { return x.verificada; }) + '/' + tr.length + ' · dentro ' + n(tr, function (x) { return x.estado === 'DENTRO'; }) +
+            chip('Conductores: verificados ' + n(tr, function (x) { return x.verificada; }) + '/' + tr.length + ' · dentro ' + n(tr, function (x) { return x.estado === 'DENTRO'; }) +
                 (n(tr, function (x) { return x.estado === 'SALIO'; }) ? ' · salieron ' + n(tr, function (x) { return x.estado === 'SALIO'; }) : ''), 'c-line'),
             ay.length ? chip('Ayudantes de descarga: ' + ay.length + ' · dentro ' + n(ay, function (x) { return x.estado === 'DENTRO'; }), 'c-line') : null])]);
     }
@@ -253,7 +253,7 @@
             function marcar(f) { marcados = {}; a.elegibles.forEach(function (x) { if (f(x)) marcados[x.id] = true; }); paso2(); }
             var atajos = [el('span', { class: 'field-h', text: 'Atajos:' })];
             if (prov) {
-                if (a.elegibles.some(function (x) { return x.esTransportista; })) atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Transportistas', onclick: function () { marcar(function (x) { return x.esTransportista; }); } }));
+                if (a.elegibles.some(function (x) { return x.esTransportista; })) atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Conductores', onclick: function () { marcar(function (x) { return x.esTransportista; }); } }));
                 if (a.elegibles.some(function (x) { return !x.esTransportista; })) atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Ayudantes', onclick: function () { marcar(function (x) { return !x.esTransportista; }); } }));
             }
             atajos.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Todos', onclick: function () { marcar(function () { return true; }); } }));
@@ -265,7 +265,7 @@
                 var cb = el('input', { type: 'checkbox', 'aria-label': 'Elegir a ' + x.nombre });
                 cb.checked = !!marcados[x.id]; cb.disabled = !puedeX;
                 cb.addEventListener('change', function () { if (cb.checked) marcados[x.id] = true; else delete marcados[x.id]; sinc(); });
-                var rol = prov ? (x.esTransportista ? 'Transportista' : 'Ayudante de descarga') : (x.subtipo || '');
+                var rol = prov ? (x.esTransportista ? 'Conductor' : 'Ayudante de descarga') : (x.subtipo || '');
                 ul.appendChild(el('label', { class: 'chk' + (puedeX ? '' : ' is-off') }, [cb, el('span', {}, [el('strong', { text: x.nombre }),
                     el('span', { class: 'field-h', text: ' ' + docTexto(x) + (rol ? ' · ' + rol : '') + ' · ' + (ESTADO[x.estado] || [x.estado])[0] + (puedeX ? '' : ' · no disponible para esta acción') })])]));
             });
@@ -319,7 +319,7 @@
     }
     function nombres(personas) {
         var ul = el('ul', { class: 'vlista' });
-        personas.forEach(function (x) { ul.appendChild(el('li', { text: x.nombre + (x.esProveedor ? ' · ' + (x.esTransportista ? 'Transportista' : 'Ayudante de descarga') : '') })); });
+        personas.forEach(function (x) { ul.appendChild(el('li', { text: x.nombre + (x.esProveedor ? ' · ' + (x.esTransportista ? 'Conductor' : 'Ayudante de descarga') : '') })); });
         return ul;
     }
     function ids(personas) { return personas.map(function (x) { return x.id; }); }

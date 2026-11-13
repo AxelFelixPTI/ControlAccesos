@@ -45,6 +45,10 @@ public sealed class Dto_Correo_Solicitud
     public string? Contacto_Nombre { get; set; }
     public string? Contacto_Telefonos { get; set; }
     public string? Contacto_Correos { get; set; }
+    // D-237: entrega de proveedor
+    public string? Numeros_OC { get; set; }
+    public string? Empresa_Transportista { get; set; }
+    public string? Hora_Hasta { get; set; }
 }
 
 public sealed class Dto_Correo_Solicitud_Persona

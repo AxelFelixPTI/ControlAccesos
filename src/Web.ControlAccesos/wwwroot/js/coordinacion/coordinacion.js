@@ -83,7 +83,8 @@
             var dl = el('dl', { class: 'dl' });
             var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';
             var filas = [['Tipo de ingreso', s.tipo || '—'], (c && s.dias && s.dias.length) ? ['Días de trabajo (' + s.dias.length + ')', s.dias.map(function (x) { return SOL.fechaLarga(x.fecha) + (x.origen === 'EXTENSION' ? ' (ampliado)' : ''); }).join(', ') + ' · ' + SOL.textoHoras(s.dias[0].desde, s.dias[0].hasta) + ' · ' + s.sede] : [c ? 'Servicio' : pv ? 'Entrega' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
-            if (pv) filas.push(['Empresa que recibe', s.empresaDestino || '—'], ['Responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')]);
+            if (pv) filas.push(['N.º de OC', (s.numerosOc || []).join(', ') || '—'], ['Transporte', s.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', s.empresaDestino || '—'],
+                ['Contacto del responsable', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
             else if (c) filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
             else filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
@@ -327,8 +328,8 @@
                 var sus = campoSustento('Qué dato estaba mal (por ejemplo: el apellido se digitó con un error).');
                 CAF.modal('Corregir datos (emergencia)', el('div', { class: 'stack' }, [
                     el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: se corrige a la misma persona y su autorización se mantiene. El cambio se ve en toda solicitud donde figure. Vigilancia lo verá al instante y el solicitante y Vigilancia recibirán un correo con el antes y el después.' }),
-                    el('div', { class: 'grid g2' }, [SOL.campo('Tipo de documento', tipo), SOL.campo('Número de documento', doc, 'No se puede cambiar. Si es otra persona, quite a esta y agregue a la otra.')]),
-                    el('div', { class: 'grid g3' }, [SOL.campo('Apellido paterno *', ap), SOL.campo('Apellido materno', am), SOL.campo('Nombres *', nom)]),
+                    SOL.fila([SOL.w('f-s', SOL.campo('Tipo de documento', tipo)), SOL.w('f-s', SOL.campo('Número de documento', doc, 'No se puede cambiar. Si es otra persona, quite a esta y agregue a la otra.'))]),
+                    SOL.fila([SOL.w('f-l', SOL.campo('Apellido paterno *', ap)), SOL.w('f-l', SOL.campo('Apellido materno', am)), SOL.w('f-l', SOL.campo('Nombres *', nom))]),
                     sus.nodo, err]), [
                     { texto: 'Cancelar', onclick: function (c) { c(); } },
                     {

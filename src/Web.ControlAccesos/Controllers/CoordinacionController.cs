@@ -85,7 +85,7 @@ public sealed class CoordinacionController : Controller
             data = new
             {
                 id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
-                areaDetalle = s.Area_Detalle, contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos,
+                areaDetalle = s.Area_Detalle, contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries), empresaTransportista = s.Empresa_Transportista, horaHasta = s.Hora_Hasta_Prevista, contactoCorreos = s.Contacto_Correos,
                 estado = s.Estado, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = s.Empresa_Visitante, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, zonas = s.Zonas_Nombres, observaciones = s.Observaciones,
                 responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area, solicitante = s.Solicitante_Nombre, solicitanteCorreo = s.Solicitante_Correo,

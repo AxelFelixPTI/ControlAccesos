@@ -253,6 +253,34 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
+    public async Task<Result> EmpresasAsignarAsync(long solicitudId, IReadOnlyList<long> empresasIds, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.EmpresasAsignarAsync(solicitudId, empresasIds, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "EMPRESAS_ASIGNAR Solicitud ID={ID} ERROR", solicitudId);
+            return Result.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result> ProveedorDatosGuardarAsync(long solicitudId, Dto_Proveedor_Datos dto, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.ProveedorDatosGuardarAsync(solicitudId, dto, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PROVEEDOR_DATOS_GUARDAR Solicitud ID={ID} ERROR", solicitudId);
+            return Result.Fail(ex.Message);
+        }
+    }
+
     public async Task<Result> CancelarAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
     {
         try

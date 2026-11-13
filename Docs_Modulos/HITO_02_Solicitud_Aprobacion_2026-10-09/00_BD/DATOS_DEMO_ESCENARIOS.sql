@@ -285,7 +285,7 @@ BEGIN
         IF v_empg IS NULL THEN SELECT MIN("ID_Catalogo_Empresa_Grupo") INTO v_empg FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo"; END IF;
         CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_hoy + (ARRAY[16.5,8,11,13,9.5,8.5,7.5,12,10,14,15,15.5,9,6.5,7,10.5])[k] * INTERVAL '1 hour' + (CASE WHEN k = 9 THEN INTERVAL '1 day' ELSE INTERVAL '0' END),
               (ARRAY['Distribuidora Andina S.A.','Logistica Cordillera S.A.C.','Ferreteria Industrial Norte','Insumos del Sur E.I.R.L.','Proveedora Pacifico S.A.C.','Aceros Peruanos S.A.','Empaques Lima S.A.C.','Quimicos del Centro S.A.','Maderas del Oriente S.A.C.','Plasticos Unidos SAC','Repuestos Andes SAC','Cables y Conductores SA','Envases Modernos SAC','Aceites Selectos SA','Pinturas Tricolor SAC','Alimentos del Valle SA'])[k],
-              'P'||LPAD(k::TEXT,2,'0'), q1||','||q2, NULL, NULL, 'Jefe de almacen '||k, '99911'||LPAD(k::TEXT,4,'0'), v_empg, v_tr, (ARRAY[s1,s2,s3])[(k % 3)+1], v_id, v_cs, v_cod, v_msg);
+              'P'||LPAD(k::TEXT,2,'0'), q1||','||q2, NULL, NULL, 'Jefe de almacen '||k, '99911'||LPAD(k::TEXT,4,'0'), v_empg, v_tr, 'OC-'||(35500+k), NULL, NULL, NULL, (ARRAY[s1,s2,s3])[(k % 3)+1], v_id, v_cs, v_cod, v_msg);
         PERFORM pg_temp.ok(v_cod,v_msg,'P'||k||' crear');
         SELECT "ID_Solicitud_Persona" INTO sp1 FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_id AND "ID_Persona_Externa" = q1;
         SELECT "ID_Solicitud_Persona" INTO sp2 FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_id AND "ID_Persona_Externa" = q2;

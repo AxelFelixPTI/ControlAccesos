@@ -459,6 +459,10 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
                 AddStr(p, "HV_Contacto_Telefonos", dto.Contacto_Telefonos);
                 AddLong(p, "HV_ID_Empresa_Destino", dto.ID_Catalogo_Empresa_Destino);
                 AddStr(p, "HV_Transportistas", Transportistas(dto.Transportistas));
+                AddStr(p, "HV_Numeros_OC", dto.Numeros_OC);                       // D-237
+                AddStr(p, "HV_Empresa_Transportista", dto.Empresa_Transportista);
+                AddStr(p, "HV_Hora_Hasta", dto.Hora_Hasta);
+                AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -540,6 +544,37 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
             ct: ct);
         if (!r.Ok || r.Data is null) return ResultSp<bool>.Fail(r.Codigo, r.Mensaje);
         return ResultSp<bool>.Success(string.Equals(Convert.ToString(r.Data["HV_Reabierta_Result"])?.Trim(), "Y", StringComparison.OrdinalIgnoreCase), r.Mensaje);
+    }
+
+    public async Task<ResultSp> ProveedorDatosGuardarAsync(long solicitudId, Dto_Proveedor_Datos dto, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_PROVEEDOR_DATOS_GUARDAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStr(p, "HV_Numeros_OC", dto.Numeros_OC);
+                AddStr(p, "HV_Empresa_Transportista", dto.Empresa_Transportista);
+                AddStr(p, "HV_Hora_Hasta", dto.Hora_Hasta);
+                AddStr(p, "HV_Contacto_Correos", dto.Contacto_Correos);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+    }
+
+    public async Task<ResultSp> EmpresasAsignarAsync(long solicitudId, IReadOnlyList<long> empresasIds, long usuarioId, CancellationToken ct = default)
+    {
+        return await _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_SOLICITUD_EMPRESAS_ASIGNAR",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStr(p, "HV_IDs_Empresa", string.Join(",", empresasIds));
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
     }
 
     public async Task<ResultSp> CancelarAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
@@ -677,6 +712,10 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         ID_Empresa_Destino           = RdLongN(rd, "ID_Empresa_Destino"),
         Empresa_Destino              = RdStrN(rd, "Empresa_Destino"),
         Empresa_Destino_Codigo       = RdStrN(rd, "Empresa_Destino_Codigo"),
+        IDs_Empresa_Destino          = RdStrN(rd, "IDs_Empresa_Destino"),
+        Numeros_OC                   = RdStrN(rd, "Numeros_OC"),
+        Empresa_Transportista        = RdStrN(rd, "Empresa_Transportista"),
+        Hora_Hasta_Prevista          = RdStrN(rd, "Hora_Hasta_Prevista"),
         Copias                       = RdStrN(rd, "Copias"),
         CreateDate                   = RdDtN(rd, "CreateDate"),
         Total_Personas               = RdInt(rd, "Total_Personas"),

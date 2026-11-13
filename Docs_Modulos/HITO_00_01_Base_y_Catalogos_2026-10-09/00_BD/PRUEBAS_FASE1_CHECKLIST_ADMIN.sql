@@ -103,7 +103,7 @@ BEGIN
 
     -- ---------- TIPOS DE INGRESO (D-232)
     PERFORM pg_temp.chk('Tipos: el listado trae los no eliminados', pg_temp.q('SELECT COUNT(*) FROM "Catalogo_Tipo_Acceso" WHERE "Eliminado" = ''N'''), pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_TIPO_ACCESO_ADMIN_LISTAR"()'));
-    PERFORM pg_temp.chk('Tipos: el proveedor muestra sus subtipos', 'Transportista, Ayudante de descarga', pg_temp.q('SELECT "Subtipos" FROM "ERP_CAF_TIPO_ACCESO_ADMIN_LISTAR"() WHERE "Codigo" = ''PROVEEDOR'''));
+    PERFORM pg_temp.chk('Tipos: el proveedor muestra sus subtipos', 'Conductor, Ayudante de descarga', pg_temp.q('SELECT "Subtipos" FROM "ERP_CAF_TIPO_ACCESO_ADMIN_LISTAR"() WHERE "Codigo" = ''PROVEEDOR'''));
     SELECT "ID_Catalogo_Tipo_Acceso" INTO v_base FROM "Catalogo_Tipo_Acceso" WHERE "Codigo" = 'VISITA_EXTERNA';
     CALL "ERP_CATALOGO_TIPO_ACCESO_CREAR"('PRB_TIPO', 'Tipo de prueba', 'Y', 'N', 90, 'Y', 0, v_tn, v_cod, v_msg);
     PERFORM pg_temp.chk('Tipos: se crea un tipo nuevo', '100', v_cod::TEXT, v_msg);

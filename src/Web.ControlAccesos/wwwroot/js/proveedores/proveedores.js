@@ -42,9 +42,15 @@
         try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (x) { /* sin historial: no pasa nada */ }
     }
     function pasa(e) {
-        return (!filtro.emp || e.destinoCodigo === filtro.emp) && (!filtro.est || e.estado === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
+        return (!filtro.emp || codigos(e).indexOf(filtro.emp) >= 0) && (!filtro.est || e.estado === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
     }
-    function emp(e) { return EMPRESAS[e.destinoCodigo] || [e.destino || '—', '··', 'em-xx']; }
+    // D-236: una entrega puede estar ligada a 1 a 4 empresas (destinoCodigo = códigos separados por coma)
+    function codigos(e) { return String(e.destinoCodigo || '').split(',').filter(Boolean); }
+    function emp(e) { return EMPRESAS[codigos(e)[0]] || [e.destino || '—', '··', 'em-xx']; }
+    function chipsEmp(e) {
+        var l = codigos(e).map(function (c) { var x = EMPRESAS[c]; return x ? el('span', { class: 'pv-em ' + x[2], title: x[0], text: x[1] }) : null; }).filter(Boolean);
+        return l.length ? l : [el('span', { class: 'pv-em em-xx', text: '··' })];
+    }
 
     // ── fechas (texto yyyy-MM-dd; el «hoy» lo manda el servidor) ─────────────────────────────
     function aFecha(t) { var p = t.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -213,7 +219,7 @@
                     onclick: function () { vista = 'SEMANA'; ancla = lunes(dia); var rr = rangoVisible(); if (rr.desde !== cargado.desde) cargar(); else pintar(); } },
                     [el('span', { class: 'pv-celda-n', text: String(dia.getDate()) })]);
                 lista.slice(0, 3).forEach(function (e) {
-                    celda.appendChild(el('span', { class: 'pv-mini' }, [el('span', { class: 'pv-punto ' + (ESTADO[e.estado] ? ESTADO[e.estado][2] : '') }), el('span', { class: 'pv-em ' + emp(e)[2], text: emp(e)[1] }), el('span', { text: e.hora + ' ' + e.empresa })]));
+                    celda.appendChild(el('span', { class: 'pv-mini' }, [el('span', { class: 'pv-punto ' + (ESTADO[e.estado] ? ESTADO[e.estado][2] : '') })].concat(chipsEmp(e), [el('span', { text: e.hora + ' ' + e.empresa })])));
                 });
                 if (lista.length > 3) celda.appendChild(el('span', { class: 'pv-mas', text: '+' + (lista.length - 3) + ' más' }));
                 cont.appendChild(celda);
@@ -231,7 +237,7 @@
         if (e.conDesviacion) marcas.appendChild(el('span', { class: 'pv-marca pv-m-dev', text: 'Con desviación' }));
         var c = el('article', { class: 'pv-card ' + em[2] + ' e-' + e.estado.toLowerCase() + (reserva ? ' pv-reserva' : '') }, [
             reserva ? el('div', { class: 'pv-cinta' }, [porSalir ? 'POR SALIR · EXCLUSA OCUPADA' : 'EXCLUSA RESERVADA']) : null,
-            el('div', { class: 'pv-card-h' }, [el('span', { class: 'pv-em ' + em[2], title: em[0], text: em[1] }), el('b', { text: e.empresa }), el('span', { class: 'pv-hora', text: e.hora })]),
+            el('div', { class: 'pv-card-h' }, chipsEmp(e).concat([el('b', { text: e.empresa }), el('span', { class: 'pv-hora', text: e.hora })])),
             el('div', { class: 'pv-estado' }, [el('span', { class: 'pv-st ' + est[1], text: est[0] })]),
             marcas
         ]);
@@ -239,15 +245,16 @@
         function linea(rotulo, valor) { if (valor) c.appendChild(el('div', { class: 'pv-linea' }, [el('b', { text: rotulo + ' ' }), valor])); }
         // D-225: con varios transportistas o con ayudantes de descarga se muestra el avance por persona
         var porPersona = e.transportistas > 1 || e.ayudantes > 0;
-        linea('Transportista:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
-        if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' transportista' : ' transportistas') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
+        linea('OC:', (e.numerosOc || []).join(', '));
+        linea('Transporte:', e.empresaTransportista);
+        linea('Conductor:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
+        if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' conductor' : ' conductores') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
             (e.salieron ? ' · salieron ' + e.salieron : '') + (e.ayudantes ? ' · ' + e.ayudantes + (e.ayudantes === 1 ? ' ayudante' : ' ayudantes') + ' de descarga' : ''));
         linea('Vehículo:', [e.placa, e.marca].filter(Boolean).join(' · '));
         linea('Recibe:', e.destino);
         linea('RUC:', e.ruc);
         linea('Nota:', e.observaciones);
         c.appendChild(el('div', { class: 'pv-resp' }, [
-            el('div', { class: 'pv-linea' }, [el('b', { text: 'Responsable programado: ' }), e.programado || 'Sin asignar']),
             e.efectivo ? el('div', { class: 'pv-linea' }, [el('b', { text: 'Atiende: ' }), e.efectivo]) : null
         ]));
         var tiempos = [];
@@ -317,7 +324,7 @@
             if (off) { b.disabled = true; if (ayuda) b.title = ayuda; } else b.addEventListener('click', fn);
             caja.appendChild(b);
         }
-        if (e.puedeProgramar) boton(e.programadoId ? 'Cambiar responsable' : 'Asignar responsable', function () { modalAsignar(e); });
+        // D-236: ya no se asigna un almacenero responsable; Almacén se registra al «Iniciar atención»
         // Botón único con tres etapas: Confirmar disponibilidad → Iniciar atención → Terminar atención.
         if (e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA') {
             if (e.puedeConfirmar) boton('Confirmar disponibilidad', function () { modalConfirmar(e); }, true);

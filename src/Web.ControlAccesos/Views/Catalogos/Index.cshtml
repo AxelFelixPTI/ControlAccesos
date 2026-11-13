@@ -1,5 +1,6 @@
 @{ ViewData["Titulo"] = "Catálogos"; ViewData["Migas"] = "Administración · Sede VES"; }
 <div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")"
+     data-url-al-listar="@Url.Action("Listar", "AlmacenEmpresa")" data-url-al-guardar="@Url.Action("Guardar", "AlmacenEmpresa")"
      data-url-ck-listar="@Url.Action("Listar", "ChecklistPorteria")" data-url-ck-guardar="@Url.Action("Guardar", "ChecklistPorteria")"
      data-url-tp-listar="@Url.Action("Listar", "TiposIngreso")" data-url-tp-guardar="@Url.Action("Guardar", "TiposIngreso")"
      data-url-sub-listar="@Url.Action("Subtipos", "TiposIngreso")" data-url-sub-guardar="@Url.Action("SubtipoGuardar", "TiposIngreso")"
@@ -54,6 +55,21 @@
         </div>
     </section>
 
+    <section class="card" id="caf-almacen">
+        <div class="card-hd">
+            <div>
+                <h3>Almacén por empresa</h3>
+                <p class="small muted">A qué empresas del grupo puede dar atención cada usuario de Almacén, sin importar qué empresa lo contrató (el Coordinador de Almacén, por ejemplo, atiende las cuatro). Quien no tenga ninguna no podrá iniciar atenciones.</p>
+            </div>
+        </div>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th class="stk">Usuario</th><th>Cargo</th><th>Atiende a</th><th></th></tr></thead>
+                <tbody id="al-filas"><tr><td colspan="4" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
     <div class="grid g2 cat3">
         <section class="card">
             <h3>Áreas</h3>
@@ -95,3 +111,4 @@
 <script src="~/js/catalogos/catalogos.js" asp-append-version="true"></script>
 <script src="~/js/catalogos/tipos.js" asp-append-version="true"></script>
 <script src="~/js/catalogos/checklist.js" asp-append-version="true"></script>
+<script src="~/js/catalogos/almacen.js" asp-append-version="true"></script>

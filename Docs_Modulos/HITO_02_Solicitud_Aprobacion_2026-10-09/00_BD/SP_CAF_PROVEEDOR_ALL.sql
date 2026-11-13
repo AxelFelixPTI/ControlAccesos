@@ -164,6 +164,7 @@ DECLARE
     lv_n     INT := 0;
     lv_aplica CHAR(1);
     lv_placa VARCHAR(15);
+    lv_tel   VARCHAR(250);
 BEGIN
     -- V1.0 2026-11-02
     IF "HV_Tipo_Codigo" <> 'PROVEEDOR' THEN
@@ -188,9 +189,10 @@ BEGIN
     IF NULLIF(TRIM(COALESCE("HV_Proveedor_RUC", '')), '') IS NOT NULL AND TRIM("HV_Proveedor_RUC") !~ '^[0-9]{11}$' THEN RETURN 'El RUC debe tener 11 dígitos.'; END IF;
     lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa_Vehiculo");
     IF lv_placa IS NOT NULL AND lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
-    IF LENGTH(REGEXP_REPLACE(COALESCE("HV_Telefono", ''), '[^0-9]', '', 'g')) < 6 THEN
-        RETURN 'Indique el teléfono del transportista (mínimo 6 dígitos).';
-    END IF;
+    -- V1.2 2026-11-13 (D-237): la placa del conductor es obligatoria; el responsable lleva 1 a 5 celulares de 9 dígitos o más.
+    IF lv_placa IS NULL THEN RETURN 'Indique la placa del vehículo del conductor.'; END IF;
+    lv_tel := "ERP_CAF_FN_TELEFONOS_VALIDAR"("HV_Telefono");
+    IF lv_tel <> '' THEN RETURN lv_tel; END IF;
     SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo"
      WHERE "ID_Catalogo_Empresa_Grupo" = "HV_ID_Empresa_Destino" AND "Eliminado" = 'N' AND "Activo" = 'Y';
     IF lv_n = 0 THEN RETURN 'Indique la empresa del grupo que recibe la entrega.'; END IF;
