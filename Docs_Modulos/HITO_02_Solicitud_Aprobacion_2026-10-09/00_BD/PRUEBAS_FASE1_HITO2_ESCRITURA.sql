@@ -1763,6 +1763,128 @@ BEGIN
         PERFORM pg_temp.chk('2B almacén: quien no es de Almacén = 404', '404', COALESCE(e_r10, ''), '');
     END;
 
+    -- 2C-1 (D-238): atención por empresa, almacenero compartido, límite simultáneo y cierre sin atención (se deshace al terminar el bloque)
+    DECLARE
+        a_e1 TEXT; a_e2 TEXT; a_e3 TEXT; a_s BIGINT; a_s2 BIGINT; a_cs VARCHAR(20); a_p1 BIGINT; a_p2 BIGINT; a_x1 BIGINT; a_x2 BIGINT;
+        a_mot BIGINT; a_otro BIGINT;
+        r1 TEXT; r2 TEXT; r3 TEXT; r4 TEXT; r5 TEXT; r6 TEXT; r7 TEXT; r8 TEXT; r9 TEXT; r10 TEXT; r11 TEXT; r12 TEXT; r13 TEXT; r14 TEXT; r15 TEXT; r16 TEXT; r17 TEXT; r18 TEXT; r19 TEXT; r20 TEXT; r21 TEXT;
+    BEGIN
+        BEGIN
+            SELECT "ID_Catalogo_Empresa_Grupo"::TEXT INTO a_e1 FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y' ORDER BY "Orden", "ID_Catalogo_Empresa_Grupo" OFFSET 0 LIMIT 1;
+            SELECT "ID_Catalogo_Empresa_Grupo"::TEXT INTO a_e2 FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y' ORDER BY "Orden", "ID_Catalogo_Empresa_Grupo" OFFSET 1 LIMIT 1;
+            SELECT "ID_Catalogo_Empresa_Grupo"::TEXT INTO a_e3 FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y' ORDER BY "Orden", "ID_Catalogo_Empresa_Grupo" OFFSET 2 LIMIT 1;
+            -- el almacenero atiende e1 y e2; el pedido es de e1 y e3: solo e1
+            CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(v_ual, a_e1 || ',' || a_e2, v_ucp, v_cod, v_msg);
+            UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL WHERE "ID_Catalogo_Sede" = v_ves;
+            CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000091','Atn','Uno','Ana',0, a_x1, v_cod, v_msg);
+            CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000092','Atn','Dos','Ben',0, a_x2, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Multi Empresa S.A.', NULL, NULL, NULL, NULL, a_x1 || ',' || a_x2, NULL, NULL, NULL, 'MUL123', NULL, NULL, '988777666', NULL, v_emp, '20987654399', 'Jr. Lima 99', 'Hino', 'Q87654399', a_x1, v_usp, a_s, a_cs, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_EMPRESAS_ASIGNAR"(a_s, a_e1 || ',' || a_e3, v_ucp, v_cod, v_msg);
+            a_p1 := pg_temp.sp(a_s, a_x1); a_p2 := pg_temp.sp(a_s, a_x2);
+            CALL "ERP_CAF_SOLICITUD_DECIDIR"(a_s, v_paso_p, 'APROBADA', NULL, a_p1 || ',' || a_p2, v_ucp, v_cant, v_cod, v_msg);
+            r1 := pg_temp.verif(a_p1, v_uvp);
+            r2 := pg_temp.ingresar(a_s, v_ual, v_uvp);
+            r3 := pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || a_s);
+            r20 := pg_temp.q('SELECT C."Puede_Atender" || C."Puede_Terminar" || ''|'' || COALESCE(C."Atencion_Resumen", ''-'') FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', CURRENT_DATE, CURRENT_DATE) C WHERE C."ID_Solicitud" = ' || a_s);
+            r21 := pg_temp.q('SELECT C."Puede_Atender" FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_uvp || ',' || v_ves || ', CURRENT_DATE, CURRENT_DATE) C WHERE C."ID_Solicitud" = ' || a_s);
+            -- estado derivado sin filas
+            r4 := pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Atencion" WHERE "ID_Solicitud" = ' || a_s) || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(a_s, a_e1::BIGINT);
+            -- listado para el almacenero compartido
+            r5 := pg_temp.q('SELECT STRING_AGG(L."ID_Empresa" || '':'' || L."Autorizado" || '':'' || L."Puede_Atender", '','' ORDER BY L."ID_Empresa") FROM "ERP_CAF_ATENCION_LISTAR"(' || a_s || ',' || v_ual || ') L');
+            r6 := pg_temp.q('SELECT "Motivo_No" FROM "ERP_CAF_ATENCION_LISTAR"(' || a_s || ',' || v_ual || ') WHERE "ID_Empresa" = ' || a_e3);
+            -- la empresa que no atiende: 101
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(a_s, a_e3::BIGINT, v_ual, v_cod, v_msg);              r7 := v_cod::TEXT;
+            -- una empresa que no está en el pedido: 400/404
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(a_s, a_e2::BIGINT, v_ual, v_cod, v_msg);              r8 := v_cod::TEXT;
+            -- usuario sin permiso de Almacén
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(a_s, a_e1::BIGINT, v_uvp, v_cod, v_msg);              r9 := v_cod::TEXT;
+            -- las rutas antiguas no sirven con varias empresas
+            CALL "ERP_CAF_PROVEEDOR_ATENDER"(a_s, v_ual, v_cod, v_msg);                                    r10 := v_cod::TEXT;
+            -- atiende e1
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(a_s, a_e1::BIGINT, v_ual, v_cod, v_msg);              r11 := v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || a_s) || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(a_s, a_e1::BIGINT);
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(a_s, a_e1::BIGINT, v_ual, v_cod, v_msg);              r12 := v_cod::TEXT;
+            r13 := pg_temp.q('SELECT STRING_AGG(L."ID_Empresa" || '':'' || L."Estado" || '':'' || L."Puede_Recepcionar" || '':'' || L."Puede_Cerrar_Sin", '','' ORDER BY L."ID_Empresa") FROM "ERP_CAF_ATENCION_LISTAR"(' || a_s || ',' || v_ual || ') L');
+            -- recepcionar e1: la solicitud sigue en atención porque falta e3
+            CALL "ERP_CAF_PROVEEDOR_RECEPCION_EMPRESA"(a_s, a_e1::BIGINT, 'CONFORME', 'Todo bien', v_ual, v_cod, v_msg);
+            r14 := v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || a_s) || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(a_s, a_e1::BIGINT);
+            -- cierre sin atención de e3: lo hace el almacenero de e3 (aquí lo autorizamos)
+            SELECT "ID_Motivo_Sin_Atencion" INTO a_mot FROM "CAF_Motivo_Sin_Atencion" WHERE "Codigo" = 'SIN_MERCADERIA';
+            SELECT "ID_Motivo_Sin_Atencion" INTO a_otro FROM "CAF_Motivo_Sin_Atencion" WHERE "Codigo" = 'OTRO';
+            CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(a_s, a_e3::BIGINT, a_mot, NULL, v_ual, v_cod, v_msg);   r15 := v_cod::TEXT;   -- no es de e3: 101
+            CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(v_ual, a_e1 || ',' || a_e3, v_ucp, v_cod, v_msg);
+            CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(a_s, a_e3::BIGINT, NULL, NULL, v_ual, v_cod, v_msg);    r16 := v_cod::TEXT;   -- motivo obligatorio
+            CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(a_s, a_e3::BIGINT, a_otro, '', v_ual, v_cod, v_msg);    r17 := v_cod::TEXT;   -- «Otro» exige detalle
+            CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(a_s, a_e3::BIGINT, a_mot, NULL, v_ual, v_cod, v_msg);
+            r18 := v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || a_s) || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(a_s, a_e3::BIGINT);
+            r19 := pg_temp.q('SELECT COALESCE(O."Observacion_Recepcion", '''') FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = ' || a_s);
+            RAISE EXCEPTION 'deshacer';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        PERFORM pg_temp.chk('D-238 prep: la entrega multiempresa llega a INGRESO', 'INGRESO', COALESCE(r3, ''), COALESCE(r1, '') || ' ' || COALESCE(r2, ''));
+        PERFORM pg_temp.chk('D-238 calendario: varias empresas = Atender sí, Terminar no, y resumen por empresa', 'YN|TRIANON_ENERGO:PENDIENTE;TRIANON_ASCENSORES:PENDIENTE', COALESCE(r20, ''), '');
+        PERFORM pg_temp.chk('D-238 calendario: Vigilancia no atiende', 'N', COALESCE(r21, ''), '');
+        PERFORM pg_temp.chk('D-238 estado derivado: sin filas todo es PENDIENTE', '0|PENDIENTE', COALESCE(r4, ''), '');
+        PERFORM pg_temp.chk('D-238 listado: almacenero de e1+e2 sobre pedido e1+e3: solo e1 autorizado', a_e1 || ':Y:Y,' || a_e3 || ':N:N', COALESCE(r5, ''), '');
+        PERFORM pg_temp.chk('D-238 listado: explica por qué no puede en la otra empresa', 'true', (COALESCE(r6, '') <> '')::TEXT, COALESCE(r6, ''));
+        PERFORM pg_temp.chk('D-238 atender: empresa del pedido que no atiende el usuario = 101', '101', COALESCE(r7, ''), '');
+        PERFORM pg_temp.chk('D-238 atender: empresa que no está en el pedido = 404', '404', COALESCE(r8, ''), '');
+        PERFORM pg_temp.chk('D-238 atender: sin permiso de Almacén = 101', '101', COALESCE(r9, ''), '');
+        PERFORM pg_temp.chk('D-238 atender: la ruta antigua con varias empresas = 409', '409', COALESCE(r10, ''), '');
+        PERFORM pg_temp.chk('D-238 atender: e1 pasa a EN_ATENCION y la entrega también', '100|EN_ATENCION|EN_ATENCION', COALESCE(r11, ''), '');
+        PERFORM pg_temp.chk('D-238 atender: repetir en la misma empresa = 409', '409', COALESCE(r12, ''), '');
+        PERFORM pg_temp.chk('D-238 listado: e1 puede recepcionar y cerrar; e3 no es suya', a_e1 || ':EN_ATENCION:Y:Y,' || a_e3 || ':PENDIENTE:N:N', COALESCE(r13, ''), '');
+        PERFORM pg_temp.chk('D-238 recepción por empresa: e1 ATENDIDA y la entrega sigue EN_ATENCION (falta e3)', '100|EN_ATENCION|ATENDIDA', COALESCE(r14, ''), '');
+        PERFORM pg_temp.chk('D-238 cierre: quien no atiende esa empresa = 101', '101', COALESCE(r15, ''), '');
+        PERFORM pg_temp.chk('D-238 cierre: el motivo es obligatorio = 400', '400', COALESCE(r16, ''), '');
+        PERFORM pg_temp.chk('D-238 cierre: «Otro» exige detalle = 400', '400', COALESCE(r17, ''), '');
+        PERFORM pg_temp.chk('D-238 cierre: al cerrar la última empresa la entrega queda RECEPCIONADO', '100|RECEPCIONADO|CERRADA_SIN_ATENCION', COALESCE(r18, ''), '');
+        PERFORM pg_temp.chk('D-238 cierre: la observación final recoge el resultado de cada empresa', 'true', (POSITION('conforme' IN COALESCE(r19, '')) > 0 AND POSITION('cerrada sin atención' IN COALESCE(r19, '')) > 0)::TEXT, COALESCE(r19, ''));
+    END;
+
+    -- 2C-1 (D-238): límite de atenciones simultáneas por empresa y parámetro configurable
+    DECLARE
+        b_e1 TEXT; b_s1 BIGINT; b_s2 BIGINT; b_cs VARCHAR(20); b_a BIGINT; b_b BIGINT; b_c BIGINT; b_d BIGINT; s1p1 BIGINT; s1p2 BIGINT; s2p1 BIGINT; s2p2 BIGINT;
+        q1 TEXT; q2 TEXT; q3 TEXT; q4 TEXT; q5 TEXT; q6 TEXT; q7 TEXT;
+    BEGIN
+        BEGIN
+            SELECT "ID_Catalogo_Empresa_Grupo"::TEXT INTO b_e1 FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y' ORDER BY "Orden", "ID_Catalogo_Empresa_Grupo" LIMIT 1;
+            CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(v_ual, b_e1, v_ucp, v_cod, v_msg);
+            UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL WHERE "ID_Catalogo_Sede" = v_ves;
+            CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000093','Lim','Uno','Lia',0, b_a, v_cod, v_msg);
+            CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000094','Lim','Dos','Leo',0, b_b, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Limite Uno S.A.', NULL, NULL, NULL, NULL, b_a::TEXT, NULL, NULL, NULL, 'LIM111', NULL, NULL, '988777666', NULL, v_emp, '20987654311', 'Jr. Lima 11', 'Hino', 'Q87654311', b_a, v_usp, b_s1, b_cs, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Limite Dos S.A.', NULL, NULL, NULL, NULL, b_b::TEXT, NULL, NULL, NULL, 'LIM222', NULL, NULL, '988777666', NULL, v_emp, '20987654322', 'Jr. Lima 22', 'Hino', 'Q87654322', b_b, v_usp, b_s2, b_cs, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_EMPRESAS_ASIGNAR"(b_s1, b_e1, v_ucp, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_EMPRESAS_ASIGNAR"(b_s2, b_e1, v_ucp, v_cod, v_msg);
+            s1p1 := pg_temp.sp(b_s1, b_a); s2p1 := pg_temp.sp(b_s2, b_b);
+            CALL "ERP_CAF_SOLICITUD_DECIDIR"(b_s1, v_paso_p, 'APROBADA', NULL, s1p1::TEXT, v_ucp, v_cant, v_cod, v_msg);
+            CALL "ERP_CAF_SOLICITUD_DECIDIR"(b_s2, v_paso_p, 'APROBADA', NULL, s2p1::TEXT, v_ucp, v_cant, v_cod, v_msg);
+            PERFORM pg_temp.verif(s1p1, v_uvp); PERFORM pg_temp.verif(s2p1, v_uvp);
+            PERFORM pg_temp.ingresar(b_s1, v_ual, v_uvp);
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(b_s1, b_e1::BIGINT, v_ual, v_cod, v_msg);                q1 := v_cod::TEXT;
+            -- la segunda entrega ocupa la esclusa (se fuerza) y está en INGRESO
+            UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'INGRESO' WHERE "ID_Solicitud" = b_s2;
+            UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = b_s2 WHERE "ID_Catalogo_Sede" = v_ves;
+            q2 := "ERP_CAF_FN_ATENCION_ACTIVAS"(b_e1::BIGINT)::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(b_s2, b_e1::BIGINT, v_ual, v_cod, v_msg);                q3 := v_cod::TEXT || '|' || (POSITION('a la vez' IN v_msg) > 0)::TEXT;
+            -- el parámetro se valida y se puede subir
+            CALL "ERP_CAF_PARAMETRO_GUARDAR"('ATENCIONES_SIMULTANEAS_EMPRESA', '0', v_ucp, v_cod, v_msg);     q4 := v_cod::TEXT;
+            CALL "ERP_CAF_PARAMETRO_GUARDAR"('ATENCIONES_SIMULTANEAS_EMPRESA', 'abc', v_ucp, v_cod, v_msg);   q5 := v_cod::TEXT;
+            CALL "ERP_CAF_PARAMETRO_GUARDAR"('ATENCIONES_SIMULTANEAS_EMPRESA', '2', v_ucp, v_cod, v_msg);     q6 := v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA"(b_s2, b_e1::BIGINT, v_ual, v_cod, v_msg);                q7 := v_cod::TEXT;
+            RAISE EXCEPTION 'deshacer';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        PERFORM pg_temp.chk('D-238 límite: la primera atención de la empresa entra', '100', COALESCE(q1, ''), '');
+        PERFORM pg_temp.chk('D-238 límite: la empresa tiene 1 atención activa', '1', COALESCE(q2, ''), '');
+        PERFORM pg_temp.chk('D-238 límite: la segunda atención de la misma empresa se bloquea (409) y el aviso lo explica', '409|true', COALESCE(q3, ''), '');
+        PERFORM pg_temp.chk('D-238 parámetro: la lista incluye el límite por empresa', '1', (SELECT COUNT(*) FROM "ERP_CAF_PARAMETRO_LISTAR"() WHERE "Clave" = 'ATENCIONES_SIMULTANEAS_EMPRESA')::TEXT, '');
+        PERFORM pg_temp.chk('D-238 parámetro: 0 no es válido', '400', COALESCE(q4, ''), '');
+        PERFORM pg_temp.chk('D-238 parámetro: un texto no es válido', '400', COALESCE(q5, ''), '');
+        PERFORM pg_temp.chk('D-238 parámetro: 2 se guarda', '100', COALESCE(q6, ''), '');
+        PERFORM pg_temp.chk('D-238 límite: con el parámetro en 2 la segunda atención entra', '100', COALESCE(q7, ''), '');
+    END;
+
     -- D-226: emergencia en proveedor: se elige transportista o ayudante de descarga
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000039','Nuevo','Cinco','Nora',0, v_gU, v_cod, v_msg);
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000040','Nuevo','Seis','Nico',0,  v_gV, v_cod, v_msg);

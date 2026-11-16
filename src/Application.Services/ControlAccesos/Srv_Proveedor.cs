@@ -168,4 +168,52 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         }
         catch (Exception ex) { _logger.LogError(ex, "TERMINAR Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
+    // ===== D-238: atención por empresa =====
+    public async Task<Result<List<Dto_Atencion_Empresa>>> AtencionListarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try { return await _repo.AtencionListarAsync(solicitudId, usuarioId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "ATENCION LISTAR Proveedor ID={ID} ERROR", solicitudId); return Result<List<Dto_Atencion_Empresa>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Motivo_Sin_Atencion>>> MotivosSinAtencionAsync(CancellationToken ct = default)
+    {
+        try { return await _repo.MotivosSinAtencionAsync(ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "MOTIVOS SIN ATENCION ERROR"); return Result<List<Dto_Motivo_Sin_Atencion>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result> AtenderEmpresaAsync(long solicitudId, long empresaId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (empresaId <= 0) return Result.Fail("Indique la empresa.", MapeoSp.Codigo(400));
+            var sp = await _repo.AtenderEmpresaAsync(solicitudId, empresaId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "ATENDER EMPRESA Proveedor ID={ID} Empresa={Emp} ERROR", solicitudId, empresaId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> TerminarEmpresaAsync(long solicitudId, long empresaId, string? observacion, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (empresaId <= 0) return Result.Fail("Indique la empresa.", MapeoSp.Codigo(400));
+            var obs = string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim();
+            var sp = await _repo.RecepcionarEmpresaAsync(solicitudId, empresaId, obs is null ? "CONFORME" : "CON_OBSERVACION", obs, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "TERMINAR EMPRESA Proveedor ID={ID} Empresa={Emp} ERROR", solicitudId, empresaId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            if (empresaId <= 0) return Result.Fail("Indique la empresa.", MapeoSp.Codigo(400));
+            if (motivoId <= 0) return Result.Fail("Elija el motivo por el que no se atiende a esta empresa.", MapeoSp.Codigo(400));
+            var det = string.IsNullOrWhiteSpace(detalle) ? null : detalle.Trim();
+            var sp = await _repo.CerrarSinAtencionAsync(solicitudId, empresaId, motivoId, det, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "CERRAR SIN ATENCION Proveedor ID={ID} Empresa={Emp} ERROR", solicitudId, empresaId); return Result.Fail(ex.Message); }
+    }
 }

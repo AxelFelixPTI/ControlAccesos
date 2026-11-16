@@ -208,7 +208,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "Es_Solicitante" CHAR, "Puede_Cancelar_Sol" CHAR, "Motivo_No_Cancelar_Sol" VARCHAR,
                "Transportistas_Total" INT, "Transportistas_Verificados" INT, "Transportistas_Dentro" INT, "Transportistas_Salieron" INT,
                "Ayudantes_Total" INT,
-               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta" VARCHAR)
+               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta" VARCHAR,
+               "Atencion_Resumen" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -216,6 +217,8 @@ DECLARE
     lv_titular BIGINT;
     lv_tcod   VARCHAR(20);
 BEGIN
+    -- V2.5 2026-11-14 (D-238): + Atencion_Resumen («COD:ESTADO;...» solo si la entrega tiene varias empresas); con varias empresas
+    --   Puede_Atender = el usuario tiene alguna empresa suya pendiente o en atencion, y Puede_Terminar = N (se recepciona por empresa)
     -- V2.4 2026-11-13 (D-237): + OC, empresa transportista y franja «Hasta»
     -- V2.3 2026-11-09 (D-225): + contadores de transportistas y ayudantes
     -- V2.0 2026-11-03
@@ -255,8 +258,20 @@ BEGIN
                           AND CAST(S."Fecha_Hora_Prevista" AS DATE) = CURRENT_DATE THEN 'Y' ELSE 'N' END AS CHAR),
            CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ESPERA' AND lv_titular = S."ID_Solicitud" THEN 'Y' ELSE 'N' END AS CHAR),
            CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'INGRESO' AND lv_titular = S."ID_Solicitud"
-                          AND CAST(S."Fecha_Hora_Prevista" AS DATE) <= CURRENT_DATE THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ATENCION' THEN 'Y' ELSE 'N' END AS CHAR),
+                          AND CAST(S."Fecha_Hora_Prevista" AS DATE) <= CURRENT_DATE
+                          AND ((SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = S."ID_Solicitud" AND E0."Eliminado" = 'N') <= 1
+                               OR EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E1 WHERE E1."ID_Solicitud" = S."ID_Solicitud" AND E1."Eliminado" = 'N'
+                                           AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E1."ID_Catalogo_Empresa_Grupo", "HV_ID_Catalogo_Sede") = 'Y'
+                                           AND "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E1."ID_Catalogo_Empresa_Grupo") IN ('PENDIENTE','EN_ATENCION')))
+                     THEN 'Y'
+                     WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ATENCION'
+                          AND (SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = S."ID_Solicitud" AND E0."Eliminado" = 'N') > 1
+                          AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E1 WHERE E1."ID_Solicitud" = S."ID_Solicitud" AND E1."Eliminado" = 'N'
+                                       AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E1."ID_Catalogo_Empresa_Grupo", "HV_ID_Catalogo_Sede") = 'Y'
+                                       AND "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E1."ID_Catalogo_Empresa_Grupo") IN ('PENDIENTE','EN_ATENCION'))
+                     THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ATENCION'
+                          AND (SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = S."ID_Solicitud" AND E0."Eliminado" = 'N') <= 1 THEN 'Y' ELSE 'N' END AS CHAR),
            CAST(CASE WHEN O."Estado_Operativo" <> 'EN_ESPERA' OR lv_titular = S."ID_Solicitud" THEN NULL
                      WHEN CAST(S."Fecha_Hora_Prevista" AS DATE) <> CURRENT_DATE THEN 'Solo se confirma el día programado'
                      WHEN lv_titular IS NOT NULL THEN 'La exclusa está reservada para ' || COALESCE(lv_tcod, 'otra entrega')
@@ -278,7 +293,10 @@ BEGIN
                   AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'Y' AND X."Estado" = 'SALIO') AS INT),
            CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
                   AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'N') AS INT),
-           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR)
+           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR),
+           CAST((SELECT CASE WHEN COUNT(*) > 1 THEN STRING_AGG(EC."Codigo" || ':' || "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E2."ID_Catalogo_Empresa_Grupo"), ';' ORDER BY EC."Orden", E2."ID_Solicitud_Empresa") ELSE NULL END
+                   FROM "CAF_Solicitud_Empresa" E2 JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EC ON EC."ID_Catalogo_Empresa_Grupo" = E2."ID_Catalogo_Empresa_Grupo"
+                  WHERE E2."ID_Solicitud" = S."ID_Solicitud" AND E2."Eliminado" = 'N') AS VARCHAR)
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'

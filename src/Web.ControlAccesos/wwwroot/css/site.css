@@ -261,10 +261,12 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
 .opc-quitar{align-self:flex-start;font-size:13px}
 hr.sep{border:0;border-top:1px solid var(--line2);margin:8px 0}
 
-/* D-237: filas compactas; cada campo según su dato (no todos a ancho completo) */
-.fila{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
-.fila>.field,.fila>.opc,.fila>.fila-btn{flex:0 0 auto;min-width:0}
-.fila>.f-xs{width:120px}.fila>.f-s{width:170px}.fila>.f-m{width:280px}.fila>.f-l{flex:1 1 220px}
+/* D-237: filas dinámicas */
+.fila{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start}
+.fila>.field,.fila>.opc,.fila>.fila-btn{min-width:0}
+.fila>.opc,.fila>.fila-btn{flex:0 0 auto}
+/* Cada campo crece hasta un tope; las filas se llenan y se parten solas según el ancho (celular: 2 cortos por fila, 1 largo) */
+.fila>.f-xs{flex:1 1 110px;max-width:160px}.fila>.f-s{flex:1 1 150px;max-width:240px}.fila>.f-m{flex:1 1 240px;max-width:400px}.fila>.f-l{flex:1 1 280px}
 .opc .f-xs{width:120px}.opc .f-s{width:170px}.opc .f-m{width:280px}.opc .field{max-width:100%}
 .fila>.opc.alin:not(:has(.opc-cuerpo:not([hidden]))),.fila>.fila-btn{margin-top:23px}
 .chk-fila{display:flex;flex-wrap:wrap;gap:8px}
@@ -274,9 +276,8 @@ hr.sep{border:0;border-top:1px solid var(--line2);margin:8px 0}
 .dias-sel{grid-template-columns:minmax(0,380px) minmax(0,1fr)}
 @media (max-width:560px){
   .fila>.opc.alin:not(:has(.opc-cuerpo:not([hidden]))),.fila>.fila-btn{margin-top:0}
-  .fila>.f-xs{width:calc(40% - 6px)}.fila>.f-s{width:calc(50% - 6px)}.fila>.f-m,.fila>.f-l{width:100%;flex:1 1 100%}
 }
 @media (max-width:720px){.dias-sel{grid-template-columns:1fr}}
 
-/* D-237: el formulario no se estira en pantallas anchas */
-.form-c{max-width:760px}
+/* D-237: el asistente va centrado y no se estira en pantallas anchas */
+#caf-nueva{max-width:960px;margin-inline:auto;width:100%}

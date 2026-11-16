@@ -32,4 +32,13 @@ public interface ISrv_Proveedor
     Task<Result> SalidaGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default);
     Task<Result> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     Task<Result> TerminarAsync(long solicitudId, string? observacion, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-238: estado de la atención de cada empresa de la entrega y lo que puede hacer el usuario en cada una.</summary>
+    Task<Result<List<Dto_Atencion_Empresa>>> AtencionListarAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
+    Task<Result<List<Dto_Motivo_Sin_Atencion>>> MotivosSinAtencionAsync(CancellationToken ct = default);
+    /// <summary>D-238: Almacén inicia la atención de UNA empresa de la entrega (solo las que él atiende y están en el pedido).</summary>
+    Task<Result> AtenderEmpresaAsync(long solicitudId, long empresaId, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-238: Almacén termina la atención de una empresa. Sin observación la recepción es conforme.</summary>
+    Task<Result> TerminarEmpresaAsync(long solicitudId, long empresaId, string? observacion, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-238: la empresa no será atendida (motivo de la lista; «Otro» exige detalle).</summary>
+    Task<Result> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default);
 }

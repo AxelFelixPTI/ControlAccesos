@@ -230,6 +230,104 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
             },
             ct: ct);
 
+    // ===== D-238: atención por empresa =====
+    public async Task<Result<List<Dto_Atencion_Empresa>>> AtencionListarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_ATENCION_LISTAR",
+                bind: p =>
+                {
+                    AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                    AddLongReq(p, "HV_UsuarioID", usuarioId);
+                },
+                map: rd => new Dto_Atencion_Empresa
+                {
+                    ID_Empresa         = RdLong(rd, "ID_Empresa"),
+                    Codigo             = RdStr(rd, "Codigo"),
+                    Empresa            = RdStr(rd, "Empresa"),
+                    Estado             = RdStr(rd, "Estado"),
+                    Resultado          = RdStrN(rd, "Resultado"),
+                    Observacion        = RdStrN(rd, "Observacion"),
+                    Motivo             = RdStrN(rd, "Motivo"),
+                    Fecha_Inicio       = RdDtN(rd, "Fecha_Inicio"),
+                    Fecha_Fin          = RdDtN(rd, "Fecha_Fin"),
+                    Atiende            = RdStrN(rd, "Atiende"),
+                    Autorizado         = RdBool(rd, "Autorizado"),
+                    Puede_Atender      = RdBool(rd, "Puede_Atender"),
+                    Puede_Recepcionar  = RdBool(rd, "Puede_Recepcionar"),
+                    Puede_Cerrar_Sin   = RdBool(rd, "Puede_Cerrar_Sin"),
+                    Motivo_No          = RdStrN(rd, "Motivo_No"),
+                },
+                ct: ct);
+            return Result<List<Dto_Atencion_Empresa>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Atencion_Empresa>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Motivo_Sin_Atencion>>> MotivosSinAtencionAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_MOTIVO_SIN_ATENCION_LISTAR",
+                bind: _ => { },
+                map: rd => new Dto_Motivo_Sin_Atencion
+                {
+                    ID_Motivo   = RdLong(rd, "ID_Motivo_Sin_Atencion"),
+                    Codigo      = RdStr(rd, "Codigo"),
+                    Descripcion = RdStr(rd, "Descripcion"),
+                    Es_Otro     = RdBool(rd, "Es_Otro"),
+                },
+                ct: ct);
+            return Result<List<Dto_Motivo_Sin_Atencion>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Motivo_Sin_Atencion>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public Task<ResultSp> AtenderEmpresaAsync(long solicitudId, long empresaId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_ID_Empresa", empresaId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> RecepcionarEmpresaAsync(long solicitudId, long empresaId, string resultado, string? observacion, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_RECEPCION_EMPRESA",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_ID_Empresa", empresaId);
+                AddStrReq(p, "HV_Resultado", resultado);
+                AddStr(p, "HV_Observacion", observacion);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
+    public Task<ResultSp> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn,
+            procedimiento: "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddLongReq(p, "HV_ID_Empresa", empresaId);
+                AddLongReq(p, "HV_ID_Motivo", motivoId);
+                AddStr(p, "HV_Detalle", detalle);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+            },
+            ct: ct);
+
     private static Dto_Proveedor_Entrega MapEntrega(DbDataReader rd) => new()
     {
         ID_Solicitud           = RdLong(rd, "ID_Solicitud"),
@@ -253,6 +351,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Numeros_OC                 = RdStrN(rd, "Numeros_OC"),
         Empresa_Transportista      = RdStrN(rd, "Empresa_Transportista"),
         Hora_Hasta                 = RdStrN(rd, "Hora_Hasta"),
+        Atencion_Resumen           = RdStrN(rd, "Atencion_Resumen"),
         Estado_Operativo       = RdStr(rd, "Estado_Operativo"),
         Con_Desviacion         = RdBool(rd, "Con_Desviacion"),
         Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),

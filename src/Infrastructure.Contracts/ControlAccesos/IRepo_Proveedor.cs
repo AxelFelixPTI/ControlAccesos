@@ -26,4 +26,10 @@ public interface IRepo_Proveedor
     Task<ResultSp> SalidaGrupoAsync(Dto_Proveedor_Grupo dto, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> AtenderAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> RecepcionarAsync(long solicitudId, string resultado, string? observacion, long usuarioId, CancellationToken ct = default);
+    // D-238: atención por empresa
+    Task<Result<List<Dto_Atencion_Empresa>>> AtencionListarAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
+    Task<Result<List<Dto_Motivo_Sin_Atencion>>> MotivosSinAtencionAsync(CancellationToken ct = default);
+    Task<ResultSp> AtenderEmpresaAsync(long solicitudId, long empresaId, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> RecepcionarEmpresaAsync(long solicitudId, long empresaId, string resultado, string? observacion, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default);
 }

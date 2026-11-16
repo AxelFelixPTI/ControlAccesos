@@ -66,6 +66,7 @@ public sealed class ProveedoresController : Controller
                 id = e.ID_Solicitud, codigo = e.Codigo, fecha = e.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = e.Fecha_Hora_Prevista.ToString("HH:mm"),
                 empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, telefono = e.Telefono,
                 numerosOc = (e.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries), empresaTransportista = e.Empresa_Transportista, horaHasta = e.Hora_Hasta,   // D-237
+                atencion = (e.Atencion_Resumen ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { codigo = t[0], estado = t[1] }),   // D-238
                 placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, transportistas = e.Transportistas_Total, verificados = e.Transportistas_Verificados, dentro = e.Transportistas_Dentro, salieron = e.Transportistas_Salieron, ayudantes = e.Ayudantes_Total, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,
                 disponible = e.Disponibilidad_Confirmada, disponibleDesde = Hora(e.Fecha_Disponibilidad),
                 llegada = Hora(e.Fecha_Llegada), ingreso = Hora(e.Fecha_Ingreso), inicio = Hora(e.Fecha_Inicio_Atencion), recepcion = Hora(e.Fecha_Recepcion), salida = Hora(e.Fecha_Salida),
@@ -121,6 +122,50 @@ public sealed class ProveedoresController : Controller
     public async Task<IActionResult> Terminar([FromBody] ProveedorTerminarVM m, CancellationToken ct)
     {
         var r = await _prov.TerminarAsync(m.SolicitudId, m.Observacion, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-238: empresas de la entrega con su estado de atención y lo que el usuario puede hacer en cada una, más los motivos de «cerrar sin atención».</summary>
+    [HttpGet]
+    public async Task<IActionResult> AtencionEmpresas(long id, CancellationToken ct)
+    {
+        var r = await _prov.AtencionListarAsync(id, User.UsuarioId(), ct);
+        if (!r.Success) return Falla(r.Message);
+        var m = await _prov.MotivosSinAtencionAsync(ct);
+        return Json(new
+        {
+            success = true,
+            data = new
+            {
+                empresas = r.Data!.Select(a => new
+                {
+                    id = a.ID_Empresa, codigo = a.Codigo, nombre = a.Empresa, estado = a.Estado, resultado = a.Resultado, observacion = a.Observacion, motivo = a.Motivo,
+                    inicio = Hora(a.Fecha_Inicio), fin = Hora(a.Fecha_Fin), atiende = a.Atiende, autorizado = a.Autorizado,
+                    puedeAtender = a.Puede_Atender, puedeRecepcionar = a.Puede_Recepcionar, puedeCerrar = a.Puede_Cerrar_Sin, motivoNo = a.Motivo_No,
+                }),
+                motivos = (m.Data ?? new()).Select(x => new { id = x.ID_Motivo, texto = x.Descripcion, otro = x.Es_Otro }),
+            }
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> AtenderEmpresa([FromBody] ProveedorEmpresaVM m, CancellationToken ct)
+    {
+        var r = await _prov.AtenderEmpresaAsync(m.SolicitudId, m.EmpresaId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> TerminarEmpresa([FromBody] ProveedorEmpresaTerminarVM m, CancellationToken ct)
+    {
+        var r = await _prov.TerminarEmpresaAsync(m.SolicitudId, m.EmpresaId, m.Observacion, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> CerrarSinAtencion([FromBody] ProveedorCerrarSinAtencionVM m, CancellationToken ct)
+    {
+        var r = await _prov.CerrarSinAtencionAsync(m.SolicitudId, m.EmpresaId, m.MotivoId, m.Detalle, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

@@ -1,6 +1,7 @@
 @{ ViewData["Titulo"] = "Catálogos"; ViewData["Migas"] = "Administración · Sede VES"; }
 <div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")"
      data-url-al-listar="@Url.Action("Listar", "AlmacenEmpresa")" data-url-al-guardar="@Url.Action("Guardar", "AlmacenEmpresa")"
+     data-url-pa-listar="@Url.Action("Listar", "Parametros")" data-url-pa-guardar="@Url.Action("Guardar", "Parametros")"
      data-url-ck-listar="@Url.Action("Listar", "ChecklistPorteria")" data-url-ck-guardar="@Url.Action("Guardar", "ChecklistPorteria")"
      data-url-tp-listar="@Url.Action("Listar", "TiposIngreso")" data-url-tp-guardar="@Url.Action("Guardar", "TiposIngreso")"
      data-url-sub-listar="@Url.Action("Subtipos", "TiposIngreso")" data-url-sub-guardar="@Url.Action("SubtipoGuardar", "TiposIngreso")"
@@ -70,6 +71,21 @@
         </div>
     </section>
 
+    <section class="card" id="caf-parametros">
+        <div class="card-hd">
+            <div>
+                <h3>Parámetros</h3>
+                <p class="small muted">Valores del sistema que se ajustan aquí, sin tocar la base de datos: por ejemplo, cuántas entregas puede atender a la vez una misma empresa.</p>
+            </div>
+        </div>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th class="stk">Parámetro</th><th>Valor</th><th></th></tr></thead>
+                <tbody id="pa-filas"><tr><td colspan="3" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
     <div class="grid g2 cat3">
         <section class="card">
             <h3>Áreas</h3>
@@ -112,3 +128,4 @@
 <script src="~/js/catalogos/tipos.js" asp-append-version="true"></script>
 <script src="~/js/catalogos/checklist.js" asp-append-version="true"></script>
 <script src="~/js/catalogos/almacen.js" asp-append-version="true"></script>
+<script src="~/js/catalogos/parametros.js" asp-append-version="true"></script>

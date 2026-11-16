@@ -645,6 +645,10 @@ BEGIN
         IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para atender proveedores.'; RETURN;
         END IF;
+        -- V3.1 2026-11-14 (D-238): con varias empresas la atención es por empresa (ERP_CAF_PROVEEDOR_ATENDER_EMPRESA)
+        IF (SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E WHERE E."ID_Solicitud" = "HV_ID_Solicitud" AND E."Eliminado" = 'N') > 1 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Esta entrega tiene varias empresas: la atención se inicia por empresa.'; RETURN;
+        END IF;
         SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_n, lv_act, lv_eop
           FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
         IF lv_n = 0 OR lv_act <> 'Y' THEN
@@ -733,6 +737,11 @@ BEGIN
         IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para recepcionar proveedores.'; RETURN;
         END IF;
+        -- V5.1 2026-11-14 (D-238): con varias empresas la recepción es por empresa; la completa la termina el SP de atención por empresa
+        IF COALESCE(current_setting('caf.atencion_empresa', true), '') <> '1'
+           AND (SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E WHERE E."ID_Solicitud" = "HV_ID_Solicitud" AND E."Eliminado" = 'N') > 1 THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Esta entrega tiene varias empresas: la recepción se registra por empresa.'; RETURN;
+        END IF;
         SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_n, lv_act, lv_eop
           FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
         IF lv_n = 0 OR lv_act <> 'Y' THEN
@@ -816,6 +825,9 @@ BEGIN
         END IF;
         IF "HV_Clave" = 'EXCLUSA_CAPACIDAD' AND COALESCE("HV_Valor", '') !~ '^[1-9][0-9]?$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La capacidad debe ser un número entero de 1 a 99.'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'ATENCIONES_SIMULTANEAS_EMPRESA' AND COALESCE("HV_Valor", '') !~ '^[1-9][0-9]?$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las atenciones simultáneas por empresa deben ser un número entero de 1 a 99.'; RETURN;
         END IF;
         IF "HV_Clave" = 'PROVEEDOR_HORA_CORTE' AND COALESCE("HV_Valor", '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La hora de corte debe tener el formato HH:MM (de 00:00 a 23:59).'; RETURN;

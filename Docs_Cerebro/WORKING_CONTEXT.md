@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-11-13
+Actualizado: 2026-11-14
 
 ## Dónde estamos
 
+- **2026-11-14 · Entrega 2C-1: atención por empresa, cierre sin atención y Parámetros (D-238, script 32).** Cada empresa del pedido se atiende por separado; el almacenero compartido solo actúa en sus empresas presentes en el pedido; «Cerrar sin atención» con motivo; límite de atenciones simultáneas por empresa (parámetro, bloquea). Catálogos → Parámetros. Siguiente: 2C-2 (esclusa configurable, vehículos informativos) y luego C, D, E.
 - **2026-11-13 · Entrega 2C-0: formulario de proveedor reestructurado (D-237, script 31).** OC obligatoria (etiquetas), hora prevista + franja informativa, empresa transportista opcional, contacto del responsable con celulares en etiquetas, rol Conductor con placa obligatoria y campos opcionales compactados («+ Añadir…») también en contratista. Va antes de 2C-1/2C-2 (esclusa, vehículos informativos, atención por empresa), que se retoman después. Entrega acumulativa con la 2B (aún no subida).
 - **2026-11-12 · Entrega 2B: varias empresas por solicitud de proveedor y «Almacén por empresa» (D-236, script 30).** Una solicitud lleva 1 a 4 empresas; calendario con varios chips; se quita el responsable programado; nueva sección de Catálogos con las empresas que atiende cada almacenero. Sigue 2C (atención por empresa, puntos, esclusa configurable).
 - **2026-11-12 · Entrega 2A: «Verificación en grupo» (D-235).** Botón único por solicitud con 2+ personas y modal por pasos (acción → personas → checklist) para cualquier tipo, en ingreso y salida; el acceso directo del calendario abre este modal en la salida. Sin cambios de BD. Siguen: 2B/2C (varias empresas y atención por empresa).

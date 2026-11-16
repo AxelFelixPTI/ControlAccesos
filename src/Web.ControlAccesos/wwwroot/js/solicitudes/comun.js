@@ -437,7 +437,8 @@ var SOL = (function () {
             var c = esContratista(), t = tipoActual();
             tipoAyuda.textContent = editar ? 'El tipo de ingreso y la sede no se pueden cambiar. Si se equivocó, cancele y cree otra solicitud.' : '';
             nodo.textContent = '';
-            nodo.appendChild(fila([w('f-m', campo('Tipo de ingreso *', tipoSel, editar ? null : (t.codigo ? null : 'Elija el tipo de ingreso.'))), w('f-m', campo('Sede *', sedeSel))]));
+            var filaTop = fila([w('f-m', campo('Tipo de ingreso *', tipoSel, editar ? null : (t.codigo ? null : 'Elija el tipo de ingreso.'))), w('f-m', campo('Sede *', sedeSel))]);
+            nodo.appendChild(filaTop);
             if (editar) nodo.appendChild(tipoAyuda);
             if (c && diasFijos) {
                 var hd = textoHoras(v.dias[0].desde, v.dias[0].hasta);
@@ -447,7 +448,8 @@ var SOL = (function () {
             } else if (usaDias()) {
                 nodo.appendChild(selDias.nodo);
             } else {
-                nodo.appendChild(fila([w('f-s', campo(c ? 'Fecha del servicio *' : esProveedor() ? 'Fecha de la entrega *' : 'Fecha de la visita *', fecha)), w('f-s', campo(c ? 'Hora prevista del servicio *' : esProveedor() ? 'Hora de entrega prevista *' : 'Hora prevista *', hora))].concat(esProveedor() ? [w('alin', opcFranja.nodo)] : [])));
+                // Fecha y hora suben a la fila de arriba si caben; si no, la fila se parte sola según el ancho de la pantalla.
+                [w('f-s', campo(c ? 'Fecha del servicio *' : esProveedor() ? 'Fecha de la entrega *' : 'Fecha de la visita *', fecha)), w('f-s', campo(c ? 'Hora prevista del servicio *' : esProveedor() ? 'Hora de entrega prevista *' : 'Hora prevista *', hora))].concat(esProveedor() ? [w('alin', opcFranja.nodo)] : []).forEach(function (x) { filaTop.appendChild(x); });
             }
             var prov = esProveedor();
             obs.placeholder = prov ? 'Ej.: carga 1.671 TN, requiere montacargas' : OBS_PH;

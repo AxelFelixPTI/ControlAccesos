@@ -26,6 +26,8 @@
         INGRESO_DENEGADO: ['Ingreso denegado', 'st-den', 'st-den', 'El coordinador denegó su ingreso en la verificación.'],
         RETIRO_SIN_INGRESO: ['Retiró sin ingresar', 'st-ret', 'st-ret', 'Fue verificado pero se retiró sin ingresar (lo registra Vigilancia).']
     };
+    // D-238: estado de la atención por empresa [rótulo, clase]
+    var ATENCION = { PENDIENTE: ['Pendiente', 'at-pen'], EN_ATENCION: ['En atención', 'at-ing'], ATENDIDA: ['Atendida', 'at-ok'], CERRADA_SIN_ATENCION: ['Sin atención', 'at-sin'] };
     var EMPRESAS = {
         TRIANON_ENERGO: ['Trianon Energo', 'TE', 'em-te'], POWER_TECHNOLOGY: ['Power Technology', 'PT', 'em-pt'],
         TRIANON_ASCENSORES: ['Trianon Ascensores', 'TA', 'em-ta'], TRIANON_SOSTENIBLE: ['Trianon Sostenible', 'TS', 'em-ts']
@@ -250,6 +252,14 @@
         linea('Conductor:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
         if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' conductor' : ' conductores') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
             (e.salieron ? ' · salieron ' + e.salieron : '') + (e.ayudantes ? ' · ' + e.ayudantes + (e.ayudantes === 1 ? ' ayudante' : ' ayudantes') + ' de descarga' : ''));
+        // D-238: con varias empresas, el estado de la atención de cada una
+        if (e.atencion && e.atencion.length) {
+            var chips = el('span', { class: 'pv-aten' }, e.atencion.map(function (a) {
+                var x = EMPRESAS[a.codigo], t = ATENCION[a.estado] || [a.estado, ''];
+                return el('span', { class: 'pv-aten-i ' + t[1], title: (x ? x[0] : a.codigo) + ': ' + t[0] }, [el('span', { class: 'pv-em ' + (x ? x[2] : 'em-xx'), text: x ? x[1] : '··' }), ' ' + t[0]]);
+            }));
+            linea('Atención:', chips);
+        }
         linea('Vehículo:', [e.placa, e.marca].filter(Boolean).join(' · '));
         linea('Recibe:', e.destino);
         linea('RUC:', e.ruc);
@@ -330,6 +340,9 @@
             if (e.puedeConfirmar) boton('Confirmar disponibilidad', function () { modalConfirmar(e); }, true);
             else if (!(e.estado === 'EN_ESPERA' && e.disponible)) boton('Confirmar disponibilidad', null, true, true, motivo(e));
             if (e.puedeCancelarDisp) boton('Cancelar disponibilidad', function () { modalCancelarDisp(e); });
+        } else if (e.atencion && e.atencion.length && (e.estado === 'INGRESO' || e.estado === 'EN_ATENCION')) {
+            // D-238: varias empresas: la atención se lleva por empresa; cada almacenero solo actúa sobre las suyas
+            boton('Atención por empresa', function () { modalEmpresas(e); }, true, !e.puedeAtender, 'Ninguna de las empresas pendientes de esta entrega es de las que usted atiende.');
         } else if (e.estado === 'INGRESO') {
             boton('Iniciar atención', function () { modalAtender(e); }, true, !e.puedeAtender, motivo(e));
         } else if (e.estado === 'EN_ATENCION') {
@@ -407,6 +420,79 @@
             { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
             { texto: 'Confirmar culminación', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlTerminar, { solicitudId: e.id, observacion: obs.value }, { disabled: false }, cerrar).then(function () { env = false; }); } }
         ]);
+    }
+
+    // D-238: atención por empresa. Una fila por empresa del pedido; las acciones solo aparecen donde el usuario puede (empresa suya y estado adecuado).
+    function modalEmpresas(e) {
+        var cuerpo = el('div', { class: 'stack pv-ae' });
+        var pend = false;
+        function cargarEmp() {
+            return CAF.pedir(d.urlAtencion + '?id=' + e.id).then(function (r) {
+                cuerpo.textContent = '';
+                if (!r.success) { cuerpo.appendChild(el('p', { class: 'field-e', text: r.message || 'No se pudo cargar la atención.' })); return; }
+                cuerpo.appendChild(el('p', { class: 'pv-modal-p', text: 'Cada empresa de la entrega se atiende por separado. Solo puede actuar sobre las empresas que usted atiende; cuando todas terminen o se cierren, la entrega queda recepcionada y Vigilancia podrá registrar la salida.' }));
+                (r.data.empresas || []).forEach(function (a) { cuerpo.appendChild(fila(a, r.data.motivos || [])); });
+            });
+        }
+        function accion(url, body, cb) {
+            if (pend) return; pend = true;
+            CAF.pedir(url, { method: 'POST', body: body }).then(function (r) {
+                pend = false;
+                var msg = r.message || (r.errors && r.errors[0] && r.errors[0].message) || '';
+                if (r.success) CAF.aviso(msg || 'Listo.'); else CAF.aviso(msg || 'No se pudo completar la acción.', 'warn');
+                if (cb) cb(r);
+                cargarEmp(); cargar(true);
+            });
+        }
+        function fila(a, motivos) {
+            var x = EMPRESAS[a.codigo], t = ATENCION[a.estado] || [a.estado, ''];
+            var caja = el('section', { class: 'pv-ae-fila' }), extra = el('div', { class: 'pv-ae-extra' }), btns = el('div', { class: 'pv-ae-btns' });
+            caja.appendChild(el('div', { class: 'pv-ae-h' }, [el('span', { class: 'pv-em ' + (x ? x[2] : 'em-xx'), text: x ? x[1] : '··' }), el('b', { text: a.nombre }), el('span', { class: 'pv-aten-i ' + t[1], text: t[0] })]));
+            var det = [];
+            if (a.atiende) det.push('Atiende: ' + a.atiende);
+            if (a.inicio) det.push('Inicio ' + a.inicio);
+            if (a.fin) det.push('Fin ' + a.fin);
+            if (a.resultado === 'CON_OBSERVACION') det.push('Con observación');
+            if (det.length) caja.appendChild(el('div', { class: 'pv-ae-det', text: det.join(' · ') }));
+            if (a.motivo) caja.appendChild(el('div', { class: 'pv-ae-det', text: 'Motivo: ' + a.motivo }));
+            if (a.observacion) caja.appendChild(el('div', { class: 'pv-ae-det', text: a.observacion }));
+            if (a.estado !== 'ATENDIDA' && a.estado !== 'CERRADA_SIN_ATENCION' && a.motivoNo && !a.puedeAtender && !a.puedeRecepcionar && !a.puedeCerrar) caja.appendChild(el('div', { class: 'pv-motivo', text: a.motivoNo }));
+            function btn(texto, primario, fn) { btns.appendChild(el('button', { type: 'button', class: 'btn btn-sm' + (primario ? ' btn-primary' : ''), text: texto, onclick: fn })); }
+            if (a.puedeAtender) btn('Atender', true, function () { accion(d.urlAtenderEmpresa, { solicitudId: e.id, empresaId: a.id }); });
+            if (a.puedeRecepcionar) btn('Terminar atención', true, function () { formTerminar(); });
+            if (a.puedeCerrar) btn('Cerrar sin atención', false, function () { formCerrar(); });
+            if (a.motivoNo && a.estado === 'PENDIENTE' && a.autorizado && !a.puedeAtender) caja.appendChild(el('div', { class: 'pv-motivo', text: a.motivoNo }));
+            caja.appendChild(btns); caja.appendChild(extra);
+            function formTerminar() {
+                extra.textContent = '';
+                var obs = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Observación de la recepción (opcional; vacía = conforme)' });
+                extra.appendChild(el('div', { class: 'stack' }, [obs, el('div', { class: 'pv-ae-btns' }, [
+                    el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Confirmar', onclick: function () { accion(d.urlTerminarEmpresa, { solicitudId: e.id, empresaId: a.id, observacion: obs.value }); } }),
+                    el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver', onclick: function () { extra.textContent = ''; } })])]));
+                obs.focus();
+            }
+            function formCerrar() {
+                extra.textContent = '';
+                var sel = el('select', {}, [el('option', { value: '', text: '— Elija el motivo —' })].concat(motivos.map(function (m) { return el('option', { value: String(m.id), text: m.texto, 'data-otro': m.otro ? 'Y' : 'N' }); })));
+                var det2 = el('textarea', { rows: '2', maxlength: '300', placeholder: 'Detalle (obligatorio si elige «Otro»)' });
+                var err = el('span', { class: 'field-e' });
+                extra.appendChild(el('div', { class: 'stack' }, [
+                    el('p', { class: 'pv-modal-p', text: 'La empresa no será atendida en esta entrega. Queda registrado en la bitácora con el motivo.' }),
+                    sel, det2, err,
+                    el('div', { class: 'pv-ae-btns' }, [
+                        el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Cerrar sin atención', onclick: function () {
+                            if (!sel.value) { err.textContent = 'Elija el motivo.'; return; }
+                            var otro = sel.options[sel.selectedIndex].getAttribute('data-otro') === 'Y';
+                            if (otro && det2.value.trim().length < 3) { err.textContent = 'Describa el motivo.'; return; }
+                            accion(d.urlCerrarSin, { solicitudId: e.id, empresaId: a.id, motivoId: +sel.value, detalle: det2.value });
+                        } }),
+                        el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver', onclick: function () { extra.textContent = ''; } })])]));
+                sel.focus();
+            }
+            return caja;
+        }
+        CAF.modal('Atención por empresa · ' + e.empresa, cuerpo, [{ texto: 'Cerrar', onclick: function (cerrar) { cerrar(); } }], 'ancho');
+        cargarEmp();
     }
 
     function modalAsignar(e) {
