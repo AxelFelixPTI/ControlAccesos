@@ -730,3 +730,8 @@ En el proveedor el «responsable» es el contacto de la empresa proveedora (`Con
 - **Limpiador:** borra solo lo 7600NNNN (solicitudes y todo lo que cuelga, incidencias `[DEMO-INT]`, personas) y libera la exclusa; no borra usuarios (los comparten los otros demos).
 - **T-51** — Solo PostgreSQL (script de pruebas). Si algún día se quisiera en HANA: reemplazar `pg_temp.*` por procedimientos temporales o por la aplicación, y el recorrido de claves foráneas por la vista `SYS.REFERENTIAL_CONSTRAINTS`.
 
+## D-249 — Buscador en proveedores, «Editar usuario» en ventana y tarjetas móviles más compactas (2C-2k)
+- **Buscador del panel de proveedores:** un campo pequeño dentro de la fila de filtros (no una barra aparte) que busca por **OC, empresa (proveedor o transportista), conductor (nombre o documento) y placa**. Sin tildes ni mayúsculas; la placa, el documento y las OC coinciden también sin guiones ni espacios («abc 123» encuentra «ABC-123»). Filtra mes, semana y día; se guarda en la dirección (`?q=`) y «Quitar filtros» lo limpia. Solo frontend: no cambia ningún SP.
+- **Usuarios y roles:** crear y editar abre una **ventana emergente** (pantalla completa en celular, con Guardar siempre a la vista) en lugar del panel que quedaba al final de la lista. Se quitó el panel lateral; el botón «+ Nuevo usuario» está en el encabezado de la lista.
+- **Listados en celular (todas las pantallas con tabla):** cada fila es una tarjeta más baja: el nombre/código como título, cada dato en una línea (etiqueta a la izquierda, valor a la derecha) y los botones como pie a todo el ancho. Es solo CSS (`site.css`).
+

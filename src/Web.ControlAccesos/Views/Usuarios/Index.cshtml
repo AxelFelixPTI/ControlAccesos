@@ -1,7 +1,8 @@
 @{ ViewData["Titulo"] = "Usuarios y roles"; ViewData["Migas"] = "Administración"; }
-<div class="split" id="caf-usuarios" data-url-listar="@Url.Action("Listar", "Usuarios")" data-url-opciones="@Url.Action("Opciones", "Usuarios")" data-url-guardar="@Url.Action("Guardar", "Usuarios")" data-url-enlace="@Url.Action("Enlace", "Usuarios")">
+<div class="stack" id="caf-usuarios" data-url-listar="@Url.Action("Listar", "Usuarios")" data-url-opciones="@Url.Action("Opciones", "Usuarios")" data-url-guardar="@Url.Action("Guardar", "Usuarios")" data-url-enlace="@Url.Action("Enlace", "Usuarios")">
     @Html.AntiForgeryToken()
     <section class="card">
+        <div class="card-hd"><h3>Usuarios</h3><button type="button" class="btn btn-primary" id="u-nuevo">+ Nuevo usuario</button></div>
         <div class="filtros f2">
             <label class="field"><span class="field-l">Buscar</span><input type="text" id="u-buscar" placeholder="Nombre, documento o correo" autocomplete="off" /></label>
             <label class="field"><span class="field-l">Rol</span><select id="u-rol"><option value="">Todos</option></select></label>
@@ -13,7 +14,6 @@
             </table>
         </div>
     </section>
-    <section class="card side-form" id="u-lateral"></section>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="~/js/caf.js" asp-append-version="true"></script>

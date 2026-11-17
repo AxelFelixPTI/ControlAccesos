@@ -37,15 +37,28 @@
 
     function leerFiltro() {
         var q = new URLSearchParams(location.search);
-        return { emp: q.get('emp') || '', est: q.get('est') || '', fec: /^\d{4}-\d{2}-\d{2}$/.test(q.get('fec') || '') ? q.get('fec') : '' };
+        return { q: (q.get('q') || '').slice(0, 60), emp: q.get('emp') || '', est: q.get('est') || '', fec: /^\d{4}-\d{2}-\d{2}$/.test(q.get('fec') || '') ? q.get('fec') : '' };
     }
     function guardarFiltro() {
         var q = new URLSearchParams(location.search);
-        ['emp', 'est', 'fec'].forEach(function (k) { if (filtro[k]) q.set(k, filtro[k]); else q.delete(k); });
+        ['q', 'emp', 'est', 'fec'].forEach(function (k) { if (filtro[k]) q.set(k, filtro[k]); else q.delete(k); });
         try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (x) { /* sin historial: no pasa nada */ }
     }
+    // Búsqueda libre: OC, empresa (proveedor o transportista), conductor (nombre o documento) y placa. Sin tildes ni mayúsculas;
+    // la placa y las OC también coinciden sin guiones ni espacios («abc 123» encuentra «ABC-123»).
+    function norm(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+    function compacto(t) { return norm(t).replace(/[^a-z0-9]/g, ''); }
+    function coincideTexto(e) {
+        var q = norm(filtro.q).trim();
+        if (!q) return true;
+        var oc = (e.numerosOc || []).join(' ');
+        var pajar = norm([oc, e.empresa, e.empresaTransportista, e.transportista, e.documento, e.placa].join(' | '));
+        if (pajar.indexOf(q) >= 0) return true;
+        var qc = compacto(q);
+        return qc.length >= 2 && compacto([oc, e.placa, e.documento].join(' ')).indexOf(qc) >= 0;
+    }
     function pasa(e) {
-        return (!filtro.emp || codigos(e).indexOf(filtro.emp) >= 0) && (!filtro.est || estadoVisual(e) === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
+        return coincideTexto(e) && (!filtro.emp || codigos(e).indexOf(filtro.emp) >= 0) && (!filtro.est || estadoVisual(e) === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
     }
     // D-244: «Pausada» no es un estado de la base: es la entrega en atención cuyas empresas iniciadas están todas detenidas
     function estadoVisual(e) { return e.pausada && e.estado === 'EN_ATENCION' ? 'PAUSADA' : e.estado; }
@@ -170,6 +183,10 @@
             var s = el('select', { 'aria-label': rot }, [el('option', { value: '', text: rot + ': todas' })].concat(ops.map(function (o) { return el('option', { value: o[0], text: o[1] }); })));
             s.value = filtro[k]; s.addEventListener('change', function () { filtro[k] = s.value; guardarFiltro(); pintar(); }); return s;
         }
+        var b = el('input', { type: 'search', class: 'pv-buscar', id: 'pv-buscar', maxlength: '60', placeholder: 'OC, empresa, placa…', autocomplete: 'off', 'aria-label': 'Buscar por OC, empresa, conductor o placa', title: 'Buscar por OC, empresa, conductor o placa' });
+        b.value = filtro.q;
+        b.addEventListener('input', function () { filtro.q = b.value; guardarFiltro(); pintar(); });
+        c.appendChild(b);
         c.appendChild(sel('Empresa', 'emp', Object.keys(EMPRESAS).map(function (k) { return [k, EMPRESAS[k][0]]; })));
         c.appendChild(sel('Estado', 'est', Object.keys(ESTADO).map(function (k) { return [k, ESTADO[k][0]]; })));
         var f = el('input', { type: 'date', 'aria-label': 'Fecha' }); f.value = filtro.fec;
@@ -179,7 +196,7 @@
             pintar();
         });
         c.appendChild(el('label', { class: 'pv-fec' }, [el('span', { class: 'small muted', text: 'Fecha' }), f]));
-        c.appendChild(el('button', { type: 'button', class: 'btn btn-sm', id: 'pv-limpiar', text: 'Quitar filtros', onclick: function () { filtro = { emp: '', est: '', fec: '' }; guardarFiltro(); pintarFiltros(); pintar(); } }));
+        c.appendChild(el('button', { type: 'button', class: 'btn btn-sm', id: 'pv-limpiar', text: 'Quitar filtros', onclick: function () { filtro = { q: '', emp: '', est: '', fec: '' }; guardarFiltro(); pintarFiltros(); pintar(); } }));
         c.appendChild(el('span', { class: 'small muted', id: 'pv-cuenta', 'aria-live': 'polite' }));
     }
 
@@ -210,7 +227,7 @@
     function pintar() {
         pintarVistas(); pintarExclusa(); pintarCupos();
         var n = datos.filter(pasa).length, cu = document.getElementById('pv-cuenta');
-        if (cu) cu.textContent = n + (n === 1 ? ' entrega' : ' entregas') + (filtro.emp || filtro.est || filtro.fec ? ' con los filtros' : ' en el rango');
+        if (cu) cu.textContent = n + (n === 1 ? ' entrega' : ' entregas') + (filtro.q || filtro.emp || filtro.est || filtro.fec ? ' con los filtros' : ' en el rango');
         cal.textContent = '';
         if (vista === 'SEMANA') pintarSemana(); else if (vista === 'DIA') pintarDia(); else pintarMes();
     }

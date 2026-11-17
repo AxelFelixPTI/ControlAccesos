@@ -4,6 +4,7 @@ Actualizado: 2026-11-17
 
 ## Dónde estamos
 
+- **2026-11-17 · Buscador de proveedores, Editar usuario en ventana y tarjetas móviles (D-249).** Campo de búsqueda compacto (OC, empresa, conductor, placa) en el panel de proveedores; usuarios se crea/edita en modal (sin panel lateral); tablas en celular como tarjetas compactas. Solo web (JS/CSS/vista).
 - **2026-11-17 · Demo integral (D-248).** `DATOS_DEMO_INTEGRAL.sql` + `LIMPIAR_DEMO_INTEGRAL.sql`: 69 solicitudes de visita, contratista y proveedor (1 empresa y varias), pasadas / de hoy / programadas, en casi todos los estados (DNI 7600NNNN; las pasadas se crean con los SP y se envejecen retrocediendo fechas). Solo una entrega «En atención» (exclusa); se detiene con aviso si otro demo la ocupa. Sin cambios de SP ni de código web.
 - **2026-11-17 · La esclusa admite varias entregas con vehículo según su capacidad (D-247).** Plazas en `CAF_Exclusa` (script 35), reserva por capacidad, ingreso que cuenta vehículos de todas las entregas, aviso con varias plazas. Falta 2C-2j: advertencia y pausa cuando otra entrega con vehículos pendientes entra.
 - **2026-11-16 · Almacén ve la solicitud del proveedor y sus documentos, solo lectura (D-246).** `FN_SOLICITUD_VISIBLE` V1.1 (permiso Almacén + tipo PROVEEDOR), pantalla `Proveedores/Solicitud`, botón «Ver solicitud» en las tarjetas; demo `DATOS_DEMO_MULTIEMPRESA.sql` + `LIMPIAR_DEMO_MULTIEMPRESA.sql` (11 entregas de 2 a 4 empresas). Orden siguiente: Entrega C (P-98), D (P-96/P-97), E (P-95).

@@ -212,12 +212,19 @@ input.ro,input[readonly]{background:var(--sf2);color:var(--muted)}input.big{min-
   .tw{margin:0;padding:0}
   .tw:has(.tabla){overflow-x:visible}
   .tabla{min-width:0;display:block}.tabla thead{display:none}.tabla tbody{display:block}
-  .tabla tr{display:block;border:1px solid var(--line);border-radius:12px;margin:0 0 12px;overflow:hidden;background:var(--sf)}
-  .tabla td{display:block;padding:9px 12px;border-bottom:1px solid var(--line);word-break:break-word}
+  .tabla tr{display:block;border:1px solid var(--line);border-radius:12px;margin:0 0 10px;overflow:hidden;background:var(--sf)}
+  /* Cada dato en una línea: etiqueta a la izquierda, valor a la derecha (la tarjeta queda mucho más baja) */
+  .tabla td{display:grid;grid-template-columns:minmax(84px,34%) minmax(0,1fr);column-gap:10px;align-items:baseline;padding:7px 12px;border-bottom:1px solid var(--line);word-break:break-word}
   .tabla td:last-child{border-bottom:0}
-  .tabla td::before{content:attr(data-label);display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:2px}
+  .tabla td::before{content:attr(data-label);font-size:12px;font-weight:600;color:var(--muted);margin:0}
+  /* La primera celda (nombre o código) es el título de la tarjeta */
+  .tabla td.stk{display:block;padding:10px 12px;background:var(--teal-soft);font-size:15px}
+  .tabla td.stk::before{content:none}
+  /* Celda sin etiqueta (los botones): pie de la tarjeta, botones a todo el ancho */
+  .tabla td:not([data-label]),.tabla td[data-label=""]{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;background:var(--sf2);border-top:1px solid var(--line)}
   .tabla td:not([data-label])::before,.tabla td[data-label=""]::before{content:none}
-  .tabla td[colspan]{display:block;border:0}.tabla td[colspan]::before{content:none}
+  .tabla td:not([data-label]) .btn,.tabla td[data-label=""] .btn{flex:1 1 auto}
+  .tabla td[colspan]{display:block;border:0;background:none}.tabla td[colspan]::before{content:none}
   .tabla td .acc,.tabla td .chips{justify-content:flex-start}
   .tabla-simple td.mono{word-break:break-all}
   .tabla td .link{display:inline-flex;align-items:center;min-height:44px;padding:0}

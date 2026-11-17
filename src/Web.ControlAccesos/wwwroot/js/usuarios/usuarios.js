@@ -1,4 +1,4 @@
-// Pantalla Usuarios y roles: lista con búsqueda y filtro por rol; formulario lateral para crear y editar.
+// Pantalla Usuarios y roles: lista con búsqueda y filtro por rol; crear y editar en una ventana emergente.
 (function () {
     'use strict';
     var raiz = document.getElementById('caf-usuarios');
@@ -6,7 +6,7 @@
     var el = CAF.el;
     var url = { listar: raiz.dataset.urlListar, opciones: raiz.dataset.urlOpciones, guardar: raiz.dataset.urlGuardar, enlace: raiz.dataset.urlEnlace };
     var filas = [], op = { tiposDoc: [], roles: [], personal: [] }, seleccionado = null;
-    var cuerpo = document.getElementById('u-filas'), buscar = document.getElementById('u-buscar'), selRol = document.getElementById('u-rol'), lateral = document.getElementById('u-lateral');
+    var cuerpo = document.getElementById('u-filas'), buscar = document.getElementById('u-buscar'), selRol = document.getElementById('u-rol');
 
     function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
     function nombreRol(codigo) { var r = op.roles.filter(function (x) { return x.codigo === codigo; })[0]; return r ? r.nombre : codigo; }
@@ -25,7 +25,7 @@
             var empresa = u.personalId
                 ? el('td', { text: u.area || '' })
                 : el('td', {}, [el('span', { text: u.empresaExterna || '' }), el('div', { class: 'small muted', text: 'externo' })]);
-            cuerpo.appendChild(el('tr', { class: (seleccionado && seleccionado.id === u.id) ? 'sel' : (u.activo ? '' : 'off') }, [
+            cuerpo.appendChild(el('tr', { class: u.activo ? '' : 'off' }, [
                 el('td', { class: 'stk' }, [el('b', { text: u.nombreCompleto }), el('div', { class: 'small muted', text: u.correo })]),
                 empresa,
                 el('td', {}, [el('div', { class: 'chips' }, u.roles.map(function (r) { return el('span', { class: 'chip c-line', text: nombreRol(r) }); }))]),
@@ -42,17 +42,7 @@
         });
     }
 
-    function portada() {
-        lateral.textContent = '';
-        lateral.appendChild(el('div', { class: 'stack' }, [
-            el('h3', { text: 'Usuarios y roles' }),
-            el('p', { class: 'small muted', text: 'Elija Editar en un usuario o cree uno nuevo. Un usuario puede tener varios roles.' }),
-            el('button', { type: 'button', class: 'btn btn-primary', text: '+ Nuevo usuario', onclick: function () { abrir(null); } })
-        ]));
-    }
-
-    function abrir(u) { seleccionado = u; pintar(); formulario(u); }
-    function cerrarForm() { seleccionado = null; pintar(); portada(); }
+    function abrir(u) { seleccionado = null; formulario(u); }
 
     function campo(etiqueta, control, ayuda) {
         var h = [el('span', { class: 'field-l', text: etiqueta }), control];
@@ -87,11 +77,12 @@
         var activo = el('input', { type: 'checkbox' }); activo.checked = u ? u.activo : true;
         var error = el('p', { class: 'field-e' });
 
-        var guardar = el('button', { type: 'button', class: 'btn btn-primary', text: esNuevo ? 'Crear usuario' : 'Guardar cambios' });
-        guardar.addEventListener('click', function () {
+        var enCurso = false;
+        function guardarCambios(cerrar) {
+            if (enCurso) return;
             error.textContent = '';
             var ids = Object.keys(checks).filter(function (k) { return checks[k].checked; }).map(Number);
-            guardar.disabled = true;
+            enCurso = true;
             CAF.pedir(url.guardar, {
                 method: 'POST', body: {
                     id: u ? u.id : 0, personalId: selTrab.value ? Number(selTrab.value) : null, apellidoPaterno: apPat.value, apellidoMaterno: apMat.value,
@@ -99,7 +90,7 @@
                     roles: ids, activo: activo.checked
                 }
             }).then(function (r) {
-                guardar.disabled = false;
+                enCurso = false;
                 if (!r.success) {
                     var det = (r.errors || []).map(function (e) { return e.message; }).filter(Boolean);
                     error.textContent = det.length ? det.join(' ') : (r.message || 'No se pudo guardar.');
@@ -107,21 +98,17 @@
                     return;
                 }
                 CAF.aviso(r.message);
-                cerrarForm();
+                cerrar();
                 recargarTodo().then(function () { if (r.enlace) mostrarEnlace(r.enlace, true); else if (r.enlaceError) CAF.aviso('Usuario creado, pero no se pudo generar el enlace: ' + r.enlaceError, 'warn'); });
             });
-        });
-        var cancelar = el('button', { type: 'button', class: 'btn', text: 'Cancelar', onclick: cerrarForm });
+        }
 
-        lateral.textContent = '';
         var partes = [
-            el('div', { class: 'card-hd' }, [el('h3', { text: esNuevo ? 'Nuevo usuario' : 'Editar usuario' }), el('button', { type: 'button', class: 'btn btn-icon', 'aria-label': 'Cerrar', text: '×', onclick: cerrarForm })]),
             campo('Personal vinculado', selTrab, 'Los vigilantes de empresa contratista no se vinculan.'),
             vinculado, externo, roles,
             el('label', { class: 'chk' }, [activo, 'Usuario activo']),
             esNuevo ? el('p', { class: 'small muted', text: 'Al crearlo se genera un enlace para que el usuario defina su contraseña. Usted se lo entrega.' }) : null,
-            error,
-            el('div', { class: 'row-end' }, [cancelar, guardar])
+            error
         ];
         if (!esNuevo && u.activo) {
             partes.splice(partes.length - 1, 0, el('button', { type: 'button', class: 'btn btn-sm', text: 'Generar enlace de contraseña', onclick: function () {
@@ -130,7 +117,10 @@
                 });
             } }));
         }
-        lateral.appendChild(el('div', { class: 'stack' }, partes));
+        CAF.modal(esNuevo ? 'Nuevo usuario' : 'Editar usuario', el('div', { class: 'stack' }, partes), [
+            { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
+            { texto: esNuevo ? 'Crear usuario' : 'Guardar cambios', tipo: 'primary', onclick: guardarCambios }
+        ], 'ancho');
     }
 
     function mostrarEnlace(enlace, nuevo) {
@@ -161,11 +151,11 @@
     }
     function recargarTodo() { return recargarOpciones().then(cargar); }
 
+    document.getElementById('u-nuevo').addEventListener('click', function () { abrir(null); });
     buscar.addEventListener('input', pintar);
     selRol.addEventListener('change', pintar);
     recargarOpciones().then(function () {
         op.roles.forEach(function (r) { selRol.appendChild(CAF.el('option', { value: r.codigo, text: r.nombre })); });
-        portada();
         return cargar();
     });
 })();
