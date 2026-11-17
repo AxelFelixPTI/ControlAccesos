@@ -4,6 +4,7 @@ Actualizado: 2026-11-17
 
 ## Dónde estamos
 
+- **2026-11-17 · Demo integral (D-248).** `DATOS_DEMO_INTEGRAL.sql` + `LIMPIAR_DEMO_INTEGRAL.sql`: 69 solicitudes de visita, contratista y proveedor (1 empresa y varias), pasadas / de hoy / programadas, en casi todos los estados (DNI 7600NNNN; las pasadas se crean con los SP y se envejecen retrocediendo fechas). Solo una entrega «En atención» (exclusa); se detiene con aviso si otro demo la ocupa. Sin cambios de SP ni de código web.
 - **2026-11-17 · La esclusa admite varias entregas con vehículo según su capacidad (D-247).** Plazas en `CAF_Exclusa` (script 35), reserva por capacidad, ingreso que cuenta vehículos de todas las entregas, aviso con varias plazas. Falta 2C-2j: advertencia y pausa cuando otra entrega con vehículos pendientes entra.
 - **2026-11-16 · Almacén ve la solicitud del proveedor y sus documentos, solo lectura (D-246).** `FN_SOLICITUD_VISIBLE` V1.1 (permiso Almacén + tipo PROVEEDOR), pantalla `Proveedores/Solicitud`, botón «Ver solicitud» en las tarjetas; demo `DATOS_DEMO_MULTIEMPRESA.sql` + `LIMPIAR_DEMO_MULTIEMPRESA.sql` (11 entregas de 2 a 4 empresas). Orden siguiente: Entrega C (P-98), D (P-96/P-97), E (P-95).
 - **2026-11-16 · Salida anticipada con motivo obligatorio (D-245).** SIN ingreso vehicular y Almacén sin terminar: botón aparte en Vigilancia, evento SALIDA_ANTICIPADA en el historial del Coordinador, Modo_Ingreso en la lista de Vigilancia, bloqueos con motivo. Pendiente: correo al Coordinador, «Liberar reserva».
