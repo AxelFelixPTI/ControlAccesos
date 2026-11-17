@@ -1,0 +1,12 @@
+# Verifica en cada push que la imagen compila (Render hace el despliegue por su cuenta).
+name: ci
+on:
+  push:
+    branches: [main-remoto]
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t control-accesos .

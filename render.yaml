@@ -1,0 +1,24 @@
+# Blueprint de Render (plan gratuito). Render lo lee desde la raiz del repo.
+# La web se vuelve a desplegar sola con cada push a la rama indicada.
+services:
+  - type: web
+    name: control-accesos
+    runtime: docker
+    plan: free
+    branch: main-remoto
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /Cuenta/Ingresar
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Cadena COMPLETA de Neon (endpoint directo, sin -pooler). Se pega en el panel de Render.
+      - key: ConnectionStrings__CAF_GOVERNANCE
+        sync: false
+      - key: ConnectionStrings__TRIANONSATELITAL_CAF_PRODD
+        sync: false
+      # El plan gratuito de Render bloquea SMTP (puertos 25/465/587): solo modo Simulado.
+      - key: Correo__Modo
+        value: Simulado
+      - key: Correo__UrlBase
+        sync: false

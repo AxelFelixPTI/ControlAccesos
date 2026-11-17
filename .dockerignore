@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+Docs_BD/
+Docs_Cerebro/
+Docs_Modulos/
+LEEME_ENTREGA_HISTORIAL/
+src/Web.ControlAccesos/appsettings.Local.json
