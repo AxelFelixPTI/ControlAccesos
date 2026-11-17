@@ -11,7 +11,7 @@
     var NOMBRE = {
         ATENCIONES_SIMULTANEAS_EMPRESA: ['Atenciones simultáneas por empresa (general)', 'Cuántas entregas puede atender a la vez una misma empresa, salvo que tenga su propio cupo abajo. Número de 1 a 99 o sin límite (por defecto 1).'],
         ATENCIONES_SIMULTANEAS_ALMACENERO: ['Solicitudes simultáneas por almacenero', 'Cuántas solicitudes puede tener a la vez un almacenero, desde que confirma la disponibilidad hasta que termina o detiene su atención. De 1 a 99 o sin límite (por defecto 1). Con «sin límite» se desactiva esta restricción.'],
-        EXCLUSA_CAPACIDAD: ['Capacidad de la esclusa', 'Cuántos conductores (vehículos con placa) pueden estar dentro de la esclusa a la vez: un número de 1 a 99 o sin límite. La esclusa atiende una entrega a la vez.'],
+        EXCLUSA_CAPACIDAD: ['Capacidad de la esclusa', 'Cuántos conductores (vehículos con placa) pueden estar dentro de la esclusa a la vez: un número de 1 a 99 o sin límite. Cuenta vehículos de todas las entregas: con 2 pueden estar dentro, a la vez, dos vehículos aunque sean de solicitudes distintas (también es el máximo de entregas con la esclusa reservada).'],
         PLACA_OBLIGATORIA: ['Placa obligatoria', 'Si se exige la placa del vehículo de cada conductor al registrar la solicitud (Sí por ahora; se puede desactivar).'],
         PROVEEDOR_HORA_CORTE: ['Hora de corte del día de proveedores', 'A esta hora (HH:MM) se cierran las entregas del día anterior que quedaron abiertas.']
     };

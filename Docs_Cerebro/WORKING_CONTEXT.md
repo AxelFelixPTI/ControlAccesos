@@ -1,9 +1,10 @@
 # Working context · Control de Accesos
 
-Actualizado: 2026-11-16
+Actualizado: 2026-11-17
 
 ## Dónde estamos
 
+- **2026-11-17 · La esclusa admite varias entregas con vehículo según su capacidad (D-247).** Plazas en `CAF_Exclusa` (script 35), reserva por capacidad, ingreso que cuenta vehículos de todas las entregas, aviso con varias plazas. Falta 2C-2j: advertencia y pausa cuando otra entrega con vehículos pendientes entra.
 - **2026-11-16 · Almacén ve la solicitud del proveedor y sus documentos, solo lectura (D-246).** `FN_SOLICITUD_VISIBLE` V1.1 (permiso Almacén + tipo PROVEEDOR), pantalla `Proveedores/Solicitud`, botón «Ver solicitud» en las tarjetas; demo `DATOS_DEMO_MULTIEMPRESA.sql` + `LIMPIAR_DEMO_MULTIEMPRESA.sql` (11 entregas de 2 a 4 empresas). Orden siguiente: Entrega C (P-98), D (P-96/P-97), E (P-95).
 - **2026-11-16 · Salida anticipada con motivo obligatorio (D-245).** SIN ingreso vehicular y Almacén sin terminar: botón aparte en Vigilancia, evento SALIDA_ANTICIPADA en el historial del Coordinador, Modo_Ingreso en la lista de Vigilancia, bloqueos con motivo. Pendiente: correo al Coordinador, «Liberar reserva».
 - **2026-11-16 · Cupos por almacenero y por empresa, Ceder/Tomar, Pausada y panel de cupos (D-244).** Parámetros configurables/desactivables (SIN_LIMITE), CUPO_EMPRESA:<código> individual, solo quien confirma inicia, SQL 34_ALTER_CUPOS + ATENCION_ALL V2.2 + DASHBOARD V3.0. Sigue 2C-2f: salida anticipada con motivo obligatorio.

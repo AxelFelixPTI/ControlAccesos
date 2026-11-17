@@ -114,23 +114,24 @@
 
     function pintarExclusa() {
         avExc.textContent = '';
-        var x = exclusa || {}, quien = (x.empresa || '') + (x.codigo ? ' (' + x.codigo + ')' : '');
-        if (x.estado === 'RESERVADA') {
-            avExc.className = 'aviso pv-exc-res';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa reservada: ' }), quien + (x.desde ? ' desde las ' + x.desde : '') + '. Almacén confirmó su disponibilidad y espera que ingrese. Para atender a otro proveedor, cancele esa disponibilidad.']));
-        } else if (x.estado === 'DENTRO') {
-            avExc.className = 'aviso pv-exc-res';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Proveedor dentro, esperando atención: ' }), quien + '. La exclusa sigue reservada para esa entrega.']));
-        } else if (x.estado === 'POR_SALIR') {
-            avExc.className = 'aviso pv-exc-on';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa ocupada, esperando la salida: ' }), quien + '. Almacén ya terminó; el camión sale por la misma exclusa y solo cuando Vigilancia registre su salida se podrá reservar para otra entrega.']));
-        } else if (x.estado === 'EN_ATENCION' || x.ocupada) {
-            avExc.className = 'aviso pv-exc-on';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Atención en curso en la exclusa: ' }), quien + (x.desde ? ' desde las ' + x.desde : '') + (x.atiende ? ', atiende ' + x.atiende : '') + '. No se puede reservar para otra entrega hasta que se termine.']));
-        } else {
+        var x = exclusa || {}, plazas = x.plazas || [], cap = x.capacidad || 1;
+        if (!plazas.length) {
             avExc.className = 'aviso pv-exc-off';
-            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa libre. ' }), 'No hay ninguna entrega reservada ni en atención.']));
+            avExc.appendChild(el('span', {}, [el('b', { text: 'Exclusa libre. ' }), 'No hay ninguna entrega reservada ni en atención' + (cap > 1 ? ' (capacidad: ' + cap + ').' : '.')]));
+            return;
         }
+        // D-247: la esclusa admite varias entregas a la vez, hasta su capacidad. Una línea por plaza ocupada.
+        var activa = plazas.some(function (z) { return z.estado === 'EN_ATENCION' || z.estado === 'POR_SALIR'; });
+        avExc.className = 'aviso ' + (activa ? 'pv-exc-on' : 'pv-exc-res');
+        if (cap > 1 || plazas.length > 1) avExc.appendChild(el('div', {}, [el('b', { text: 'Esclusa: ' + (x.usadas || plazas.length) + ' de ' + (cap >= 2147483647 ? 'sin límite' : cap) + ' plazas ocupadas.' })]));
+        plazas.forEach(function (z) {
+            var quien = (z.empresa || '') + (z.codigo ? ' (' + z.codigo + ')' : ''), t, m;
+            if (z.estado === 'RESERVADA') { t = 'Exclusa reservada: '; m = quien + (z.desde ? ' desde las ' + z.desde : '') + '. Almacén confirmó su disponibilidad y espera que ingrese.' + (cap === 1 ? ' Para atender a otro proveedor, cancele esa disponibilidad.' : ''); }
+            else if (z.estado === 'DENTRO') { t = 'Proveedor dentro, esperando atención: '; m = quien + '. La plaza sigue reservada para esa entrega.'; }
+            else if (z.estado === 'POR_SALIR') { t = 'Plaza ocupada, esperando la salida: '; m = quien + '. Almacén ya terminó; el camión sale por la misma exclusa y solo cuando Vigilancia registre su salida se liberará la plaza.'; }
+            else { t = 'Atención en curso en la exclusa: '; m = quien + (z.desde ? ' desde las ' + z.desde : '') + (z.atiende ? ', atiende ' + z.atiende : '') + (cap === 1 ? '. No se puede reservar para otra entrega hasta que se termine.' : '.'); }
+            avExc.appendChild(el('div', {}, [el('b', { text: t }), m]));
+        });
     }
 
     // D-244: panel de cupos. Muestra quién ocupa qué solicitud (como la exclusa) y cuántos cupos hay usados por almacenero y por empresa.
@@ -266,7 +267,7 @@
     function tarjeta(e) {
         var est = ESTADO[estadoVisual(e)] || [e.estado, 'st-prog', '', ''], em = emp(e);
         // Reserva = la regla que ya existe: la entrega es la titular de la exclusa. Se mantiene hasta que Vigilancia registra la salida (el camión sale por la misma exclusa).
-        var reserva = !!(exclusa && exclusa.ocupada && exclusa.id === e.id), porSalir = reserva && e.estado === 'RECEPCIONADO';
+        var reserva = !!(exclusa && (exclusa.plazas || []).some(function (z) { return z.id === e.id; })), porSalir = reserva && e.estado === 'RECEPCIONADO';
         var marcas = el('div', { class: 'pv-marcas' });
         if (e.disponible && !e.modoIngreso && (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO')) marcas.appendChild(el('span', { class: 'pv-marca pv-m-ok', text: 'Almacén listo' + (e.disponibleDesde ? ' ' + e.disponibleDesde : '') }));
         if (e.conDesviacion) marcas.appendChild(el('span', { class: 'pv-marca pv-m-dev', text: 'Con desviación' }));

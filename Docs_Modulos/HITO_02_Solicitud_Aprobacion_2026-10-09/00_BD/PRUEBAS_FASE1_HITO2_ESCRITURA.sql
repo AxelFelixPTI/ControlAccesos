@@ -1541,6 +1541,9 @@ BEGIN
     PERFORM pg_temp.verif((SELECT "ID_Solicitud_Persona" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = v_s3 AND "Es_Principal" = 'Y'), v_uvp);
     CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(v_s3, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Disponibilidad: reaprobada y verificada, se puede confirmar de nuevo', '100', v_cod::TEXT, v_msg);
+    -- D-247: la esclusa cuenta los vehículos de TODAS las entregas; los de pruebas anteriores que seguían «dentro» ya salieron
+    UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'SALIO' WHERE "Estado" = 'DENTRO' AND "ID_Solicitud" <> v_s3
+       AND "ID_Solicitud" IN (SELECT "ID_Solicitud" FROM "CAF_Solicitud_Operacion" WHERE "Estado_Operativo" IN ('INGRESO','EN_ATENCION','RECEPCIONADO'));
     CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(v_s3, v_uvp, v_cod, v_msg);
     CALL "ERP_CAF_PROVEEDOR_ATENDER"(v_s3, v_ual, v_cod, v_msg);
     PERFORM pg_temp.chk('Atender: la tercera se atiende con su reserva', '100', v_cod::TEXT, v_msg);
@@ -2430,6 +2433,67 @@ BEGIN
         -- Editar: una solicitud de franja aprobada no se modifica
         CALL "ERP_CAF_SOLICITUD_EDITAR_DATOS"(v_cxa, CAST(CURRENT_DATE + 20 AS TIMESTAMP), 'Montajes Franja S.A.C.', NULL, NULL, 'Cambio de tablero', NULL, v_z_adm::TEXT, NULL, 'N', NULL, 'Sala de tableros', 'Juan Pérez', '999 888 777', 'juan@montajes.pe', NULL, NULL, NULL, NULL, NULL, v_u_sol, v_reab, v_cod, v_msg);
         PERFORM pg_temp.chk('D-227 editar: una solicitud de contratista aprobada no se modifica', '409', v_cod::TEXT, v_msg);
+    -- ===================================================== D-247. La esclusa por capacidad: varias entregas con vehículo a la vez
+    DECLARE
+        x_s1 BIGINT; x_s2 BIGINT; x_s3 BIGINT; x_cs VARCHAR(20); x_q1 BIGINT; x_q2 BIGINT; x_q3 BIGINT; x_p1 BIGINT; x_p2 BIGINT; x_p3 BIGINT;
+        x_r1 TEXT; x_r2 TEXT; x_r3 TEXT; x_r4 TEXT; x_r5 TEXT; x_r6 TEXT; x_r7 TEXT;
+    BEGIN
+        UPDATE "CAF_Parametro" SET "Valor" = 'SIN_LIMITE' WHERE "Clave" = 'ATENCIONES_SIMULTANEAS_ALMACENERO';
+        UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Catalogo_Sede" = v_ves;
+        UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'SALIO' WHERE "Estado" = 'DENTRO';
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000195','Esc','Uno','Eva',0, x_q1, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000196','Esc','Dos','Fer',0, x_q2, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000197','Esc','Tres','Gil',0, x_q3, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Esclusa Uno S.A.', NULL, NULL, NULL, NULL, x_q1::TEXT, NULL, NULL, NULL, 'ESC111', NULL, NULL, '988777666', NULL, v_emp, '20987654441', 'Jr. Lima 41', 'Hino', 'Q87654441', x_q1, v_usp, x_s1, x_cs, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Esclusa Dos S.A.', NULL, NULL, NULL, NULL, x_q2::TEXT, NULL, NULL, NULL, 'ESC222', NULL, NULL, '988777666', NULL, v_emp, '20987654442', 'Jr. Lima 42', 'Hino', 'Q87654442', x_q2, v_usp, x_s2, x_cs, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Esclusa Tres S.A.', NULL, NULL, NULL, NULL, x_q3::TEXT, NULL, NULL, NULL, 'ESC333', NULL, NULL, '988777666', NULL, v_emp, '20987654443', 'Jr. Lima 43', 'Hino', 'Q87654443', x_q3, v_usp, x_s3, x_cs, v_cod, v_msg);
+        x_p1 := pg_temp.sp(x_s1, x_q1); x_p2 := pg_temp.sp(x_s2, x_q2); x_p3 := pg_temp.sp(x_s3, x_q3);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(x_s1, v_paso_p, 'APROBADA', NULL, x_p1::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(x_s2, v_paso_p, 'APROBADA', NULL, x_p2::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(x_s3, v_paso_p, 'APROBADA', NULL, x_p3::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        PERFORM pg_temp.verif(x_p1, v_uvp); PERFORM pg_temp.verif(x_p2, v_uvp); PERFORM pg_temp.verif(x_p3, v_uvp);
+
+        -- Capacidad 1 (como antes): la segunda entrega con vehículo no puede reservar
+        UPDATE "CAF_Parametro" SET "Valor" = '1' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(x_s1, v_ual, 'Y', v_cod, v_msg);   x_r1 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(x_s2, v_ual, 'Y', v_cod, v_msg);   x_r2 := v_cod::TEXT || '|' || (POSITION('ya está reservada para otra entrega' IN v_msg) > 0)::TEXT;
+        PERFORM pg_temp.chk('D-247 capacidad 1: reserva la primera y la segunda recibe el aviso de siempre', '100|409|true', x_r1 || '|' || x_r2, v_msg);
+        -- Capacidad 2: la segunda reserva, la tercera no
+        UPDATE "CAF_Parametro" SET "Valor" = '2' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(x_s2, v_ual, 'Y', v_cod, v_msg);   x_r3 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(x_s3, v_ual, 'Y', v_cod, v_msg);   x_r4 := v_cod::TEXT || '|' || (POSITION('está completa (2 reservas' IN v_msg) > 0)::TEXT;
+        PERFORM pg_temp.chk('D-247 capacidad 2: dos entregas con vehículo reservan a la vez y la tercera recibe «completa»', '100|409|true', x_r3 || '|' || x_r4, v_msg);
+        PERFORM pg_temp.chk('D-247 capacidad 2: el panel muestra 2 plazas ocupadas de 2', '2|2|2', pg_temp.q('SELECT COUNT(*) || ''|'' || MAX("Capacidad") || ''|'' || MAX("Usadas") FROM "ERP_CAF_PROVEEDOR_EXCLUSA_ESTADO"(' || v_ual || ',' || v_ves || ') WHERE "Ocupada" = ''Y'''), '');
+        PERFORM pg_temp.chk('D-247 capacidad 2: el calendario explica que está completa', 'true', pg_temp.q('SELECT ("Motivo_Bloqueo" LIKE ''La esclusa está completa (2 de 2 reservadas)%'')::TEXT FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ual || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || x_s3), '');
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(x_s1, v_ual, 'Y', v_cod, v_msg);
+        PERFORM pg_temp.chk('D-247 capacidad 2: confirmar de nuevo la ya reservada sigue siendo 100', '100', v_cod::TEXT, v_msg);
+        -- Ingreso físico: los vehículos de las dos entregas caben; con 3 vehículos dentro no
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(x_s1, v_uvp, v_cod, v_msg);            x_r5 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(x_s2, v_uvp, v_cod, v_msg);            x_r6 := v_cod::TEXT;
+        PERFORM pg_temp.chk('D-247 ingreso: el vehículo de la entrega 1 y el de la entrega 2 entran a la vez', '100|100', x_r5 || '|' || x_r6, v_msg);
+        -- la entrega 3 reserva con la capacidad ampliada y luego se baja a 2: el tope físico de vehículos dentro sigue valiendo
+        UPDATE "CAF_Parametro" SET "Valor" = '3' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(x_s3, v_ual, 'Y', v_cod, v_msg);
+        PERFORM pg_temp.chk('D-247 capacidad 3: la tercera entrega ya puede reservar y se crea otra plaza', '100|3', v_cod::TEXT || '|' || pg_temp.q('SELECT COUNT(*) FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = ' || v_ves || ' AND "ID_Solicitud_Actual" IS NOT NULL'), v_msg);
+        UPDATE "CAF_Parametro" SET "Valor" = '2' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(x_s3, v_uvp, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-247 ingreso: un tercer vehículo no entra (la esclusa admite 2) y el aviso cuenta los de otras entregas', '409|true', v_cod::TEXT || '|' || (POSITION('2 vehículo(s) a la vez y ya hay 2 dentro (2 de otra entrega)' IN v_msg) > 0)::TEXT, v_msg);
+        -- Capacidad 1: con vehículos de otras entregas dentro, otra no entra
+        UPDATE "CAF_Parametro" SET "Valor" = '1' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(x_s3, v_uvp, v_cod, v_msg);
+        PERFORM pg_temp.chk('D-247 capacidad 1: con vehículos de otra entrega dentro no entra otro', '409', v_cod::TEXT, v_msg);
+        -- Al salir un vehículo se libera su plaza y entra el tercero
+        UPDATE "CAF_Parametro" SET "Valor" = '2' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'SALIO' WHERE "ID_Solicitud_Persona" = x_p1;
+        UPDATE "CAF_Solicitud_Operacion" SET "Estado_Operativo" = 'SALIO' WHERE "ID_Solicitud" = x_s1;
+        UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Solicitud_Actual" = x_s1;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(x_s3, v_uvp, v_cod, v_msg);            x_r7 := v_cod::TEXT;
+        PERFORM pg_temp.chk('D-247 ingreso: al salir el vehículo de la entrega 1 entra el de la entrega 3', '100', x_r7, v_msg);
+        -- SIN_LIMITE
+        UPDATE "CAF_Parametro" SET "Valor" = 'SIN_LIMITE' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        PERFORM pg_temp.chk('D-247 SIN_LIMITE: la capacidad no tiene tope', '2147483647', "ERP_CAF_FN_EXCLUSA_CAPACIDAD"()::TEXT, '');
+        UPDATE "CAF_Parametro" SET "Valor" = '1' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+    END;
     END;
     END;
     END;

@@ -37,6 +37,7 @@ DECLARE
     lv_eop   VARCHAR(20);
     lv_arr   BIGINT[];
     lv_cap   INT := 1;
+    lv_otras INT := 0;
     lv_val   VARCHAR(200);
     lv_dentro INT := 0;
     lv_nuevos INT := 0;
@@ -99,10 +100,8 @@ BEGIN
             "HV_Codigo_Resp" := 409;
             "HV_Mensaje" := 'No pueden ingresar (deben estar verificados y por ingresar): ' || LEFT(lv_mal, 150); RETURN;
         END IF;
-        -- Capacidad de la exclusa: vehículos (transportistas) dentro a la vez. Los ayudantes no cuentan.
-        lv_val := "ERP_CAF_PARAMETRO_VALOR"('EXCLUSA_CAPACIDAD');
-        IF lv_val IS NOT NULL AND lv_val ~ '^[1-9][0-9]*$' THEN lv_cap := CAST(lv_val AS INT); END IF;
-        IF lv_val = 'SIN_LIMITE' THEN lv_cap := 2147483647; END IF;                                  -- D-239
+        -- Capacidad de la exclusa: vehículos (transportistas) dentro a la vez, de TODAS las entregas de la sede (D-247). Los ayudantes no cuentan.
+        lv_cap := "ERP_CAF_FN_EXCLUSA_CAPACIDAD"();                                                  -- D-239: SIN_LIMITE = sin tope
         IF (SELECT O."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N') = 'N' THEN
             lv_cap := 2147483647;                                                                    -- D-239: sin ingreso vehicular no hay vehículos dentro de la esclusa
         END IF;
@@ -111,9 +110,16 @@ BEGIN
            AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y';
         SELECT COUNT(*) INTO lv_nuevos FROM "CAF_Solicitud_Persona" P
          WHERE P."ID_Solicitud_Persona" = ANY(lv_arr) AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y';
-        IF lv_dentro + lv_nuevos > lv_cap THEN
+        SELECT COUNT(*) INTO lv_otras FROM "CAF_Solicitud_Persona" P
+          JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud" AND S."Eliminado" = 'N' AND S."ID_Catalogo_Sede" = lv_sede
+          JOIN "CAF_Solicitud_Operacion" O ON O."ID_Solicitud" = P."ID_Solicitud" AND O."Eliminado" = 'N' AND O."Con_Vehiculo" = 'Y' AND O."Activa" = 'Y'
+               AND O."Estado_Operativo" IN ('INGRESO','EN_ATENCION','RECEPCIONADO')
+         WHERE P."ID_Solicitud" <> "HV_ID_Solicitud" AND P."Eliminado" = 'N' AND P."Estado" = 'DENTRO'
+           AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y';
+        IF lv_dentro + lv_otras + lv_nuevos > lv_cap THEN
             "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := 'La exclusa admite ' || lv_cap || ' vehículo(s) a la vez y ya hay ' || lv_dentro || ' dentro: registre primero su salida.'; RETURN;
+            "HV_Mensaje" := 'La exclusa admite ' || lv_cap || ' vehículo(s) a la vez y ya hay ' || (lv_dentro + lv_otras) || ' dentro'
+                            || CASE WHEN lv_otras > 0 THEN ' (' || lv_otras || ' de otra entrega)' ELSE '' END || ': registre primero su salida.'; RETURN;
         END IF;
         -- D-243: SIN ingreso vehicular el ayudante (o el conductor a pie) puede ingresar por su cuenta: no hay vehículo que acompañar
         IF lv_dentro + lv_nuevos = 0 AND COALESCE((SELECT O."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N'), 'Y') <> 'N' THEN

@@ -25,4 +25,7 @@ public sealed class Dto_Proveedor_Exclusa
     public string? Empresa { get; set; }
     public DateTime? Desde { get; set; }
     public string? Atiende { get; set; }
+    public int Capacidad { get; set; } = 1;       // D-247: plazas de la esclusa
+    public int Usadas { get; set; }               // D-247: plazas reservadas u ocupadas ahora
+    public List<Dto_Proveedor_Exclusa> Plazas { get; set; } = new();   // D-247: una por entrega que ocupa una plaza (la primera repite los campos de arriba)
 }

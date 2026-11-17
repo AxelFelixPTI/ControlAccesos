@@ -73,7 +73,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
     {
         try
         {
-            var fila = await _exec.EjecutarLecturaUnicaAsync(
+            var filas = await _exec.EjecutarLecturaAsync(
                 clave: Conn,
                 funcion: "ERP_CAF_PROVEEDOR_EXCLUSA_ESTADO",
                 bind: p =>
@@ -90,9 +90,14 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
                     Empresa      = RdStrN(rd, "Empresa"),
                     Desde        = RdDtN(rd, "Desde"),
                     Atiende      = RdStrN(rd, "Atiende"),
+                    Capacidad    = RdInt(rd, "Capacidad"),
+                    Usadas       = RdInt(rd, "Usadas"),
                 },
                 ct: ct);
-            return Result<Dto_Proveedor_Exclusa?>.Ok(fila);
+            // D-247: una fila por plaza ocupada; la primera da los campos de siempre y la lista trae todas
+            var primera = filas.FirstOrDefault();
+            if (primera is not null) primera.Plazas = filas.Where(f => f.Ocupada).ToList();
+            return Result<Dto_Proveedor_Exclusa?>.Ok(primera);
         }
         catch (Exception ex) { return Result<Dto_Proveedor_Exclusa?>.Fail(ex.InnerException?.Message ?? ex.Message); }
     }

@@ -77,6 +77,8 @@ public sealed class ProveedoresController : Controller
             exclusa = new
             {
                 ocupada = ex?.Ocupada ?? false, estado = ex?.Estado ?? "LIBRE", id = ex?.ID_Solicitud, codigo = ex?.Codigo, empresa = ex?.Empresa, desde = Hora(ex?.Desde), atiende = ex?.Atiende,
+                capacidad = ex?.Capacidad ?? 1, usadas = ex?.Usadas ?? 0,   // D-247
+                plazas = (ex?.Plazas ?? new List<Dto_Proveedor_Exclusa>()).Select(x => new { estado = x.Estado, id = x.ID_Solicitud, codigo = x.Codigo, empresa = x.Empresa, desde = Hora(x.Desde), atiende = x.Atiende }),
             },
             cupos = cupos.Select(c => new { tipo = c.Tipo, nombre = c.Nombre, codigo = c.Codigo, solicitud = c.Solicitud, ocupa = c.Ocupa, detalle = (c.Detalle ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { codigo = t[0], estado = t[1] }), usados = c.Usados, limite = c.Limite, sinLimite = c.Limite >= int.MaxValue }),
             data = r.Data!.Select(e => new
