@@ -18,4 +18,6 @@ public sealed class Dto_Proveedor_Grupo
     public string? Observacion { get; set; }
     /// <summary>Solo si algún ítem no cumple.</summary>
     public Dto_Porteria_Desviacion_Entrada? Desviacion { get; set; }
+    /// <summary>D-245: solo en la salida. Motivo de la SALIDA ANTICIPADA (sin ingreso vehicular, antes de que Almacén termine); obligatorio en ese caso.</summary>
+    public string? Motivo_Anticipada { get; set; }
 }

@@ -147,6 +147,23 @@ $$;
 --      * PROVEEDOR: sede con Aplica_Proveedor, teléfono (mínimo 6 dígitos) y empresa Trianon destinataria activa.
 --        RUC, dirección, marca, placa y licencia son opcionales (V1.1, D-223); si se escriben se valida su formato.
 -- -----------------------------------------------------------------------------
+-- D-239: 'Y' si Almacén ya confirmó su disponibilidad para la entrega. CON ingreso vehicular exige además la esclusa reservada para ella;
+-- SIN ingreso vehicular no usa la esclusa. (Una esclusa reservada para la entrega sin fecha de disponibilidad se sigue tomando como confirmada.)
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_DISPONIBLE"("HV_ID_Solicitud" BIGINT)
+RETURNS CHAR
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+DECLARE
+    lv_f TIMESTAMP;
+    lv_m CHAR(1);
+BEGIN
+    -- V1.0 2026-11-15
+    IF EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = "HV_ID_Solicitud" AND X."Eliminado" = 'N') THEN RETURN 'Y'; END IF;
+    SELECT O."Fecha_Disponibilidad", O."Con_Vehiculo" INTO lv_f, lv_m FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N';
+    IF lv_f IS NOT NULL AND lv_m = 'N' THEN RETURN 'Y'; END IF;
+    RETURN 'N';
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION "ERP_CAF_FN_PROVEEDOR_VALIDAR"(
     "HV_Tipo_Codigo"      VARCHAR,
     "HV_ID_Catalogo_Sede" BIGINT,
@@ -190,7 +207,7 @@ BEGIN
     lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa_Vehiculo");
     IF lv_placa IS NOT NULL AND lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
     -- V1.2 2026-11-13 (D-237): la placa del conductor es obligatoria; el responsable lleva 1 a 5 celulares de 9 dígitos o más.
-    IF lv_placa IS NULL THEN RETURN 'Indique la placa del vehículo del conductor.'; END IF;
+    IF lv_placa IS NULL AND COALESCE("ERP_CAF_PARAMETRO_VALOR"('PLACA_OBLIGATORIA'), 'Y') <> 'N' THEN RETURN 'Indique la placa del vehículo del conductor.'; END IF;   -- D-239: configurable
     lv_tel := "ERP_CAF_FN_TELEFONOS_VALIDAR"("HV_Telefono");
     IF lv_tel <> '' THEN RETURN lv_tel; END IF;
     SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo"
@@ -297,13 +314,13 @@ BEGIN
                 INSERT INTO "CAF_Solicitud_Operacion" ("ID_Solicitud","Estado_Operativo","Activa","UsuarioID_Create")
                 VALUES ("HV_ID_Solicitud", 'PROGRAMADO', 'Y', "HV_UsuarioID");
                 INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
-                VALUES ("HV_ID_Solicitud", NULL, 'PROGRAMADO', "HV_UsuarioID", 'Transportista principal aprobado');
+                VALUES ("HV_ID_Solicitud", NULL, 'PROGRAMADO', "HV_UsuarioID", 'Conductor principal aprobado');
             END IF;
         ELSIF lv_debe = 'Y' AND lv_act = 'N' THEN
             UPDATE "CAF_Solicitud_Operacion" SET "Activa" = 'Y', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
              WHERE "ID_Solicitud" = "HV_ID_Solicitud";
             INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
-            VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'Reactivada: transportista principal aprobado');
+            VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'Reactivada: conductor principal aprobado');
         ELSIF lv_debe = 'N' AND lv_act = 'Y' AND lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN
             -- D-220: antes del ingreso físico, perder la aprobación saca la entrega del calendario y de Vigilancia hasta que se
             -- apruebe de nuevo. Si ya estaba verificada (EN_ESPERA) vuelve a PROGRAMADO: los datos pueden haber cambiado y deben verificarse otra vez.
@@ -318,8 +335,8 @@ BEGIN
             INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
             VALUES ("HV_ID_Solicitud", lv_eop, 'PROGRAMADO', "HV_UsuarioID",
                     CASE WHEN lv_estado = 'CANCELADA' THEN 'Desactivada: solicitud cancelada'
-                         WHEN lv_eop = 'EN_ESPERA' THEN 'Desactivada: el transportista principal ya no está aprobado; deberá verificarse de nuevo'
-                         ELSE 'Desactivada: el transportista principal ya no está aprobado' END);
+                         WHEN lv_eop = 'EN_ESPERA' THEN 'Desactivada: el conductor principal ya no está aprobado; deberá verificarse de nuevo'
+                         ELSE 'Desactivada: el conductor principal ya no está aprobado' END);
         END IF;
         -- Si la entrega deja de estar aprobada o se cancela antes del ingreso, se libera su reserva de la esclusa
         IF lv_debe = 'N' AND COALESCE(lv_eop, 'PROGRAMADO') IN ('PROGRAMADO','EN_ESPERA') THEN
@@ -364,6 +381,7 @@ DECLARE
     lv_sol  BIGINT;
     lv_pend INT := 0;
 BEGIN
+    -- V3.1 2026-11-16 (D-245): salida anticipada con motivo (sin ingreso vehicular)
     -- V3.0 2026-11-09 (D-225): todas las personas pasan por verificación; ya no hay «principal primero»
     SELECT COUNT(*), MAX(S."Fecha_Hora_Prevista"), MAX(P."Fecha_Verificacion"), MAX(P."ID_Solicitud") INTO lv_n, lv_prev, lv_ver, lv_sol
       FROM "CAF_Solicitud_Persona" P
@@ -374,7 +392,7 @@ BEGIN
         SELECT COUNT(*), MAX(O."Activa"), MAX(O."Estado_Operativo") INTO lv_op, lv_act, lv_eop
           FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = lv_sol AND O."Eliminado" = 'N';
         IF lv_op = 0 OR lv_act <> 'Y' THEN
-            lv_cod := 409; lv_msg := 'La entrega del proveedor no está programada: debe haber un transportista aprobado.';
+            lv_cod := 409; lv_msg := 'La entrega del proveedor no está programada: debe haber un conductor aprobado.';
         ELSIF UPPER(COALESCE("HV_Etapa", '')) = 'INGRESO' THEN
             -- Este movimiento es la VERIFICACIÓN de datos de la persona; el ingreso físico se registra aparte.
             IF lv_eop NOT IN ('PROGRAMADO','EN_ESPERA','INGRESO','EN_ATENCION') THEN
@@ -393,8 +411,20 @@ BEGIN
             SELECT COUNT(*) INTO lv_pend FROM "CAF_Solicitud_Persona" P2
              WHERE P2."ID_Solicitud" = lv_sol AND P2."Eliminado" = 'N' AND P2."Aprobacion" = 'APROBADA' AND P2."Estado" = 'ESPERADA'
                AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P2."ID_Solicitud_Persona") = 'Y';
-            IF NOT (lv_eop IN ('INGRESO','EN_ATENCION') AND lv_pend > 0) THEN
-                lv_cod := 409; lv_msg := 'La salida se registra cuando Almacén recepciona la entrega (o para dar paso al siguiente vehículo).';
+            -- D-243: la salida anticipada para dar paso a otro vehículo es solo de «con ingreso vehicular»; sin vehículo la salida exige que Almacén termine
+            IF NOT (lv_eop IN ('INGRESO','EN_ATENCION') AND lv_pend > 0
+                    AND COALESCE((SELECT O2."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O2 WHERE O2."ID_Solicitud" = lv_sol AND O2."Eliminado" = 'N'), 'Y') <> 'N') THEN
+                -- D-245: SALIDA ANTICIPADA (sin ingreso vehicular) antes de que Almacén termine; solo con motivo (la pone ERP_CAF_PROVEEDOR_SALIDA_GRUPO para esta entrega)
+                IF COALESCE(CURRENT_SETTING('caf.salida_anticipada', TRUE), '') = CAST(lv_sol AS VARCHAR)
+                   AND lv_eop IN ('EN_ESPERA','INGRESO','EN_ATENCION')
+                   AND COALESCE((SELECT O2."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O2 WHERE O2."ID_Solicitud" = lv_sol AND O2."Eliminado" = 'N'), 'Y') = 'N' THEN
+                    NULL;
+                ELSIF lv_eop IN ('EN_ESPERA','INGRESO','EN_ATENCION')
+                   AND COALESCE((SELECT O2."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O2 WHERE O2."ID_Solicitud" = lv_sol AND O2."Eliminado" = 'N'), 'Y') = 'N' THEN
+                    lv_cod := 409; lv_msg := 'Almacén aún no termina. Para salir antes use «Salida anticipada» e indique el motivo (queda registrado para el Coordinador).';
+                ELSE
+                    lv_cod := 409; lv_msg := 'La salida se registra cuando Almacén recepciona la entrega (o para dar paso al siguiente vehículo).';
+                END IF;
             END IF;
         END IF;
     END IF;
@@ -441,7 +471,7 @@ BEGIN
         CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", lv_nuevo, "HV_UsuarioID",
               CASE WHEN lv_nuevo = 'RETIRO_SIN_INGRESO' THEN 'RETIRO_SIN_INGRESO' ELSE NULL END,
               COALESCE(NULLIF(TRIM("HV_Observacion"), ''),
-                       CASE WHEN lv_nega > 0 THEN 'Ingreso denegado en la verificación de datos' ELSE 'Ningún transportista quedó por ingresar' END), NULL, lv_c, lv_m);
+                       CASE WHEN lv_nega > 0 THEN 'Ingreso denegado en la verificación de datos' ELSE 'Ningún conductor quedó por ingresar' END), NULL, lv_c, lv_m);
         IF lv_c <> 100 THEN "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; RETURN; END IF;
         UPDATE "CAF_Exclusa"
            SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
@@ -449,7 +479,7 @@ BEGIN
          WHERE "ID_Solicitud_Actual" = "HV_ID_Solicitud";
     ELSIF lv_eop = 'PROGRAMADO' AND lv_ver = lv_viv THEN
         CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'EN_ESPERA', "HV_UsuarioID", NULL,
-              CASE WHEN lv_desv = 'Y' THEN 'Todos los transportistas verificados (con desviación autorizada)' ELSE 'Todos los transportistas verificados' END, NULL, lv_c, lv_m);
+              CASE WHEN lv_desv = 'Y' THEN 'Todos los conductores verificados (con desviación autorizada)' ELSE 'Todos los conductores verificados' END, NULL, lv_c, lv_m);
         IF lv_c <> 100 THEN "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; RETURN; END IF;
     END IF;
     "HV_Mensaje" := 'Estado operativo revisado.';
@@ -656,7 +686,7 @@ BEGIN
         END IF;
         IF lv_eop <> 'INGRESO' THEN
             "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := CASE WHEN lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN 'Aún no ingresó ningún transportista.'
+            "HV_Mensaje" := CASE WHEN lv_eop IN ('PROGRAMADO','EN_ESPERA') THEN 'Aún no ingresó ningún conductor.'
                                  WHEN lv_eop = 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
                                  WHEN lv_eop = 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
                                  ELSE 'La atención ya se inició o terminó.' END; RETURN;
@@ -667,8 +697,7 @@ BEGIN
         END IF;
 
         -- La esclusa ya se reservó al confirmar la disponibilidad: debe estar reservada para ESTA entrega.
-        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa"
-         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
+        lv_n := CASE WHEN "ERP_CAF_FN_DISPONIBLE"("HV_ID_Solicitud") = 'Y' THEN 1 ELSE 0 END;
         IF lv_n = 0 THEN
             SELECT S."Codigo" INTO lv_otro FROM "CAF_Exclusa" X JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = X."ID_Solicitud_Actual"
              WHERE X."ID_Catalogo_Sede" = lv_sede;
@@ -819,15 +848,33 @@ BEGIN
         IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
         END IF;
+        -- D-244: cupo individual por empresa (CUPO_EMPRESA:<código>): número, SIN_LIMITE o GENERAL; la fila se crea al guardar
+        IF "HV_Clave" LIKE 'CUPO_EMPRESA:%' THEN
+            SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" E
+             WHERE E."Codigo" = SUBSTRING("HV_Clave" FROM 14) AND E."Eliminado" = 'N' AND E."Activo" = 'Y';
+            IF lv_n = 0 THEN "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La empresa no existe o está inactiva.'; RETURN; END IF;
+            IF COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE|GENERAL)$' THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El cupo de la empresa debe ser un número de 1 a 99, SIN_LIMITE o GENERAL (usar el valor general).'; RETURN;
+            END IF;
+            INSERT INTO "CAF_Parametro" ("Clave","Valor","Descripcion","UsuarioID_Create")
+            SELECT "HV_Clave", "HV_Valor", 'Cupo de atención individual de la empresa.', "HV_UsuarioID"
+             WHERE NOT EXISTS (SELECT 1 FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N');
+        END IF;
         SELECT COUNT(*) INTO lv_n FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El parámetro no existe.'; RETURN;
         END IF;
-        IF "HV_Clave" = 'EXCLUSA_CAPACIDAD' AND COALESCE("HV_Valor", '') !~ '^[1-9][0-9]?$' THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La capacidad debe ser un número entero de 1 a 99.'; RETURN;
+        IF "HV_Clave" = 'EXCLUSA_CAPACIDAD' AND COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE)$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La capacidad debe ser un número entero de 1 a 99 o SIN_LIMITE.'; RETURN;
         END IF;
-        IF "HV_Clave" = 'ATENCIONES_SIMULTANEAS_EMPRESA' AND COALESCE("HV_Valor", '') !~ '^[1-9][0-9]?$' THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las atenciones simultáneas por empresa deben ser un número entero de 1 a 99.'; RETURN;
+        IF "HV_Clave" = 'PLACA_OBLIGATORIA' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La placa obligatoria debe ser Y o N.'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'ATENCIONES_SIMULTANEAS_EMPRESA' AND COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE)$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las atenciones simultáneas por empresa deben ser un número entero de 1 a 99 o SIN_LIMITE.'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'ATENCIONES_SIMULTANEAS_ALMACENERO' AND COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE)$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las solicitudes simultáneas por almacenero deben ser un número entero de 1 a 99 o SIN_LIMITE.'; RETURN;
         END IF;
         IF "HV_Clave" = 'PROVEEDOR_HORA_CORTE' AND COALESCE("HV_Valor", '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La hora de corte debe tener el formato HH:MM (de 00:00 a 23:59).'; RETURN;

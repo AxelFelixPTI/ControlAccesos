@@ -33,6 +33,7 @@
 --  * Quién puede ver qué: el solicitante ve lo suyo (PER_CAF_SOLICITUD_PROPIA);
 --    quien tiene PER_CAF_SOLICITUD_VER_TODAS ve todo en su sede; quien aprueba
 --    (PER_CAF_SOLICITUD_APROBAR) ve las solicitudes cuyo flujo tiene un paso de su rol.
+--    Almacén (PER_CAF_PROVEEDOR_ALMACEN) ve, solo lectura, las solicitudes de tipo PROVEEDOR de su sede (D-246).
 --    Portería ve solo a las personas AUTORIZADAS de un día, por sede (PER_CAF_PORTERIA_*).
 --  * Los botones («Puede_...») salen de aquí y de ningún otro lugar: repiten, en
 --    una sola consulta, las reglas que ya hacen cumplir los procedimientos de
@@ -88,6 +89,13 @@ BEGIN
     END IF;
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_SOLICITUD_VER_TODAS', lv_sede) = 'Y' THEN
         RETURN 'Y';
+    END IF;
+    -- V1.1 2026-11-16 (D-246): Almacén ve (solo lectura) las solicitudes de PROVEEDOR de su sede. Las banderas Puede_* siguen
+    -- dependiendo del dueño/aprobador, así que no obtiene ningún botón de escritura.
+    IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_PROVEEDOR_ALMACEN', lv_sede) = 'Y' THEN
+        SELECT COUNT(*) INTO lv_n FROM "Catalogo_Tipo_Acceso" T
+         WHERE T."ID_Catalogo_Tipo_Acceso" = lv_tipo AND T."Codigo" = 'PROVEEDOR';
+        IF lv_n > 0 THEN RETURN 'Y'; END IF;
     END IF;
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_SOLICITUD_APROBAR', lv_sede) = 'Y' THEN
         SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Paso_Aprobacion" S
@@ -691,6 +699,7 @@ BEGIN
                 WHEN 'SOLICITUD_DECISION:RECHAZAR'          THEN 'Rechazó'
                 WHEN 'REGISTRO_ACCESO:INGRESO'              THEN 'Registró un ingreso'
                 WHEN 'REGISTRO_ACCESO:SALIDA'               THEN 'Registró una salida'
+                WHEN 'SOLICITUD:SALIDA_ANTICIPADA'          THEN 'Registró una SALIDA ANTICIPADA (Almacén aún no terminaba)'
                 WHEN 'REGISTRO_ACCESO:DENEGAR'              THEN 'Denegó el ingreso'
                 WHEN 'DESVIACION:REGISTRAR'                 THEN 'Registró una desviación'
                 WHEN 'DESVIACION:CONFORMIDAD'               THEN 'Dio conformidad a una desviación'
@@ -759,7 +768,7 @@ RETURNS TABLE ("ID_Solicitud_Persona" BIGINT, "ID_Solicitud" BIGINT, "Codigo" VA
                "Acceso_Restringido" CHAR(1), "Trae_Equipos" CHAR(1), "Trae_Herramientas" CHAR(1),
                "Exige_SCTR" CHAR(1), "Exige_EPP" CHAR(1), "Zonas_Nombres" VARCHAR, "Es_Proveedor" CHAR(1), "Estado_Operativo" VARCHAR, "Disponibilidad_Confirmada" CHAR(1),
                "Tipo_Acceso" VARCHAR, "Es_Transportista" CHAR(1), "Verificada" CHAR(1), "Franja_Estado" VARCHAR,
-               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR)
+               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "Modo_Ingreso" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -767,6 +776,7 @@ DECLARE
     lv_txt   VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
     lv_grupo VARCHAR(30)  := UPPER(TRIM(COALESCE("HV_Grupo", 'TODOS')));
 BEGIN
+    -- V1.7 2026-11-16 (D-245): + Modo_Ingreso (CON / SIN ingreso vehicular, null si Almacén aún no confirma): Vigilancia sabe cuándo aplica la salida anticipada
     -- V1.6 2026-11-11 (D-233): + Tipo_Acceso_Codigo y Empresa_Destino_Codigo (etiquetas de tipo y de empresa que recibe)
     -- V1.5 2026-11-09 (D-227): contratista por franja: aparece en cada día autorizado; con texto de búsqueda también hoy aunque
     --   no sea día autorizado (llegada fuera de franja). + Franja_Estado (NA / DENTRO / FUERA según el momento actual)
@@ -793,12 +803,13 @@ BEGIN
            -- Entrega de proveedor (todas sus personas): estado operativo y si Almacén ya reservó la exclusa
            CAST(CASE WHEN O."ID_Solicitud" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST(O."Estado_Operativo" AS VARCHAR),
-           CAST(CASE WHEN EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = S."ID_Solicitud" AND X."Eliminado" = 'N') THEN 'Y' ELSE 'N' END AS CHAR(1)),
+           CAST("ERP_CAF_FN_DISPONIBLE"(S."ID_Solicitud") AS CHAR(1)),
            CAST(TX."Descripcion" AS VARCHAR),
            CAST("ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") AS CHAR(1)),
            CAST(CASE WHEN P."Fecha_Verificacion" IS NOT NULL THEN 'Y' ELSE 'N' END AS CHAR(1)),
            CAST("ERP_CAF_FN_FRANJA_ESTADO"(S."ID_Solicitud", CAST(CURRENT_TIMESTAMP AS TIMESTAMP)) AS VARCHAR),
-           CAST(TX."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C')
+           CAST(TX."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'),
+           CAST(CASE O."Con_Vehiculo" WHEN 'Y' THEN 'CON' WHEN 'N' THEN 'SIN' ELSE NULL END AS VARCHAR)
       FROM "CAF_Solicitud" S
       LEFT JOIN "Catalogo_Tipo_Acceso" TX ON TX."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"

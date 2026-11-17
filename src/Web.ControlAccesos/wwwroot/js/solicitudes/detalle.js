@@ -186,7 +186,12 @@
     function cargar() {
         return CAF.pedir(d.urlDatos + '?id=' + id).then(function (r) {
             if (!r.success) { cab.textContent = ''; cab.appendChild(el('p', { class: 'vacio', text: r.message || 'No se pudo cargar la solicitud.' })); caja.textContent = ''; hist.textContent = ''; return; }
-            s = r.data; pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial();
+            s = r.data;
+            if (d.soloLectura === 'Y') {   // D-246: consulta de Almacén; aunque la BD ya no devuelve botones, se fuerza aquí también
+                s.puedeEditar = s.puedeModificar = s.puedeCancelar = s.puedeReutilizar = false; s.motivoNoEditar = s.motivoNoModificar = s.motivoNoCancelar = '';
+                (s.personas || []).forEach(function (p) { p.puedeCorregir = p.puedeRetirar = p.puedeReactivar = false; });
+            }
+            pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial();
         });
     }
 

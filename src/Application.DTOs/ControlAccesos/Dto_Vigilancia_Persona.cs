@@ -45,5 +45,6 @@ public sealed class Dto_Vigilancia_Persona
     /// <summary>D-227: NA (no es de franja), DENTRO o FUERA de la franja autorizada en este momento.</summary>
     public string? Tipo_Acceso_Codigo { get; set; }       // D-233
     public string? Empresa_Destino_Codigo { get; set; }   // D-233
+    public string? Modo_Ingreso { get; set; }             // D-245: CON / SIN ingreso vehicular (proveedor; null si aún no se confirma)
     public string Franja_Estado { get; set; } = "NA";                   // D-225: Vigilancia ya verificó sus datos
 }

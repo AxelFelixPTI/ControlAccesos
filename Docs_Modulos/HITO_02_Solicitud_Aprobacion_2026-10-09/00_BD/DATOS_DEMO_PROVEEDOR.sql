@@ -26,6 +26,8 @@
 -- Para quitarlo: reconstruir la BD con restaurar_bd.ps1.
 -- =============================================================================
 BEGIN;
+-- Hora de Lima: la app trabaja con Timezone=America/Lima (D-129). Sin esto, CURRENT_DATE usa la zona del servidor (UTC) y de noche cae en el dia siguiente.
+SET LOCAL TIME ZONE 'America/Lima';
 SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 
 DO $$
@@ -125,7 +127,7 @@ BEGIN
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sps[3], v_it, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_vig, v_r, v_d, v_x, v_cod, v_msg);
     IF v_cod <> 100 THEN RAISE EXCEPTION 'verificacion 3: %', v_msg; END IF;
     SELECT STRING_AGG(A."ID_Catalogo_Item_Checklist" || ':' || CASE WHEN A."Codigo" = 'ING_EPP' THEN 'N' ELSE 'Y' END, ',') INTO v_it FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_sps[4], 'INGRESO', 'N', 'N') A;
-    CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sps[4], v_it, 'N', 'N', NULL, 'El transportista no porta el EPP completo; el coordinador autoriza el ingreso restringido a la zona administrativa.', v_coo, v_t_rest, NULL, NULL, NULL, v_vig, v_r, v_d, v_x, v_cod, v_msg);
+    CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sps[4], v_it, 'N', 'N', NULL, 'El conductor no porta el EPP completo; el coordinador autoriza el ingreso restringido a la zona administrativa.', v_coo, v_t_rest, NULL, NULL, NULL, v_vig, v_r, v_d, v_x, v_cod, v_msg);
     IF v_cod <> 100 THEN RAISE EXCEPTION 'verificacion 4: %', v_msg; END IF;
     -- 8: desviacion con ingreso denegado
     SELECT STRING_AGG(A."ID_Catalogo_Item_Checklist" || ':' || CASE WHEN A."Codigo" = 'ING_PLACA' THEN 'N' ELSE 'Y' END, ',') INTO v_it FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_sps[8], 'INGRESO', 'N', 'N') A;
@@ -136,6 +138,17 @@ BEGIN
     SELECT STRING_AGG(A."ID_Catalogo_Item_Checklist" || ':Y', ',') INTO v_it FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_sps[5], 'INGRESO', 'N', 'N') A;
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(v_sps[5], v_it, 'N', 'N', NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_vig, v_r, v_d, v_x, v_cod, v_msg);
     IF v_cod <> 100 THEN RAISE EXCEPTION 'verificacion 5: %', v_msg; END IF;
+END $$;
+
+-- Empresas que atienden los almaceneros demo (sin esto no pueden iniciar/detener/terminar ninguna atencion)
+DO $$
+DECLARE v_u BIGINT; v_ids TEXT; v_cod INT; v_msg VARCHAR(250);
+BEGIN
+    SELECT STRING_AGG(CAST("ID_Catalogo_Empresa_Grupo" AS TEXT), ',' ORDER BY "Orden") INTO v_ids FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y';
+    FOR v_u IN SELECT "ID_Usuario" FROM "CAF_GOVERNANCE"."Usuario" WHERE "Correo" IN ('almacen1.demo@trianon.test','almacen2.demo@trianon.test') LOOP
+        CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(v_u, v_ids, 0, v_cod, v_msg);
+        IF v_cod <> 100 THEN RAISE EXCEPTION 'empresas de almacen %: %', v_u, v_msg; END IF;
+    END LOOP;
 END $$;
 
 COMMIT;

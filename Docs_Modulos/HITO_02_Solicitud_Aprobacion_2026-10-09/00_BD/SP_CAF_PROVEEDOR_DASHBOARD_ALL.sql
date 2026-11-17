@@ -209,7 +209,10 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "Transportistas_Total" INT, "Transportistas_Verificados" INT, "Transportistas_Dentro" INT, "Transportistas_Salieron" INT,
                "Ayudantes_Total" INT,
                "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta" VARCHAR,
-               "Atencion_Resumen" VARCHAR)
+               "Atencion_Resumen" VARCHAR, "Modo_Ingreso" VARCHAR, "Conductor_Documento" VARCHAR,
+               "Puede_Detener" CHAR, "Puede_Reanudar" CHAR, "Puede_Cerrar_Sin" CHAR,
+               "Motivo_Iniciar" VARCHAR, "Motivo_Reanudar" VARCHAR,
+               "Puede_Ceder" CHAR, "Puede_Tomar" CHAR, "Motivo_Tomar" VARCHAR, "Reserva_Nombre" VARCHAR, "Pausada" CHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -217,6 +220,13 @@ DECLARE
     lv_titular BIGINT;
     lv_tcod   VARCHAR(20);
 BEGIN
+    -- V3.0 2026-11-16 (D-244): + Puede_Ceder / Puede_Tomar / Motivo_Tomar / Reserva_Nombre (quién confirmó) y Pausada (todas las empresas iniciadas están detenidas); Confirmar se bloquea con el cupo del almacenero ocupado
+    -- V2.9 2026-11-16 (D-243): TODOS los botones de atención salen de ERP_CAF_ATENCION_LISTAR (la misma regla que valida la acción: nunca habilitado y luego error);
+    --   Iniciar solo si hay una empresa PENDIENTE; + Motivo_Iniciar / Motivo_Reanudar para mostrar el botón bloqueado con su razón
+    -- V2.8 2026-11-16 (D-242): Puede_Terminar y + Puede_Detener / Puede_Reanudar / Puede_Cerrar_Sin (solo sobre las empresas que el usuario atiende; detener, reanudar y terminar solo quien inició)
+    -- V2.7 2026-11-16 (D-241): + Conductor_Documento («DNI 12345678») del conductor principal, en lugar de mostrar el teléfono del contacto
+    -- V2.6 2026-11-15 (D-239): + Modo_Ingreso (CON/SIN ingreso vehicular); Puede_Atender abre la atención por empresa (para todas las entregas) y
+    --   Puede_Cancelar_Disp ya no se usa (siempre N); Puede_Confirmar = EN_ESPERA, día programado y aún sin confirmar
     -- V2.5 2026-11-14 (D-238): + Atencion_Resumen («COD:ESTADO;...» solo si la entrega tiene varias empresas); con varias empresas
     --   Puede_Atender = el usuario tiene alguna empresa suya pendiente o en atencion, y Puede_Terminar = N (se recepciona por empresa)
     -- V2.4 2026-11-13 (D-237): + OC, empresa transportista y franja «Hasta»
@@ -244,8 +254,8 @@ BEGIN
                   WHERE A."ID_Solicitud" = S."ID_Solicitud" AND A."Eliminado" = 'N' AND A."Es_Principal" = 'N') AS INT),
            O."Estado_Operativo",
            O."Con_Desviacion",
-           CAST(CASE WHEN lv_titular = S."ID_Solicitud" THEN 'Y' ELSE 'N' END AS CHAR),
-           CASE WHEN lv_titular = S."ID_Solicitud" THEN O."Fecha_Disponibilidad" ELSE NULL END,
+           CAST("ERP_CAF_FN_DISPONIBLE"(S."ID_Solicitud") AS CHAR),
+           CASE WHEN "ERP_CAF_FN_DISPONIBLE"(S."ID_Solicitud") = 'Y' THEN O."Fecha_Disponibilidad" ELSE NULL END,
            O."Fecha_Llegada", O."Fecha_Ingreso", O."Fecha_Inicio_Atencion",
            O."Fecha_Recepcion", O."Fecha_Salida", O."Resultado_Recepcion",
            O."ID_Personal_Programado",
@@ -254,27 +264,16 @@ BEGIN
                          UF."Apellido_Paterno" || COALESCE(' ' || UF."Apellido_Materno", '') || ', ' || UF."Nombres") AS VARCHAR),
            CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" IN ('PROGRAMADO','EN_ESPERA','INGRESO')
                           AND CAST(S."Fecha_Hora_Prevista" AS DATE) >= CURRENT_DATE THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ESPERA' AND lv_titular IS NULL
-                          AND CAST(S."Fecha_Hora_Prevista" AS DATE) = CURRENT_DATE THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ESPERA' AND lv_titular = S."ID_Solicitud" THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'INGRESO' AND lv_titular = S."ID_Solicitud"
-                          AND CAST(S."Fecha_Hora_Prevista" AS DATE) <= CURRENT_DATE
-                          AND ((SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = S."ID_Solicitud" AND E0."Eliminado" = 'N') <= 1
-                               OR EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E1 WHERE E1."ID_Solicitud" = S."ID_Solicitud" AND E1."Eliminado" = 'N'
-                                           AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E1."ID_Catalogo_Empresa_Grupo", "HV_ID_Catalogo_Sede") = 'Y'
-                                           AND "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E1."ID_Catalogo_Empresa_Grupo") IN ('PENDIENTE','EN_ATENCION')))
-                     THEN 'Y'
-                     WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ATENCION'
-                          AND (SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = S."ID_Solicitud" AND E0."Eliminado" = 'N') > 1
-                          AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E1 WHERE E1."ID_Solicitud" = S."ID_Solicitud" AND E1."Eliminado" = 'N'
-                                       AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E1."ID_Catalogo_Empresa_Grupo", "HV_ID_Catalogo_Sede") = 'Y'
-                                       AND "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E1."ID_Catalogo_Empresa_Grupo") IN ('PENDIENTE','EN_ATENCION'))
-                     THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ATENCION'
-                          AND (SELECT COUNT(*) FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = S."ID_Solicitud" AND E0."Eliminado" = 'N') <= 1 THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN O."Estado_Operativo" <> 'EN_ESPERA' OR lv_titular = S."ID_Solicitud" THEN NULL
+           CAST(CASE WHEN lv_alm = 'Y' AND O."Estado_Operativo" = 'EN_ESPERA' AND "ERP_CAF_FN_DISPONIBLE"(S."ID_Solicitud") <> 'Y'
+                          AND CAST(S."Fecha_Hora_Prevista" AS DATE) = CURRENT_DATE
+                          AND "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", S."ID_Solicitud") IS NULL THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST('N' AS CHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Atender" = 'Y') THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Recepcionar" = 'Y') THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN O."Estado_Operativo" <> 'EN_ESPERA' OR "ERP_CAF_FN_DISPONIBLE"(S."ID_Solicitud") = 'Y' THEN NULL
                      WHEN CAST(S."Fecha_Hora_Prevista" AS DATE) <> CURRENT_DATE THEN 'Solo se confirma el día programado'
-                     WHEN lv_titular IS NOT NULL THEN 'La exclusa está reservada para ' || COALESCE(lv_tcod, 'otra entrega')
+                     WHEN lv_alm = 'Y' AND "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", S."ID_Solicitud") IS NOT NULL THEN "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", S."ID_Solicitud")
+                     WHEN lv_titular IS NOT NULL THEN 'La esclusa está reservada para ' || COALESCE(lv_tcod, 'otra entrega') || ': por ahora solo podrá confirmar sin ingreso vehicular'
                      ELSE NULL END AS VARCHAR),
            CAST(CASE WHEN S."ID_Usuario_Solicitante" = "HV_UsuarioID" THEN 'Y' ELSE 'N' END AS CHAR),
            -- Cancelar la solicitud (solo su dueño): la regla es la de ERP_CAF_SOLICITUD_CANCELAR (sin ingresos y, en proveedor, solo PROGRAMADA)
@@ -294,14 +293,35 @@ BEGIN
            CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Persona" X WHERE X."ID_Solicitud" = S."ID_Solicitud" AND X."Eliminado" = 'N' AND X."Aprobacion" = 'APROBADA'
                   AND "ERP_CAF_FN_ES_TRANSPORTISTA"(X."ID_Solicitud_Persona") = 'N') AS INT),
            S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR),
-           CAST((SELECT CASE WHEN COUNT(*) > 1 THEN STRING_AGG(EC."Codigo" || ':' || "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E2."ID_Catalogo_Empresa_Grupo"), ';' ORDER BY EC."Orden", E2."ID_Solicitud_Empresa") ELSE NULL END
+           CAST((SELECT CASE WHEN COUNT(*) >= 1 THEN STRING_AGG(EC."Codigo" || ':' || "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E2."ID_Catalogo_Empresa_Grupo"), ';' ORDER BY EC."Orden", E2."ID_Solicitud_Empresa") ELSE NULL END
                    FROM "CAF_Solicitud_Empresa" E2 JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EC ON EC."ID_Catalogo_Empresa_Grupo" = E2."ID_Catalogo_Empresa_Grupo"
-                  WHERE E2."ID_Solicitud" = S."ID_Solicitud" AND E2."Eliminado" = 'N') AS VARCHAR)
+                  WHERE E2."ID_Solicitud" = S."ID_Solicitud" AND E2."Eliminado" = 'N') AS VARCHAR),
+           CAST(CASE O."Con_Vehiculo" WHEN 'Y' THEN 'CON' WHEN 'N' THEN 'SIN' ELSE NULL END AS VARCHAR),
+           CAST(COALESCE(TDC."Codigo" || ' ', '') || PE."Numero_Documento" AS VARCHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Detener" = 'Y') THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Reanudar" = 'Y') THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Cerrar_Sin" = 'Y') THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Atender" = 'Y') THEN NULL ELSE (SELECT MIN(L."Motivo_No") FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Estado" = 'PENDIENTE' AND L."Autorizado" = 'Y') END AS VARCHAR),
+           CAST(CASE WHEN EXISTS (SELECT 1 FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Puede_Reanudar" = 'Y') THEN NULL ELSE (SELECT MIN(L."Motivo_No") FROM "ERP_CAF_ATENCION_LISTAR"(S."ID_Solicitud", "HV_UsuarioID") L WHERE L."Estado" = 'DETENIDA' AND L."Autorizado" = 'Y') END AS VARCHAR),
+           CAST(CASE WHEN lv_alm = 'Y' AND O."Fecha_Disponibilidad" IS NOT NULL AND O."ID_Usuario_Disponibilidad" = "HV_UsuarioID" AND O."Estado_Operativo" IN ('EN_ESPERA','INGRESO')
+                          AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Atencion" A9 WHERE A9."ID_Solicitud" = S."ID_Solicitud" AND A9."Eliminado" = 'N' AND A9."Estado" <> 'PENDIENTE')
+                     THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN lv_alm = 'Y' AND O."Fecha_Disponibilidad" IS NOT NULL AND O."ID_Usuario_Disponibilidad" IS NULL AND O."Estado_Operativo" IN ('EN_ESPERA','INGRESO')
+                          AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E9 WHERE E9."ID_Solicitud" = S."ID_Solicitud" AND E9."Eliminado" = 'N' AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E9."ID_Catalogo_Empresa_Grupo", "HV_ID_Catalogo_Sede") = 'Y') AND "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", S."ID_Solicitud") IS NULL THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN lv_alm = 'Y' AND O."Fecha_Disponibilidad" IS NOT NULL AND O."ID_Usuario_Disponibilidad" IS NULL AND O."Estado_Operativo" IN ('EN_ESPERA','INGRESO') AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E9 WHERE E9."ID_Solicitud" = S."ID_Solicitud" AND E9."Eliminado" = 'N' AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E9."ID_Catalogo_Empresa_Grupo", "HV_ID_Catalogo_Sede") = 'Y')
+                     THEN "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", S."ID_Solicitud") ELSE NULL END AS VARCHAR),
+           CAST((SELECT UD."Apellido_Paterno" || COALESCE(' ' || UD."Apellido_Materno", '') || ', ' || UD."Nombres" FROM "CAF_GOVERNANCE"."Usuario" UD
+                  WHERE UD."ID_Usuario" = O."ID_Usuario_Disponibilidad") AS VARCHAR),
+           CAST(CASE WHEN O."Estado_Operativo" = 'EN_ATENCION'
+                          AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Atencion" AD WHERE AD."ID_Solicitud" = S."ID_Solicitud" AND AD."Eliminado" = 'N' AND AD."Estado" = 'DETENIDA')
+                          AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Atencion" AE WHERE AE."ID_Solicitud" = S."ID_Solicitud" AND AE."Eliminado" = 'N' AND AE."Estado" = 'EN_ATENCION')
+                     THEN 'Y' ELSE 'N' END AS CHAR)
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
       JOIN "CAF_Solicitud_Persona" PR ON PR."ID_Solicitud" = S."ID_Solicitud" AND PR."Eliminado" = 'N' AND PR."Es_Principal" = 'Y'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = PR."ID_Persona_Externa"
+      LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TDC ON TDC."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
       LEFT JOIN "CAF_GOVERNANCE"."Personal" PG ON PG."ID_Personal" = O."ID_Personal_Programado"
       LEFT JOIN "CAF_GOVERNANCE"."Usuario" UF ON UF."ID_Usuario" = O."ID_Usuario_Atencion"
@@ -321,9 +341,10 @@ $$;
 --    obtiene la fila; el otro recibe 409. Antes se libera una reserva huerfana (la entrega ya no esta vigente).
 --    No cambia el estado: habilita a Vigilancia para validar el ingreso fisico.
 -- -----------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(
     IN    "HV_ID_Solicitud"  BIGINT,
     IN    "HV_UsuarioID"     BIGINT,
+    IN    "HV_Con_Vehiculo"  CHAR(1),
     INOUT "HV_Codigo_Resp"   INT DEFAULT NULL,
     INOUT "HV_Mensaje"       VARCHAR(250) DEFAULT NULL
 )
@@ -335,12 +356,20 @@ DECLARE
     lv_act   CHAR(1);
     lv_eop   VARCHAR(20);
     lv_otro  VARCHAR(20);
+    lv_f     TIMESTAMP;
+    lv_modo  CHAR(1);
+    lv_cupo  VARCHAR;
 BEGIN
+    -- V2.1 2026-11-16 (D-244): confirmar ocupa el cupo del almacenero
+    -- V2.0 2026-11-15 (D-239): el almacenero elige CON o SIN ingreso vehicular al confirmar (no se deshace). Sin ingreso no reserva la esclusa.
     "HV_Codigo_Resp" := 500;
-    "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR';
+    "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO';
     BEGIN
         IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" < 0 THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
+        END IF;
+        IF "HV_Con_Vehiculo" IS NULL OR "HV_Con_Vehiculo" NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Elija si la atención será con ingreso vehicular o sin ingreso vehicular.'; RETURN;
         END IF;
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         SELECT COUNT(*), MAX(S."ID_Catalogo_Sede"), MAX(S."Fecha_Hora_Prevista") INTO lv_n, lv_sede, lv_fecha
@@ -370,48 +399,81 @@ BEGIN
         IF CAST(lv_fecha AS DATE) <> CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La disponibilidad solo puede confirmarse el día programado de la entrega.'; RETURN;
         END IF;
-        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N';
-        IF lv_n = 0 THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La esclusa de la sede no está configurada.'; RETURN;
-        END IF;
-        -- Ya estaba confirmada para esta entrega
-        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud";
-        IF lv_n > 0 THEN
-            "HV_Codigo_Resp" := 100; "HV_Mensaje" := 'La disponibilidad ya estaba confirmada.'; RETURN;
-        END IF;
-        -- Reserva huérfana: la entrega que figura ya no está vigente
-        UPDATE "CAF_Exclusa"
-           SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
-               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" IS NOT NULL
-           AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" O
-                            WHERE O."ID_Solicitud" = "CAF_Exclusa"."ID_Solicitud_Actual" AND O."Activa" = 'Y'
-                              AND O."Estado_Operativo" IN ('EN_ESPERA','INGRESO','EN_ATENCION','RECEPCIONADO'));
-        -- Reservar: UPDATE condicionado (atómico). Solo uno gana.
-        UPDATE "CAF_Exclusa"
-           SET "ID_Solicitud_Actual" = "HV_ID_Solicitud", "Fecha_Ocupada" = CURRENT_TIMESTAMP, "ID_Usuario_Ocupa" = "HV_UsuarioID",
-               "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-         WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N' AND "ID_Solicitud_Actual" IS NULL;
-        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud";
-        IF lv_n = 0 THEN
-            SELECT S."Codigo" INTO lv_otro FROM "CAF_Exclusa" X JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = X."ID_Solicitud_Actual"
-             WHERE X."ID_Catalogo_Sede" = lv_sede;
+        -- Ya se eligió el modo: no se puede cambiar
+        SELECT O."Fecha_Disponibilidad", O."Con_Vehiculo" INTO lv_f, lv_modo FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N';
+        IF lv_f IS NOT NULL THEN
+            IF COALESCE(lv_modo, 'Y') = "HV_Con_Vehiculo" THEN
+                "HV_Codigo_Resp" := 100; "HV_Mensaje" := 'La disponibilidad ya estaba confirmada.'; RETURN;
+            END IF;
             "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := 'La exclusa ya está reservada para otra entrega' || COALESCE(' (' || lv_otro || ')', '')
-                            || '. Debe cancelarse su disponibilidad o terminar su atención.'; RETURN;
+            "HV_Mensaje" := 'La disponibilidad ya se confirmó ' || CASE WHEN COALESCE(lv_modo, 'Y') = 'Y' THEN 'con' ELSE 'sin' END || ' ingreso vehicular y no se puede cambiar.'; RETURN;
+        END IF;
+        -- D-244: confirmar reserva el cupo del almacenero; con otras solicitudes en curso no puede tomar esta
+        lv_cupo := "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", "HV_ID_Solicitud");
+        IF lv_cupo IS NOT NULL THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := LEFT(lv_cupo, 250); RETURN;
+        END IF;
+        IF "HV_Con_Vehiculo" = 'Y' THEN
+            SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N';
+            IF lv_n = 0 THEN
+                "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La esclusa de la sede no está configurada.'; RETURN;
+            END IF;
+            -- Ya estaba confirmada para esta entrega
+            SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud";
+            IF lv_n > 0 THEN
+                "HV_Codigo_Resp" := 100; "HV_Mensaje" := 'La disponibilidad ya estaba confirmada.'; RETURN;
+            END IF;
+            -- Reserva huérfana: la entrega que figura ya no está vigente
+            UPDATE "CAF_Exclusa"
+               SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" O
+                                WHERE O."ID_Solicitud" = "CAF_Exclusa"."ID_Solicitud_Actual" AND O."Activa" = 'Y'
+                                  AND O."Estado_Operativo" IN ('EN_ESPERA','INGRESO','EN_ATENCION','RECEPCIONADO'));
+            -- Reservar: UPDATE condicionado (atómico). Solo uno gana.
+            UPDATE "CAF_Exclusa"
+               SET "ID_Solicitud_Actual" = "HV_ID_Solicitud", "Fecha_Ocupada" = CURRENT_TIMESTAMP, "ID_Usuario_Ocupa" = "HV_UsuarioID",
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N' AND "ID_Solicitud_Actual" IS NULL;
+            SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud";
+            IF lv_n = 0 THEN
+                SELECT S."Codigo" INTO lv_otro FROM "CAF_Exclusa" X JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = X."ID_Solicitud_Actual"
+                 WHERE X."ID_Catalogo_Sede" = lv_sede;
+                "HV_Codigo_Resp" := 409;
+                "HV_Mensaje" := 'La exclusa ya está reservada para otra entrega' || COALESCE(' (' || lv_otro || ')', '')
+                                || '. Debe cancelarse su disponibilidad o terminar su atención.'; RETURN;
+            END IF;
         END IF;
         UPDATE "CAF_Solicitud_Operacion"
-           SET "Fecha_Disponibilidad" = CURRENT_TIMESTAMP, "ID_Usuario_Disponibilidad" = "HV_UsuarioID",
+           SET "Fecha_Disponibilidad" = CURRENT_TIMESTAMP, "ID_Usuario_Disponibilidad" = "HV_UsuarioID", "Con_Vehiculo" = "HV_Con_Vehiculo",
                "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Resultado","Observacion")
-        VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'DISP_CONFIRMADA', 'Almacén confirmó su disponibilidad y reservó la esclusa');
+        VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'DISP_CONFIRMADA',
+                CASE WHEN "HV_Con_Vehiculo" = 'Y' THEN 'Almacén confirmó su disponibilidad CON ingreso vehicular y reservó la esclusa'
+                     ELSE 'Almacén confirmó su disponibilidad SIN ingreso vehicular (no usa la esclusa)' END);
         "HV_Codigo_Resp" := 100;
-        "HV_Mensaje"     := 'Disponibilidad confirmada. La esclusa quedó reservada para esta entrega.';
+        "HV_Mensaje"     := CASE WHEN "HV_Con_Vehiculo" = 'Y' THEN 'Disponibilidad confirmada con ingreso vehicular. La esclusa quedó reservada para esta entrega.'
+                                 ELSE 'Disponibilidad confirmada sin ingreso vehicular.' END;
     EXCEPTION WHEN OTHERS THEN
         "HV_Codigo_Resp" := 500;
-        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR';
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO';
     END;
+END;
+$$;
+
+-- Atajo de siempre: confirmar CON ingreso vehicular (la pantalla usa ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO).
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(
+    IN    "HV_ID_Solicitud"  BIGINT,
+    IN    "HV_UsuarioID"     BIGINT,
+    INOUT "HV_Codigo_Resp"   INT DEFAULT NULL,
+    INOUT "HV_Mensaje"       VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+BEGIN
+    -- V2.0 2026-11-15 (D-239)
+    CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"("HV_ID_Solicitud", "HV_UsuarioID", 'Y', "HV_Codigo_Resp", "HV_Mensaje");
 END;
 $$;
 
@@ -488,5 +550,52 @@ BEGIN
         "HV_Codigo_Resp" := 500;
         "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CANCELAR';
     END;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 4b. ERP_CAF_PROVEEDOR_CUPOS   (D-244)   Quién ocupa los cupos ahora, para que todo Almacén lo vea.
+--     Tipo ALMACENERO: una fila por almacenero y solicitud que ocupa su cupo (RESERVA = confirmó y aún no empezó; ATENCION = tiene empresas en atención),
+--                       con el estado de cada empresa de la solicitud en Detalle («COD:ESTADO;...»); Usados/Limite = solicitudes del almacenero / su límite.
+--     Tipo EMPRESA    : una fila por empresa activa con Usados (entregas en atención) y Limite (cupo configurado, 2147483647 = sin límite); Solicitud = las que ocupan.
+-- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_PROVEEDOR_CUPOS"(BIGINT, BIGINT);
+CREATE OR REPLACE FUNCTION "ERP_CAF_PROVEEDOR_CUPOS"("HV_UsuarioID" BIGINT, "HV_ID_Catalogo_Sede" BIGINT)
+RETURNS TABLE ("Tipo" VARCHAR, "Nombre" VARCHAR, "Codigo" VARCHAR, "Solicitud" VARCHAR, "Ocupa" VARCHAR, "Detalle" VARCHAR, "Usados" INT, "Limite" INT)
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+#variable_conflict use_column
+BEGIN
+    -- V1.0 2026-11-16
+    IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_DASHBOARD', "HV_ID_Catalogo_Sede") <> 'Y' THEN RETURN; END IF;
+    RETURN QUERY
+    SELECT CAST('ALMACENERO' AS VARCHAR),
+           CAST(UA."Apellido_Paterno" || COALESCE(' ' || UA."Apellido_Materno", '') || ', ' || UA."Nombres" AS VARCHAR),
+           CAST(U."ID_Usuario" AS VARCHAR), CAST(S."Codigo" AS VARCHAR), CAST("ERP_CAF_FN_CUPO_OCUPA"(U."ID_Usuario", S."ID_Solicitud") AS VARCHAR),
+           CAST((SELECT STRING_AGG(EC."Codigo" || ':' || "ERP_CAF_FN_ATENCION_ESTADO"(S."ID_Solicitud", E2."ID_Catalogo_Empresa_Grupo"), ';' ORDER BY EC."Orden", E2."ID_Solicitud_Empresa")
+                   FROM "CAF_Solicitud_Empresa" E2 JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EC ON EC."ID_Catalogo_Empresa_Grupo" = E2."ID_Catalogo_Empresa_Grupo"
+                  WHERE E2."ID_Solicitud" = S."ID_Solicitud" AND E2."Eliminado" = 'N') AS VARCHAR),
+           CAST((SELECT COUNT(*) FROM "CAF_Solicitud_Operacion" O3 WHERE O3."Eliminado" = 'N' AND O3."Activa" = 'Y' AND "ERP_CAF_FN_CUPO_OCUPA"(U."ID_Usuario", O3."ID_Solicitud") IS NOT NULL) AS INT),
+           "ERP_CAF_FN_CUPO_ALMACENERO_LIMITE"()
+      FROM "CAF_Solicitud_Operacion" O
+      JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+      CROSS JOIN LATERAL (SELECT DISTINCT X."ID_Usuario" FROM (
+              SELECT O."ID_Usuario_Disponibilidad" AS "ID_Usuario"
+              UNION ALL SELECT "ERP_CAF_FN_ATENCION_INICIO"(A."ID_Solicitud", A."ID_Catalogo_Empresa_Grupo")
+                          FROM "CAF_Solicitud_Atencion" A WHERE A."ID_Solicitud" = S."ID_Solicitud" AND A."Eliminado" = 'N' AND A."Estado" = 'EN_ATENCION') X
+              WHERE X."ID_Usuario" IS NOT NULL) U
+      JOIN "CAF_GOVERNANCE"."Usuario" UA ON UA."ID_Usuario" = U."ID_Usuario"
+     WHERE O."Eliminado" = 'N' AND O."Activa" = 'Y' AND "ERP_CAF_FN_CUPO_OCUPA"(U."ID_Usuario", S."ID_Solicitud") IS NOT NULL
+    UNION ALL
+    SELECT CAST('EMPRESA' AS VARCHAR), CAST(EG."Descripcion" AS VARCHAR), CAST(EG."Codigo" AS VARCHAR),
+           CAST((SELECT STRING_AGG(S2."Codigo", ', ' ORDER BY S2."Codigo")
+                   FROM "CAF_Solicitud_Empresa" E3
+                   JOIN "CAF_Solicitud_Operacion" O2 ON O2."ID_Solicitud" = E3."ID_Solicitud" AND O2."Estado_Operativo" = 'EN_ATENCION' AND O2."Activa" = 'Y' AND O2."Eliminado" = 'N'
+                   JOIN "CAF_Solicitud" S2 ON S2."ID_Solicitud" = E3."ID_Solicitud" AND S2."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+                  WHERE E3."ID_Catalogo_Empresa_Grupo" = EG."ID_Catalogo_Empresa_Grupo" AND E3."Eliminado" = 'N'
+                    AND "ERP_CAF_FN_ATENCION_ESTADO"(E3."ID_Solicitud", E3."ID_Catalogo_Empresa_Grupo") = 'EN_ATENCION') AS VARCHAR),
+           CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR),
+           "ERP_CAF_FN_ATENCION_ACTIVAS"(EG."ID_Catalogo_Empresa_Grupo"), "ERP_CAF_FN_CUPO_EMPRESA"(EG."ID_Catalogo_Empresa_Grupo")
+      FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG WHERE EG."Eliminado" = 'N' AND EG."Activo" = 'Y'
+     ORDER BY 1, 2, 4;
 END;
 $$;

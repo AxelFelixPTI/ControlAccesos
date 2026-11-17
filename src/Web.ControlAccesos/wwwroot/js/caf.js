@@ -49,11 +49,11 @@ var CAF = (function () {
         var previo = document.activeElement;
         var fondo = el('div', { class: 'modal-back' });
         var caja = el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo });
-        caja.classList.add(ancho === 'ancho' ? 'modal-ancho' : 'modal-normal');
+        caja.classList.add(ancho === 'ancho' ? 'modal-ancho' : ancho === 'chico' ? 'modal-chico' : 'modal-normal');
         function cerrar() { document.removeEventListener('keydown', tecla); if (fondo.parentNode) fondo.parentNode.removeChild(fondo); if (previo && previo.focus) previo.focus(); }
         function tecla(ev) { if (ev.key === 'Escape') cerrar(); }
         var pie = el('div', { class: 'modal-f' }, (botones || []).map(function (b) {
-            return el('button', { type: 'button', class: 'btn' + (b.tipo === 'primary' ? ' btn-primary' : ''), text: b.texto, onclick: function () { b.onclick(cerrar); } });
+            return el('button', { type: 'button', class: 'btn' + (b.tipo === 'primary' ? ' btn-primary' : b.tipo === 'danger' ? ' btn-danger' : b.tipo === 'warn' ? ' btn-warn' : ''), text: b.texto, onclick: function () { b.onclick(cerrar); } });
         }));
         caja.appendChild(el('div', { class: 'modal-h' }, [el('h3', { text: titulo }), el('button', { type: 'button', class: 'btn btn-icon', 'aria-label': 'Cerrar', text: '×', onclick: cerrar })]));
         caja.appendChild(el('div', { class: 'modal-b' }, [cuerpo]));

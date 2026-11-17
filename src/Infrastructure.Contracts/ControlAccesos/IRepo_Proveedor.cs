@@ -16,8 +16,7 @@ public interface IRepo_Proveedor
     Task<Result<List<Dto_Proveedor_Responsable>>> ResponsablesAsync(long usuarioId, long sedeId, CancellationToken ct = default);
     Task<Result<Dto_Proveedor_Exclusa?>> ExclusaEstadoAsync(long usuarioId, long sedeId, CancellationToken ct = default);
     Task<ResultSp> ProgramarAsync(long solicitudId, long? personalId, long usuarioId, CancellationToken ct = default);
-    Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
-    Task<ResultSp> CancelarDisponibilidadAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> RetiroSinIngresoAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> IngresoFisicoAsync(long solicitudId, string idsPersona, long usuarioId, CancellationToken ct = default);
@@ -31,5 +30,14 @@ public interface IRepo_Proveedor
     Task<Result<List<Dto_Motivo_Sin_Atencion>>> MotivosSinAtencionAsync(CancellationToken ct = default);
     Task<ResultSp> AtenderEmpresaAsync(long solicitudId, long empresaId, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> RecepcionarEmpresaAsync(long solicitudId, long empresaId, string resultado, string? observacion, long usuarioId, CancellationToken ct = default);
+    // D-239: varias empresas a la vez (ids separados por coma), detener y reanudar
+    Task<ResultSp> AtenderEmpresasAsync(long solicitudId, string idsEmpresa, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> DetenerEmpresasAsync(long solicitudId, string idsEmpresa, string? motivo, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> ReanudarEmpresasAsync(long solicitudId, string idsEmpresa, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> RecepcionarEmpresasAsync(long solicitudId, string idsEmpresa, string resultado, string? observacion, long usuarioId, CancellationToken ct = default);
     Task<ResultSp> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default);
+    // D-244: panel de cupos y Ceder/Tomar la reserva
+    Task<Result<List<Dto_Proveedor_Cupo>>> CuposAsync(long usuarioId, long sedeId, CancellationToken ct = default);
+    Task<ResultSp> CederReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
+    Task<ResultSp> TomarReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
 }

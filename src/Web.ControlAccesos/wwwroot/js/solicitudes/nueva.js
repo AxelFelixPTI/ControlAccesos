@@ -17,7 +17,7 @@
 
     // ── Proveedor (D-223/D-237): cada persona lleva un rol (Conductor o Ayudante de descarga). El conductor debe indicar la placa de su
     //    vehículo; los demás datos del vehículo y del transportista son opcionales y van compactados tras «+ Más datos…». ──
-    var CAMPOS_T = [['ruc', 'RUC del transportista', 11, 'Opcional. 11 dígitos.'], ['nombre', 'Nombre o razón social del transportista', 200, ''], ['direccion', 'Dirección del transportista', 300, ''],
+    var CAMPOS_T = [['ruc', 'RUC de la empresa transportista', 11, 'Opcional. 11 dígitos.'], ['nombre', 'Nombre o razón social de la empresa transportista', 200, ''], ['direccion', 'Dirección del conductor', 300, ''],
                     ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, '']];
     // Roles (subtipos) activos del tipo de ingreso elegido (D-234); vacío si el tipo no tiene.
     function subtiposDelTipo() { var v = formDatos ? formDatos.leer() : null; return v ? (op.subtipos || []).filter(function (x) { return x.tipoId === v.tipoId; }) : []; }
@@ -32,14 +32,14 @@
             ins[c[0]] = el('input', { type: 'text', maxlength: String(c[2]) });
             mas.appendChild(SOL.w(c[0] === 'nombre' || c[0] === 'direccion' ? 'f-l' : 'f-s', SOL.campo(c[1], ins[c[0]], null)));
         });
-        var opc = SOL.opcional('Más datos del vehículo y del transportista', mas, false, function () { Object.keys(ins).forEach(function (k) { ins[k].value = ''; }); });
-        panel.appendChild(SOL.fila([SOL.w('f-xs', SOL.campo('Placa *', placa))]));
+        var opc = SOL.opcional('Más datos del vehículo y de la empresa transportista', mas, false, function () { Object.keys(ins).forEach(function (k) { ins[k].value = ''; }); });
+        panel.appendChild(SOL.fila([SOL.w('f-xs', SOL.campo(SOL.placaObligatoria() ? 'Placa *' : 'Placa (opcional)', placa))]));
         panel.appendChild(opc.nodo);
         function sinc() { panel.hidden = !activo; }
         sinc();
         return {
             nodo: el('div', { class: 'stack' }, [panel]),
-            placaValida: function () { var x = limpiaPlaca(placa.value); return x.length >= 5 && x.length <= 8 && /^[A-Z0-9]+$/.test(x); },
+            placaValida: function () { var x = limpiaPlaca(placa.value); if (!x && !SOL.placaObligatoria()) return true; return x.length >= 5 && x.length <= 8 && /^[A-Z0-9]+$/.test(x); },
             leer: function () {
                 var d = {}; CAMPOS_T.forEach(function (c) { d[c[0]] = c[0] === 'placa' ? limpiaPlaca(placa.value) : (opc.abierto() ? ins[c[0]].value.trim() : ''); });
                 return { datos: d };
@@ -90,7 +90,7 @@
         agregar.addEventListener('click', function () {
             error.textContent = '';
             var rol0 = rolActual();
-            if (bt && rol0 && rol0.codigo === 'TRANSPORTISTA' && !bt.placaValida()) { error.textContent = 'Indique la placa del vehículo del conductor (de 5 a 8 letras o números).'; return; }
+            if (bt && rol0 && rol0.codigo === 'TRANSPORTISTA' && !bt.placaValida()) { error.textContent = SOL.placaObligatoria() ? 'Indique la placa del vehículo del conductor (de 5 a 8 letras o números).' : 'La placa debe tener de 5 a 8 letras o números.'; return; }
             formPer.guardar().then(function (r) {
                 if (!r.success) { error.textContent = SOL.errores(r); return; }
                 if (personas.some(function (p) { return p.id === r.data.id; })) { error.textContent = 'Esa persona ya está en la lista.'; return; }
@@ -174,7 +174,7 @@
         }
         var v = formDatos.leer(), err = document.getElementById('w-error');
         enviando = true; sigue.disabled = true;
-        var transportistas = esProv() ? personas.filter(function (p) { return p.transp; }).map(function (p) {
+        var conductores = esProv() ? personas.filter(function (p) { return p.transp; }).map(function (p) {
             return { personaId: p.id, ruc: p.datos.ruc, nombre: p.datos.nombre, direccion: p.datos.direccion, placa: p.datos.placa, marca: p.datos.marca, licencia: p.datos.licencia };
         }) : [];
         CAF.pedir(d.urlCrear, { method: 'POST', body: Object.assign({}, v, { personasIds: personas.map(function (p) { return p.id; }), origenId: origen || null, transportistas: transportistas,

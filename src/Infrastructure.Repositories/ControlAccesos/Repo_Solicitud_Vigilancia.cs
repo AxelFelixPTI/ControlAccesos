@@ -136,6 +136,7 @@ public sealed class Repo_Solicitud_Vigilancia : RepoHelpers, IRepo_Solicitud_Vig
         Franja_Estado        = RdStrN(rd, "Franja_Estado") ?? "NA",
         Tipo_Acceso_Codigo   = RdStrN(rd, "Tipo_Acceso_Codigo"),
         Empresa_Destino_Codigo = RdStrN(rd, "Empresa_Destino_Codigo"),
+        Modo_Ingreso         = RdStrN(rd, "Modo_Ingreso"),
     };
 
     private static Dto_Vigilancia_No_Autorizada MapVigilancia_No_Autorizada(DbDataReader rd) => new()

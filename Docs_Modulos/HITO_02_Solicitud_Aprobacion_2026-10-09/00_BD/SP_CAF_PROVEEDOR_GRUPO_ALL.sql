@@ -69,14 +69,13 @@ BEGIN
         END IF;
         IF lv_eop NOT IN ('EN_ESPERA','INGRESO','EN_ATENCION') THEN
             "HV_Codigo_Resp" := 409;
-            "HV_Mensaje" := CASE lv_eop WHEN 'PROGRAMADO' THEN 'Primero debe verificar los datos de los transportistas.'
+            "HV_Mensaje" := CASE lv_eop WHEN 'PROGRAMADO' THEN 'Primero debe verificar los datos de los conductores.'
                                         WHEN 'INGRESO_DENEGADO' THEN 'El ingreso de este proveedor fue denegado.'
                                         WHEN 'RETIRO_SIN_INGRESO' THEN 'El proveedor se retiró sin ingresar.'
                                         WHEN 'NO_SE_PRESENTO' THEN 'La entrega figura como «no se presentó».'
                                         ELSE 'La recepción de la entrega ya culminó: no se registran más ingresos.' END; RETURN;
         END IF;
-        SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa"
-         WHERE "ID_Catalogo_Sede" = lv_sede AND "ID_Solicitud_Actual" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
+        lv_n := CASE WHEN "ERP_CAF_FN_DISPONIBLE"("HV_ID_Solicitud") = 'Y' THEN 1 ELSE 0 END;
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Almacén aún no confirmó su disponibilidad para recibir a este proveedor.'; RETURN;
         END IF;
@@ -103,6 +102,10 @@ BEGIN
         -- Capacidad de la exclusa: vehículos (transportistas) dentro a la vez. Los ayudantes no cuentan.
         lv_val := "ERP_CAF_PARAMETRO_VALOR"('EXCLUSA_CAPACIDAD');
         IF lv_val IS NOT NULL AND lv_val ~ '^[1-9][0-9]*$' THEN lv_cap := CAST(lv_val AS INT); END IF;
+        IF lv_val = 'SIN_LIMITE' THEN lv_cap := 2147483647; END IF;                                  -- D-239
+        IF (SELECT O."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N') = 'N' THEN
+            lv_cap := 2147483647;                                                                    -- D-239: sin ingreso vehicular no hay vehículos dentro de la esclusa
+        END IF;
         SELECT COUNT(*) INTO lv_dentro FROM "CAF_Solicitud_Persona" P
          WHERE P."ID_Solicitud" = "HV_ID_Solicitud" AND P."Eliminado" = 'N' AND P."Estado" = 'DENTRO'
            AND "ERP_CAF_FN_ES_TRANSPORTISTA"(P."ID_Solicitud_Persona") = 'Y';
@@ -112,8 +115,9 @@ BEGIN
             "HV_Codigo_Resp" := 409;
             "HV_Mensaje" := 'La exclusa admite ' || lv_cap || ' vehículo(s) a la vez y ya hay ' || lv_dentro || ' dentro: registre primero su salida.'; RETURN;
         END IF;
-        IF lv_dentro + lv_nuevos = 0 THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Los ayudantes ingresan con su transportista: registre primero el ingreso de un transportista.'; RETURN;
+        -- D-243: SIN ingreso vehicular el ayudante (o el conductor a pie) puede ingresar por su cuenta: no hay vehículo que acompañar
+        IF lv_dentro + lv_nuevos = 0 AND COALESCE((SELECT O."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N'), 'Y') <> 'N' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Los ayudantes ingresan con su conductor: registre primero el ingreso de un conductor.'; RETURN;
         END IF;
         UPDATE "CAF_Solicitud_Persona"
            SET "Estado" = 'DENTRO', "Fecha_Hora_Ingreso" = CURRENT_TIMESTAMP, "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
@@ -321,6 +325,7 @@ BEGIN
 END;
 $$;
 
+DROP PROCEDURE IF EXISTS "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BIGINT, BIGINT, VARCHAR, VARCHAR, BIGINT, INT, VARCHAR);
 CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(
     IN    "HV_ID_Solicitud"        BIGINT,
     IN    "HV_IDs_Persona"         VARCHAR(2000),
@@ -331,6 +336,7 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(
     IN    "HV_ID_Tratamiento"      BIGINT,
     IN    "HV_Tratamiento_Detalle" VARCHAR(500),
     IN    "HV_Resultado_Elegido"   VARCHAR(30),
+    IN    "HV_Motivo_Anticipada"   VARCHAR(300),
     IN    "HV_UsuarioID"           BIGINT,
     INOUT "HV_Codigo_Resp"         INT DEFAULT NULL,
     INOUT "HV_Mensaje"             VARCHAR(250) DEFAULT NULL
@@ -353,7 +359,12 @@ DECLARE
     lv_th     CHAR(1);
     lv_cod_f  INT := NULL;
     lv_msg_f  VARCHAR(250) := NULL;
+    lv_mot    VARCHAR(300);
+    lv_eop    VARCHAR(20);
+    lv_con    CHAR(1);
+    lv_nombres VARCHAR(1500) := '';
 BEGIN
+    -- V1.1 2026-11-16 (D-245): + HV_Motivo_Anticipada (salida anticipada, solo sin ingreso vehicular y antes de que Almacén termine)
     -- V1.0 2026-11-09
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_SALIDA_GRUPO';
@@ -369,6 +380,20 @@ BEGIN
          WHERE "ID_Solicitud_Persona" = ANY(lv_arr) AND "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
         IF lv_n <> CARDINALITY(ARRAY(SELECT DISTINCT X FROM UNNEST(lv_arr) AS X)) THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'Alguna de las personas no pertenece a esta entrega.'; RETURN;
+        END IF;
+        -- D-245: salida anticipada. Con motivo y la entrega aún sin recepcionar: solo si es SIN ingreso vehicular. El motivo es obligatorio.
+        lv_mot := NULLIF(TRIM(COALESCE("HV_Motivo_Anticipada", '')), '');
+        SELECT O."Estado_Operativo", O."Con_Vehiculo" INTO lv_eop, lv_con FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N';
+        IF lv_mot IS NOT NULL THEN
+            IF lv_eop IN ('RECEPCIONADO','SALIO','CIERRE_FORZADO') THEN
+                lv_mot := NULL;                       -- la salida ya es normal: el motivo no aplica
+            ELSIF COALESCE(lv_con, 'Y') <> 'N' THEN
+                "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La salida anticipada solo aplica a entregas sin ingreso vehicular.'; RETURN;
+            ELSIF LENGTH(lv_mot) < 5 THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Explique el motivo de la salida anticipada (mínimo 5 caracteres).'; RETURN;
+            ELSE
+                PERFORM SET_CONFIG('caf.salida_anticipada', CAST("HV_ID_Solicitud" AS VARCHAR), TRUE);   -- HANA: variable de sesión (SET 'CAF_SALIDA_ANTICIPADA' = ...)
+            END IF;
         END IF;
         lv_lista := ',' || REPLACE(UPPER(COALESCE("HV_Items", '')), ' ', '') || ',';
         FOR lv_id IN SELECT DISTINCT X FROM UNNEST(lv_arr) AS X ORDER BY X LOOP
@@ -391,9 +416,18 @@ BEGIN
             IF lv_c <> 100 THEN
                 lv_cod_f := lv_c; lv_msg_f := LEFT(lv_nom || ': ' || lv_m, 250); RAISE EXCEPTION 'grupo';
             END IF;
+            lv_nombres := lv_nombres || CASE WHEN lv_nombres = '' THEN '' ELSE ', ' END || lv_nom;
         END LOOP;
+        IF lv_mot IS NOT NULL THEN
+            PERFORM SET_CONFIG('caf.salida_anticipada', '', TRUE);
+            CALL "ERP_CAF_EVENTO_REGISTRAR"('SOLICITUD', "HV_ID_Solicitud", "HV_ID_Solicitud", 'SALIDA_ANTICIPADA',
+                 LEFT('Salieron antes de que Almacén terminara: ' || lv_nombres || '. Motivo: ' || lv_mot, 2000), "HV_UsuarioID", lv_c, lv_m);
+            IF lv_c <> 100 THEN lv_cod_f := lv_c; lv_msg_f := lv_m; RAISE EXCEPTION 'grupo'; END IF;
+            INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Resultado","Observacion")
+            VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'SALIDA_ANTICIPADA', LEFT(lv_mot, 1000));
+        END IF;
         "HV_Codigo_Resp" := 100;
-        "HV_Mensaje"     := 'Salida registrada (' || CARDINALITY(ARRAY(SELECT DISTINCT X FROM UNNEST(lv_arr) AS X)) || ' persona(s)).';
+        "HV_Mensaje"     := 'Salida registrada' || CASE WHEN lv_mot IS NOT NULL THEN ' como ANTICIPADA (queda para el Coordinador)' ELSE '' END || ' (' || CARDINALITY(ARRAY(SELECT DISTINCT X FROM UNNEST(lv_arr) AS X)) || ' persona(s)).';
     EXCEPTION WHEN OTHERS THEN
         IF lv_cod_f IS NOT NULL THEN
             "HV_Codigo_Resp" := lv_cod_f; "HV_Mensaje" := lv_msg_f;

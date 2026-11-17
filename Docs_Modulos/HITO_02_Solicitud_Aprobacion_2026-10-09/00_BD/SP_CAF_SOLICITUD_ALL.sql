@@ -250,10 +250,10 @@ BEGIN
         -- Proveedor: el transportista principal es obligatorio y debe estar entre las personas; los demás tipos no lo usan
         IF lv_prov = 'Y' THEN
             IF "HV_ID_Persona_Principal" IS NULL OR lv_listaP NOT LIKE '%,' || CAST("HV_ID_Persona_Principal" AS VARCHAR) || ',%' THEN
-                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique el transportista principal entre las personas de la solicitud.'; RETURN;
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique el conductor principal entre las personas de la solicitud.'; RETURN;
             END IF;
         ELSIF "HV_ID_Persona_Principal" IS NOT NULL THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El transportista principal corresponde solo al ingreso de proveedores.'; RETURN;
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El conductor principal corresponde solo al ingreso de proveedores.'; RETURN;
         END IF;
 
         -- Origen («Reutilizar»): debe ser una solicitud del mismo usuario

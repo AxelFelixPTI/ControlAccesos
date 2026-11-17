@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Archivo : DATOS_DEMO_ESCENARIOS.sql   (OPCIONAL, solo pruebas; NO lo corre restaurar_bd.ps1)
--- Version : V1.0 2026-11-09
+-- Version : V1.1 2026-11-15 (fija la zona America/Lima: antes las fechas podian caer un dia despues)
 -- Requiere: scripts 01 a 26, todos los SP, y 11_SEED_DEMO_USUARIOS.sql. (No necesita DATOS_DEMO_PROVEEDOR.sql: crea lo que le falta.)
 -- Que hace: carga ~35 solicitudes de los tres tipos usando SOLO los procedimientos reales, con personas de DNI 7400NNNN:
 --   Usuarios que crea si faltan (clave Alma.Demo#2026): almacen1.demo, almacen2.demo, coordinador2.demo (2.o Coordinador).
@@ -19,20 +19,22 @@
 --   (todos @trianon.test, clave del script 11 / Alma.Demo#2026).
 -- =============================================================================
 BEGIN;
+-- Hora de Lima: la app trabaja con Timezone=America/Lima (D-129). Sin esto, CURRENT_DATE usa la zona del servidor (UTC) y de noche cae en el dia siguiente.
+SET LOCAL TIME ZONE 'America/Lima';
 SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 
-CREATE FUNCTION pg_temp.ok(p_cod INT, p_msg TEXT, p_etq TEXT) RETURNS VOID LANGUAGE plpgsql AS $f$
+CREATE OR REPLACE FUNCTION pg_temp.ok(p_cod INT, p_msg TEXT, p_etq TEXT) RETURNS VOID LANGUAGE plpgsql AS $f$
 BEGIN IF p_cod IS DISTINCT FROM 100 THEN RAISE EXCEPTION '[%] codigo %: %', p_etq, p_cod, p_msg; END IF; END $f$;
 
 -- items del checklist: todo cumple salvo el codigo indicado (marca N)
-CREATE FUNCTION pg_temp.items(p_sp BIGINT, p_etapa TEXT, p_falla TEXT) RETURNS TEXT LANGUAGE sql AS $f$
+CREATE OR REPLACE FUNCTION pg_temp.items(p_sp BIGINT, p_etapa TEXT, p_falla TEXT) RETURNS TEXT LANGUAGE sql AS $f$
   SELECT COALESCE(STRING_AGG(A."ID_Catalogo_Item_Checklist" || ':' || CASE WHEN A."Codigo" = p_falla THEN 'N' ELSE 'Y' END, ','), '')
   FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(p_sp, p_etapa, 'N', 'N') A $f$;
 
-CREATE FUNCTION pg_temp.trat(p_cod TEXT) RETURNS BIGINT LANGUAGE sql AS $f$
+CREATE OR REPLACE FUNCTION pg_temp.trat(p_cod TEXT) RETURNS BIGINT LANGUAGE sql AS $f$
   SELECT "ID_Catalogo_Tratamiento_Desviacion" FROM "Catalogo_Tratamiento_Desviacion" WHERE "Codigo" = p_cod $f$;
 
-CREATE FUNCTION pg_temp.tinc(p_cod TEXT) RETURNS BIGINT LANGUAGE sql AS $f$
+CREATE OR REPLACE FUNCTION pg_temp.tinc(p_cod TEXT) RETURNS BIGINT LANGUAGE sql AS $f$
   SELECT "ID_Catalogo_Tipo_Incidencia" FROM "Catalogo_Tipo_Incidencia" WHERE "Codigo" = p_cod $f$;
 
 DO $$
@@ -116,6 +118,15 @@ BEGIN
                 CALL "CAF_GOVERNANCE"."ERP_USUARIO_LICENCIA_AGREGAR"(r.u, v_lic, v_ves, 0, v_ul, v_cod, v_msg);
                 PERFORM pg_temp.ok(v_cod, v_msg, 'licencia ' || r.l);
             END IF;
+        END LOOP;
+    END;
+
+    -- Empresas que atienden los almaceneros demo (sin esto no pueden iniciar/detener/terminar ninguna atencion)
+    DECLARE v_ids TEXT; v_u BIGINT;
+    BEGIN
+        SELECT STRING_AGG(CAST("ID_Catalogo_Empresa_Grupo" AS TEXT), ',' ORDER BY "Orden") INTO v_ids FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y';
+        FOREACH v_u IN ARRAY ARRAY[a1, a2] LOOP
+            CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(v_u, v_ids, 0, v_cod, v_msg); PERFORM pg_temp.ok(v_cod, v_msg, 'empresas de almacen');
         END LOOP;
     END;
 
@@ -325,7 +336,7 @@ BEGIN
 
     -- 4: verificada con DESVIACION autorizada (restriccion a zona administrativa); 3: verificada conforme; 8: ingreso denegado
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sps_p[3],pg_temp.items(sps_p[3],'INGRESO',''),'N','N',NULL,NULL,NULL,NULL,NULL,NULL,NULL,vg1,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P3 verificar');
-    CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sps_p[4],pg_temp.items(sps_p[4],'INGRESO','ING_EPP'),'N','N',NULL,'El transportista no porta el EPP completo; el coordinador autoriza el ingreso restringido a la zona administrativa.',c1,pg_temp.trat('RESTRICCION_ZONA_ADM'),NULL,NULL,NULL,vg2,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P4 verificar con desviacion');
+    CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sps_p[4],pg_temp.items(sps_p[4],'INGRESO','ING_EPP'),'N','N',NULL,'El conductor no porta el EPP completo; el coordinador autoriza el ingreso restringido a la zona administrativa.',c1,pg_temp.trat('RESTRICCION_ZONA_ADM'),NULL,NULL,NULL,vg2,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P4 verificar con desviacion');
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sps_p[8],pg_temp.items(sps_p[8],'INGRESO','ING_PLACA'),'N','N',NULL,'La placa no coincide con la solicitud; el coordinador deniega el ingreso.',c2,pg_temp.trat('DENEGATORIA'),NULL,NULL,NULL,vg3,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P8 denegado');
     -- 5: verificada (En espera; la disponibilidad la confirma Almacen en vivo: la exclusa la tiene la 16)
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sps_p[5],pg_temp.items(sps_p[5],'INGRESO',''),'N','N',NULL,NULL,NULL,NULL,NULL,NULL,NULL,vg3,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P5 verificar');

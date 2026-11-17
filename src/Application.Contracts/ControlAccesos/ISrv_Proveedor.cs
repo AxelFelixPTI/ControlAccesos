@@ -16,8 +16,7 @@ public interface ISrv_Proveedor
     Task<Result<List<Dto_Proveedor_Responsable>>> ResponsablesAsync(long usuarioId, long sedeId, CancellationToken ct = default);
     Task<Result<Dto_Proveedor_Exclusa?>> ExclusaEstadoAsync(long usuarioId, long sedeId, CancellationToken ct = default);
     Task<Result> ProgramarAsync(long solicitudId, long? personalId, long usuarioId, CancellationToken ct = default);
-    Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
-    Task<Result> CancelarDisponibilidadAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default);
+    Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, CancellationToken ct = default);
     /// <summary>Vigilancia: ingreso físico de un proveedor ya verificado y con Almacén listo.</summary>
     Task<Result> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     /// <summary>Vigilancia: el proveedor verificado se retira sin ingresar (motivo obligatorio).</summary>
@@ -40,5 +39,14 @@ public interface ISrv_Proveedor
     /// <summary>D-238: Almacén termina la atención de una empresa. Sin observación la recepción es conforme.</summary>
     Task<Result> TerminarEmpresaAsync(long solicitudId, long empresaId, string? observacion, long usuarioId, CancellationToken ct = default);
     /// <summary>D-238: la empresa no será atendida (motivo de la lista; «Otro» exige detalle).</summary>
+    // D-239: varias empresas a la vez, detener y reanudar (solo quien inició la atención)
+    Task<Result> AtenderEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, long usuarioId, CancellationToken ct = default);
+    Task<Result> DetenerEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, string? motivo, long usuarioId, CancellationToken ct = default);
+    Task<Result> ReanudarEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, long usuarioId, CancellationToken ct = default);
+    Task<Result> TerminarEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, string? observacion, long usuarioId, CancellationToken ct = default);
     Task<Result> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default);
+    // D-244: panel de cupos y Ceder/Tomar la reserva
+    Task<Result<List<Dto_Proveedor_Cupo>>> CuposAsync(long usuarioId, long sedeId, CancellationToken ct = default);
+    Task<Result> CederReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
+    Task<Result> TomarReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
 }

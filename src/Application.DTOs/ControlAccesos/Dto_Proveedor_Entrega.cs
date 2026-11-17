@@ -37,6 +37,19 @@ public sealed class Dto_Proveedor_Entrega
     public string? Hora_Hasta { get; set; }                // «HH:mm»: fin de la franja estimada (informativa)
     // D-238: «COD:ESTADO;COD:ESTADO» por empresa; solo viene si la entrega tiene varias empresas
     public string? Atencion_Resumen { get; set; }
+    // D-239: CON / SIN ingreso vehicular (lo decide Almacén al confirmar la disponibilidad); null = aún no confirmada
+    public string? Modo_Ingreso { get; set; }
+    public bool Puede_Detener { get; set; }                    // D-242: detener (solo quien inició la atención de alguna empresa)
+    public bool Puede_Reanudar { get; set; }                   // D-242: hay una empresa detenida por el usuario
+    public bool Puede_Cerrar_Sin { get; set; }                 // D-242: «cerrar sin atención» sobre alguna empresa suya
+    public string? Motivo_Iniciar { get; set; }                // D-243: por qué «Iniciar atención» está bloqueado (hay empresa pendiente pero no se puede)
+    public string? Motivo_Reanudar { get; set; }               // D-243: por qué «Reanudar atención» está bloqueado
+    public bool Puede_Ceder { get; set; }                      // D-244: quien confirmó puede ceder la reserva (antes de iniciar la atención)
+    public bool Puede_Tomar { get; set; }                      // D-244: la reserva fue cedida y el usuario puede tomarla
+    public string? Motivo_Tomar { get; set; }                  // D-244: por qué «Tomar» está bloqueado (p. ej. ya tiene su cupo ocupado)
+    public string? Reserva_Nombre { get; set; }                // D-244: quién tiene la reserva (confirmó la disponibilidad)
+    public bool Pausada { get; set; }                          // D-244: en atención pero todas las empresas iniciadas están detenidas
+    public string? Conductor_Documento { get; set; }        // D-241: «DNI 12345678» del conductor principal
     public string Estado_Operativo { get; set; } = string.Empty;
     public bool Con_Desviacion { get; set; }
     public bool Disponibilidad_Confirmada { get; set; }       // «Almacén listo»: la esclusa está reservada para esta entrega
@@ -52,7 +65,6 @@ public sealed class Dto_Proveedor_Entrega
     public string? Efectivo_Nombre { get; set; }
     public bool Puede_Programar { get; set; }
     public bool Puede_Confirmar { get; set; }                  // Confirmar disponibilidad (etapa 1 del botón de Almacén)
-    public bool Puede_Cancelar_Disp { get; set; }              // Cancelar la disponibilidad
     public bool Puede_Atender { get; set; }                    // Iniciar atención (etapa 2)
     public bool Puede_Terminar { get; set; }                   // Terminar atención (etapa 3)
     public string? Motivo_Bloqueo { get; set; }

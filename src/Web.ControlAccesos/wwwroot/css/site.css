@@ -281,3 +281,7 @@ hr.sep{border:0;border-top:1px solid var(--line2);margin:8px 0}
 
 /* D-237: el asistente va centrado y no se estira en pantallas anchas */
 #caf-nueva{max-width:960px;margin-inline:auto;width:100%}
+
+/* D-245: botón ámbar de Vigilancia (Salida anticipada); el mismo tono que en Proveedores */
+.btn.btn-warn{background:#F2B53A;border-color:#D99A1E;color:#2E2000}.btn.btn-warn:hover{background:#E8A727}
+:root[data-theme="dark"] .btn.btn-warn{background:#C58A1B;border-color:#E0A23A;color:#150E00}

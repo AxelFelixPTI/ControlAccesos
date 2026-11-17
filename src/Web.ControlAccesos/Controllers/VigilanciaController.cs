@@ -61,7 +61,7 @@ public sealed class VigilanciaController : Controller
                 nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
                 restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
                 exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
-                esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, tipoCodigo = p.Tipo_Acceso_Codigo, empresaCodigo = p.Empresa_Destino_Codigo, estadoOp = p.Estado_Operativo, almacenListo = p.Disponibilidad_Confirmada,
+                esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, tipoCodigo = p.Tipo_Acceso_Codigo, empresaCodigo = p.Empresa_Destino_Codigo, estadoOp = p.Estado_Operativo, modoIngreso = p.Modo_Ingreso, almacenListo = p.Disponibilidad_Confirmada,
                 esTransportista = p.Es_Transportista, verificada = p.Verificada, franja = p.Franja_Estado,
             })
         });
@@ -287,7 +287,7 @@ public sealed class VigilanciaController : Controller
     {
         ID_Solicitud = m.SolicitudId, IDs_Persona = m.PersonasIds,
         Items = m.Items.Select(i => new Dto_Porteria_Respuesta { ID_Catalogo_Item_Checklist = i.Id, Cumple = i.Cumple }).ToList(),
-        Observacion = Vacio(m.Observacion),
+        Observacion = Vacio(m.Observacion), Motivo_Anticipada = Vacio(m.Motivo),
         Desviacion = m.Desviacion is null ? null : new Dto_Porteria_Desviacion_Entrada
         {
             Descripcion = Vacio(m.Desviacion.Descripcion), ID_Coordinador = m.Desviacion.CoordinadorId, ID_Tratamiento = m.Desviacion.TratamientoId,

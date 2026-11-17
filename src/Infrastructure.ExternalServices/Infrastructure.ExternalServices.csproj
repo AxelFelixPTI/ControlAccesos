@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <!-- Cliente SMTP moderno (reemplaza System.Net.Mail.SmtpClient, que Gmail cerraba al conectar) -->
-    <PackageReference Include="MailKit" Version="4.8.0" />
+    <PackageReference Include="MailKit" Version="4.18.2" />
   </ItemGroup>
 
   <ItemGroup>

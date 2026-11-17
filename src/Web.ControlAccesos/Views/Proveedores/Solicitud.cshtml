@@ -1,0 +1,18 @@
+@{ ViewData["Titulo"] = "Solicitud del proveedor"; ViewData["Migas"] = "Proveedores"; }
+@* D-246: detalle de solo lectura para Almacén. Reutiliza detalle.js: sin ser dueño ni aprobador, la BD no devuelve ningún botón de escritura. *@
+<div class="stack" id="caf-det" data-id="@ViewData["Id"]" data-solo-lectura="Y"
+     data-url-datos="@Url.Action("SolicitudDatos", "Proveedores")" data-url-adj="@Url.Action("Listar", "Adjuntos")">
+    @Html.AntiForgeryToken()
+    <div id="d-aviso"></div>
+    <div class="aviso a-info">Consulta de solo lectura. Aquí puede ver los datos de la solicitud, las personas, el historial y descargar los documentos adjuntos.</div>
+    <section class="card" id="d-cab"><p class="vacio">Cargando...</p></section>
+    <div id="d-adj"></div>
+    <section class="card" id="d-personas"></section>
+    <section class="card" id="d-historial"></section>
+    <p><a class="link" href="@Url.Action("Index", "Proveedores")">← Volver al calendario de entregas</a></p>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/adjuntos.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/detalle.js" asp-append-version="true"></script>

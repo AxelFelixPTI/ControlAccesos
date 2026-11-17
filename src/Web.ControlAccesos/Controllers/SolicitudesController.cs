@@ -33,13 +33,14 @@ public sealed class SolicitudesController : Controller
     private readonly ISrv_Catalogo_Zona_Acceso _zonas;
     private readonly ISrv_Catalogo_Tipo_Documento _tiposDoc;
     private readonly ISrv_Catalogo_Empresa_Grupo _empresasGrupo;
+    private readonly ISrv_Parametro _parametros;
 
     public SolicitudesController(ISrv_Solicitud sol, ISrv_Solicitud_Persona solPer, ISrv_Persona_Externa externas, ISrv_Personal personal,
         ISrv_Catalogo_Sede sedes, ISrv_Catalogo_Tipo_Acceso tipos, ISrv_Catalogo_Motivo_Visita motivos, ISrv_Catalogo_Zona_Acceso zonas,
-        ISrv_Catalogo_Tipo_Documento tiposDoc, ISrv_Catalogo_Empresa_Grupo empresasGrupo)
+        ISrv_Catalogo_Tipo_Documento tiposDoc, ISrv_Catalogo_Empresa_Grupo empresasGrupo, ISrv_Parametro parametros)
     {
         _sol = sol; _solPer = solPer; _externas = externas; _personal = personal; _sedes = sedes; _tipos = tipos; _motivos = motivos;
-        _zonas = zonas; _tiposDoc = tiposDoc; _empresasGrupo = empresasGrupo;
+        _zonas = zonas; _tiposDoc = tiposDoc; _empresasGrupo = empresasGrupo; _parametros = parametros;
     }
 
     // ── pantallas ──────────────────────────────────────────────────────────────────────────────
@@ -98,11 +99,13 @@ public sealed class SolicitudesController : Controller
                 zonas = z.Data!.Where(x => x.Activo == "Y").OrderBy(x => x.Orden).Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion, sctr = x.Exige_SCTR == "Y", epp = x.Exige_EPP == "Y" }),
             });
         }
+        var placaObl = await _parametros.PlacaObligatoriaAsync(ct);
         return Json(new
         {
             success = true,
             data = new
             {
+                placaObligatoria = placaObl,   // D-239: parámetro PLACA_OBLIGATORIA
                 tipos = tipos.Data!.Select(t => new { id = t.ID_Catalogo_Tipo_Acceso, codigo = t.Codigo, texto = t.Descripcion, usable = t.Usable, leyenda = t.Leyenda }),
                 sedes = sedesJson,
                 // El motivo fijo del contratista no se ofrece a los visitantes.
@@ -268,23 +271,27 @@ public sealed class SolicitudesController : Controller
     [HttpGet]
     public async Task<IActionResult> Datos(long id, CancellationToken ct)
     {
-        var u = User.UsuarioId();
-        var d = await _sol.DetalleAsync(u, id, ct);
-        if (!d.Success) return Falla(d.Message);
-        var per = await _sol.PersonasListarAsync(u, id, ct);
-        var his = await _sol.HistorialListarAsync(u, id, ct);
-        var tra = await _sol.TransportistasListarAsync(u, id, ct);
-        var dia = await _sol.DiasListarAsync(u, id, ct);
-        if (!tra.Success) return Falla(tra.Message);
-        if (!dia.Success) return Falla(dia.Message);
-        if (!per.Success) return Falla(per.Message);
-        if (!his.Success) return Falla(his.Message);
+        var (error, data) = await ArmarDatosAsync(_sol, User.UsuarioId(), id, ct);
+        if (error is not null) return Falla(error);
+        return Json(new { success = true, data });
+    }
+
+    /// <summary>Arma el detalle de una solicitud (lo usa también la pantalla de solo lectura de Almacén, D-246).</summary>
+    internal static async Task<(string? Error, object? Data)> ArmarDatosAsync(ISrv_Solicitud sol, long u, long id, CancellationToken ct)
+    {
+        var d = await sol.DetalleAsync(u, id, ct);
+        if (!d.Success) return (d.Message, null);
+        var per = await sol.PersonasListarAsync(u, id, ct);
+        var his = await sol.HistorialListarAsync(u, id, ct);
+        var tra = await sol.TransportistasListarAsync(u, id, ct);
+        var dia = await sol.DiasListarAsync(u, id, ct);
+        if (!tra.Success) return (tra.Message, null);
+        if (!dia.Success) return (dia.Message, null);
+        if (!per.Success) return (per.Message, null);
+        if (!his.Success) return (his.Message, null);
         var s = d.Data!;
         var franjaAprobada = dia.Data!.Count > 0 && (s.Estado == "APROBADA" || s.Estado == "APROBADA_PARCIAL");   // D-227
-        return Json(new
-        {
-            success = true,
-            data = new
+        return (null, new
             {
                 id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, sedeId = s.ID_Catalogo_Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso,
                 tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo, areaDetalle = s.Area_Detalle,
@@ -319,8 +326,7 @@ public sealed class SolicitudesController : Controller
                     subtipoId = p.ID_Tipo_Acceso_Subtipo, subtipo = p.Subtipo,   // D-234: rol de la persona
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
-            }
-        });
+            });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

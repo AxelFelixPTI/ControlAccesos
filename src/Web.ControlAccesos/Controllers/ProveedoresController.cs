@@ -8,6 +8,7 @@
 
 using System.Globalization;
 using Application.Contracts.ControlAccesos;
+using Application.DTOs.ControlAccesos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Results;
@@ -26,8 +27,9 @@ public sealed class ProveedoresController : Controller
     private readonly ISrv_Proveedor _prov;
     private readonly ISrv_Catalogo_Sede _sedes;
     private readonly ISrv_Porteria _por;
+    private readonly ISrv_Solicitud _sol;
 
-    public ProveedoresController(ISrv_Proveedor prov, ISrv_Catalogo_Sede sedes, ISrv_Porteria por) { _prov = prov; _sedes = sedes; _por = por; }
+    public ProveedoresController(ISrv_Proveedor prov, ISrv_Catalogo_Sede sedes, ISrv_Porteria por, ISrv_Solicitud sol) { _prov = prov; _sedes = sedes; _por = por; _sol = sol; }
 
     [HttpGet]
     public IActionResult Index()
@@ -38,6 +40,19 @@ public sealed class ProveedoresController : Controller
         ViewData["PuedeCoordinar"] = User.TienePermiso("PER_CAF_SOLICITUD_APROBAR");
         ViewData["PuedeVigilar"] = User.TienePermiso("PER_CAF_PROVEEDOR_VIGILANCIA");
         return View();
+    }
+
+    // D-246: Almacén consulta (solo lectura) la solicitud de proveedor de una entrega y sus documentos adjuntos.
+    // La BD decide qué solicitudes puede ver (ERP_CAF_FN_SOLICITUD_VISIBLE); aquí además se exige ser Almacén.
+    [HttpGet, ExigirPermiso(PermAlmacen)]
+    public IActionResult Solicitud(long id) { ViewData["Id"] = id; return View(); }
+
+    [HttpGet, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> SolicitudDatos(long id, CancellationToken ct)
+    {
+        var (error, data) = await SolicitudesController.ArmarDatosAsync(_sol, User.UsuarioId(), id, ct);
+        if (error is not null) return Falla(error);
+        return Json(new { success = true, data });
     }
 
     /// <summary>Entregas del rango (fechas yyyy-MM-dd) y estado de la esclusa. La pantalla lo llama al abrir, al pulsar Actualizar y cada minuto.</summary>
@@ -52,6 +67,8 @@ public sealed class ProveedoresController : Controller
         if (!r.Success) return Falla(r.Message);
         var x = await _prov.ExclusaEstadoAsync(uid, sede.Value, ct);
         var ex = x.Success ? x.Data : null;
+        var cu = await _prov.CuposAsync(uid, sede.Value, ct);                                  // D-244: panel de cupos
+        var cupos = cu.Success ? cu.Data! : new List<Dto_Proveedor_Cupo>();
         return Json(new
         {
             success = true,
@@ -61,18 +78,19 @@ public sealed class ProveedoresController : Controller
             {
                 ocupada = ex?.Ocupada ?? false, estado = ex?.Estado ?? "LIBRE", id = ex?.ID_Solicitud, codigo = ex?.Codigo, empresa = ex?.Empresa, desde = Hora(ex?.Desde), atiende = ex?.Atiende,
             },
+            cupos = cupos.Select(c => new { tipo = c.Tipo, nombre = c.Nombre, codigo = c.Codigo, solicitud = c.Solicitud, ocupa = c.Ocupa, detalle = (c.Detalle ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { codigo = t[0], estado = t[1] }), usados = c.Usados, limite = c.Limite, sinLimite = c.Limite >= int.MaxValue }),
             data = r.Data!.Select(e => new
             {
                 id = e.ID_Solicitud, codigo = e.Codigo, fecha = e.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = e.Fecha_Hora_Prevista.ToString("HH:mm"),
-                empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, telefono = e.Telefono,
+                empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, documento = e.Conductor_Documento, telefono = e.Telefono,
                 numerosOc = (e.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries), empresaTransportista = e.Empresa_Transportista, horaHasta = e.Hora_Hasta,   // D-237
                 atencion = (e.Atencion_Resumen ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { codigo = t[0], estado = t[1] }),   // D-238
                 placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, transportistas = e.Transportistas_Total, verificados = e.Transportistas_Verificados, dentro = e.Transportistas_Dentro, salieron = e.Transportistas_Salieron, ayudantes = e.Ayudantes_Total, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,
-                disponible = e.Disponibilidad_Confirmada, disponibleDesde = Hora(e.Fecha_Disponibilidad),
+                disponible = e.Disponibilidad_Confirmada, modoIngreso = e.Modo_Ingreso, disponibleDesde = Hora(e.Fecha_Disponibilidad),
                 llegada = Hora(e.Fecha_Llegada), ingreso = Hora(e.Fecha_Ingreso), inicio = Hora(e.Fecha_Inicio_Atencion), recepcion = Hora(e.Fecha_Recepcion), salida = Hora(e.Fecha_Salida),
                 resultado = e.Resultado_Recepcion, programadoId = e.ID_Personal_Programado, programado = e.Programado_Nombre, efectivo = e.Efectivo_Nombre,
-                puedeProgramar = e.Puede_Programar, puedeConfirmar = e.Puede_Confirmar, puedeCancelarDisp = e.Puede_Cancelar_Disp,
-                puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, motivoBloqueo = e.Motivo_Bloqueo, esMia = e.Es_Solicitante, puedeCancelarSol = e.Puede_Cancelar_Sol, motivoNoCancelarSol = e.Motivo_No_Cancelar_Sol,
+                puedeProgramar = e.Puede_Programar, puedeConfirmar = e.Puede_Confirmar,
+                puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, puedeDetener = e.Puede_Detener, puedeReanudar = e.Puede_Reanudar, puedeCerrar = e.Puede_Cerrar_Sin, motivoIniciar = e.Motivo_Iniciar, motivoReanudar = e.Motivo_Reanudar, puedeCeder = e.Puede_Ceder, puedeTomar = e.Puede_Tomar, motivoTomar = e.Motivo_Tomar, reservaNombre = e.Reserva_Nombre, pausada = e.Pausada, motivoBloqueo = e.Motivo_Bloqueo, esMia = e.Es_Solicitante, puedeCancelarSol = e.Puede_Cancelar_Sol, motivoNoCancelarSol = e.Motivo_No_Cancelar_Sol,
             }),
         });
     }
@@ -95,19 +113,27 @@ public sealed class ProveedoresController : Controller
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 
-    /// <summary>Etapa 1 del botón de Almacén: confirma disponibilidad y reserva la esclusa.</summary>
+    /// <summary>D-239: Almacén confirma la disponibilidad (solo tras la verificación de Vigilancia) y elige CON o SIN ingreso vehicular. No se puede deshacer.</summary>
     [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
-    public async Task<IActionResult> ConfirmarDisponibilidad([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    public async Task<IActionResult> ConfirmarDisponibilidad([FromBody] ProveedorDisponibilidadVM m, CancellationToken ct)
     {
-        var r = await _prov.ConfirmarDisponibilidadAsync(m.SolicitudId, User.UsuarioId(), ct);
+        var r = await _prov.ConfirmarDisponibilidadAsync(m.SolicitudId, m.ConVehiculo, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 
-    /// <summary>Retira la disponibilidad (con motivo) y libera la esclusa; solo antes del ingreso.</summary>
+    /// <summary>D-244: quien confirmó la disponibilidad cede la reserva (solo antes de iniciar la atención) para que otro almacenero de esas empresas la tome.</summary>
     [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
-    public async Task<IActionResult> CancelarDisponibilidad([FromBody] ProveedorCancelarDispVM m, CancellationToken ct)
+    public async Task<IActionResult> CederReserva([FromBody] ProveedorAtenderVM m, CancellationToken ct)
     {
-        var r = await _prov.CancelarDisponibilidadAsync(m.SolicitudId, m.Motivo, User.UsuarioId(), ct);
+        var r = await _prov.CederReservaAsync(m.SolicitudId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-244: otro almacenero toma la reserva cedida; desde ahí es él quien inicia la atención (si tiene cupo).</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> TomarReserva([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    {
+        var r = await _prov.TomarReservaAsync(m.SolicitudId, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 
@@ -141,7 +167,7 @@ public sealed class ProveedoresController : Controller
                 {
                     id = a.ID_Empresa, codigo = a.Codigo, nombre = a.Empresa, estado = a.Estado, resultado = a.Resultado, observacion = a.Observacion, motivo = a.Motivo,
                     inicio = Hora(a.Fecha_Inicio), fin = Hora(a.Fecha_Fin), atiende = a.Atiende, autorizado = a.Autorizado,
-                    puedeAtender = a.Puede_Atender, puedeRecepcionar = a.Puede_Recepcionar, puedeCerrar = a.Puede_Cerrar_Sin, motivoNo = a.Motivo_No,
+                    puedeAtender = a.Puede_Atender, puedeDetener = a.Puede_Detener, puedeReanudar = a.Puede_Reanudar, motivoDetencion = a.Motivo_Detencion, puedeRecepcionar = a.Puede_Recepcionar, puedeCerrar = a.Puede_Cerrar_Sin, motivoNo = a.Motivo_No,
                 }),
                 motivos = (m.Data ?? new()).Select(x => new { id = x.ID_Motivo, texto = x.Descripcion, otro = x.Es_Otro }),
             }
@@ -159,6 +185,35 @@ public sealed class ProveedoresController : Controller
     public async Task<IActionResult> TerminarEmpresa([FromBody] ProveedorEmpresaTerminarVM m, CancellationToken ct)
     {
         var r = await _prov.TerminarEmpresaAsync(m.SolicitudId, m.EmpresaId, m.Observacion, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-239: inicia la atención de una o varias empresas a la vez (las que tengan cupo; el resto se informa en el mensaje).</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> AtenderEmpresas([FromBody] ProveedorEmpresasVM m, CancellationToken ct)
+    {
+        var r = await _prov.AtenderEmpresasAsync(m.SolicitudId, m.EmpresasIds, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> DetenerEmpresas([FromBody] ProveedorEmpresasVM m, CancellationToken ct)
+    {
+        var r = await _prov.DetenerEmpresasAsync(m.SolicitudId, m.EmpresasIds, m.Motivo, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> ReanudarEmpresas([FromBody] ProveedorEmpresasVM m, CancellationToken ct)
+    {
+        var r = await _prov.ReanudarEmpresasAsync(m.SolicitudId, m.EmpresasIds, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> TerminarEmpresas([FromBody] ProveedorEmpresasVM m, CancellationToken ct)
+    {
+        var r = await _prov.TerminarEmpresasAsync(m.SolicitudId, m.EmpresasIds, m.Observacion, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

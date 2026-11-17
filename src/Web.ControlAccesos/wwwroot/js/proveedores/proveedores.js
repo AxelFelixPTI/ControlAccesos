@@ -7,7 +7,7 @@
     var raiz = document.getElementById('caf-prov');
     if (!raiz) return;
     var el = CAF.el, d = raiz.dataset, almacen = d.puedeAlmacen === 'Y';
-    var vista = 'SEMANA', ancla = lunes(new Date()), anclado = false, hoy = null, datos = [], exclusa = null, cargado = { desde: '', hasta: '' }, secuencia = 0;
+    var vista = 'SEMANA', ancla = lunes(new Date()), anclado = false, hoy = null, datos = [], exclusa = null, cupos = [], cargado = { desde: '', hasta: '' }, secuencia = 0;
     var cal = document.getElementById('pv-cal'), titulo = document.getElementById('pv-titulo'), hora = document.getElementById('pv-hora');
     var avExc = document.getElementById('pv-exclusa');
 
@@ -19,6 +19,7 @@
         EN_ESPERA: ['En espera', 'st-esp', 'st-esp', 'Vigilancia verificó sus datos; espera que Almacén confirme disponibilidad y se valide el ingreso.'],
         INGRESO: ['Ingreso', 'st-ing', 'st-ing', 'Ya ingresó físicamente; espera que Almacén inicie la atención.'],
         EN_ATENCION: ['En atención', 'st-aten', 'st-aten', 'Almacén lo está recibiendo en la exclusa.'],
+        PAUSADA: ['Pausada', 'st-pau', 'st-pau', 'En atención, pero todas las empresas que ya se iniciaron están detenidas; falta reanudarlas o terminarlas.'],
         RECEPCIONADO: ['Recepción culminada', 'st-rec', 'st-rec', 'Almacén terminó; sigue dentro hasta que Vigilancia registre su salida.'],
         SALIO: ['Salió', 'st-sal', 'st-sal', 'Entrega cerrada.'],
         NO_SE_PRESENTO: ['No se presentó', 'st-nop', 'st-nop', 'No llegó en el día.'],
@@ -27,7 +28,7 @@
         RETIRO_SIN_INGRESO: ['Retiró sin ingresar', 'st-ret', 'st-ret', 'Fue verificado pero se retiró sin ingresar (lo registra Vigilancia).']
     };
     // D-238: estado de la atención por empresa [rótulo, clase]
-    var ATENCION = { PENDIENTE: ['Pendiente', 'at-pen'], EN_ATENCION: ['En atención', 'at-ing'], ATENDIDA: ['Atendida', 'at-ok'], CERRADA_SIN_ATENCION: ['Sin atención', 'at-sin'] };
+    var ATENCION = { PENDIENTE: ['Pendiente', 'at-pen'], EN_ATENCION: ['En atención', 'at-ing'], DETENIDA: ['Detenida', 'at-pau'], ATENDIDA: ['Atendida', 'at-ok'], CERRADA_SIN_ATENCION: ['Sin atención', 'at-sin'] };
     var EMPRESAS = {
         TRIANON_ENERGO: ['Trianon Energo', 'TE', 'em-te'], POWER_TECHNOLOGY: ['Power Technology', 'PT', 'em-pt'],
         TRIANON_ASCENSORES: ['Trianon Ascensores', 'TA', 'em-ta'], TRIANON_SOSTENIBLE: ['Trianon Sostenible', 'TS', 'em-ts']
@@ -44,8 +45,10 @@
         try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (x) { /* sin historial: no pasa nada */ }
     }
     function pasa(e) {
-        return (!filtro.emp || codigos(e).indexOf(filtro.emp) >= 0) && (!filtro.est || e.estado === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
+        return (!filtro.emp || codigos(e).indexOf(filtro.emp) >= 0) && (!filtro.est || estadoVisual(e) === filtro.est) && (!filtro.fec || e.fecha === filtro.fec);
     }
+    // D-244: «Pausada» no es un estado de la base: es la entrega en atención cuyas empresas iniciadas están todas detenidas
+    function estadoVisual(e) { return e.pausada && e.estado === 'EN_ATENCION' ? 'PAUSADA' : e.estado; }
     // D-236: una entrega puede estar ligada a 1 a 4 empresas (destinoCodigo = códigos separados por coma)
     function codigos(e) { return String(e.destinoCodigo || '').split(',').filter(Boolean); }
     function emp(e) { return EMPRESAS[codigos(e)[0]] || [e.destino || '—', '··', 'em-xx']; }
@@ -70,7 +73,7 @@
         return CAF.pedir(d.urlDatos + '?desde=' + r.desde + '&hasta=' + r.hasta).then(function (res) {
             if (mi !== secuencia) return;
             if (!res.success) { if (!silencioso) CAF.aviso(res.message || 'No se pudo cargar el calendario.', 'warn'); return; }
-            hoy = res.hoy; datos = res.data || []; exclusa = res.exclusa; cargado = r;
+            hoy = res.hoy; datos = res.data || []; exclusa = res.exclusa; cupos = res.cupos || []; cargado = r;
             if (!anclado) {
                 // Primera carga: el «hoy» es el del servidor. Si cambia el rango visible, se vuelve a pedir.
                 anclado = true; ancla = vista === 'MES' ? aFecha(hoy) : lunes(aFecha(hoy));
@@ -130,6 +133,36 @@
         }
     }
 
+    // D-244: panel de cupos. Muestra quién ocupa qué solicitud (como la exclusa) y cuántos cupos hay usados por almacenero y por empresa.
+    function pintarCupos() {
+        var c = document.getElementById('pv-cupos'); if (!c) return;
+        c.textContent = '';
+        if (!almacen || !cupos.length) return;
+        var alm = cupos.filter(function (t) { return t.tipo === 'ALMACENERO'; }), ems = cupos.filter(function (t) { return t.tipo === 'EMPRESA'; });
+        function lim(t) { return t.sinLimite ? 'sin límite' : String(t.limite); }
+        var guardado = null; try { guardado = localStorage.getItem('pv-cupos'); } catch (x) { /* sin almacenamiento: queda abierto */ }
+        var det = el('details', guardado === 'cerrado' ? {} : { open: '' });
+        det.addEventListener('toggle', function () { try { localStorage.setItem('pv-cupos', det.open ? 'abierto' : 'cerrado'); } catch (x) { /* nada */ } });
+        det.appendChild(el('summary', { text: 'Cupos de atención' + (alm.length ? ' · ' + alm.length + (alm.length === 1 ? ' entrega ocupa cupo de almacenero' : ' entregas ocupan cupo de almacenero') : '') }));
+        var izq = el('div', {}, [el('h4', { text: 'Almaceneros' })]), der = el('div', {}, [el('h4', { text: 'Empresas' })]);
+        if (!alm.length) izq.appendChild(el('p', { class: 'pv-cupo-vacio', text: 'Nadie tiene una entrega reservada ni en atención.' }));
+        else izq.appendChild(el('ul', {}, alm.map(function (t) {
+            var chips = (t.detalle || []).map(function (a) {
+                var x = EMPRESAS[a.codigo], s = ATENCION[a.estado] || [a.estado, ''];
+                return el('span', { class: 'pv-aten-i ' + s[1], title: (x ? x[0] : a.codigo) + ': ' + s[0] }, [el('span', { class: 'pv-em ' + (x ? x[2] : 'em-xx'), text: x ? x[1] : '··' }), ' ' + s[0]]);
+            });
+            return el('li', {}, [el('span', { class: 'pv-cupo-n', text: t.nombre }), el('span', { class: 'pv-cupo-tag' + (t.ocupa === 'ATENCION' ? ' at' : ''), text: t.ocupa === 'ATENCION' ? 'atendiendo' : 'reservó' }), el('span', { text: t.solicitud || '' })].concat(chips, [el('span', { class: 'small muted', text: '(' + t.usados + ' de ' + lim(t) + ')' })]));
+        })));
+        der.appendChild(el('ul', {}, ems.map(function (t) {
+            var x = EMPRESAS[t.codigo], lleno = !t.sinLimite && t.usados >= t.limite;
+            return el('li', {}, [el('span', { class: 'pv-em ' + (x ? x[2] : 'em-xx'), text: x ? x[1] : '··', title: t.nombre }),
+                el('span', { class: lleno ? 'pv-cupo-lleno' : '', text: (x ? x[1] : t.codigo) + ': ' + (t.sinLimite ? t.usados + ' ocupados (sin límite)' : t.usados + ' de ' + t.limite + ' ocupados') }),
+                t.solicitud ? el('span', { class: 'small muted', text: t.solicitud }) : null]);
+        })));
+        det.appendChild(el('div', { class: 'pv-cupos-g' }, [izq, der]));
+        c.appendChild(det);
+    }
+
     function pintarFiltros() {
         var c = document.getElementById('pv-filtros'); c.textContent = '';
         function sel(rot, k, ops) {
@@ -174,7 +207,7 @@
     }
 
     function pintar() {
-        pintarVistas(); pintarExclusa();
+        pintarVistas(); pintarExclusa(); pintarCupos();
         var n = datos.filter(pasa).length, cu = document.getElementById('pv-cuenta');
         if (cu) cu.textContent = n + (n === 1 ? ' entrega' : ' entregas') + (filtro.emp || filtro.est || filtro.fec ? ' con los filtros' : ' en el rango');
         cal.textContent = '';
@@ -221,7 +254,7 @@
                     onclick: function () { vista = 'SEMANA'; ancla = lunes(dia); var rr = rangoVisible(); if (rr.desde !== cargado.desde) cargar(); else pintar(); } },
                     [el('span', { class: 'pv-celda-n', text: String(dia.getDate()) })]);
                 lista.slice(0, 3).forEach(function (e) {
-                    celda.appendChild(el('span', { class: 'pv-mini' }, [el('span', { class: 'pv-punto ' + (ESTADO[e.estado] ? ESTADO[e.estado][2] : '') })].concat(chipsEmp(e), [el('span', { text: e.hora + ' ' + e.empresa })])));
+                    celda.appendChild(el('span', { class: 'pv-mini' }, [el('span', { class: 'pv-punto ' + (ESTADO[estadoVisual(e)] ? ESTADO[estadoVisual(e)][2] : '') })].concat(chipsEmp(e), [el('span', { text: e.hora + ' ' + e.empresa })])));
                 });
                 if (lista.length > 3) celda.appendChild(el('span', { class: 'pv-mas', text: '+' + (lista.length - 3) + ' más' }));
                 cont.appendChild(celda);
@@ -231,25 +264,26 @@
     }
 
     function tarjeta(e) {
-        var est = ESTADO[e.estado] || [e.estado, 'st-prog', '', ''], em = emp(e);
+        var est = ESTADO[estadoVisual(e)] || [e.estado, 'st-prog', '', ''], em = emp(e);
         // Reserva = la regla que ya existe: la entrega es la titular de la exclusa. Se mantiene hasta que Vigilancia registra la salida (el camión sale por la misma exclusa).
         var reserva = !!(exclusa && exclusa.ocupada && exclusa.id === e.id), porSalir = reserva && e.estado === 'RECEPCIONADO';
         var marcas = el('div', { class: 'pv-marcas' });
-        if (e.disponible && (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO')) marcas.appendChild(el('span', { class: 'pv-marca pv-m-ok', text: 'Almacén listo' + (e.disponibleDesde ? ' ' + e.disponibleDesde : '') }));
+        if (e.disponible && !e.modoIngreso && (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO')) marcas.appendChild(el('span', { class: 'pv-marca pv-m-ok', text: 'Almacén listo' + (e.disponibleDesde ? ' ' + e.disponibleDesde : '') }));
         if (e.conDesviacion) marcas.appendChild(el('span', { class: 'pv-marca pv-m-dev', text: 'Con desviación' }));
-        var c = el('article', { class: 'pv-card ' + em[2] + ' e-' + e.estado.toLowerCase() + (reserva ? ' pv-reserva' : '') }, [
+        var c = el('article', { class: 'pv-card ' + em[2] + ' e-' + estadoVisual(e).toLowerCase() + (reserva ? ' pv-reserva' : '') }, [
             reserva ? el('div', { class: 'pv-cinta' }, [porSalir ? 'POR SALIR · EXCLUSA OCUPADA' : 'EXCLUSA RESERVADA']) : null,
-            el('div', { class: 'pv-card-h' }, chipsEmp(e).concat([el('b', { text: e.empresa }), el('span', { class: 'pv-hora', text: e.hora })])),
-            el('div', { class: 'pv-estado' }, [el('span', { class: 'pv-st ' + est[1], text: est[0] })]),
+            el('div', { class: 'pv-card-h' }, chipsEmp(e).concat([el('b', { text: e.empresa, title: e.ruc ? 'RUC del proveedor: ' + e.ruc : '' }), el('span', { class: 'pv-hora', text: e.hora })])),
+            el('div', { class: 'pv-estado' }, [el('span', { class: 'pv-st ' + est[1], text: est[0] })].concat(e.modoIngreso ? [el('span', { class: 'pv-modo ' + (e.modoIngreso === 'CON' ? 'pv-modo-con' : 'pv-modo-sin'), title: e.modoIngreso === 'CON' ? 'El vehículo ingresa por la esclusa' : 'El vehículo no ingresa; las personas entran a pie', text: e.modoIngreso === 'CON' ? 'Con ingreso vehicular' : 'Sin ingreso vehicular' })] : [])),
             marcas
         ]);
         if (!marcas.firstChild) c.removeChild(marcas);
         function linea(rotulo, valor) { if (valor) c.appendChild(el('div', { class: 'pv-linea' }, [el('b', { text: rotulo + ' ' }), valor])); }
         // D-225: con varios transportistas o con ayudantes de descarga se muestra el avance por persona
         var porPersona = e.transportistas > 1 || e.ayudantes > 0;
-        linea('OC:', (e.numerosOc || []).join(', '));
+        // D-241: solo lo útil para atender; la OC sin el prefijo, el conductor con su documento, sin repetir la empresa que recibe (ya va en la etiqueta) ni el RUC (queda en el título del proveedor)
+        linea('OC:', (e.numerosOc || []).map(function (x) { return String(x).replace(/^\s*OC[\s-]*/i, ''); }).join(', '));
         linea('Transporte:', e.empresaTransportista);
-        linea('Conductor:', e.transportista + (e.telefono ? ' · ' + e.telefono : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
+        linea('Conductor:', e.transportista + (e.documento ? ' · ' + e.documento : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
         if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' conductor' : ' conductores') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
             (e.salieron ? ' · salieron ' + e.salieron : '') + (e.ayudantes ? ' · ' + e.ayudantes + (e.ayudantes === 1 ? ' ayudante' : ' ayudantes') + ' de descarga' : ''));
         // D-238: con varias empresas, el estado de la atención de cada una
@@ -260,10 +294,10 @@
             }));
             linea('Atención:', chips);
         }
+        // D-244: quién tiene la reserva (confirmó la disponibilidad) mientras la atención no empieza; si la cedió, queda libre para tomar
+        if (almacen && e.disponible && !e.inicio && (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO')) linea('Reserva:', e.reservaNombre ? e.reservaNombre : el('span', { class: 'pv-cupo-n', text: 'cedida · cualquier almacenero de la empresa puede tomarla' }));
         linea('Vehículo:', [e.placa, e.marca].filter(Boolean).join(' · '));
-        linea('Recibe:', e.destino);
-        linea('RUC:', e.ruc);
-        linea('Nota:', e.observaciones);
+        linea('Detalle:', e.observaciones);
         c.appendChild(el('div', { class: 'pv-resp' }, [
             e.efectivo ? el('div', { class: 'pv-linea' }, [el('b', { text: 'Atiende: ' }), e.efectivo]) : null
         ]));
@@ -290,13 +324,28 @@
             l.push(['Duplicar', d.urlSolNueva + '?reutilizar=' + e.id, 'Crea una solicitud nueva a partir de esta']);
             pie = e;
         }
-        if (d.puedeCoordinar === 'Y') l.push([e.estado === 'PROGRAMADO' ? 'Revisar / emergencia' : 'Ver en Coordinación', d.urlCoord + '?solicitud=' + e.id, e.estado === 'PROGRAMADO' ? 'Abre la solicitud para revisarla o corregir personas en emergencia' : 'Abre la solicitud (con la entrega ya en curso solo se consulta)']);
+        // D-243: nombres y colores propios por acción (Coordinador: Revisar solicitud / Ver solicitud (en curso) / Ver solicitud)
+        if (d.puedeCoordinar === 'Y') {
+            var estC = e.estado;
+            var rev = estC === 'PROGRAMADO' || estC === 'EN_ESPERA';
+            var cur = estC === 'INGRESO' || estC === 'EN_ATENCION' || estC === 'RECEPCIONADO';
+            l.push([rev ? 'Revisar solicitud' : (cur ? 'Ver solicitud (en curso)' : 'Ver solicitud'), d.urlCoord + '?solicitud=' + e.id,
+                    rev ? 'Abre la solicitud para revisarla o corregir personas en emergencia' : (cur ? 'Abre la solicitud con la entrega en curso (se consulta y se corrige en emergencia)' : 'Abre la solicitud (solo consulta)'),
+                    rev ? 'pv-b-rev' : (cur ? 'pv-b-cur' : 'pv-b-ver')]);
+        }
+        // D-246: Almacén consulta la solicitud del proveedor (datos, personas, historial y documentos), solo lectura.
+        if (almacen && !l.some(function (x) { return /^Ver solicitud|^Revisar solicitud/.test(x[0]); }))
+            l.push(['Ver solicitud', d.urlSolVer.replace('__ID__', e.id), 'Abre la solicitud del proveedor y sus documentos (solo consulta)', 'pv-b-ver']);
         if (d.puedeVigilar === 'Y') {
+            var sinAt = e.modoIngreso === 'SIN' && e.disponible && (e.estado === 'EN_ATENCION' || e.estado === 'INGRESO');   // D-243: sin vehículo Vigilancia sigue validando ingresos mientras Almacén atiende
             var t = { PROGRAMADO: 'Verificar datos', EN_ESPERA: 'Validar ingreso', RECEPCIONADO: 'Registrar salida', CIERRE_FORZADO: 'Registrar salida (tardía)' }[e.estado];
-            if (t) l.push([t, d.urlVig + '?solicitud=' + e.id, 'Abre Control de accesos con esta entrega']);
+            var cls = { 'Verificar datos': 'pv-b-vf', 'Validar ingreso': 'pv-b-vi' }[t] || 'pv-b-vs';
+            if (e.estado === 'EN_ESPERA' && e.transportistas > e.verificados) { l.push(['Verificar datos', d.urlVig + '?solicitud=' + e.id, 'Falta verificar a un conductor agregado', 'pv-b-vf']); }   // D-243: conductor agregado con otro ya verificado
+            if (t) l.push([t, d.urlVig + '?solicitud=' + e.id, 'Abre Control de accesos con esta entrega', cls]);
+            else if (sinAt) l.push(['Validar ingreso', d.urlVig + '?solicitud=' + e.id, 'Registra el ingreso de las personas (no depende de la atención de Almacén)', 'pv-b-vi']);
         }
         if (!l.length) return null;
-        var caja = el('div', { class: 'pv-ir' }, l.map(function (x) { return el('a', { class: 'btn btn-sm', href: x[1], text: x[0], title: x[2] }); }));
+        var caja = el('div', { class: 'pv-ir' }, l.map(function (x) { return el('a', { class: 'btn btn-sm' + (x[3] ? ' ' + x[3] : ''), href: x[1], text: x[0], title: x[2] }); }));
         if (pie) {
             var bc = el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar' });
             if (e.puedeCancelarSol) bc.addEventListener('click', function () { modalCancelarSolicitud(e); });
@@ -328,29 +377,52 @@
     function acciones(e) {
         if (!almacen) return null;
         var caja = el('div', { class: 'pv-acc' }), hay = false;
-        function boton(texto, fn, primario, off, ayuda) {
+        function boton(texto, fn, primario, off, ayuda, extra) {
             hay = true;
-            var b = el('button', { type: 'button', class: 'btn btn-sm' + (primario ? ' btn-primary' : '') + (off ? ' is-off' : ''), text: texto });
+            var b = el('button', { type: 'button', class: 'btn btn-sm' + (primario ? ' btn-primary' : '') + (extra ? ' ' + extra : '') + (off ? ' is-off' : ''), text: texto });
             if (off) { b.disabled = true; if (ayuda) b.title = ayuda; } else b.addEventListener('click', fn);
             caja.appendChild(b);
         }
-        // D-236: ya no se asigna un almacenero responsable; Almacén se registra al «Iniciar atención»
-        // Botón único con tres etapas: Confirmar disponibilidad → Iniciar atención → Terminar atención.
-        if (e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA') {
+        // D-239/D-242: antes del ingreso, Confirmar disponibilidad; ya dentro, los botones dependen de lo que el almacenero puede hacer sobre esta entrega:
+        //   Iniciar (verde) mientras queden empresas por iniciar · Detener o Reanudar (ámbar, según el estado) · Terminar (rojo).
+        var sinVeh = e.modoIngreso === 'SIN' && e.disponible;                    // D-243: sin vehículo Almacén atiende sin esperar el ingreso
+        var textos = [];
+        // D-244: reserva cedida → «Tomar» (bloqueado con su motivo si ya tiene su cupo ocupado)
+        if (e.puedeTomar) boton('Tomar reserva', function () { accionReserva(e, 'TOMAR'); }, true, false, '', 'pv-b-ini');
+        else if (e.motivoTomar) { boton('Tomar reserva', null, true, true, e.motivoTomar, 'pv-b-ini'); textos.push(e.motivoTomar); }
+        if (e.estado === 'PROGRAMADO' || (e.estado === 'EN_ESPERA' && !sinVeh)) {
             if (e.puedeConfirmar) boton('Confirmar disponibilidad', function () { modalConfirmar(e); }, true);
             else if (!(e.estado === 'EN_ESPERA' && e.disponible)) boton('Confirmar disponibilidad', null, true, true, motivo(e));
-            if (e.puedeCancelarDisp) boton('Cancelar disponibilidad', function () { modalCancelarDisp(e); });
-        } else if (e.atencion && e.atencion.length && (e.estado === 'INGRESO' || e.estado === 'EN_ATENCION')) {
-            // D-238: varias empresas: la atención se lleva por empresa; cada almacenero solo actúa sobre las suyas
-            boton('Atención por empresa', function () { modalEmpresas(e); }, true, !e.puedeAtender, 'Ninguna de las empresas pendientes de esta entrega es de las que usted atiende.');
-        } else if (e.estado === 'INGRESO') {
-            boton('Iniciar atención', function () { modalAtender(e); }, true, !e.puedeAtender, motivo(e));
-        } else if (e.estado === 'EN_ATENCION') {
-            boton('Terminar atención', function () { modalTerminar(e); }, true, !e.puedeTerminar, motivo(e));
+            if (e.puedeCeder) { hay = true; caja.appendChild(el('button', { type: 'button', class: 'pv-enlace', text: 'Ceder reserva…', title: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', onclick: function () { accionReserva(e, 'CEDER'); } })); }
+        } else if (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO' || e.estado === 'EN_ATENCION') {
+            // D-243: lo que no se puede usar ahora se ve bloqueado (con su razón), no habilitado
+            if (e.puedeAtender) boton('Iniciar atención', function () { accionAtencion(e, 'INICIAR'); }, true, false, '', 'pv-b-ini');
+            else if (e.motivoIniciar) { boton('Iniciar atención', null, true, true, e.motivoIniciar, 'pv-b-ini'); textos.push(e.motivoIniciar); }
+            if (e.puedeDetener) boton('Detener atención', function () { accionAtencion(e, 'DETENER'); }, false, false, '', 'btn-warn');
+            if (e.puedeReanudar) boton('Reanudar atención', function () { accionAtencion(e, 'REANUDAR'); }, false, false, '', 'btn-warn');
+            else if (e.motivoReanudar) { boton('Reanudar atención', null, false, true, e.motivoReanudar, 'btn-warn'); textos.push(e.motivoReanudar); }
+            if (e.puedeTerminar) boton('Terminar atención', function () { accionAtencion(e, 'TERMINAR'); }, false, false, '', 'btn-danger');
+            if (!hay) boton('Iniciar atención', null, true, true, motivo(e) || 'Ninguna empresa de esta entrega es de las que usted atiende.', 'pv-b-ini');
+            if (e.puedeCeder) { hay = true; caja.appendChild(el('button', { type: 'button', class: 'pv-enlace', text: 'Ceder reserva…', title: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', onclick: function () { accionReserva(e, 'CEDER'); } })); }
+            if (e.puedeCerrar) {
+                hay = true;
+                caja.appendChild(el('button', { type: 'button', class: 'pv-enlace', text: 'Cerrar sin atención…', title: 'Una empresa de la entrega no será atendida (queda registrado con el motivo)', onclick: function () { modalCerrarSin(e); } }));
+            }
         }
-        var m = (e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA' || e.estado === 'INGRESO') && !(e.puedeConfirmar || e.puedeAtender) ? motivo(e) : '';
+        var m = textos.length ? textos[0] : ((e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA' || e.estado === 'INGRESO') && !(e.puedeConfirmar || e.puedeAtender) ? motivo(e) : '');
         if (m) caja.appendChild(el('div', { class: 'pv-motivo', text: m }));
         return hay ? caja : null;
+    }
+
+    // D-244: ceder la reserva (con confirmación) o tomar la que cedieron
+    function accionReserva(e, tipo) {
+        if (tipo === 'TOMAR') { enviar(d.urlTomar, { solicitudId: e.id }, { disabled: false }, function () { }); return; }
+        var cuerpo = el('div', { class: 'stack' }, [el('p', { text: 'Va a ceder su reserva de ' + e.codigo + ' (' + e.empresa + '). Quedará libre para que otro almacenero de esas empresas la tome y la inicie; usted dejará de ocupar su cupo con ella.' })]);
+        var env = false;
+        CAF.modal('Ceder reserva', cuerpo, [
+            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Ceder reserva', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlCeder, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; }); } }
+        ]);
     }
 
     function motivo(e) {
@@ -373,126 +445,118 @@
 
     function botonDe(ev) { return ev && ev.currentTarget ? ev.currentTarget : { disabled: false }; }
 
+    // D-239/D-242: la disponibilidad no es anticipada (solo tras la verificación de Vigilancia) y Almacén decide si el vehículo ingresa o no. No se puede deshacer.
     function modalConfirmar(e) {
-        var cuerpo = el('p', { class: 'pv-modal-p' }, ['¿Confirmas que Almacén está disponible para atender a este proveedor? Esto reservará la exclusa para esta entrega. El proveedor no podrá ser atendido hasta que Vigilancia valide su ingreso físico, y podrás cancelar la disponibilidad mientras no haya ingresado.']);
+        var elegido = null, err = el('span', { class: 'field-e' });
+        var cajas = [];
+        function opcion(valor, titulo, ayuda, glifo) {
+            var inp = el('input', { type: 'radio', name: 'pv-modo', value: valor });
+            var lab = el('label', { class: 'pv-opcion' }, [inp, el('span', { class: 'pv-opcion-i', 'aria-hidden': 'true', text: glifo }), el('b', { text: titulo }), el('span', { class: 'pv-opcion-a', text: ayuda })]);
+            inp.addEventListener('change', function () { elegido = valor; err.textContent = ''; cajas.forEach(function (c) { c.classList.toggle('sel', c === lab); }); });
+            cajas.push(lab); return lab;
+        }
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('p', { class: 'pv-modal-p', text: 'Elija cómo se atenderá a este proveedor. Los conductores ya fueron verificados por Vigilancia.' }),
+            el('div', { class: 'pv-opciones', role: 'radiogroup', 'aria-label': 'Ingreso vehicular' }, [
+                opcion('Y', 'Con ingreso vehicular', 'El vehículo entra por la esclusa, que queda reservada para esta entrega hasta su salida.', '🚚'),
+                opcion('N', 'Sin ingreso vehicular', 'No se usa la esclusa; las personas ingresan a pie.', '🚶')]),
+            el('p', { class: 'pv-aviso-irrev', text: 'Esta decisión no se puede deshacer.' }), err
+        ]);
         var env = false;
         CAF.modal('Confirmar disponibilidad · ' + e.empresa, cuerpo, [
-            { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Confirmar disponibilidad', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlConfirmar, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; }); } }
-        ]);
-    }
-
-    function modalCancelarDisp(e) {
-        var mot = el('textarea', { rows: '3', maxlength: '500', placeholder: 'Ej.: el proveedor no llegó y otro ya espera' });
-        var err = el('span', { class: 'field-e' });
-        var cuerpo = el('div', { class: 'stack' }, [
-            el('p', { class: 'pv-modal-p', text: 'Se liberará la exclusa para poder confirmar la disponibilidad de otro proveedor que esté en espera. Esta entrega volverá a esperar una nueva confirmación.' }),
-            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo (obligatorio)' }), mot, err])
-        ]);
-        var env = false;
-        CAF.modal('Cancelar disponibilidad · ' + e.empresa, cuerpo, [
             { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Cancelar disponibilidad', tipo: 'primary', onclick: function (cerrar) {
+            { texto: 'Confirmar disponibilidad', tipo: 'primary', onclick: function (cerrar) {
                 if (env) return;
-                if (mot.value.trim().length < 3) { err.textContent = 'Indique el motivo de la cancelación.'; mot.focus(); return; }
-                env = true; enviar(d.urlCancelarDisp, { solicitudId: e.id, motivo: mot.value.trim() }, { disabled: false }, cerrar).then(function () { env = false; });
+                if (!elegido) { err.textContent = 'Elija con o sin ingreso vehicular.'; return; }
+                env = true; enviar(d.urlConfirmar, { solicitudId: e.id, conVehiculo: elegido === 'Y' }, { disabled: false }, cerrar).then(function () { env = false; });
             } }
         ]);
     }
 
-    function modalAtender(e) {
-        var cuerpo = el('p', { class: 'pv-modal-p' }, ['¿Confirmas que deseas iniciar la atención de este proveedor? Esta acción registrará tu usuario como responsable efectivo de la atención. La exclusa seguirá reservada para esta entrega hasta que la finalices.']);
-        var env = false;
-        CAF.modal('Iniciar atención · ' + e.empresa, cuerpo, [
-            { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Confirmar atención', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlAtender, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; }); } }
-        ]);
+    // D-242: Iniciar / Detener / Reanudar / Terminar. Con una sola empresa posible, Iniciar y Reanudar se ejecutan de inmediato; con varias, un modal pequeño
+    // deja elegir una, varias o todas. Detener y Terminar piden además un texto opcional (motivo / observación). Solo quien inició puede detener, reanudar o terminar.
+    var ACC = {
+        INICIAR:  { titulo: 'Iniciar atención',  flag: 'puedeAtender',     estado: 'PENDIENTE', url: 'urlAtenderEmpresas',  tipo: 'primary', directo: true,  vacio: 'No hay empresas pendientes que usted pueda iniciar.',
+                    intro: 'Elija las empresas cuya atención va a iniciar. Se inician las que tienen cupo; de las demás se le avisa.' },
+        DETENER:  { titulo: 'Detener atención',  flag: 'puedeDetener',     estado: 'EN_ATENCION', url: 'urlDetenerEmpresas',  tipo: 'warn', vacio: 'No tiene empresas en atención (iniciadas por usted) para detener.',
+                    intro: 'Se libera el cupo de la empresa para otra entrega urgente. Luego podrá reanudarla.', campo: ['motivo', 'Motivo (opcional)'] },
+        REANUDAR: { titulo: 'Reanudar atención', flag: 'puedeReanudar',    estado: 'DETENIDA', url: 'urlReanudarEmpresas', tipo: 'warn', directo: true, vacio: 'No tiene empresas detenidas por usted para reanudar.',
+                    intro: 'Elija las empresas cuya atención va a reanudar. Solo se reanuda si la empresa tiene cupo.' },
+        TERMINAR: { titulo: 'Terminar atención', flag: 'puedeRecepcionar', estado: 'EN_ATENCION', url: 'urlTerminarEmpresas', tipo: 'danger', vacio: 'No tiene empresas en atención (iniciadas por usted) para terminar.',
+                    intro: 'Cuando todas las empresas terminan, Vigilancia puede registrar la salida.', campo: ['observacion', 'Observación de la recepción (opcional; vacía = conforme)'] }
+    };
+
+    function accionAtencion(e, tipo) {
+        var cfg = ACC[tipo];
+        CAF.pedir(d.urlAtencion + '?id=' + e.id).then(function (r) {
+            if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar la atención.', 'warn'); return; }
+            var todas = r.data.empresas || [];
+            var cand = todas.filter(function (a) { return a.autorizado && a.estado === cfg.estado; });
+            var libres = cand.filter(function (a) { return a[cfg.flag]; });
+            if (!libres.length) {
+                var m = cand.map(function (a) { return a.motivoNo; }).filter(Boolean)[0];
+                CAF.aviso(m || cfg.vacio, 'warn'); return;
+            }
+            if (cfg.directo && cand.length === 1) { enviar(d[cfg.url], { solicitudId: e.id, empresasIds: [libres[0].id] }, { disabled: false }, function () { }); return; }
+            modalAtencion(e, tipo, cfg, cand);
+        });
     }
 
-    function modalTerminar(e) {
-        var obs = el('textarea', { rows: '3', maxlength: '1000', placeholder: 'Ej.: faltaron 2 cajas' });
-        var cuerpo = el('div', { class: 'stack' }, [
-            el('p', { class: 'pv-modal-p', text: '¿Confirmas que la atención de este proveedor ha culminado? Al confirmar, se habilitará a Vigilancia la opción de registrar su salida.' }),
-            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Observación de la recepción (opcional)' }), obs, el('span', { class: 'field-h', text: 'Si la deja vacía, la recepción queda como conforme.' })])
-        ]);
-        var env = false;
-        CAF.modal('Terminar atención · ' + e.empresa, cuerpo, [
-            { texto: 'Cancelar', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Confirmar culminación', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlTerminar, { solicitudId: e.id, observacion: obs.value }, { disabled: false }, cerrar).then(function () { env = false; }); } }
-        ]);
+    function modalAtencion(e, tipo, cfg, cand) {
+        var cuerpo = el('div', { class: 'stack' }), checks = [], extra = null, env = false, err = el('span', { class: 'field-e' });
+        cuerpo.appendChild(el('p', { class: 'pv-modal-p', text: cfg.intro }));
+        var libres = cand.filter(function (a) { return a[cfg.flag]; }), varias = cand.length > 1;
+        if (varias && libres.length > 1) {
+            var todas = el('input', { type: 'checkbox' });
+            cuerpo.appendChild(el('label', { class: 'pv-opc pv-opc-todas' }, [todas, el('b', { text: 'Todas' })]));
+            todas.addEventListener('change', function () { checks.forEach(function (c) { if (!c.disabled) c.checked = todas.checked; }); });
+        }
+        cand.forEach(function (a) {
+            var x = EMPRESAS[a.codigo], ok = !!a[cfg.flag];
+            var c = el('input', { type: 'checkbox', value: String(a.id) }); c.checked = ok && cand.length === 1; c.disabled = !ok; checks.push(c);
+            var fila = el('label', { class: 'pv-opc' + (ok ? '' : ' off') }, [c, el('span', { class: 'pv-em ' + (x ? x[2] : 'em-xx'), text: x ? x[1] : '··' }), el('span', { text: a.nombre })]);
+            if (!ok && a.motivoNo) fila.appendChild(el('span', { class: 'pv-opc-n', text: a.motivoNo }));
+            cuerpo.appendChild(fila);
+        });
+        if (cfg.campo) { extra = el('textarea', { rows: '2', maxlength: '500', placeholder: cfg.campo[1] }); cuerpo.appendChild(extra); }
+        cuerpo.appendChild(err);
+        CAF.modal(cfg.titulo + ' · ' + e.empresa, cuerpo, [
+            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
+            { texto: cfg.titulo, tipo: cfg.tipo, onclick: function (cerrar) {
+                if (env) return;
+                var ids = checks.filter(function (c) { return c.checked && !c.disabled; }).map(function (c) { return +c.value; });
+                if (!ids.length) { err.textContent = 'Elija al menos una empresa.'; return; }
+                var body = { solicitudId: e.id, empresasIds: ids };
+                if (cfg.campo) body[cfg.campo[0]] = extra.value;
+                env = true; enviar(d[cfg.url], body, { disabled: false }, cerrar).then(function () { env = false; });
+            } }
+        ], 'chico');
     }
 
-    // D-238: atención por empresa. Una fila por empresa del pedido; las acciones solo aparecen donde el usuario puede (empresa suya y estado adecuado).
-    function modalEmpresas(e) {
-        var cuerpo = el('div', { class: 'stack pv-ae' });
-        var pend = false;
-        function cargarEmp() {
-            return CAF.pedir(d.urlAtencion + '?id=' + e.id).then(function (r) {
-                cuerpo.textContent = '';
-                if (!r.success) { cuerpo.appendChild(el('p', { class: 'field-e', text: r.message || 'No se pudo cargar la atención.' })); return; }
-                cuerpo.appendChild(el('p', { class: 'pv-modal-p', text: 'Cada empresa de la entrega se atiende por separado. Solo puede actuar sobre las empresas que usted atiende; cuando todas terminen o se cierren, la entrega queda recepcionada y Vigilancia podrá registrar la salida.' }));
-                (r.data.empresas || []).forEach(function (a) { cuerpo.appendChild(fila(a, r.data.motivos || [])); });
-            });
-        }
-        function accion(url, body, cb) {
-            if (pend) return; pend = true;
-            CAF.pedir(url, { method: 'POST', body: body }).then(function (r) {
-                pend = false;
-                var msg = r.message || (r.errors && r.errors[0] && r.errors[0].message) || '';
-                if (r.success) CAF.aviso(msg || 'Listo.'); else CAF.aviso(msg || 'No se pudo completar la acción.', 'warn');
-                if (cb) cb(r);
-                cargarEmp(); cargar(true);
-            });
-        }
-        function fila(a, motivos) {
-            var x = EMPRESAS[a.codigo], t = ATENCION[a.estado] || [a.estado, ''];
-            var caja = el('section', { class: 'pv-ae-fila' }), extra = el('div', { class: 'pv-ae-extra' }), btns = el('div', { class: 'pv-ae-btns' });
-            caja.appendChild(el('div', { class: 'pv-ae-h' }, [el('span', { class: 'pv-em ' + (x ? x[2] : 'em-xx'), text: x ? x[1] : '··' }), el('b', { text: a.nombre }), el('span', { class: 'pv-aten-i ' + t[1], text: t[0] })]));
-            var det = [];
-            if (a.atiende) det.push('Atiende: ' + a.atiende);
-            if (a.inicio) det.push('Inicio ' + a.inicio);
-            if (a.fin) det.push('Fin ' + a.fin);
-            if (a.resultado === 'CON_OBSERVACION') det.push('Con observación');
-            if (det.length) caja.appendChild(el('div', { class: 'pv-ae-det', text: det.join(' · ') }));
-            if (a.motivo) caja.appendChild(el('div', { class: 'pv-ae-det', text: 'Motivo: ' + a.motivo }));
-            if (a.observacion) caja.appendChild(el('div', { class: 'pv-ae-det', text: a.observacion }));
-            if (a.estado !== 'ATENDIDA' && a.estado !== 'CERRADA_SIN_ATENCION' && a.motivoNo && !a.puedeAtender && !a.puedeRecepcionar && !a.puedeCerrar) caja.appendChild(el('div', { class: 'pv-motivo', text: a.motivoNo }));
-            function btn(texto, primario, fn) { btns.appendChild(el('button', { type: 'button', class: 'btn btn-sm' + (primario ? ' btn-primary' : ''), text: texto, onclick: fn })); }
-            if (a.puedeAtender) btn('Atender', true, function () { accion(d.urlAtenderEmpresa, { solicitudId: e.id, empresaId: a.id }); });
-            if (a.puedeRecepcionar) btn('Terminar atención', true, function () { formTerminar(); });
-            if (a.puedeCerrar) btn('Cerrar sin atención', false, function () { formCerrar(); });
-            if (a.motivoNo && a.estado === 'PENDIENTE' && a.autorizado && !a.puedeAtender) caja.appendChild(el('div', { class: 'pv-motivo', text: a.motivoNo }));
-            caja.appendChild(btns); caja.appendChild(extra);
-            function formTerminar() {
-                extra.textContent = '';
-                var obs = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Observación de la recepción (opcional; vacía = conforme)' });
-                extra.appendChild(el('div', { class: 'stack' }, [obs, el('div', { class: 'pv-ae-btns' }, [
-                    el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Confirmar', onclick: function () { accion(d.urlTerminarEmpresa, { solicitudId: e.id, empresaId: a.id, observacion: obs.value }); } }),
-                    el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver', onclick: function () { extra.textContent = ''; } })])]));
-                obs.focus();
-            }
-            function formCerrar() {
-                extra.textContent = '';
-                var sel = el('select', {}, [el('option', { value: '', text: '— Elija el motivo —' })].concat(motivos.map(function (m) { return el('option', { value: String(m.id), text: m.texto, 'data-otro': m.otro ? 'Y' : 'N' }); })));
-                var det2 = el('textarea', { rows: '2', maxlength: '300', placeholder: 'Detalle (obligatorio si elige «Otro»)' });
-                var err = el('span', { class: 'field-e' });
-                extra.appendChild(el('div', { class: 'stack' }, [
-                    el('p', { class: 'pv-modal-p', text: 'La empresa no será atendida en esta entrega. Queda registrado en la bitácora con el motivo.' }),
-                    sel, det2, err,
-                    el('div', { class: 'pv-ae-btns' }, [
-                        el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Cerrar sin atención', onclick: function () {
-                            if (!sel.value) { err.textContent = 'Elija el motivo.'; return; }
-                            var otro = sel.options[sel.selectedIndex].getAttribute('data-otro') === 'Y';
-                            if (otro && det2.value.trim().length < 3) { err.textContent = 'Describa el motivo.'; return; }
-                            accion(d.urlCerrarSin, { solicitudId: e.id, empresaId: a.id, motivoId: +sel.value, detalle: det2.value });
-                        } }),
-                        el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver', onclick: function () { extra.textContent = ''; } })])]));
-                sel.focus();
-            }
-            return caja;
-        }
-        CAF.modal('Atención por empresa · ' + e.empresa, cuerpo, [{ texto: 'Cerrar', onclick: function (cerrar) { cerrar(); } }], 'ancho');
-        cargarEmp();
+    // D-238/D-242: una empresa de la entrega no será atendida (motivo de la lista; detalle obligatorio si es «Otro»)
+    function modalCerrarSin(e) {
+        var cuerpo = el('div', { class: 'stack' }, [el('p', { class: 'pv-modal-p', text: 'Cargando…' })]), env = false, empSel = null, motSel = null, det = null, err = el('span', { class: 'field-e' });
+        CAF.pedir(d.urlAtencion + '?id=' + e.id).then(function (r) {
+            cuerpo.textContent = '';
+            if (!r.success) { cuerpo.appendChild(el('p', { class: 'field-e', text: r.message || 'No se pudo cargar.' })); return; }
+            var libres = (r.data.empresas || []).filter(function (a) { return a.puedeCerrar; }), motivos = r.data.motivos || [];
+            if (!libres.length) { cuerpo.appendChild(el('p', { class: 'pv-modal-p', text: 'No hay empresas que usted pueda cerrar sin atención.' })); return; }
+            empSel = el('select', {}, libres.map(function (a) { return el('option', { value: String(a.id), text: a.nombre }); }));
+            motSel = el('select', {}, [el('option', { value: '', text: '— Elija el motivo —' })].concat(motivos.map(function (m) { return el('option', { value: String(m.id), text: m.texto, 'data-otro': m.otro ? 'Y' : 'N' }); })));
+            det = el('textarea', { rows: '2', maxlength: '300', placeholder: 'Detalle (obligatorio si elige «Otro»)' });
+            cuerpo.appendChild(el('p', { class: 'pv-modal-p', text: 'La empresa no será atendida en esta entrega. Queda registrado con el motivo.' }));
+            if (libres.length > 1) cuerpo.appendChild(el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Empresa' }), empSel]));
+            cuerpo.appendChild(el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo' }), motSel])); cuerpo.appendChild(det); cuerpo.appendChild(err);
+        });
+        CAF.modal('Cerrar sin atención · ' + e.empresa, cuerpo, [
+            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Cerrar sin atención', tipo: 'danger', onclick: function (cerrar) {
+                if (env || !motSel) return;
+                if (!motSel.value) { err.textContent = 'Elija el motivo.'; return; }
+                if (motSel.options[motSel.selectedIndex].getAttribute('data-otro') === 'Y' && det.value.trim().length < 3) { err.textContent = 'Describa el motivo.'; return; }
+                env = true; enviar(d.urlCerrarSin, { solicitudId: e.id, empresaId: +empSel.value, motivoId: +motSel.value, detalle: det.value }, { disabled: false }, cerrar).then(function () { env = false; });
+            } }
+        ], 'chico');
     }
 
     function modalAsignar(e) {

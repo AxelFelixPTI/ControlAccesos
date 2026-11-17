@@ -20,6 +20,13 @@ public sealed class Srv_Parametro : ISrv_Parametro
         catch (Exception ex) { _logger.LogError(ex, "PARAMETRO_LISTAR ERROR"); return Result<List<Dto_Parametro>>.Fail(ex.Message); }
     }
 
+    public async Task<bool> PlacaObligatoriaAsync(CancellationToken ct = default)
+    {
+        var r = await ListarAsync(ct).ConfigureAwait(false);
+        var p = r.Success ? r.Data?.FirstOrDefault(x => x.Clave == "PLACA_OBLIGATORIA") : null;
+        return p is null || !string.Equals((p.Valor ?? "Y").Trim(), "N", StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<Result> GuardarAsync(string clave, string? valor, long usuarioId, CancellationToken ct = default)
     {
         try

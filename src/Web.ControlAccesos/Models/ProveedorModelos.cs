@@ -24,11 +24,27 @@ public sealed class ProveedorGrupoVM
     public DesviacionVM? Desviacion { get; set; }
 }
 
-/// <summary>Cancelar la disponibilidad: el motivo es obligatorio.</summary>
+/// <summary>Motivo obligatorio (hoy lo usa Vigilancia en «Retiro sin ingreso»).</summary>
 public sealed class ProveedorCancelarDispVM
 {
     public long SolicitudId { get; set; }
     public string? Motivo { get; set; }
+}
+
+/// <summary>D-239: confirmar la disponibilidad eligiendo si la atención será CON o SIN ingreso vehicular (no se puede deshacer).</summary>
+public sealed class ProveedorDisponibilidadVM
+{
+    public long SolicitudId { get; set; }
+    public bool ConVehiculo { get; set; }
+}
+
+/// <summary>D-239: iniciar, detener, reanudar o terminar la atención de una o varias empresas de la entrega. Motivo solo al detener; observación solo al terminar.</summary>
+public sealed class ProveedorEmpresasVM
+{
+    public long SolicitudId { get; set; }
+    public List<long> EmpresasIds { get; set; } = new();
+    public string? Motivo { get; set; }
+    public string? Observacion { get; set; }
 }
 
 /// <summary>Terminar la atención. Sin observación la recepción es conforme.</summary>

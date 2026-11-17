@@ -109,26 +109,55 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
             },
             ct: ct);
 
-    public Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    /// <summary>D-244: panel de cupos (quién ocupa qué solicitud y cuántos cupos hay usados por almacenero y por empresa).</summary>
+    public async Task<Result<List<Dto_Proveedor_Cupo>>> CuposAsync(long usuarioId, long sedeId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_PROVEEDOR_CUPOS",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Catalogo_Sede", sedeId); },
+                map: rd => new Dto_Proveedor_Cupo
+                {
+                    Tipo      = RdStr(rd, "Tipo"),
+                    Nombre    = RdStr(rd, "Nombre"),
+                    Codigo    = RdStrN(rd, "Codigo"),
+                    Solicitud = RdStrN(rd, "Solicitud"),
+                    Ocupa     = RdStrN(rd, "Ocupa"),
+                    Detalle   = RdStrN(rd, "Detalle"),
+                    Usados    = RdInt(rd, "Usados"),
+                    Limite    = RdInt(rd, "Limite"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_Cupo>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_Cupo>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    /// <summary>D-244: quien confirmó la disponibilidad cede la reserva (antes de iniciar la atención).</summary>
+    public Task<ResultSp> CederReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
-            clave: Conn,
-            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR",
-            bind: p =>
-            {
-                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
-                AddLongReq(p, "HV_UsuarioID", usuarioId);
-            },
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_RESERVA_CEDER",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddLongReq(p, "HV_UsuarioID", usuarioId); },
             ct: ct);
 
-    public Task<ResultSp> CancelarDisponibilidadAsync(long solicitudId, string motivo, long usuarioId, CancellationToken ct = default)
+    /// <summary>D-244: otro almacenero de esas empresas toma la reserva cedida (si tiene cupo).</summary>
+    public Task<ResultSp> TomarReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_RESERVA_TOMAR",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
             clave: Conn,
-            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CANCELAR",
+            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO",
             bind: p =>
             {
                 AddLongReq(p, "HV_ID_Solicitud", solicitudId);
-                AddStrReq(p, "HV_Motivo", motivo);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
+                AddStrReq(p, "HV_Con_Vehiculo", conVehiculo ? "Y" : "N");
             },
             ct: ct);
 
@@ -202,6 +231,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
                 AddLong(p, "HV_ID_Tratamiento", dto.Desviacion?.ID_Tratamiento);
                 AddStr(p, "HV_Tratamiento_Detalle", dto.Desviacion?.Tratamiento_Detalle);
                 AddStr(p, "HV_Resultado_Elegido", dto.Desviacion?.Resultado_Elegido);
+                if (procedimiento == "ERP_CAF_PROVEEDOR_SALIDA_GRUPO") AddStr(p, "HV_Motivo_Anticipada", dto.Motivo_Anticipada);   // D-245
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);
@@ -260,6 +290,9 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
                     Puede_Recepcionar  = RdBool(rd, "Puede_Recepcionar"),
                     Puede_Cerrar_Sin   = RdBool(rd, "Puede_Cerrar_Sin"),
                     Motivo_No          = RdStrN(rd, "Motivo_No"),
+                    Puede_Detener      = RdBool(rd, "Puede_Detener"),
+                    Puede_Reanudar     = RdBool(rd, "Puede_Reanudar"),
+                    Motivo_Detencion   = RdStrN(rd, "Motivo_Detencion"),
                 },
                 ct: ct);
             return Result<List<Dto_Atencion_Empresa>>.Ok(lista);
@@ -314,6 +347,30 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
             },
             ct: ct);
 
+    public Task<ResultSp> AtenderEmpresasAsync(long solicitudId, string idsEmpresa, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_ATENDER_EMPRESAS",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddStrReq(p, "HV_IDs_Empresa", idsEmpresa); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public Task<ResultSp> DetenerEmpresasAsync(long solicitudId, string idsEmpresa, string? motivo, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_DETENER_EMPRESAS",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddStrReq(p, "HV_IDs_Empresa", idsEmpresa); AddStr(p, "HV_Motivo", motivo); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public Task<ResultSp> ReanudarEmpresasAsync(long solicitudId, string idsEmpresa, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_REANUDAR_EMPRESAS",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddStrReq(p, "HV_IDs_Empresa", idsEmpresa); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public Task<ResultSp> RecepcionarEmpresasAsync(long solicitudId, string idsEmpresa, string resultado, string? observacion, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_RECEPCION_EMPRESAS",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddStrReq(p, "HV_IDs_Empresa", idsEmpresa); AddStrReq(p, "HV_Resultado", resultado); AddStr(p, "HV_Observacion", observacion); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
     public Task<ResultSp> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
             clave: Conn,
@@ -352,6 +409,18 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Empresa_Transportista      = RdStrN(rd, "Empresa_Transportista"),
         Hora_Hasta                 = RdStrN(rd, "Hora_Hasta"),
         Atencion_Resumen           = RdStrN(rd, "Atencion_Resumen"),
+        Modo_Ingreso               = RdStrN(rd, "Modo_Ingreso"),
+        Conductor_Documento        = RdStrN(rd, "Conductor_Documento"),
+        Puede_Detener              = RdBool(rd, "Puede_Detener"),
+        Puede_Reanudar             = RdBool(rd, "Puede_Reanudar"),
+        Puede_Cerrar_Sin           = RdBool(rd, "Puede_Cerrar_Sin"),
+        Motivo_Iniciar             = RdStrN(rd, "Motivo_Iniciar"),
+        Motivo_Reanudar            = RdStrN(rd, "Motivo_Reanudar"),
+        Puede_Ceder                = RdBool(rd, "Puede_Ceder"),
+        Puede_Tomar                = RdBool(rd, "Puede_Tomar"),
+        Motivo_Tomar               = RdStrN(rd, "Motivo_Tomar"),
+        Reserva_Nombre             = RdStrN(rd, "Reserva_Nombre"),
+        Pausada                    = RdBool(rd, "Pausada"),
         Estado_Operativo       = RdStr(rd, "Estado_Operativo"),
         Con_Desviacion         = RdBool(rd, "Con_Desviacion"),
         Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),
@@ -367,7 +436,6 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Efectivo_Nombre        = RdStrN(rd, "Efectivo_Nombre"),
         Puede_Programar        = RdBool(rd, "Puede_Programar"),
         Puede_Confirmar        = RdBool(rd, "Puede_Confirmar"),
-        Puede_Cancelar_Disp    = RdBool(rd, "Puede_Cancelar_Disp"),
         Puede_Atender          = RdBool(rd, "Puede_Atender"),
         Puede_Terminar         = RdBool(rd, "Puede_Terminar"),
         Motivo_Bloqueo         = RdStrN(rd, "Motivo_Bloqueo"),

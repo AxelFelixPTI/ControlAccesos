@@ -32,9 +32,11 @@ var SOL = (function () {
         return det.length ? det.join(' ') : (r.message || 'No se pudo completar la operación.');
     }
 
+    var placaObl = true;   // D-239: parámetro PLACA_OBLIGATORIA, lo trae la lista de opciones
     function cargarOpciones(url) {
         return CAF.pedir(url).then(function (r) {
             if (!r.success) { CAF.aviso(r.message || 'No se pudieron cargar las listas.', 'warn'); return null; }
+            if (r.data && typeof r.data.placaObligatoria === 'boolean') placaObl = r.data.placaObligatoria;
             return r.data;
         });
     }
@@ -655,7 +657,7 @@ var SOL = (function () {
     // Proveedor (D-223): tarjetas de los transportistas de una solicitud (detalle del solicitante y revisión del Coordinador).
     // lista = [{principal,nombrePersona,tipoDoc,doc,ruc,nombre,direccion,placa,marca,licencia,completos}]
     function transportistasNodo(lista) {
-        var CAMPOS = [['ruc', 'RUC'], ['nombre', 'Transportista'], ['direccion', 'Dirección'], ['placa', 'Placa'], ['marca', 'Marca'], ['licencia', 'Licencia']];
+        var CAMPOS = [['ruc', 'RUC'], ['nombre', 'Empresa transportista'], ['direccion', 'Dirección'], ['placa', 'Placa'], ['marca', 'Marca'], ['licencia', 'Licencia']];
         var caja = el('div', { class: 'stack' }, [el('h3', { text: 'Conductores (' + (lista || []).length + ')' })]);
         if (!lista || !lista.length) { caja.appendChild(el('p', { class: 'vacio', text: 'Sin conductores registrados.' })); return caja; }
         caja.appendChild(el('ul', { class: 'plist' }, lista.map(function (t) {
@@ -701,5 +703,5 @@ var SOL = (function () {
     }
 
     return { chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo, fila: fila, w: w, opcional: opcional,
-             errores: errores, cargarOpciones: cargarOpciones, formDatos: formDatos, formPersona: formPersona };
+             errores: errores, cargarOpciones: cargarOpciones, placaObligatoria: function () { return placaObl; }, formDatos: formDatos, formPersona: formPersona };
 })();

@@ -165,7 +165,7 @@ BEGIN
         IF lv_cod IS NULL THEN "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El subtipo no existe.'; RETURN; END IF;
         IF "HV_Activo" = 'N' THEN
             IF lv_pred = 'Y' THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Es el subtipo predeterminado: marque antes otro como predeterminado.'; RETURN; END IF;
-            IF lv_cod = 'TRANSPORTISTA' THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'El subtipo Transportista lo usa el flujo de proveedores y no se desactiva.'; RETURN; END IF;
+            IF lv_cod = 'TRANSPORTISTA' THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'El subtipo Conductor lo usa el flujo de proveedores y no se desactiva.'; RETURN; END IF;
         END IF;
         UPDATE "Tipo_Acceso_Subtipo" SET "Activo" = "HV_Activo", "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Tipo_Acceso_Subtipo" = "HV_ID_Tipo_Acceso_Subtipo";
@@ -245,10 +245,10 @@ BEGIN
         IF lv_cod IS NULL THEN "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El rol elegido no es válido para este tipo de ingreso.'; RETURN; END IF;
         SELECT COUNT(*) INTO lv_es_tr FROM "CAF_Solicitud_Transportista" T WHERE T."ID_Solicitud_Persona" = lv_sp AND T."Eliminado" = 'N';
         IF lv_cod = 'TRANSPORTISTA' AND lv_es_tr = 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El rol Transportista requiere los datos del transportista.'; RETURN;
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El rol Conductor requiere los datos del conductor.'; RETURN;
         END IF;
         IF lv_cod <> 'TRANSPORTISTA' AND lv_es_tr > 0 THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La persona figura como transportista: su rol no se cambia desde aquí.'; RETURN;
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La persona figura como conductor: su rol no se cambia desde aquí.'; RETURN;
         END IF;
         UPDATE "CAF_Solicitud_Persona" SET "ID_Tipo_Acceso_Subtipo" = "HV_ID_Tipo_Acceso_Subtipo", "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "ID_Solicitud_Persona" = lv_sp AND "ID_Tipo_Acceso_Subtipo" IS DISTINCT FROM "HV_ID_Tipo_Acceso_Subtipo";

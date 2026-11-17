@@ -209,6 +209,7 @@ DECLARE
     lv_errt   VARCHAR(250);
     lv_rol    VARCHAR(20) := '';
 BEGIN
+    -- V1.3 2026-11-16 (D-243): un conductor agregado no devuelve la entrega a PROGRAMADO si ya hay otro verificado
     -- V1.2 2026-11-09 (D-226): en una solicitud de proveedor se elige transportista o ayudante de descarga
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_PERSONA_AGREGAR_EMERGENCIA';
@@ -256,11 +257,11 @@ BEGIN
         -- D-226: el rol (transportista / ayudante) solo existe en solicitudes de proveedor
         SELECT MAX("Codigo") INTO lv_tcod FROM "Catalogo_Tipo_Acceso" WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo;
         IF COALESCE("HV_Es_Transportista", 'N') NOT IN ('Y','N') THEN
-            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique si la persona es transportista (Y) o ayudante (N).'; RETURN;
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique si la persona es conductor (Y) o ayudante (N).'; RETURN;
         END IF;
         IF COALESCE("HV_Es_Transportista", 'N') = 'Y' THEN
             IF lv_tcod IS DISTINCT FROM 'PROVEEDOR' THEN
-                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Solo una solicitud de proveedor tiene transportistas.'; RETURN;
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Solo una solicitud de proveedor tiene conductores.'; RETURN;
             END IF;
             lv_errt := "ERP_CAF_FN_TRANSPORTISTA_VALIDAR"("HV_Trans_Ruc", "HV_Trans_Nombre", "HV_Trans_Direccion",
                                                           "HV_Trans_Placa", "HV_Trans_Marca", "HV_Trans_Licencia");
@@ -277,7 +278,7 @@ BEGIN
             IF COALESCE("HV_Es_Transportista", 'N') = 'Y' AND lv_eop IS NOT NULL
                AND (lv_act <> 'Y' OR lv_eop NOT IN ('PROGRAMADO','EN_ESPERA','INGRESO','EN_ATENCION')) THEN
                 "HV_Codigo_Resp" := 409;
-                "HV_Mensaje" := 'La entrega ya terminó: no se puede agregar un transportista. Cree una nueva solicitud.'; RETURN;
+                "HV_Mensaje" := 'La entrega ya terminó: no se puede agregar un conductor. Cree una nueva solicitud.'; RETURN;
             END IF;
         END IF;
 
@@ -345,9 +346,14 @@ BEGIN
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
         -- D-226: un transportista nuevo aún no está verificado: si la entrega ya esperaba, vuelve a PROGRAMADO
         -- (la exclusa que ya tuviera reservada se mantiene). En INGRESO/EN_ATENCION no se toca.
-        IF COALESCE("HV_Es_Transportista", 'N') = 'Y' AND lv_eop = 'EN_ESPERA' THEN
+        -- D-243: si ya hay otro conductor verificado, la entrega sigue EN_ESPERA y solo falta verificar al nuevo (no se vuelve a verificar a todos)
+        IF COALESCE("HV_Es_Transportista", 'N') = 'Y' AND lv_eop = 'EN_ESPERA'
+           AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Persona" PV
+                            WHERE PV."ID_Solicitud" = "HV_ID_Solicitud" AND PV."Eliminado" = 'N' AND PV."Aprobacion" = 'APROBADA'
+                              AND PV."ID_Solicitud_Persona" <> lv_sp AND PV."Fecha_Verificacion" IS NOT NULL AND PV."Estado" IN ('ESPERADA','DENTRO')
+                              AND "ERP_CAF_FN_ES_TRANSPORTISTA"(PV."ID_Solicitud_Persona") = 'Y') THEN
             CALL "ERP_CAF_PROVEEDOR_MOVER"("HV_ID_Solicitud", 'PROGRAMADO', "HV_UsuarioID", NULL,
-                  'Se agregó un transportista por emergencia: falta verificarlo', NULL, lv_c, lv_m);
+                  'Se agregó un conductor por emergencia: falta verificarlo', NULL, lv_c, lv_m);
             IF lv_c <> 100 THEN RAISE EXCEPTION 'mover: %', lv_m; END IF;
         END IF;
         CALL "ERP_CAF_SOLICITUD_VERSION_GUARDAR"("HV_ID_Solicitud", "HV_UsuarioID", lv_c, lv_m);
@@ -368,7 +374,7 @@ BEGIN
              "ERP_CAF_FN_COPIA_CORREO"("HV_ID_Solicitud", 'N', 'Y', 'N', 'Y'),
              'Corrección de emergencia en ' || lv_codsol || ': se agregó a una persona',
              'CORRECCIÓN DE EMERGENCIA' || CHR(10)
-             || 'Se agregó a ' || lv_nom || CASE WHEN lv_rol = 'transportista' THEN ' (transportista)' WHEN lv_tcod = 'PROVEEDOR' THEN ' (ayudante de descarga)' ELSE '' END || ' a la solicitud ' || lv_codsol
+             || 'Se agregó a ' || lv_nom || CASE WHEN lv_rol = 'transportista' THEN ' (conductor)' WHEN lv_tcod = 'PROVEEDOR' THEN ' (ayudante de descarga)' ELSE '' END || ' a la solicitud ' || lv_codsol
              || CASE WHEN lv_apr2 = 'APROBADA' THEN ' y queda autorizada para ingresar.' ELSE ' y espera la aprobación de otros aprobadores.' END || CHR(10)
              || 'Sustento: ' || lv_sus || CHR(10)
              || 'Registrado por: ' || COALESCE(lv_quien, 'el Coordinador') || '.',
@@ -473,7 +479,7 @@ BEGIN
            AND PT."ID_Solicitud_Persona" <> "HV_ID_Solicitud_Persona" AND "ERP_CAF_FN_ES_TRANSPORTISTA"(PT."ID_Solicitud_Persona") = 'Y';
         IF lv_es_t = 'Y' AND lv_nt = 0 THEN
             "HV_Codigo_Resp" := 101;
-            "HV_Mensaje" := 'Es el único transportista: sin él no hay entrega. Si fue un error de nombre use «Corregir persona»; si ya no viene, cancele la solicitud.'; RETURN;
+            "HV_Mensaje" := 'Es el único conductor: sin él no hay entrega. Si fue un error de nombre use «Corregir persona»; si ya no viene, cancele la solicitud.'; RETURN;
         END IF;
 
         SELECT "Apellido_Paterno" || COALESCE(' ' || "Apellido_Materno", '') || ', ' || "Nombres" INTO lv_nom
@@ -489,7 +495,7 @@ BEGIN
 
         IF lv_es_t = 'Y' THEN
             CALL "ERP_CAF_SOLICITUD_TRANSPORTISTA_QUITAR"("HV_ID_Solicitud_Persona", "HV_UsuarioID", lv_c, lv_m);
-            IF lv_c <> 100 THEN RAISE EXCEPTION 'transportista: %', lv_m; END IF;
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'conductor: %', lv_m; END IF;
         END IF;
         CALL "ERP_CAF_SOLICITUD_RECALCULAR"(lv_sol, "HV_UsuarioID", lv_est2, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
@@ -780,7 +786,7 @@ BEGIN
                 "HV_Codigo_Resp" := 409;
                 "HV_Mensaje" := CASE WHEN lv_n = 0
                     THEN 'Es la única persona de la solicitud: si la retira, la solicitud quedará RECHAZADA. Confirme para continuar.'
-                    ELSE 'Es el único transportista: sin él no hay entrega y la solicitud quedará RECHAZADA. Si fue un error de nombre use «Corregir datos»; si ya no viene, cancele. Confirme para continuar.' END;
+                    ELSE 'Es el único conductor: sin él no hay entrega y la solicitud quedará RECHAZADA. Si fue un error de nombre use «Corregir datos»; si ya no viene, cancele. Confirme para continuar.' END;
                 RETURN;
             END IF;
             lv_ultima := 'Y';
@@ -799,7 +805,7 @@ BEGIN
 
         IF lv_es_t = 'Y' THEN
             CALL "ERP_CAF_SOLICITUD_TRANSPORTISTA_QUITAR"("HV_ID_Solicitud_Persona", "HV_UsuarioID", lv_c, lv_m);
-            IF lv_c <> 100 THEN RAISE EXCEPTION 'transportista: %', lv_m; END IF;
+            IF lv_c <> 100 THEN RAISE EXCEPTION 'conductor: %', lv_m; END IF;
         END IF;
         CALL "ERP_CAF_SOLICITUD_RECALCULAR"(lv_sol, "HV_UsuarioID", lv_est2, lv_c, lv_m);
         IF lv_c <> 100 THEN RAISE EXCEPTION 'recalcular: %', lv_m; END IF;
@@ -834,7 +840,7 @@ BEGIN
                   ELSE 'Corrección de emergencia en ' || lv_codsol || ': se retiró a una persona' END,
              'CORRECCIÓN DE EMERGENCIA' || CHR(10)
              || 'Se retiró a ' || lv_nom || ' de la solicitud ' || lv_codsol || ': ya no está autorizada para ingresar.' || CHR(10)
-             || CASE WHEN lv_ultima = 'Y' THEN 'Era la única persona o el único transportista: la solicitud quedó RECHAZADA.' || CHR(10) ELSE '' END
+             || CASE WHEN lv_ultima = 'Y' THEN 'Era la única persona o el único conductor: la solicitud quedó RECHAZADA.' || CHR(10) ELSE '' END
              || 'Sustento: ' || lv_sus || CHR(10)
              || 'Registrado por: ' || COALESCE(lv_quien, 'el Coordinador') || '.',
              "HV_UsuarioID", lv_c, lv_m);

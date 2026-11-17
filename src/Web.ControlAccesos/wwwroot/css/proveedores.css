@@ -19,8 +19,14 @@
 .pv-card-h{display:flex;gap:8px;align-items:center}.pv-card-h b{flex:1;min-width:0}
 .pv-card-h b{font-size:14px;overflow-wrap:anywhere}
 .pv-hora{font-weight:700;white-space:nowrap}
-.pv-linea{color:var(--muted);overflow-wrap:anywhere}
-.pv-linea b{color:var(--ink);font-weight:600}
+.pv-linea{color:var(--ink);overflow-wrap:anywhere;font-weight:500;line-height:1.35}
+.pv-linea b{color:var(--muted);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;margin-right:2px}
+/* D-241: con/sin ingreso vehicular como etiqueta de la tarjeta, junto al estado */
+.pv-estado{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pv-modo{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1.5px solid var(--line2);background:var(--sf);color:var(--ink)}
+.pv-modo::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.pv-modo-con::before{background:var(--ok-ink)}
+.pv-modo-sin::before{background:var(--em-ac,var(--muted))}
 .pv-resp{display:flex;flex-direction:column;gap:2px;border-top:1px dashed var(--line);padding-top:6px}
 .pv-tiempos{color:var(--faint);font-size:12px}
 .pv-acc{display:flex;flex-direction:column;gap:6px;margin-top:2px}
@@ -52,10 +58,10 @@
 /* Chips de estado: sólidos y llamativos */
 .pv-st{display:inline-flex;align-items:center;padding:3px 12px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap;border:2px solid transparent;color:#fff}
 .st-prog{background:var(--sf);color:var(--ink);border-color:var(--faint)}
-.st-esp{background:#B45309}.st-ing{background:#1D4ED8}.st-aten{background:#15803D}.st-rec{background:#0E7490}
+.st-esp{background:#B45309}.st-ing{background:#1D4ED8}.st-aten{background:#15803D}.st-rec{background:#0E7490}.st-pau{background:#CA8A04;color:#1c1400}
 .st-ret{background:#78350F}.st-sal{background:#475569}.st-nop{background:#6D28D9}.st-den{background:#B91C1C}.st-cie{background:#BE185D}
 .pv-punto.st-prog{background:var(--faint)}.pv-punto.st-esp{background:#B45309}.pv-punto.st-ing{background:#1D4ED8}.pv-punto.st-aten{background:#15803D}
-.pv-punto.st-rec{background:#0E7490}.pv-punto.st-ret{background:#78350F}.pv-punto.st-sal{background:#475569}.pv-punto.st-nop{background:#6D28D9}.pv-punto.st-den{background:#B91C1C}.pv-punto.st-cie{background:#BE185D}
+.pv-punto.st-pau{background:#CA8A04}.pv-punto.st-rec{background:#0E7490}.pv-punto.st-ret{background:#78350F}.pv-punto.st-sal{background:#475569}.pv-punto.st-nop{background:#6D28D9}.pv-punto.st-den{background:#B91C1C}.pv-punto.st-cie{background:#BE185D}
 .pv-marcas{display:flex;gap:6px;flex-wrap:wrap}
 .pv-marca{display:inline-flex;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700}
 .pv-m-ok{background:var(--ok-bg);color:var(--ok-ink);border:1px solid var(--ok-ink)}
@@ -85,9 +91,57 @@
 .pv-aten-i.at-ing{background:#fff1d6}
 .pv-aten-i.at-ok{background:#d9f2e3}
 .pv-aten-i.at-sin{background:#e6e6e6;color:#555}
-.pv-ae{gap:10px}
-.pv-ae-fila{border:1px solid var(--line,#d6dbe0);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.pv-ae-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.pv-ae-det{font-size:12.5px;color:var(--muted,#5b6670)}
-.pv-ae-btns{display:flex;gap:8px;flex-wrap:wrap}
+.pv-aten-i.at-pau{background:#fde68a;color:#5b4300}
+/* D-244: panel de cupos (quién ocupa qué solicitud y cuántos cupos quedan) */
+.pv-cupos{margin:6px 0 10px}
+.pv-cupos:empty{display:none}
+.pv-cupos details{border:1px solid var(--line2);border-radius:8px;background:var(--surface-2,#f6f8fa);padding:6px 10px}
+.pv-cupos summary{cursor:pointer;font-weight:700;font-size:13px}
+.pv-cupos-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 18px;margin-top:6px}
+.pv-cupos-g h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#667)}
+.pv-cupos ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.pv-cupos li{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
+.pv-cupo-n{font-weight:700}
+.pv-cupo-lleno{color:#B45309;font-weight:700}
+.pv-cupo-tag{display:inline-flex;padding:0 7px;border-radius:999px;font-size:11.5px;font-weight:700;background:#dbeafe;color:#1e3a8a}
+.pv-cupo-tag.at{background:#d9f2e3;color:#14532d}
+.pv-cupo-vacio{color:var(--muted,#667);font-size:13px}
 
+
+
+/* D-242: botonera de la tarjeta (Iniciar verde · Detener/Reanudar ámbar · Terminar rojo) y modales pequeños */
+.pv-acc{flex-direction:row;flex-wrap:wrap}
+.pv-acc .btn{width:auto;flex:1 1 calc(50% - 6px)}
+.pv-acc .pv-b-ini{flex-basis:100%}
+.btn.btn-warn{background:#F2B53A;border-color:#D99A1E;color:#2E2000}.btn.btn-warn:hover{background:#E8A727}
+.btn.btn-danger{background:var(--dang);border-color:var(--dang);color:#fff}.btn.btn-danger:hover{filter:brightness(1.1)}
+:root[data-theme="dark"] .btn.btn-warn{background:#C58A1B;border-color:#E0A23A;color:#150E00}
+.pv-enlace{flex-basis:100%;background:none;border:0;padding:2px 0;color:var(--muted);font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer;text-align:center}
+.pv-enlace:hover{color:var(--ink)}
+.modal-chico{max-width:440px}
+.pv-opc{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;cursor:pointer;background:var(--sf2)}
+.pv-opc input[type=checkbox]{width:18px;height:18px;min-height:0;margin:0;flex:none;accent-color:var(--teal)}
+.pv-opc.off{opacity:.6;cursor:not-allowed}
+.pv-opc-n{flex-basis:100%;font-size:12px;color:var(--warn-ink);margin-left:26px}
+.pv-opc-todas{background:transparent;border-style:dashed}
+/* confirmar disponibilidad: dos tarjetas para elegir en vez de botones de radio */
+.pv-opciones{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.pv-opciones{grid-template-columns:1fr}}
+.pv-opcion{position:relative;display:flex;flex-direction:column;gap:4px;padding:14px;border:1.5px solid var(--line2);border-radius:12px;background:var(--sf);cursor:pointer;transition:border-color .12s,background .12s}
+.pv-opcion input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.pv-opcion:hover{border-color:var(--teal)}
+.pv-opcion:focus-within{outline:2px solid var(--teal);outline-offset:2px}
+.pv-opcion.sel{border-color:var(--teal);background:var(--teal-soft);box-shadow:0 0 0 1px var(--teal) inset}
+.pv-opcion-i{font-size:22px;line-height:1}
+.pv-opcion b{font-size:14.5px;color:var(--ink)}
+.pv-opcion-a{font-size:12.5px;color:var(--muted);line-height:1.35}
+.pv-aviso-irrev{margin:0;padding:8px 12px;border-radius:8px;background:var(--dang-bg);color:var(--dang-ink);font-size:13px;font-weight:600}
+/* D-243: botones de acceso directo con color propio (Vigilancia: verificar azul · ingreso verde · salida pizarra; Coordinador: revisar índigo · en curso verde azulado · solo ver neutro) y bloqueados atenuados */
+.pv-ir .btn.pv-b-vf{background:#1D4ED8;border-color:#1D4ED8;color:#fff}.pv-ir .btn.pv-b-vf:hover{filter:brightness(1.1)}
+.pv-ir .btn.pv-b-vi{background:#0B7A66;border-color:#0B7A66;color:#fff}.pv-ir .btn.pv-b-vi:hover{filter:brightness(1.1)}
+.pv-ir .btn.pv-b-vs{background:#475569;border-color:#475569;color:#fff}.pv-ir .btn.pv-b-vs:hover{filter:brightness(1.1)}
+.pv-ir .btn.pv-b-rev{background:#4338CA;border-color:#4338CA;color:#fff}.pv-ir .btn.pv-b-rev:hover{filter:brightness(1.12)}
+.pv-ir .btn.pv-b-cur{background:#0E7490;border-color:#0E7490;color:#fff}.pv-ir .btn.pv-b-cur:hover{filter:brightness(1.12)}
+.pv-ir .btn.pv-b-ver{background:#64748B;border-color:#64748B;color:#fff}.pv-ir .btn.pv-b-ver:hover{filter:brightness(1.12)}
+:root[data-theme="dark"] .pv-ir .btn.pv-b-rev{background:#6366F1;border-color:#818CF8;color:#fff}:root[data-theme="dark"] .pv-ir .btn.pv-b-cur{background:#0891B2;border-color:#22D3EE;color:#fff}:root[data-theme="dark"] .pv-ir .btn.pv-b-ver{background:#475569;border-color:#94A3B8;color:#fff}
+.pv-acc .btn:disabled,.pv-acc .btn.is-off{opacity:.45;cursor:not-allowed;filter:saturate(.6)}

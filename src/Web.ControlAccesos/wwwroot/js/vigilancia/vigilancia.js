@@ -153,6 +153,11 @@
         }
         if (!prov && puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
         if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || salidaProveedor(p, todas.filter(function (x) { return x.solicitudId === p.solicitudId; })))) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: p.estadoOp === 'CIERRE_FORZADO' ? 'Registrar salida (tardía)' : 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
+        if (puede && !soloLectura && p.esProveedor && p.estado === 'DENTRO') {
+            var grpS = todas.filter(function (x) { return x.solicitudId === p.solicitudId; });
+            if (esAnticipable(p, grpS)) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-warn', text: 'Salida anticipada', title: 'Almacén aún no terminó: queda registrada con observación para el Coordinador', onclick: function () { checklistGrupo('SALIDA', p, [p], true, true); } }));
+            else if (!salidaProveedor(p, grpS)) botones.push(el('button', { type: 'button', class: 'btn btn-sm is-off', disabled: true, text: 'Registrar salida', title: 'Disponible cuando Almacén termine la atención.' }));
+        }
         if (puedeInc && !soloLectura && (p.estado === 'DENTRO' || p.estado === 'SALIO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger', text: 'Registrar incidencia', onclick: function () {
             // El Coordinador registra en la pantalla única de Incidencias, con la persona ya elegida (queda confirmada directamente).
             if (d.esCoordinador === 'Y') { window.location.href = d.urlIncidencias + '?persona=' + encodeURIComponent(p.id) + '&nombre=' + encodeURIComponent(p.nombre); return; }
@@ -177,6 +182,10 @@
         var op = p.estadoOp;
         if (op === 'RECEPCIONADO' || op === 'CIERRE_FORZADO') return true;
         return (op === 'INGRESO' || op === 'EN_ATENCION') && grp.some(function (x) { return x.esTransportista && x.estado === 'ESPERADA'; });
+    }
+    // D-245: SALIDA ANTICIPADA = sin ingreso vehicular, la persona está dentro y Almacén aún no termina. No es el flujo normal: pide motivo y queda marcada para el Coordinador.
+    function esAnticipable(p, grp) {
+        return !!p.esProveedor && p.estado === 'DENTRO' && p.modoIngreso === 'SIN' && (p.estadoOp === 'EN_ESPERA' || p.estadoOp === 'INGRESO' || p.estadoOp === 'EN_ATENCION') && !salidaProveedor(p, grp);
     }
     function esVerificable(p) { var o = p.estadoOp; return p.estado === 'ESPERADA' && !p.verificada && (o === 'PROGRAMADO' || o === 'EN_ESPERA' || o === 'INGRESO' || o === 'EN_ATENCION'); }
     function esIngresable(p) { var o = p.estadoOp; return p.estado === 'ESPERADA' && p.verificada && (o === 'EN_ESPERA' || o === 'INGRESO' || o === 'EN_ATENCION'); }
@@ -215,6 +224,8 @@
             a.push({ id: 'RETIRO', titulo: 'Retiró sin ingresar', ayuda: 'Ya verificados que se retiran sin ingresar (motivo obligatorio).', ok: puedeProv, elegibles: ing, abre: retiroPersonas });
             a.push({ id: 'SALIDA', titulo: 'Registrar salida', ayuda: 'Checklist de salida para todos los elegidos.', ok: puede, elegibles: l.filter(function (x) { return salidaProveedor(x, l); }),
                 abre: function (ps) { checklistGrupo('SALIDA', s, ps, true); } });
+            a.push({ id: 'SALIDA_ANT', titulo: 'Salida anticipada', ayuda: 'Sin ingreso vehicular y Almacén aún no terminó: exige motivo y queda marcada para el Coordinador.', ok: puede, elegibles: l.filter(function (x) { return esAnticipable(x, l); }),
+                abre: function (ps) { checklistGrupo('SALIDA', s, ps, true, true); } });
         } else {
             a.push({ id: 'INGRESO', titulo: 'Validar ingreso', ayuda: 'Un solo checklist; quien trae equipos o herramientas se valida de forma individual.', ok: puede,
                 elegibles: l.filter(function (x) { return x.estado === 'ESPERADA' && !x.traeEquipos && !x.traeHerramientas; }), abre: function (ps) { checklistGrupo('INGRESO', s, ps, false); } });
@@ -328,7 +339,7 @@
     function registrarIngreso(personas) {
         var env = false;
         CAF.modal('Registrar ingreso · ' + personas.length + ' persona(s)', el('div', { class: 'stack' }, [
-            el('p', { text: 'Confirme que ya ingresaron físicamente. Los ayudantes ingresan con su transportista. Almacén los atenderá desde la esclusa reservada; si el cupo de la esclusa está lleno, deberá esperar la salida del vehículo anterior.' }), nombres(personas)]), [
+            el('p', { text: 'Confirme que ya ingresaron físicamente. Los ayudantes ingresan con su conductor. Almacén los atenderá desde la esclusa reservada; si el cupo de la esclusa está lleno, deberá esperar la salida del vehículo anterior.' }), nombres(personas)]), [
             { texto: 'Cancelar', onclick: function (c) { c(); } },
             { texto: 'Confirmar ingreso', tipo: 'primary', onclick: function (c) { if (env) return; env = true; accionProveedor(d.urlIngresoFisico, { solicitudId: personas[0].solicitudId, personasIds: ids(personas) }, function () { listo(personas); c(); }).then(function () { env = false; }); } }
         ]);
@@ -336,7 +347,7 @@
     function retiroPersonas(personas) {
         var mot = el('textarea', { rows: '3', maxlength: '500', placeholder: 'Ej.: se fue por la demora' }), err = el('span', { class: 'field-e' }), env = false;
         var cuerpo = el('div', { class: 'stack' }, [
-            el('p', { text: 'Ya fueron verificados pero se retiran sin ingresar. Si no queda ningún transportista por ingresar, la entrega termina y se libera la esclusa que Almacén tenía reservada.' }), nombres(personas),
+            el('p', { text: 'Ya fueron verificados pero se retiran sin ingresar. Si no queda ningún conductor por ingresar, la entrega termina y se libera la esclusa que Almacén tenía reservada.' }), nombres(personas),
             el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo (obligatorio)' }), mot, err])
         ]);
         CAF.modal('Retiró sin ingresar · ' + personas.length + ' persona(s)', cuerpo, [
@@ -367,25 +378,30 @@
     }
 
     // Verificar datos o registrar salida de varias personas con UN solo checklist; las respuestas se guardan por persona.
-    function checklistGrupo(etapa, s, personas, verif) {
+    function checklistGrupo(etapa, s, personas, verif, anticipada) {
         var ingreso = etapa === 'INGRESO', enviando = false, ctx = null;
         var cuerpo = el('div', { class: 'stack' }, [el('p', { class: 'vacio', text: 'Cargando...' })]);
-        CAF.modal((ingreso ? (verif ? 'Verificar datos · ' : 'Validar ingreso · ') : 'Registrar salida · ') + personas.length + ' persona(s)', cuerpo, [
+        CAF.modal((ingreso ? (verif ? 'Verificar datos · ' : 'Validar ingreso · ') : (anticipada ? 'Salida anticipada · ' : 'Registrar salida · ')) + personas.length + ' persona(s)', cuerpo, [
             { texto: 'Cancelar', onclick: function (c) { c(); } },
-            { texto: ingreso ? (verif ? 'Registrar verificación' : 'Registrar ingreso') : 'Registrar salida', tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviarGrupo(ctx, c, function (v) { enviando = v; }); } }
+            { texto: ingreso ? (verif ? 'Registrar verificación' : 'Registrar ingreso') : (anticipada ? 'Registrar salida anticipada' : 'Registrar salida'), tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviarGrupo(ctx, c, function (v) { enviando = v; }); } }
         ], 'ancho');
         itemsUnion(etapa, personas).then(function (u) {
             cuerpo.textContent = '';
             if (u.error) { cuerpo.appendChild(el('p', { class: 'err', text: u.error })); return; }
-            ctx = { etapa: etapa, s: s, personas: personas, items: u.items, resp: {}, error: el('p', { class: 'err', hidden: true, role: 'alert' }), desv: null };
+            ctx = { etapa: etapa, s: s, personas: personas, anticipada: !!anticipada, items: u.items, resp: {}, error: el('p', { class: 'err', hidden: true, role: 'alert' }), desv: null };
             cuerpo.appendChild(el('p', { class: 'field-h', text: (s.empresa || '') + ' · ' + s.codigo }));
             cuerpo.appendChild(nombres(personas));
-            cuerpo.appendChild(el('div', { class: 'aviso a-info', text: 'Un solo checklist para todos los marcados.' + (u.mixto ? ' Los ítems que dicen «Solo transportistas» se exigen únicamente a ellos.' : '') +
+            cuerpo.appendChild(el('div', { class: 'aviso a-info', text: 'Un solo checklist para todos los marcados.' + (u.mixto ? ' Los ítems que dicen «Solo conductores» se exigen únicamente a ellos.' : '') +
                 (ingreso ? ' Si alguien no cumple, ciérrelo y verifíquelo aparte para que la desviación sea solo suya. Quien trae equipos o herramientas debe verificarse de forma individual.' : '') }));
             var zonaCheck = el('div', { class: 'stack' }), zonaDesv = el('div');
             cuerpo.appendChild(el('h4', { text: 'Checklist de ' + (ingreso ? 'ingreso' : 'salida') }));
             cuerpo.appendChild(zonaCheck); cuerpo.appendChild(zonaDesv);
             ctx.obs = el('textarea', { rows: '2', maxlength: '1000', placeholder: 'Observación (opcional)' });
+            if (anticipada) {
+                cuerpo.appendChild(el('div', { class: 'aviso a-warn', text: 'Esto se registrará con observación para el Coordinador: Almacén aún no terminó la atención, así que no es la salida normal.' }));
+                ctx.motivo = el('textarea', { rows: '2', maxlength: '300', placeholder: 'Motivo de la salida anticipada (obligatorio)', 'aria-required': 'true' });
+                cuerpo.appendChild(SOL.campo('Motivo de la salida anticipada', ctx.motivo));
+            }
             cuerpo.appendChild(SOL.campo('Observación', ctx.obs)); cuerpo.appendChild(ctx.error);
             if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: ctx.etapa === 'SALIDA' ? 'Para esta salida no hay ítems de checklist: puede registrarla directamente.' : 'No hay ítems configurados.' })); return; }
             u.items.forEach(function (i) { ctx.resp[i.id] = false; });
@@ -399,7 +415,7 @@
                     var cb = el('input', { type: 'checkbox' });
                     cb.checked = ctx.resp[i.id] === true; if (!cb.checked) todosSi = false;
                     cb.addEventListener('change', function () { ctx.resp[i.id] = cb.checked; pintar2(); sinc(); });
-                    var solo = u.mixto && !(i.roles.T && i.roles.A) ? chip(i.roles.T ? 'Solo transportistas' : 'Solo ayudantes', 'c-line') : null;
+                    var solo = u.mixto && !(i.roles.T && i.roles.A) ? chip(i.roles.T ? 'Solo conductores' : 'Solo ayudantes', 'c-line') : null;
                     zonaCheck.appendChild(el('label', { class: 'chk' + (cb.checked ? ' on' : '') }, [cb, el('span', {}, [el('span', { text: i.texto }), i.critico ? chip('Crítico', 'c-rec') : null, solo, i.ayuda ? el('span', { class: 'field-h', text: ' ' + i.ayuda }) : null])]));
                 });
                 todosCb.checked = todosSi;
@@ -423,6 +439,7 @@
         var ingreso = ctx.etapa === 'INGRESO';
         ctx.error.hidden = true;
         function falla(t) { ctx.error.textContent = t; ctx.error.hidden = false; }
+        if (ctx.anticipada && (ctx.motivo.value || '').trim().length < 5) { falla('Escriba el motivo de la salida anticipada (mínimo 5 caracteres).'); ctx.motivo.focus(); return; }   // D-245: el motivo es obligatorio
         if (!ctx.items.length && ingreso) { falla('No hay ítems de checklist para responder.'); return; }   // la salida puede no tener ítems (p. ej. un ayudante de descarga)
         if (ctx.fallan && ctx.fallan.length && !ctx.desv) { falla('Espere a que se carguen las opciones de la desviación.'); return; }
         var cuerpo = {
@@ -430,6 +447,7 @@
             items: ctx.items.map(function (i) { return { id: i.id, cumple: ctx.resp[i.id] === true }; }),
             observacion: ctx.obs.value, desviacion: ctx.fallan && ctx.fallan.length && ctx.desv ? ctx.desv.valores() : null
         };
+        if (ctx.anticipada) cuerpo.motivo = (ctx.motivo.value || '').trim();
         marcar(true);
         CAF.pedir(ingreso ? d.urlVerificarGrupo : d.urlSalidaGrupo, { method: 'POST', body: cuerpo }).then(function (r) {
             marcar(false);

@@ -245,28 +245,36 @@
                 // D-234: la persona agregada por emergencia también lleva su rol (subtipo), si el tipo de ingreso los tiene
                 var subs = (o.subtipos || []).filter(function (x) { return s && x.tipoId === s.tipoId; });
                 function rolActual() { return rol ? subs.filter(function (x) { return String(x.id) === rol.value; })[0] : null; }
-                function esTransp() { var r = rolActual(); return !!(pv && r && r.codigo === 'TRANSPORTISTA'); }
+                // D-243: sin subtipos configurados, la entrega de proveedor igual pregunta si viene como conductor o como ayudante de descarga
+                var rolPv = null;
+                if (pv && !(o.subtipos || []).some(function (x) { return s && x.tipoId === s.tipoId; })) {
+                    rolPv = el('select', {}, [el('option', { value: 'N', text: 'Ayudante de descarga' }), el('option', { value: 'Y', text: 'Conductor (con su vehículo)' })]);
+                }
+                function esTransp() { if (rolPv) return pv && rolPv.value === 'Y'; var r = rolActual(); return !!(pv && r && r.codigo === 'TRANSPORTISTA'); }
                 if (subs.length) {
                     rol = el('select');
                     subs.forEach(function (x) { rol.appendChild(el('option', { value: String(x.id), text: x.texto })); });
                     rol.value = String((subs.filter(function (x) { return x.predeterminado; })[0] || subs[0]).id);
                 }
                 if (pv) {
-                    var cam = [['ruc', 'RUC del transportista', 11, '11 dígitos.'], ['nombre', 'Razón social', 200, ''], ['direccion', 'Dirección', 300, ''],
+                    var cam = [['ruc', 'RUC de la empresa transportista', 11, '11 dígitos.'], ['nombre', 'Razón social', 200, ''], ['direccion', 'Dirección', 300, ''],
                         ['placa', 'Placa del vehículo', 8, 'De 5 a 8 letras o números.'], ['marca', 'Marca del vehículo', 50, ''], ['licencia', 'Licencia del conductor', 20, '']];
-                    dt = el('div', { class: 'stack', hidden: 'hidden' }, [el('p', { class: 'ayuda', text: 'Datos del transportista (opcionales: Vigilancia los completa al verificarlo).' })].concat(cam.map(function (c) {
+                    dt = el('div', { class: 'stack', hidden: 'hidden' }, [el('p', { class: 'ayuda', text: 'Datos de la empresa transportista (opcionales: Vigilancia los completa al verificarlo).' })].concat(cam.map(function (c) {
                         var i = el('input', { type: 'text', maxlength: String(c[2]), placeholder: c[3] }); ins[c[0]] = i;
                         if (c[0] === 'placa') i.style.textTransform = 'uppercase';
                         return el('label', { class: 'field' }, [el('span', { class: 'field-l', text: c[1] }), i]);
                     })));
                     }
-                if (rol) rol.addEventListener('change', function () { if (dt) { if (esTransp()) dt.removeAttribute('hidden'); else dt.setAttribute('hidden', 'hidden'); } });
+                function mostrarDt() { if (dt) { if (esTransp()) dt.removeAttribute('hidden'); else dt.setAttribute('hidden', 'hidden'); } }
+                if (rol) rol.addEventListener('change', mostrarDt);
+                if (rolPv) rolPv.addEventListener('change', mostrarDt);
                 CAF.modal('Agregar persona (emergencia)', el('div', { class: 'stack' }, [
                     el('div', { class: 'aviso a-warn', text: 'Corrección de emergencia: la persona queda autorizada de inmediato. Vigilancia la verá al instante y el solicitante y Vigilancia recibirán un correo con el sustento.' }),
                     fp.nodo,
                     rol ? el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Rol de la persona' }), rol]) : null,
+                    rolPv ? el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Viene como' }), rolPv]) : null,
                     pv ? dt : null,
-                    pv ? el('div', { class: 'aviso a-info', text: 'Si agrega un transportista cuando la entrega ya esperaba, vuelve a «Programado» hasta que Vigilancia lo verifique. Un transportista no se puede agregar si la entrega ya terminó.' }) : null,
+                    pv ? el('div', { class: 'aviso a-info', text: 'Un conductor agregado debe ser verificado por Vigilancia: si ya hay otro conductor verificado, la entrega sigue su curso y solo falta verificar al nuevo; si no, vuelve a «Programado». Un conductor no se puede agregar si la entrega ya terminó.' }) : null,
                     sus.nodo, err]), [
                     { texto: 'Cancelar', onclick: function (c) { c(); } },
                     {
@@ -295,7 +303,7 @@
 
         function quitar(p) {
             var err = el('p', { class: 'field-e' }), unica = !!p.esUnica;
-            var sus = campoSustento(unica ? 'Por qué se rechaza la solicitud (por ejemplo: el transportista ya no viene y no hay reemplazo).' : 'Por qué se quita a esta persona (por ejemplo: ya no viene, la reemplazó otra persona).');
+            var sus = campoSustento(unica ? 'Por qué se rechaza la solicitud (por ejemplo: el conductor ya no viene y no hay reemplazo).' : 'Por qué se quita a esta persona (por ejemplo: ya no viene, la reemplazó otra persona).');
             CAF.modal(unica ? 'Quitar y rechazar la solicitud (emergencia)' : 'Quitar persona (emergencia)', el('div', { class: 'stack' }, [
                 el('p', { text: '¿Quitar a ' + p.nombre + ' de esta solicitud? Ya no podrá ingresar.' }),
                 unica ? el('div', { class: 'aviso a-warn', text: p.esTransportista ? 'Es el único transportista: sin él no hay entrega y la solicitud quedará RECHAZADA, aunque queden ayudantes de descarga. Si fue un error de nombre, use «Corregir datos»; si ya no viene, el solicitante puede cancelar la solicitud desde sus solicitudes.' : 'Es la única persona de la solicitud. Si la quita, la solicitud quedará RECHAZADA y nadie podrá ingresar con ella. Si lo que quiere es otra cosa, el solicitante puede cancelarla desde sus solicitudes.' }) : null,

@@ -9,10 +9,21 @@
     var el = CAF.el, lista = [];
     // Nombre para mostrar y ayuda de cada clave conocida (las desconocidas se muestran con su clave y su descripción)
     var NOMBRE = {
-        ATENCIONES_SIMULTANEAS_EMPRESA: ['Atenciones simultáneas por empresa', 'Cuántas entregas puede atender a la vez una misma empresa. Número entero de 1 a 99 (por defecto 1).'],
-        EXCLUSA_CAPACIDAD: ['Capacidad de la esclusa', 'Cuántas personas pueden estar dentro de la esclusa a la vez. Número entero de 1 a 99.'],
+        ATENCIONES_SIMULTANEAS_EMPRESA: ['Atenciones simultáneas por empresa (general)', 'Cuántas entregas puede atender a la vez una misma empresa, salvo que tenga su propio cupo abajo. Número de 1 a 99 o sin límite (por defecto 1).'],
+        ATENCIONES_SIMULTANEAS_ALMACENERO: ['Solicitudes simultáneas por almacenero', 'Cuántas solicitudes puede tener a la vez un almacenero, desde que confirma la disponibilidad hasta que termina o detiene su atención. De 1 a 99 o sin límite (por defecto 1). Con «sin límite» se desactiva esta restricción.'],
+        EXCLUSA_CAPACIDAD: ['Capacidad de la esclusa', 'Cuántos conductores (vehículos con placa) pueden estar dentro de la esclusa a la vez: un número de 1 a 99 o sin límite. La esclusa atiende una entrega a la vez.'],
+        PLACA_OBLIGATORIA: ['Placa obligatoria', 'Si se exige la placa del vehículo de cada conductor al registrar la solicitud (Sí por ahora; se puede desactivar).'],
         PROVEEDOR_HORA_CORTE: ['Hora de corte del día de proveedores', 'A esta hora (HH:MM) se cierran las entregas del día anterior que quedaron abiertas.']
     };
+
+    var PREF = 'CUPO_EMPRESA:';
+    function esCupo(p) { return p.clave.indexOf(PREF) === 0; }
+    function general() { var g = lista.filter(function (x) { return x.clave === 'ATENCIONES_SIMULTANEAS_EMPRESA'; })[0]; return g ? (g.valor === 'SIN_LIMITE' ? 'sin límite' : g.valor) : '1'; }
+    // D-244: una fila de cupo por empresa; se muestra con el nombre de la empresa
+    function nombreDe(p) {
+        if (esCupo(p)) return ['Cupo de ' + (p.descripcion || p.clave.substring(PREF.length)), 'Cuántas entregas puede atender a la vez esta empresa. Es independiente de las demás: un número de 1 a 99, sin límite, o «general» para usar el valor general.'];
+        return NOMBRE[p.clave] || [p.clave, p.descripcion || ''];
+    }
 
     function cargar() {
         return CAF.pedir(urlListar).then(function (r) {
@@ -25,27 +36,51 @@
         cuerpoTabla.textContent = '';
         if (!lista.length) { cuerpoTabla.appendChild(el('tr', {}, [el('td', { colspan: '3', class: 'vacio', text: 'No hay parámetros.' })])); return; }
         lista.forEach(function (p) {
-            var n = NOMBRE[p.clave] || [p.clave, p.descripcion || ''];
+            var n = nombreDe(p);
             cuerpoTabla.appendChild(el('tr', {}, [
                 el('td', { class: 'stk' }, [el('b', { text: n[0] }), el('div', { class: 'small muted', text: n[1] || p.descripcion || '' })]),
-                el('td', { text: p.valor === '' ? '—' : p.valor }),
+                el('td', { text: mostrar(p) }),
                 el('td', {}, [el('button', { type: 'button', class: 'btn btn-sm', text: 'Editar', onclick: function () { editar(p, n); } })])
             ]));
         });
     }
 
+    // D-239: valores con formato propio se muestran en palabras
+    function mostrar(p) {
+        if (p.valor === 'SIN_LIMITE') return 'Sin límite';
+        if (esCupo(p) && p.valor === 'GENERAL') return 'General (' + general() + ')';
+        if (p.clave === 'PLACA_OBLIGATORIA') return p.valor === 'N' ? 'No' : 'Sí';
+        return p.valor === '' ? '—' : p.valor;
+    }
+
     function editar(p, n) {
-        var inp = el('input', { type: 'text', maxlength: '200', value: p.valor });
+        var inp, leer, ctl;
+        if (p.clave === 'PLACA_OBLIGATORIA') {
+            inp = el('select', {}, [el('option', { value: 'Y', text: 'Sí, se exige' }), el('option', { value: 'N', text: 'No, es opcional' })]);
+            inp.value = p.valor === 'N' ? 'N' : 'Y'; leer = function () { return inp.value; }; ctl = inp;
+        } else if (p.clave === 'EXCLUSA_CAPACIDAD' || p.clave === 'ATENCIONES_SIMULTANEAS_EMPRESA' || p.clave === 'ATENCIONES_SIMULTANEAS_ALMACENERO' || esCupo(p)) {
+            // número de 1 a 99, «sin límite» (desactiva el límite) y, solo en el cupo de una empresa, «usar el general»
+            var gen = esCupo(p), numero = /^\d+$/.test(p.valor);
+            inp = el('input', { type: 'number', min: '1', max: '99', step: '1', value: numero ? p.valor : '' });
+            var sl = el('input', { type: 'checkbox' }); sl.checked = p.valor === 'SIN_LIMITE';
+            var ge = gen ? el('input', { type: 'checkbox' }) : null; if (ge) ge.checked = p.valor === 'GENERAL';
+            function sync() { inp.disabled = sl.checked || (ge && ge.checked); if (ge) sl.disabled = ge.checked; }
+            sl.addEventListener('change', function () { if (sl.checked && ge) ge.checked = false; sync(); if (!inp.disabled) inp.focus(); });
+            if (ge) ge.addEventListener('change', function () { if (ge.checked) sl.checked = false; sync(); });
+            sync();
+            leer = function () { return ge && ge.checked ? 'GENERAL' : sl.checked ? 'SIN_LIMITE' : inp.value; };
+            ctl = el('div', { class: 'stack' }, [inp, el('label', {}, [sl, ' Sin límite (desactivar)'])].concat(ge ? [el('label', {}, [ge, ' Usar el valor general (' + general() + ')'])] : []));
+        } else { inp = el('input', { type: 'text', maxlength: '200', value: p.valor }); leer = function () { return inp.value; }; ctl = inp; }
         var err = el('span', { class: 'field-e' });
         var env = false;
         CAF.modal('Parámetro · ' + n[0], el('div', { class: 'stack' }, [
             n[1] ? el('p', { class: 'field-h', text: n[1] }) : null,
-            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Valor' }), inp, err])
+            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Valor' }), ctl, err])
         ]), [
             { texto: 'Cancelar', onclick: function (c) { c(); } },
             { texto: 'Guardar', tipo: 'primary', onclick: function (c) {
                 if (env) return; env = true; err.textContent = '';
-                CAF.pedir(urlGuardar, { method: 'POST', body: { clave: p.clave, valor: inp.value } }).then(function (r) {
+                CAF.pedir(urlGuardar, { method: 'POST', body: { clave: p.clave, valor: leer() } }).then(function (r) {
                     env = false;
                     if (!r.success) { err.textContent = r.message || 'No se pudo guardar.'; return; }
                     CAF.aviso(r.message || 'Guardado.'); c(); cargar();

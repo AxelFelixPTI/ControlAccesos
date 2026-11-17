@@ -52,25 +52,40 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         catch (Exception ex) { _logger.LogError(ex, "PROGRAMAR Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
-    public async Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    public async Task<Result<List<Dto_Proveedor_Cupo>>> CuposAsync(long usuarioId, long sedeId, CancellationToken ct = default)
+    {
+        try { return await _repo.CuposAsync(usuarioId, sedeId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "CUPOS Proveedor ERROR"); return Result<List<Dto_Proveedor_Cupo>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result> CederReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
     {
         try
         {
-            var sp = await _repo.ConfirmarDisponibilidadAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            var sp = await _repo.CederReservaAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "CEDER RESERVA Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> TomarReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.TomarReservaAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "TOMAR RESERVA Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.ConfirmarDisponibilidadAsync(solicitudId, conVehiculo, usuarioId, ct).ConfigureAwait(false);
             return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
         }
         catch (Exception ex) { _logger.LogError(ex, "DISPONIBILIDAD Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
-    }
-
-    public async Task<Result> CancelarDisponibilidadAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(motivo)) return Result.Fail("Indique el motivo de la cancelación.", MapeoSp.Codigo(400));
-            var sp = await _repo.CancelarDisponibilidadAsync(solicitudId, motivo.Trim(), usuarioId, ct).ConfigureAwait(false);
-            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
-        }
-        catch (Exception ex) { _logger.LogError(ex, "CANCELAR DISPONIBILIDAD Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
     public async Task<Result> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
@@ -202,6 +217,57 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
             return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
         }
         catch (Exception ex) { _logger.LogError(ex, "TERMINAR EMPRESA Proveedor ID={ID} Empresa={Emp} ERROR", solicitudId, empresaId); return Result.Fail(ex.Message); }
+    }
+
+    private static string? Ids(IEnumerable<long>? ids)
+    {
+        var l = (ids ?? Array.Empty<long>()).Where(x => x > 0).Distinct().ToList();
+        return l.Count == 0 ? null : string.Join(",", l);
+    }
+
+    public async Task<Result> AtenderEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var ids = Ids(empresasIds); if (ids is null) return Result.Fail("Elija al menos una empresa.", MapeoSp.Codigo(400));
+            var sp = await _repo.AtenderEmpresasAsync(solicitudId, ids, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "ATENDER EMPRESAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> DetenerEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var ids = Ids(empresasIds); if (ids is null) return Result.Fail("Elija al menos una empresa.", MapeoSp.Codigo(400));
+            var sp = await _repo.DetenerEmpresasAsync(solicitudId, ids, string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim(), usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "DETENER EMPRESAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> ReanudarEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var ids = Ids(empresasIds); if (ids is null) return Result.Fail("Elija al menos una empresa.", MapeoSp.Codigo(400));
+            var sp = await _repo.ReanudarEmpresasAsync(solicitudId, ids, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "REANUDAR EMPRESAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> TerminarEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, string? observacion, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var ids = Ids(empresasIds); if (ids is null) return Result.Fail("Elija al menos una empresa.", MapeoSp.Codigo(400));
+            var obs = string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim();
+            var sp = await _repo.RecepcionarEmpresasAsync(solicitudId, ids, obs is null ? "CONFORME" : "CON_OBSERVACION", obs, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "TERMINAR EMPRESAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
     public async Task<Result> CerrarSinAtencionAsync(long solicitudId, long empresaId, long motivoId, string? detalle, long usuarioId, CancellationToken ct = default)

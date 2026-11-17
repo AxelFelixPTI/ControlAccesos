@@ -31,12 +31,12 @@ DECLARE
     lv_placa VARCHAR(15);
 BEGIN
     -- V1.0 2026-11-06
-    IF NULLIF(TRIM(COALESCE("HV_Ruc", '')), '') IS NOT NULL AND TRIM("HV_Ruc") !~ '^[0-9]{11}$' THEN RETURN 'El RUC del transportista debe tener 11 dígitos.'; END IF;
-    IF LENGTH(TRIM(COALESCE("HV_Nombre", ''))) > 200 THEN RETURN 'El nombre del transportista no puede superar 200 caracteres.'; END IF;
-    IF LENGTH(TRIM(COALESCE("HV_Direccion", ''))) > 300 THEN RETURN 'La dirección del transportista no puede superar 300 caracteres.'; END IF;
+    IF NULLIF(TRIM(COALESCE("HV_Ruc", '')), '') IS NOT NULL AND TRIM("HV_Ruc") !~ '^[0-9]{11}$' THEN RETURN 'El RUC de la empresa transportista debe tener 11 dígitos.'; END IF;
+    IF LENGTH(TRIM(COALESCE("HV_Nombre", ''))) > 200 THEN RETURN 'El nombre de la empresa transportista no puede superar 200 caracteres.'; END IF;
+    IF LENGTH(TRIM(COALESCE("HV_Direccion", ''))) > 300 THEN RETURN 'La dirección de la empresa transportista no puede superar 300 caracteres.'; END IF;
     lv_placa := "ERP_CAF_FN_PLACA_NORMALIZAR"("HV_Placa");
-    IF lv_placa IS NULL THEN RETURN 'Indique la placa del vehículo del conductor.'; END IF;   -- D-237: obligatoria
-    IF lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
+    IF lv_placa IS NULL AND COALESCE("ERP_CAF_PARAMETRO_VALOR"('PLACA_OBLIGATORIA'), 'Y') <> 'N' THEN RETURN 'Indique la placa del vehículo del conductor.'; END IF;   -- D-237: obligatoria (D-239: configurable)
+    IF lv_placa IS NOT NULL AND lv_placa !~ '^[A-Z0-9]{5,8}$' THEN RETURN 'La placa del vehículo debe tener de 5 a 8 letras o números.'; END IF;
     IF LENGTH(TRIM(COALESCE("HV_Marca", ''))) > 50 THEN RETURN 'La marca del vehículo no puede superar 50 caracteres.'; END IF;
     IF LENGTH(TRIM(COALESCE("HV_Licencia", ''))) > 20 THEN RETURN 'La licencia de conducir no puede superar 20 caracteres.'; END IF;
     RETURN '';
@@ -268,7 +268,7 @@ BEGIN
             END IF;
         END IF;
         "HV_Codigo_Resp" := 100;
-        "HV_Mensaje"     := 'Transportista retirado.';
+        "HV_Mensaje"     := 'Conductor retirado.';
     EXCEPTION WHEN OTHERS THEN
         "HV_Codigo_Resp" := 500;
         "HV_Mensaje"     := 'Error interno en ERP_CAF_SOLICITUD_TRANSPORTISTA_QUITAR';
