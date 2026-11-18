@@ -177,7 +177,7 @@
         var conductores = esProv() ? personas.filter(function (p) { return p.transp; }).map(function (p) {
             return { personaId: p.id, ruc: p.datos.ruc, nombre: p.datos.nombre, direccion: p.datos.direccion, placa: p.datos.placa, marca: p.datos.marca, licencia: p.datos.licencia };
         }) : [];
-        CAF.pedir(d.urlCrear, { method: 'POST', body: Object.assign({}, v, { personasIds: personas.map(function (p) { return p.id; }), origenId: origen || null, transportistas: transportistas,
+        CAF.pedir(d.urlCrear, { method: 'POST', body: Object.assign({}, v, { personasIds: personas.map(function (p) { return p.id; }), origenId: origen || null, transportistas: conductores,
             subtipos: personas.filter(function (p) { return p.subtipoId; }).map(function (p) { return { personaId: p.id, subtipoId: p.subtipoId }; }) }) }).then(function (r) {
             enviando = false; sigue.disabled = false;
             if (!r.success) { err.textContent = SOL.errores(r); return; }
