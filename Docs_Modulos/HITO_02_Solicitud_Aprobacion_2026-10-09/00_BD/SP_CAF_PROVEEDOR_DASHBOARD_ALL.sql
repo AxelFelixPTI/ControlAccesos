@@ -251,7 +251,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "Atencion_Resumen" VARCHAR, "Modo_Ingreso" VARCHAR, "Conductor_Documento" VARCHAR,
                "Puede_Detener" CHAR, "Puede_Reanudar" CHAR, "Puede_Cerrar_Sin" CHAR,
                "Motivo_Iniciar" VARCHAR, "Motivo_Reanudar" VARCHAR,
-               "Puede_Ceder" CHAR, "Puede_Tomar" CHAR, "Motivo_Tomar" VARCHAR, "Reserva_Nombre" VARCHAR, "Pausada" CHAR)
+               "Puede_Ceder" CHAR, "Puede_Tomar" CHAR, "Motivo_Tomar" VARCHAR, "Reserva_Nombre" VARCHAR, "Pausada" CHAR,
+               "Solicitante_Nombre" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -359,7 +360,10 @@ BEGIN
            CAST(CASE WHEN O."Estado_Operativo" = 'EN_ATENCION'
                           AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Atencion" AD WHERE AD."ID_Solicitud" = S."ID_Solicitud" AND AD."Eliminado" = 'N' AND AD."Estado" = 'DETENIDA')
                           AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Atencion" AE WHERE AE."ID_Solicitud" = S."ID_Solicitud" AND AE."Eliminado" = 'N' AND AE."Estado" = 'EN_ATENCION')
-                     THEN 'Y' ELSE 'N' END AS CHAR)
+                     THEN 'Y' ELSE 'N' END AS CHAR),
+           -- V2.2 2026-11-18: quién hizo la solicitud (se muestra en la tarjeta)
+           CAST((SELECT US."Apellido_Paterno" || COALESCE(' ' || US."Apellido_Materno", '') || ', ' || US."Nombres" FROM "CAF_GOVERNANCE"."Usuario" US
+                  WHERE US."ID_Usuario" = S."ID_Usuario_Solicitante") AS VARCHAR)
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'

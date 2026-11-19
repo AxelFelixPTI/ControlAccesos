@@ -22,6 +22,8 @@ public interface IRepo_Solicitud
     Task<Result<List<Dto_Solicitud_Tipo_Opcion>>> TiposOpcionesAsync(long usuarioId, CancellationToken ct = default);
     /// <summary>Sedes donde el usuario puede crear solicitudes, con la marca de cochera.</summary>
     Task<Result<List<Dto_Solicitud_Sede_Opcion>>> SedesOpcionesAsync(long usuarioId, CancellationToken ct = default);
+    /// <summary>D-251: vence las solicitudes fuera de plazo; devuelve cuántas.</summary>
+    Task<ResultSp<long>> VencerAsync(long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Bandeja>>> BandejaListarAsync(long usuarioId, Dto_Filtro_Bandeja? f = null, CancellationToken ct = default);
     Task<Result<Dto_Solicitud_Contadores?>> ContadoresAsync(long usuarioId, long? sedeId = null, CancellationToken ct = default);

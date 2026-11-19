@@ -17,10 +17,14 @@ using Web.ControlAccesos.Seguridad;
 
 namespace Web.ControlAccesos.Controllers;
 
-[Authorize, ExigirPermiso(CatalogosController.Permiso)]
+[Authorize, ExigirPermiso(CatalogosController.Permiso, CatalogosController.PermisoConfig)]
 public sealed class CatalogosController : Controller
 {
     public const string Permiso = "PER_CAF_ADMIN_CATALOGOS";
+    /// <summary>D-258: licencia de configuración. Abre la pantalla y los catálogos de CATALOGOS_CONFIG; el resto exige Permiso.</summary>
+    public const string PermisoConfig = "PER_CAF_CONFIG_SISTEMA";
+    /// <summary>Catálogos que puede editar quien tiene solo la licencia de configuración (áreas y cargos siguen siendo del administrador).</summary>
+    private static readonly string[] CatalogosConfig = { "zona", "motivo", "tratamiento", "incidencia" };
     private const string SedeCodigo = "VES";
     private static readonly string[] ResIng = { "INGRESA", "INGRESA_RESTRINGIDO", "NO_INGRESA" };
     private static readonly string[] ResSal = { "SALE", "SALE_RETIENE_ELEMENTO" };
@@ -44,17 +48,28 @@ public sealed class CatalogosController : Controller
     public IActionResult Index() => View();
 
     [HttpGet]
-    public async Task<IActionResult> Listar(string tipo, CancellationToken ct)
+    public async Task<IActionResult> Listar(string tipo, string? sede, CancellationToken ct)
     {
-        var r = await CargarAsync(tipo, ct);
+        if (!PuedeTipo(tipo)) return Json(new { success = false, message = "No tiene permiso para este catálogo." });
+        var r = await CargarAsync(tipo, ct, sede: sede);
         return r.Success
             ? Json(new { success = true, message = "", data = r.Data!.Select(Fila).ToList() })
             : Json(new { success = false, message = r.Message });
     }
 
+    /// <summary>Sedes activas, para agrupar las zonas por sede (D-258).</summary>
+    [HttpGet]
+    public async Task<IActionResult> Sedes(CancellationToken ct)
+    {
+        var s = await _sedes.ListarAsync(false, ct);
+        if (!s.Success) return Json(new { success = false, message = s.Message });
+        return Json(new { success = true, data = s.Data!.Select(x => new { codigo = x.Codigo, nombre = x.Descripcion }).ToList() });
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Guardar([FromBody] CatalogoGuardarVM m, CancellationToken ct)
     {
+        if (!PuedeTipo(m.Tipo)) return Falla("No tiene permiso para este catálogo.");
         var descripcion = (m.Descripcion ?? string.Empty).Trim();
         if (descripcion.Length == 0) return Falla("Escriba el nombre.");
         if (descripcion.Length > 500) return Falla("El nombre no puede superar 500 caracteres.");
@@ -75,7 +90,7 @@ public sealed class CatalogosController : Controller
             if (resIng is null && resSal is null) return Falla("El tratamiento debe aplicar al ingreso, a la salida o a ambos.");
         }
 
-        var existentes = await CargarAsync(tipo, ct, incluirTodos: true);
+        var existentes = await CargarAsync(tipo, ct, incluirTodos: true, sede: m.Sede);
         if (!existentes.Success) return Falla(existentes.Message);
         var lista = existentes.Data!;
         if (lista.Any(x => x.Eliminado != "Y" && x.ID_Catalogo != m.Id && Norm(x.Descripcion) == Norm(descripcion)))
@@ -104,8 +119,8 @@ public sealed class CatalogosController : Controller
         dto.Activo = m.Activo ? "Y" : "N";
         if (tipo == "zona")
         {
-            var sede = await IdSedeAsync(ct);
-            if (sede is null) return Falla("No se encontró la sede " + SedeCodigo + ".");
+            var sede = await IdSedeAsync(m.Sede, ct);
+            if (sede is null) return Falla("No se encontró la sede " + (m.Sede ?? SedeCodigo) + ".");
             dto.ID_Catalogo_Sede = sede;
             dto.Tipo_Zona = tipoZona;
             dto.Exige_SCTR = m.ExigeSctr ? "Y" : "N";
@@ -123,24 +138,27 @@ public sealed class CatalogosController : Controller
         return Json(new { success = r.Success, message = r.Message, errors = r.Errors.Select(e => new { field = e.Field, message = e.Message }) });
     }
 
-    // ── apoyo ──────────────────────────────────────────────────────────────────────────────────
+    // ── apoyo ──
+    private bool PuedeTipo(string tipo)
+        => User.TienePermiso(Permiso) || (User.TienePermiso(PermisoConfig) && CatalogosConfig.Contains((tipo ?? string.Empty).ToLowerInvariant()));
     private IActionResult Falla(string mensaje) => Json(new { success = false, message = mensaje });
 
-    private async Task<long?> IdSedeAsync(CancellationToken ct)
+    private async Task<long?> IdSedeAsync(string? codigo, CancellationToken ct)
     {
+        var cod = string.IsNullOrWhiteSpace(codigo) ? SedeCodigo : codigo.Trim();
         var s = await _sedes.ListarAsync(false, ct);
-        return s.Success ? s.Data!.FirstOrDefault(x => x.Codigo == SedeCodigo)?.ID_Catalogo : null;
+        return s.Success ? s.Data!.FirstOrDefault(x => x.Codigo == cod)?.ID_Catalogo : null;
     }
 
-    private async Task<Result<List<Dto_Catalogo_Universal>>> CargarAsync(string tipo, CancellationToken ct, bool incluirTodos = false)
+    private async Task<Result<List<Dto_Catalogo_Universal>>> CargarAsync(string tipo, CancellationToken ct, bool incluirTodos = false, string? sede = null)
     {
         switch ((tipo ?? string.Empty).ToLowerInvariant())
         {
             case "zona":
-                var sede = await IdSedeAsync(ct);
-                return sede is null
-                    ? Result<List<Dto_Catalogo_Universal>>.Fail("No se encontró la sede " + SedeCodigo + ".")
-                    : await _zonas.ListarAsync(sede, incluirTodos, ct);
+                var idSede = await IdSedeAsync(sede, ct);
+                return idSede is null
+                    ? Result<List<Dto_Catalogo_Universal>>.Fail("No se encontró la sede " + (sede ?? SedeCodigo) + ".")
+                    : await _zonas.ListarAsync(idSede, incluirTodos, ct);
             case "motivo": return await _motivos.ListarAsync(incluirTodos, ct);
             case "tratamiento": return await _tratamientos.ListarAsync(incluirTodos, ct);
             case "incidencia": return await _incidencias.ListarAsync(incluirTodos, ct);

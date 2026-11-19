@@ -18,7 +18,7 @@ using Web.ControlAccesos.Seguridad;
 
 namespace Web.ControlAccesos.Controllers;
 
-[Authorize, ExigirPermiso(CatalogosController.Permiso)]
+[Authorize, ExigirPermiso(CatalogosController.Permiso, CatalogosController.PermisoConfig)]
 public sealed class ChecklistPorteriaController : Controller
 {
     private static readonly string[] Etapas = { "INGRESO", "SALIDA" };

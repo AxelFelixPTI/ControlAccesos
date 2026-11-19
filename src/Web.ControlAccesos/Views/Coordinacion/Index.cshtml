@@ -2,7 +2,8 @@
 <div class="stack" id="caf-coord" data-url-lista="@Url.Action("Lista", "Coordinacion")" data-url-revisar="@Url.Action("Revisar", "Coordinacion")"
      data-url-decidir="@Url.Action("Decidir", "Coordinacion")" data-url-agregar="@Url.Action("AgregarEmergencia", "Coordinacion")" data-url-extender-dias="@Url.Action("ExtenderDias", "Coordinacion")" data-url-quitar="@Url.Action("RetirarEmergencia", "Coordinacion")" data-url-corregir="@Url.Action("CorregirEmergencia", "Coordinacion")"
      data-url-opciones="@Url.Action("Opciones", "Coordinacion")" data-url-buscar="@Url.Action("PersonaPorDocumento", "Coordinacion")"
-     data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")" data-url-adj="@Url.Action("Listar", "Adjuntos")">
+     data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")" data-url-adj="@Url.Action("Listar", "Adjuntos")"
+     data-url-correos="@Url.Action("Listar", "CorreosSolicitud")" data-url-reenviar="@Url.Action("Reenviar", "CorreosSolicitud")" data-url-sugerir="@Url.Action("Sugerir", "CorreosSolicitud")">
     @Html.AntiForgeryToken()
     <p class="lead">Revise las solicitudes y decida persona por persona: aprobar, observar (pedir una corrección) o rechazar.</p>
     <div class="pills" id="c-tabs"></div>
@@ -15,7 +16,7 @@
             <select id="c-estado">
                 <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="OBSERVADA">Observada</option>
                 <option value="APROBADA_PARCIAL">Aprobada parcial</option><option value="APROBADA">Aprobada</option>
-                <option value="RECHAZADA">Rechazada</option><option value="CANCELADA">Cancelada</option>
+                <option value="RECHAZADA">Rechazada</option><option value="VENCIDA">Vencida</option><option value="CANCELADA">Cancelada</option>
             </select>
         </label>
     </section>

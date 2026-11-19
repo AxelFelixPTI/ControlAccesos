@@ -426,6 +426,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Motivo_Tomar               = RdStrN(rd, "Motivo_Tomar"),
         Reserva_Nombre             = RdStrN(rd, "Reserva_Nombre"),
         Pausada                    = RdBool(rd, "Pausada"),
+        Solicitante_Nombre         = RdStrN(rd, "Solicitante_Nombre"),
         Estado_Operativo       = RdStr(rd, "Estado_Operativo"),
         Con_Desviacion         = RdBool(rd, "Con_Desviacion"),
         Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),

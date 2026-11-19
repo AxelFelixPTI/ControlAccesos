@@ -41,13 +41,13 @@ var ADJ = (function () {
         var archivos = [];
         var lista = el('ul', { class: 'plist' }), error = el('p', { class: 'field-e' });
         var entrada = el('input', { type: 'file', multiple: true, hidden: true, accept: '.pdf,.doc,.docx,.xls,.xlsx' });
-        var boton = el('button', { type: 'button', class: 'btn btn-sm', text: '+ Adjuntar documento', onclick: function () { entrada.click(); } });
+        var boton = CAF.btn({ icono: 'adjunto', texto: 'Adjuntar documento', modo: 'texto', clase: 'btn-sm', onclick: function () { entrada.click(); } });
         function pintar() {
             lista.textContent = '';
             archivos.forEach(function (f, i) {
                 lista.appendChild(el('li', {}, [
                     el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: f.name }), el('div', { class: 'field-h', text: tamano(f.size) })]),
-                    el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Quitar', onclick: function () { archivos.splice(i, 1); error.textContent = ''; pintar(); } })]));
+                    CAF.btn({ icono: 'papelera', texto: 'Quitar', clase: 'btn-sm btn-danger-o', onclick: function () { archivos.splice(i, 1); error.textContent = ''; pintar(); } })]));
             });
             if (!archivos.length) lista.appendChild(el('li', {}, [el('span', { class: 'vacio', text: 'Sin documentos adjuntos (opcional).' })]));
             boton.disabled = archivos.length >= MAX_ARCHIVOS;
@@ -97,14 +97,15 @@ var ADJ = (function () {
             cantidad = r.data.length;
             var ul = el('ul', { class: 'plist' });
             r.data.forEach(function (a) {
-                var acc = [el('a', { class: 'btn btn-sm', href: baseUrl + 'Descargar?id=' + a.id, text: 'Descargar' })];
-                if (a.puedeQuitar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Retirar', onclick: function () { quitar(a); } }));
+                var acc = [CAF.btn({ icono: 'descargar', texto: 'Descargar', clase: 'btn-sm', href: baseUrl + 'Descargar?id=' + a.id })];
+                if (a.puedeQuitar) acc.push(CAF.btn({ icono: 'papelera', texto: 'Retirar', clase: 'btn-sm btn-danger-o', onclick: function () { quitar(a); } }));
                 ul.appendChild(el('li', {}, [el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: a.nombre }), el('div', { class: 'field-h', text: tamano(a.tamano) + ' · ' + a.fecha })]), el('div', { class: 'acc' }, acc)]));
             });
             if (!r.data.length) ul.appendChild(el('li', {}, [el('span', { class: 'vacio', text: 'Esta solicitud no tiene documentos adjuntos.' })]));
             caja.appendChild(ul);
+            if (r.data.length > 1) caja.appendChild(el('div', { class: 'row-end' }, [CAF.btn({ icono: 'descargar-todo', texto: 'Descargar todo (ZIP)', clase: 'btn-sm', href: baseUrl + 'DescargarTodo?solicitudId=' + o.solicitudId })]));
             if (o.puedeAdjuntar && cantidad < MAX_ARCHIVOS)
-                caja.appendChild(el('div', { class: 'row-end' }, [el('button', { type: 'button', class: 'btn btn-sm', text: '+ Adjuntar documento', onclick: function () { entrada.click(); } })]));
+                caja.appendChild(el('div', { class: 'row-end' }, [CAF.btn({ icono: 'adjunto', texto: 'Adjuntar documento', modo: 'texto', clase: 'btn-sm', onclick: function () { entrada.click(); } })]));
             if (o.puedeAdjuntar) caja.appendChild(el('p', { class: 'field-h', text: 'Hasta ' + MAX_ARCHIVOS + ' archivos de 5 MB (20 MB en total): ' + PERMITIDOS + '.' }));
         }
         function recargar() { return CAF.pedir(o.urlListar + '?solicitudId=' + o.solicitudId).then(pintar); }

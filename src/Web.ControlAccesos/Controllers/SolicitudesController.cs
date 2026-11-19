@@ -67,6 +67,7 @@ public sealed class SolicitudesController : Controller
             total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
             puedeEditar = s.Puede_Editar_Datos, motivoNoEditar = s.Motivo_No_Editar_Datos,
             puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar, puedeReutilizar = s.Puede_Reutilizar,
+            diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
         });
         return Json(new { success = true, data = filas });
     }
@@ -305,7 +306,7 @@ public sealed class SolicitudesController : Controller
                 puedeEditar = s.Puede_Editar_Datos && !franjaAprobada,
                 motivoNoEditar = franjaAprobada ? "Una solicitud de contratista aprobada no se modifica. Para ampliar el plazo cree una solicitud nueva (el Coordinador también puede agregar días)." : s.Motivo_No_Editar_Datos, puedeModificar = s.Puede_Modificar_Personal,
                 motivoNoModificar = s.Motivo_No_Modificar_Personal, puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar,
-                puedeReutilizar = s.Puede_Reutilizar, esPropia = s.Es_Propia,
+                puedeReutilizar = s.Puede_Reutilizar, esPropia = s.Es_Propia, diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
                 empresaDestinoId = s.ID_Empresa_Destino, empresaDestino = s.Empresa_Destino,
                 numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),   // D-237
                 empresaTransportista = s.Empresa_Transportista, horaHasta = s.Hora_Hasta_Prevista,

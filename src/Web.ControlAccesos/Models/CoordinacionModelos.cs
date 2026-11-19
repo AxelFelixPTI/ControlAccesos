@@ -32,11 +32,16 @@ public sealed class CorreccionAgregarVM
     /// <summary>D-226: solo en solicitudes de proveedor; si es transportista, sus datos son opcionales.</summary>
     public bool EsTransportista { get; set; }
     public string? Ruc { get; set; }
-    public string? Nombre { get; set; }
-    public string? Direccion { get; set; }
-    public string? Placa { get; set; }
-    public string? Marca { get; set; }
-    public string? Licencia { get; set; }
+    private string? _nombre;
+    public string? Nombre { get => _nombre; set => _nombre = Mayus.De(value); }
+    private string? _direccion;
+    public string? Direccion { get => _direccion; set => _direccion = Mayus.De(value); }
+    private string? _placa;
+    public string? Placa { get => _placa; set => _placa = Mayus.De(value); }
+    private string? _marca;
+    public string? Marca { get => _marca; set => _marca = Mayus.De(value); }
+    private string? _licencia;
+    public string? Licencia { get => _licencia; set => _licencia = Mayus.De(value); }
 }
 
 /// <summary>Corrección de emergencia (D-169): quitar a una persona autorizada que aún no ingresó.</summary>
@@ -53,8 +58,11 @@ public sealed class CorreccionCorregirVM
 {
     public long SolicitudPersonaId { get; set; }
     public long TipoDocumentoId { get; set; }
-    public string? ApellidoPaterno { get; set; }
-    public string? ApellidoMaterno { get; set; }
-    public string? Nombres { get; set; }
+    private string? _apellidoPaterno;
+    public string? ApellidoPaterno { get => _apellidoPaterno; set => _apellidoPaterno = Mayus.De(value); }
+    private string? _apellidoMaterno;
+    public string? ApellidoMaterno { get => _apellidoMaterno; set => _apellidoMaterno = Mayus.De(value); }
+    private string? _nombres;
+    public string? Nombres { get => _nombres; set => _nombres = Mayus.De(value); }
     public string? Sustento { get; set; }
 }

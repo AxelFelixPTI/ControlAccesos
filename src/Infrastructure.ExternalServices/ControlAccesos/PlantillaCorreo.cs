@@ -26,6 +26,7 @@ public static class PlantillaCorreo
         ["APROBADA_PARCIAL"] = ("Aprobada parcial", "#e3f0fb", "#1d5a8f"),
         ["RECHAZADA"]        = ("Rechazada",        "#fbe0e0", "#9a1f1f"),
         ["CANCELADA"]        = ("Cancelada",        "#e7e9ec", "#4a5360"),
+        ["VENCIDA"]          = ("Vencida",          "#f1e3e3", "#7a2e2e"),
     };
 
     private static readonly Dictionary<string, string> Titulos = new()
@@ -37,6 +38,7 @@ public static class PlantillaCorreo
         ["SOLICITUD_CORRECCION"] = "Corrección de emergencia",
         ["SOLICITUD_VIGILANCIA"] = "Ingreso autorizado",
         ["SOLICITUD_CANCELADA"] = "Solicitud cancelada",
+        ["SOLICITUD_REENVIO"]   = "Reenvío de la solicitud",
         ["PROVEEDOR_AVISO"]     = "Aviso de entrega de proveedor",
     };
 

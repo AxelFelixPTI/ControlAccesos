@@ -118,12 +118,14 @@ $$;
 --    Las reglas repiten las de ERP_CAF_SOLICITUD_EDITAR_DATOS, _CANCELAR y
 --    ERP_CAF_SOLICITUD_PERSONA_*.
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_INDICADORES"(BIGINT);   -- D-251: columnas nuevas al final
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud" BIGINT DEFAULT NULL)
 RETURNS TABLE ("ID_Solicitud" BIGINT, "Total_Personas" INT, "Autorizadas" INT, "Observadas" INT,
                "Pendientes" INT, "Rechazadas" INT, "Retiradas" INT, "Con_Movimientos" INT,
                "Avance" VARCHAR, "Editar_Datos" CHAR(1), "Motivo_Editar_Datos" VARCHAR,
                "Modificar_Personal" CHAR(1), "Motivo_Modificar_Personal" VARCHAR,
-               "Cancelar" CHAR(1), "Motivo_Cancelar" VARCHAR)
+               "Cancelar" CHAR(1), "Motivo_Cancelar" VARCHAR,
+               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 BEGIN
@@ -155,25 +157,31 @@ BEGIN
                        ELSE 'POR_INICIAR' END
                 END AS VARCHAR),
            -- Editar los datos de la visita
-           CAST(CASE WHEN S."Estado" IN ('CANCELADA','RECHAZADA') OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE
+           CAST(CASE WHEN S."Estado" IN ('CANCELADA','RECHAZADA','VENCIDA') OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE
                           OR COALESCE(PC.mov, 0) > 0 THEN 'N' ELSE 'Y' END AS CHAR(1)),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud está cancelada.'
                      WHEN S."Estado" = 'RECHAZADA' THEN 'Todas las personas fueron rechazadas. Use «Reutilizar» para crear una solicitud nueva.'
+                     WHEN S."Estado" = 'VENCIDA' THEN 'La solicitud venció sin decisión. Use «Reutilizar» con una fecha nueva.'
                      WHEN COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'La fecha de la visita ya pasó. Use «Reutilizar».'
                      WHEN COALESCE(PC.mov, 0) > 0 THEN 'Ya ingresó una persona: los datos de la visita no se cambian. Puede modificar el personal.'
                 END AS VARCHAR),
            -- Agregar, retirar o corregir personas
-           CAST(CASE WHEN S."Estado" = 'CANCELADA' OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'N' ELSE 'Y' END AS CHAR(1)),
+           CAST(CASE WHEN S."Estado" IN ('CANCELADA','VENCIDA') OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'N' ELSE 'Y' END AS CHAR(1)),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud está cancelada.'
+                     WHEN S."Estado" = 'VENCIDA' THEN 'La solicitud venció sin decisión. Use «Reutilizar» con una fecha nueva.'
                      WHEN COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'La fecha de la visita ya pasó.'
                 END AS VARCHAR),
            -- Cancelar la solicitud
-           CAST(CASE WHEN S."Estado" = 'CANCELADA' OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE
+           CAST(CASE WHEN S."Estado" IN ('CANCELADA','VENCIDA') OR COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE
                           OR COALESCE(PC.mov, 0) > 0 THEN 'N' ELSE 'Y' END AS CHAR(1)),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud ya está cancelada.'
+                     WHEN S."Estado" = 'VENCIDA' THEN 'La solicitud venció sin decisión. Use «Reutilizar» con una fecha nueva.'
                      WHEN COALESCE("ERP_CAF_FN_FRANJA_FIN"(S."ID_Solicitud"), CAST(S."Fecha_Hora_Prevista" AS DATE)) < CURRENT_DATE THEN 'La fecha de la visita ya pasó.'
                      WHEN COALESCE(PC.mov, 0) > 0 THEN 'Ya ingresó una persona: no se puede cancelar. Retire a quienes faltan.'
-                END AS VARCHAR)
+                END AS VARCHAR),
+           -- D-251: días de atraso de una solicitud vencida y días de una franja en curso que sigue sin aprobar
+           CASE WHEN S."Estado" = 'VENCIDA' THEN "ERP_CAF_FN_SOLICITUD_DIAS_ATRASO"(S."ID_Solicitud") ELSE 0 END,
+           "ERP_CAF_FN_SOLICITUD_FRANJA_SIN_APROBAR"(S."ID_Solicitud")
       FROM "CAF_Solicitud" S
       LEFT JOIN PC ON PC.id_sol = S."ID_Solicitud"
      WHERE S."Eliminado" = 'N' AND ("HV_ID_Solicitud" IS NULL OR S."ID_Solicitud" = "HV_ID_Solicitud");
@@ -185,7 +193,7 @@ $$;
 --    Todas las parejas (persona, paso) que este usuario puede decidir AHORA.
 --    Repite las condiciones de ERP_CAF_SOLICITUD_DECIDIR:
 --      * permiso de aprobar en la sede y el rol al que le toca el paso
---      * persona pendiente, sin ingreso; solicitud no cancelada y de hoy en adelante
+--      * persona pendiente, sin ingreso; solicitud no cancelada ni vencida y dentro de plazo (D-251)
 --      * sin decisión vigente en ese paso
 --      * todos los pasos obligatorios anteriores ya aprobados para esa persona
 --    HV_ID_Solicitud NULL = de todas las solicitudes.
@@ -206,7 +214,8 @@ BEGIN
       JOIN "Tipo_Acceso_Paso_Aprobacion" PA
         ON PA."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND PA."Eliminado" = 'N' AND PA."Activo" = 'Y'
        AND PA."Obligatorio" = 'Y' AND PA."ID_Catalogo_Licencia" IS NOT NULL
-     WHERE S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA' AND CAST(S."Fecha_Hora_Prevista" AS DATE) >= CURRENT_DATE
+     WHERE S."Eliminado" = 'N' AND S."Estado" NOT IN ('CANCELADA','VENCIDA')
+       AND "ERP_CAF_FN_SOLICITUD_FUERA_DE_PLAZO"(S."ID_Solicitud") = 'N'   -- D-251: dentro de plazo (la franja en curso sigue decidible)
        AND ("HV_ID_Solicitud" IS NULL OR S."ID_Solicitud" = "HV_ID_Solicitud")
        AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_SOLICITUD_APROBAR', S."ID_Catalogo_Sede") = 'Y'
        AND "ERP_CAF_FN_USUARIO_TIENE_ROL"("HV_ID_Usuario", PA."ID_Catalogo_Licencia", S."ID_Catalogo_Sede") = 'Y'
@@ -253,7 +262,7 @@ $$;
 -- 5. ERP_CAF_SOLICITUD_MIS_LISTAR  («Mis solicitudes»)
 --    Solo las del propio usuario, en las sedes donde tiene PER_CAF_SOLICITUD_PROPIA.
 --    HV_Texto busca en código, empresa y en las personas (nombre o documento).
---    HV_Estado: PENDIENTE, OBSERVADA, APROBADA, APROBADA_PARCIAL, RECHAZADA o CANCELADA.
+--    HV_Estado: PENDIENTE, OBSERVADA, APROBADA, APROBADA_PARCIAL, RECHAZADA, CANCELADA o VENCIDA.
 --    Fechas: sobre la fecha de la visita. Todos los filtros son opcionales (NULL).
 -- -----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_MIS_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, DATE, DATE);
@@ -273,12 +282,14 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Puede_Editar_Datos" CHAR(1), "Motivo_No_Editar_Datos" VARCHAR,
                "Puede_Modificar_Personal" CHAR(1), "Motivo_No_Modificar_Personal" VARCHAR,
                "Puede_Cancelar" CHAR(1), "Motivo_No_Cancelar" VARCHAR, "Puede_Reutilizar" CHAR(1),
-               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "Personas_Resumen" VARCHAR)
+               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "Personas_Resumen" VARCHAR,
+               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
 BEGIN
+    -- V1.2 2026-11-19 (D-251): + Dias_Atraso y Franja_Sin_Aprobar
     -- V1.1 2026-11-11 (D-233): + Tipo_Acceso_Codigo, Empresa_Destino_Codigo (etiquetas) y Personas_Resumen (personas con su documento)
     -- V1.0 2026-10-17
     RETURN QUERY
@@ -290,7 +301,8 @@ BEGIN
            O."Codigo", S."Fecha_Envio", S."CreateDate",
            I."Editar_Datos", I."Motivo_Editar_Datos", I."Modificar_Personal", I."Motivo_Modificar_Personal",
            I."Cancelar", I."Motivo_Cancelar", CAST('Y' AS CHAR(1)),
-           CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'), "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud")
+           CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'), "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud"),
+           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud")
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
@@ -324,6 +336,8 @@ $$;
 --                   (necesita PER_CAF_SOLICITUD_APROBAR y el rol del paso); por fecha de visita
 --      TODAS        todas las solicitudes de la sede (necesita PER_CAF_SOLICITUD_VER_TODAS);
 --                   las más recientes primero. NULL equivale a TODAS.
+--      FUERA_DE_TIEMPO  solicitudes VENCIDAS (nadie las decidió a tiempo) que este usuario habría podido decidir o ver (D-251);
+--                   la fila trae Dias_Atraso. Franja_Sin_Aprobar > 0 = franja en curso aún sin aprobar (advertencia).
 --    Filtros opcionales: empresa, solicitante, persona (nombre o documento), fecha de
 --    visita exacta y estado.
 --    Por_Decidir_Mis = personas que este usuario puede decidir ahora en esa solicitud.
@@ -345,7 +359,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Estado" VARCHAR, "Avance" VARCHAR,
                "Total_Personas" INT, "Autorizadas" INT, "Observadas" INT, "Pendientes" INT, "Rechazadas" INT, "Retiradas" INT,
                "Por_Decidir_Mis" INT, "Personas_Nombres" VARCHAR, "Fecha_Envio" TIMESTAMP,
-               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR)
+               "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR,
+               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -356,7 +371,7 @@ DECLARE
 BEGIN
     -- V1.1 2026-11-11 (D-233): + Tipo_Acceso_Codigo y Empresa_Destino_Codigo (etiquetas); Personas_Nombres ahora trae el documento
     -- V1.0 2026-10-17
-    IF lv_pest NOT IN ('POR_DECIDIR', 'TODAS') THEN RETURN; END IF;
+    IF lv_pest NOT IN ('POR_DECIDIR', 'TODAS', 'FUERA_DE_TIEMPO') THEN RETURN; END IF;
     RETURN QUERY
     SELECT S."ID_Solicitud", S."Codigo", S."ID_Catalogo_Sede", SE."Descripcion",
            TA."Descripcion", S."Fecha_Hora_Prevista",
@@ -368,7 +383,8 @@ BEGIN
            I."Total_Personas", I."Autorizadas", I."Observadas", I."Pendientes", I."Rechazadas", I."Retiradas",
            CAST(COALESCE(D.n, 0) AS INT),
            "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud"),
-           S."Fecha_Envio", CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C')
+           S."Fecha_Envio", CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'),
+           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud")
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"
@@ -381,7 +397,8 @@ BEGIN
      WHERE S."Eliminado" = 'N'
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
        AND ((lv_pest = 'POR_DECIDIR' AND D.n IS NOT NULL)
-            OR (lv_pest = 'TODAS' AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_VER_TODAS', S."ID_Catalogo_Sede") = 'Y'))
+            OR (lv_pest = 'TODAS' AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_VER_TODAS', S."ID_Catalogo_Sede") = 'Y')
+            OR (lv_pest = 'FUERA_DE_TIEMPO' AND S."Estado" = 'VENCIDA' AND "ERP_CAF_FN_SOLICITUD_FT_VISIBLE"("HV_UsuarioID", S."ID_Solicitud") = 'Y'))
        AND ("HV_Estado" IS NULL OR LENGTH(TRIM("HV_Estado")) = 0 OR S."Estado" = UPPER(TRIM("HV_Estado")))
        AND ("HV_Fecha" IS NULL OR CAST(S."Fecha_Hora_Prevista" AS DATE) = "HV_Fecha")
        AND (LENGTH(lv_emp) = 0 OR "ERP_CAF_FN_NORMALIZAR"(S."Empresa_Visitante") LIKE '%' || lv_emp || '%')
@@ -392,7 +409,8 @@ BEGIN
                         WHERE P."ID_Solicitud" = S."ID_Solicitud" AND P."Eliminado" = 'N'
                           AND ("ERP_CAF_FN_NORMALIZAR"(PE."Apellido_Paterno" || ' ' || COALESCE(PE."Apellido_Materno", '') || ' ' || PE."Nombres") LIKE '%' || lv_per || '%'
                                OR LOWER(PE."Numero_Documento") LIKE '%' || lv_per || '%')))
-     ORDER BY CASE WHEN lv_pest = 'POR_DECIDIR' THEN S."Fecha_Hora_Prevista" END ASC,
+     ORDER BY CASE WHEN lv_pest = 'FUERA_DE_TIEMPO' THEN S."Fecha_Hora_Prevista" END DESC,
+              CASE WHEN lv_pest = 'POR_DECIDIR' THEN S."Fecha_Hora_Prevista" END ASC,
               CASE WHEN lv_pest = 'POR_DECIDIR' THEN S."ID_Solicitud" END ASC,
               S."Fecha_Hora_Prevista" DESC, S."ID_Solicitud" DESC;
 END;
@@ -404,19 +422,22 @@ $$;
 --    Mis_Con_Observadas : solicitudes del usuario con alguna persona observada
 --    Por_Decidir_Solicitudes / Por_Decidir_Personas : lo que puede decidir ahora
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_CONTADORES"(BIGINT, BIGINT);   -- D-251: columna nueva al final
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_CONTADORES"("HV_UsuarioID" BIGINT, "HV_ID_Catalogo_Sede" BIGINT DEFAULT NULL)
-RETURNS TABLE ("Mis_Con_Observadas" INT, "Por_Decidir_Solicitudes" INT, "Por_Decidir_Personas" INT)
+RETURNS TABLE ("Mis_Con_Observadas" INT, "Por_Decidir_Solicitudes" INT, "Por_Decidir_Personas" INT, "Fuera_De_Tiempo" INT)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_obs INT := 0;
     lv_sol INT := 0;
     lv_per INT := 0;
+    lv_ft  INT := 0;
 BEGIN
+    -- V1.1 2026-11-19 (D-251): + Fuera_De_Tiempo y las vencidas ya no cuentan como observadas
     -- V1.0 2026-10-17
     SELECT CAST(COUNT(*) AS INT) INTO lv_obs
       FROM "CAF_Solicitud" S
-     WHERE S."Eliminado" = 'N' AND S."ID_Usuario_Solicitante" = "HV_UsuarioID" AND S."Estado" <> 'CANCELADA'
+     WHERE S."Eliminado" = 'N' AND S."ID_Usuario_Solicitante" = "HV_UsuarioID" AND S."Estado" NOT IN ('CANCELADA','VENCIDA')
        AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
        AND "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", S."ID_Catalogo_Sede") = 'Y'
        AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Persona" P
@@ -427,7 +448,13 @@ BEGIN
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = X."ID_Solicitud"
      WHERE ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede");
 
-    RETURN QUERY SELECT lv_obs, lv_sol, lv_per;
+    SELECT CAST(COUNT(*) AS INT) INTO lv_ft
+      FROM "CAF_Solicitud" S
+     WHERE S."Eliminado" = 'N' AND S."Estado" = 'VENCIDA'
+       AND ("HV_ID_Catalogo_Sede" IS NULL OR S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede")
+       AND "ERP_CAF_FN_SOLICITUD_FT_VISIBLE"("HV_UsuarioID", S."ID_Solicitud") = 'Y';
+
+    RETURN QUERY SELECT lv_obs, lv_sol, lv_per, lv_ft;
 END;
 $$;
 -- Prueba: SELECT * FROM "ERP_CAF_SOLICITUD_CONTADORES"(3);
@@ -462,7 +489,8 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Tipo_Acceso_Codigo" VARCHAR, "Requiere_Cochera" CHAR(1), "Placa_Vehiculo" VARCHAR, "Area_Detalle" VARCHAR,
                "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR,
                "ID_Empresa_Destino" BIGINT, "Empresa_Destino" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "IDs_Empresa_Destino" VARCHAR,
-               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta_Prevista" VARCHAR)
+               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta_Prevista" VARCHAR,
+               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -529,7 +557,8 @@ BEGIN
            S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos",
            S."ID_Catalogo_Empresa_Grupo_Destino", CAST("ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'N') AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'),
            "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'I'),
-           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR)   -- D-237
+           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR),   -- D-237
+           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud")   -- D-251
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
@@ -682,6 +711,8 @@ BEGIN
                 WHEN 'SOLICITUD:CREAR'                      THEN 'Creó y envió la solicitud'
                 WHEN 'SOLICITUD:EDITAR'                     THEN 'Editó los datos de la solicitud'
                 WHEN 'SOLICITUD:CANCELAR'                   THEN 'Canceló la solicitud'
+                WHEN 'SOLICITUD:VENCER'                     THEN 'La solicitud venció: nadie la decidió a tiempo'
+                WHEN 'SOLICITUD:CORREO_REENVIAR'            THEN 'Reenvió el correo de la solicitud'
                 WHEN 'SOLICITUD:ADJUNTO_AGREGAR'            THEN 'Adjuntó un documento'
                 WHEN 'SOLICITUD:ADJUNTO_QUITAR'             THEN 'Retiró un documento'
                 WHEN 'SOLICITUD_PERSONA:AGREGAR'            THEN 'Agregó a una persona'
@@ -872,8 +903,9 @@ BEGIN
     SELECT S."Codigo",
            CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),
            PE."Numero_Documento", S."Empresa_Visitante",
-           CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'CANCELADA' ELSE P."Aprobacion" END AS VARCHAR),
+           CAST(CASE WHEN S."Estado" IN ('CANCELADA','VENCIDA') THEN S."Estado" ELSE P."Aprobacion" END AS VARCHAR),
            CAST(CASE WHEN S."Estado" = 'CANCELADA' THEN 'La solicitud fue cancelada.'
+                     WHEN S."Estado" = 'VENCIDA' THEN 'La solicitud venció sin que nadie la aprobara.'
                      WHEN P."Aprobacion" = 'PENDIENTE' THEN 'Su solicitud está pendiente de aprobación.'
                      WHEN P."Aprobacion" = 'OBSERVADA' THEN 'Su solicitud fue observada y aún no se corrige.'
                      WHEN P."Aprobacion" = 'RECHAZADA' THEN 'Su ingreso fue rechazado.'
@@ -884,7 +916,7 @@ BEGIN
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
      WHERE S."Eliminado" = 'N' AND CAST(S."Fecha_Hora_Prevista" AS DATE) = lv_fecha
        AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
-       AND (S."Estado" = 'CANCELADA' OR P."Aprobacion" <> 'APROBADA')
+       AND (S."Estado" IN ('CANCELADA','VENCIDA') OR P."Aprobacion" <> 'APROBADA')
        AND ("ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_REGISTRAR', S."ID_Catalogo_Sede") = 'Y'
             OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_VER', S."ID_Catalogo_Sede") = 'Y')
        AND (LOWER(PE."Numero_Documento") LIKE '%' || lv_txt || '%'

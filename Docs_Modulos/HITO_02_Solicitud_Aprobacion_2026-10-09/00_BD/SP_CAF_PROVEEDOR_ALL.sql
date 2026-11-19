@@ -867,6 +867,9 @@ BEGIN
         IF "HV_Clave" = 'EXCLUSA_CAPACIDAD' AND COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE)$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La capacidad debe ser un número entero de 1 a 99 o SIN_LIMITE.'; RETURN;
         END IF;
+        IF "HV_Clave" = 'INCIDENCIA_POST_SALIDA' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Permitir incidencias a quien ya salió debe ser Y o N.'; RETURN;
+        END IF;
         IF "HV_Clave" = 'PLACA_OBLIGATORIA' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La placa obligatoria debe ser Y o N.'; RETURN;
         END IF;
@@ -876,8 +879,11 @@ BEGIN
         IF "HV_Clave" = 'ATENCIONES_SIMULTANEAS_ALMACENERO' AND COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE)$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las solicitudes simultáneas por almacenero deben ser un número entero de 1 a 99 o SIN_LIMITE.'; RETURN;
         END IF;
-        IF "HV_Clave" = 'PROVEEDOR_HORA_CORTE' AND COALESCE("HV_Valor", '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN
+        IF "HV_Clave" IN ('PROVEEDOR_HORA_CORTE','SOLICITUD_HORA_CORTE_VENCIMIENTO') AND COALESCE("HV_Valor", '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La hora de corte debe tener el formato HH:MM (de 00:00 a 23:59).'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'SOLICITUD_HORAS_ANTICIPACION_APROBAR' AND COALESCE("HV_Valor", '') !~ '^(0|[1-9][0-9]{0,2})$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las horas de anticipación deben ser un número entero de 0 a 999 (0 = apagado).'; RETURN;
         END IF;
         UPDATE "CAF_Parametro" SET "Valor" = "HV_Valor", "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
          WHERE "Clave" = "HV_Clave";

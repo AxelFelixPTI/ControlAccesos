@@ -84,4 +84,8 @@ public sealed class Dto_Solicitud_Detalle
     public string? Numeros_OC { get; set; }               // OC separadas por «;»
     public string? Empresa_Transportista { get; set; }    // vacía = el mismo proveedor transporta
     public string? Hora_Hasta_Prevista { get; set; }      // «HH:mm»: fin de la franja estimada (informativa)
+    public int Dias_Atraso { get; set; }                  // D-251
+    /// <summary>D-254: cómo le fue al último correo: ENVIADO|ERROR|PENDIENTE + «:A» (automático) o «:M» (reenvío manual). Nulo si no hay correos.</summary>
+    public string? Correo_Estado { get; set; }
+    public int Franja_Sin_Aprobar { get; set; }           // D-251
 }

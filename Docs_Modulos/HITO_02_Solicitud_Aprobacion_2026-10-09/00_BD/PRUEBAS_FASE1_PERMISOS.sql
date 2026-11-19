@@ -34,11 +34,11 @@ BEGIN
 
     -- ===================================================== CARGA INICIAL
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_CATALOGO_PERMISO_LISTAR"();
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: 18 permisos', '18', v_n::TEXT, '');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: 19 permisos', '19', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_coo) WHERE "Asignado" = 'Y';
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: Coordinador con 7 permisos', '7', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_coo);
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Pantalla de roles: lista los 18 con su marca', '18', v_n::TEXT, 'asignados y no asignados');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Pantalla de roles: lista los 19 con su marca', '19', v_n::TEXT, 'asignados y no asignados');
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_vig) WHERE "Asignado" = 'Y';
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Carga: Vigilancia con 4 permisos', '4', v_n::TEXT, '');
     SELECT COUNT(*) INTO v_n FROM "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_LISTAR_POR_PADRE"(v_tipo_ext);
@@ -115,7 +115,17 @@ BEGIN
     CALL "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_ASIGNAR"(v_lic_adm, 'PER_CAF_ADMIN_CATALOGOS', 0, v_cod, v_msg);
     INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('No deja al sistema sin administrar usuarios', '101', v_cod::TEXT, v_msg);
     SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."ERP_LICENCIA_PERMISO_LISTAR_POR_PADRE"(v_lic_adm) WHERE "Asignado" = 'Y';
-    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Tras el rechazo, el rol Administrador no cambió', '3', v_n::TEXT, '');
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Tras el rechazo, el rol Administrador no cambió', '4', v_n::TEXT, 'incluye PER_CAF_CONFIG_SISTEMA (D-258)');
+    -- D-258: licencia de configuración
+    SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."Licencia_Permiso" lp
+      JOIN "CAF_GOVERNANCE"."Catalogo_Licencia" l ON l."ID_Catalogo_Licencia" = lp."ID_Catalogo_Licencia" AND l."Codigo" = 'LIC_CAF_CONFIGURACION'
+      JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" p ON p."ID_Catalogo_Permiso" = lp."ID_Catalogo_Permiso" AND p."Codigo" = 'PER_CAF_CONFIG_SISTEMA'
+     WHERE lp."Eliminado" = 'N';
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Licencia de configuración tiene su permiso', '1', v_n::TEXT, '');
+    SELECT COUNT(*) INTO v_n FROM "CAF_GOVERNANCE"."Licencia_Permiso" lp
+      JOIN "CAF_GOVERNANCE"."Catalogo_Licencia" l ON l."ID_Catalogo_Licencia" = lp."ID_Catalogo_Licencia" AND l."Codigo" = 'LIC_CAF_CONFIGURACION'
+     WHERE lp."Eliminado" = 'N';
+    INSERT INTO pruebas (prueba,esperado,obtenido,detalle) VALUES ('Configuración NO administra usuarios ni catálogos de admin', '1', v_n::TEXT, 'solo 1 permiso');
 
     -- ===================================================== PASOS DE UN FLUJO NUEVO
     CALL "TRIANONSATELITAL_CAF_PRODD"."ERP_CAF_TIPO_ACCESO_PASO_AGREGAR"(v_tipo_con, 1, 'DOCUMENTOS', 'Revisión de documentos de cada trabajador', 'PERSONA', 'ROL', v_lic_coo, 'SIEMPRE', 'Y', 0, v_paso1, v_cod, v_msg);

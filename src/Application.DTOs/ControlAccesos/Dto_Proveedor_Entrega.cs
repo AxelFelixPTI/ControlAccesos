@@ -48,6 +48,7 @@ public sealed class Dto_Proveedor_Entrega
     public bool Puede_Tomar { get; set; }                      // D-244: la reserva fue cedida y el usuario puede tomarla
     public string? Motivo_Tomar { get; set; }                  // D-244: por qué «Tomar» está bloqueado (p. ej. ya tiene su cupo ocupado)
     public string? Reserva_Nombre { get; set; }                // D-244: quién tiene la reserva (confirmó la disponibilidad)
+    public string? Solicitante_Nombre { get; set; }            // quién hizo la solicitud
     public bool Pausada { get; set; }                          // D-244: en atención pero todas las empresas iniciadas están detenidas
     public string? Conductor_Documento { get; set; }        // D-241: «DNI 12345678» del conductor principal
     public string Estado_Operativo { get; set; } = string.Empty;

@@ -1,14 +1,22 @@
 @{ ViewData["Titulo"] = "Mis solicitudes"; ViewData["Migas"] = "Solicitante"; }
 <div class="stack" id="caf-mis" data-url-mis="@Url.Action("Mis", "Solicitudes")" data-url-nueva="@Url.Action("Nueva", "Solicitudes")"
-     data-url-detalle="@Url.Action("Detalle", "Solicitudes", new { id = "__ID__" })" data-url-cancelar="@Url.Action("Cancelar", "Solicitudes")">
+     data-url-detalle="@Url.Action("Detalle", "Solicitudes", new { id = "__ID__" })" data-url-cancelar="@Url.Action("Cancelar", "Solicitudes")"
+     data-url-reenviar="@Url.Action("Reenviar", "CorreosSolicitud")" data-url-sugerir="@Url.Action("Sugerir", "CorreosSolicitud")">
     @Html.AntiForgeryToken()
     <div class="row-sp">
         <p class="lead">Aquí ve el estado de cada visita que pidió y qué falta para que sus invitados puedan entrar.</p>
-        <div class="acc"><a class="btn btn-primary" href="@Url.Action("Nueva", "Solicitudes")">+ Nueva solicitud</a></div>
+        <div class="acc"><a class="btn btn-primary" data-icono="agregar" href="@Url.Action("Nueva", "Solicitudes")">Nueva solicitud</a></div>
     </div>
     <div class="kpis" id="m-kpis"></div>
-    <section class="card filtros f3">
+    <section class="card filtros f4">
         <label class="field"><span class="field-l">Empresa, persona o DNI</span><input type="text" id="m-texto" placeholder="Buscar" autocomplete="off" /></label>
+        <label class="field"><span class="field-l">Estado</span>
+            <select id="m-estado">
+                <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="OBSERVADA">Observada</option>
+                <option value="APROBADA">Aprobada (incluye parcial)</option><option value="APROBADA_PARCIAL">Aprobada parcial</option>
+                <option value="RECHAZADA">Rechazada</option><option value="VENCIDA">Vencida</option><option value="CANCELADA">Cancelada</option>
+            </select>
+        </label>
         <label class="field"><span class="field-l">Desde</span><input type="date" id="m-desde" /></label>
         <label class="field"><span class="field-l">Hasta</span><input type="date" id="m-hasta" /></label>
     </section>

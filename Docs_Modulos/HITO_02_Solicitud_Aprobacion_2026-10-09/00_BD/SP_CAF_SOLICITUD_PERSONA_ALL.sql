@@ -83,6 +83,9 @@ BEGIN
         IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
         END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
+        END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
@@ -241,6 +244,9 @@ BEGIN
            AND "ERP_CAF_FN_USUARIO_TIENE_ROL"("HV_UsuarioID", S."ID_Catalogo_Licencia", lv_sede) = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Su rol no decide ningún paso de este tipo de acceso.'; RETURN;
+        END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
@@ -450,6 +456,9 @@ BEGIN
         IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
         END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
+        END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
@@ -571,6 +580,9 @@ BEGIN
           INTO lv_sede, lv_tipo, lv_owner, lv_estado, lv_fecha, lv_codsol FROM "CAF_Solicitud" WHERE "ID_Solicitud" = lv_sol;
         IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_ES_SOLICITANTE"("HV_UsuarioID", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
+        END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
@@ -737,6 +749,9 @@ BEGIN
            AND "ERP_CAF_FN_USUARIO_TIENE_ROL"("HV_UsuarioID", S."ID_Catalogo_Licencia", lv_sede) = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Su rol no decide ningún paso de este tipo de acceso.'; RETURN;
+        END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
@@ -952,6 +967,9 @@ BEGIN
            AND "ERP_CAF_FN_USUARIO_TIENE_ROL"("HV_UsuarioID", S."ID_Catalogo_Licencia", lv_sede) = 'Y';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'Su rol no decide ningún paso de este tipo de acceso.'; RETURN;
+        END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;

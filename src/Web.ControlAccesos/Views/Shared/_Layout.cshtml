@@ -20,7 +20,7 @@
     <script src="~/js/tema.js" asp-append-version="true"></script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body data-pantalla="@controlador/@accionActual">
 @if (autenticado)
 {
     <div class="app @(conMenu ? "" : "sin-lateral")">
@@ -29,7 +29,7 @@
             <aside class="side" id="lateral">
                 <div class="brand"><span class="logo"><i></i></span><span><b>TRIANON</b><small>Control de Accesos · VES</small></span><button type="button" class="menu-t" id="menu-t" aria-label="Menú">&#9776;</button></div>
                 <nav aria-label="Menú principal">
-                    <a class="nav-i @(controlador == "Inicio" ? "on" : "")" asp-controller="Inicio" asp-action="Index"><span>Inicio</span></a>
+                    <a class="nav-i @(controlador == "Inicio" ? "on" : "")" asp-controller="Inicio" asp-action="Index">@IconosMenu.Para("Inicio")<span>Inicio</span></a>
                     @foreach (var grupo in Menu.Para(User, rolActivo))
                     {
                         <p class="nav-r">@grupo.Key</p>
@@ -37,7 +37,7 @@
                         {
                             if (e.Disponible)
                             {
-                                <a class="nav-i @(controlador == e.Controlador && ((e.Controlador != "Solicitudes" && e.Controlador != "Incidencias") || e.Accion == accionActual || (e.Accion == "Index" && accionActual == "Detalle")) ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion"><span>@e.Titulo</span></a>
+                                <a class="nav-i @(controlador == e.Controlador && ((e.Controlador != "Solicitudes" && e.Controlador != "Incidencias") || e.Accion == accionActual || (e.Accion == "Index" && accionActual == "Detalle")) ? "on" : "")" asp-controller="@e.Controlador" asp-action="@e.Accion">@IconosMenu.Para(e.Controlador, e.Accion)<span>@e.Titulo</span></a>
                             }
                             else
                             {
@@ -86,6 +86,12 @@
                 @RenderBody()
             </div>
         </main>
+        @if (conMenu)
+        {
+            <script src="~/js/ayuda/manual.js" asp-append-version="true"></script>
+            <script src="~/js/ayuda/tecnica.js" asp-append-version="true"></script>
+            <script src="~/js/ayuda/ayuda.js" asp-append-version="true"></script>
+        }
     </div>
 }
 else

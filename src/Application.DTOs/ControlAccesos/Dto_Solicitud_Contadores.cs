@@ -19,4 +19,5 @@ public sealed class Dto_Solicitud_Contadores
     public int Mis_Con_Observadas { get; set; }
     public int Por_Decidir_Solicitudes { get; set; }
     public int Por_Decidir_Personas { get; set; }
+    public int Fuera_De_Tiempo { get; set; }               // D-251: solicitudes vencidas que este usuario habría podido decidir
 }

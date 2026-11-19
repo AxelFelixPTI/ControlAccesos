@@ -6,9 +6,40 @@ var SOL = (function () {
 
     var ESTADOS = {
         PENDIENTE: ['Pendiente', 'c-pend'], OBSERVADA: ['Observada', 'c-obs'], APROBADA: ['Aprobada', 'c-ok'],
-        APROBADA_PARCIAL: ['Aprobada parcial', 'c-par'], RECHAZADA: ['Rechazada', 'c-rec'], CANCELADA: ['Cancelada', 'c-can']
+        APROBADA_PARCIAL: ['Aprobada parcial', 'c-par'], RECHAZADA: ['Rechazada', 'c-rec'], CANCELADA: ['Cancelada', 'c-can'], VENCIDA: ['Vencida', 'c-venc']
     };
     function chipEstado(e) { var x = ESTADOS[e] || [e, 'c-pend']; return el('span', { class: 'chip ' + x[1], text: x[0] }); }
+
+    // D-251: una solicitud que nadie decidió a tiempo pasa a «Vencida» y muestra los días de atraso; una franja (contratista de varios días)
+    // que ya empezó y sigue sin aprobar muestra una advertencia, porque aún puede decidirse pero ya perdió días.
+    function plural(n, uno, varios) { return n + ' ' + (n === 1 ? uno : varios); }
+    function chipAtraso(dias) { return dias > 0 ? el('span', { class: 'chip c-atraso', text: plural(dias, 'día', 'días') + ' de atraso', title: 'Días transcurridos desde el último día de la visita.' }) : null; }
+    function chipFranja(dias) {
+        return dias > 0 ? el('span', { class: 'chip c-franja', text: 'Franja en curso (sin aprobar)',
+            title: 'Ya pasaron ' + plural(dias, 'día', 'días') + ' desde que empezó la franja y aún no se aprueba. Si la franja termina sin aprobarse, la solicitud vencerá.' }) : null;
+    }
+    // Estado + etiquetas de plazo, para la columna «Estado» de los listados
+    function estadoNodo(s) {
+        return el('div', {}, [el('div', { class: 'chips' }, [chipEstado(s.estado), s.estado === 'VENCIDA' ? chipAtraso(s.diasAtraso) : null, chipFranja(s.franjaSinAprobar)]), notaCorreo(s.correoEstado)]);
+    }
+    // D-254: nota pequeña con el resultado del último correo de la solicitud (solo dentro del sistema).
+    // «ESTADO:A» = envío automático, «ESTADO:M» = reenvío manual. Si falló, invita a reenviarlo con el botón del correo.
+    function notaCorreo(ce) {
+        if (!ce) return null;
+        var p = String(ce).split(':'), est = p[0], manual = p[1] === 'M';
+        var m = est === 'ENVIADO' ? ['nc-ok', 'Correo enviado con éxito' + (manual ? ' (manual)' : ''), 'El último aviso por correo salió bien.']
+              : est === 'ERROR' ? ['nc-err', manual ? 'Error en el reenvío del correo' : 'Error en el envío del correo', 'No se pudo enviar el correo (posible problema del servidor). Inténtelo de nuevo con el botón «Reenviar correo».']
+              : ['nc-cola', 'Correo en cola', 'El correo está esperando su turno para salir.'];
+        return el('div', { class: 'nota-correo ' + m[0], text: m[1], title: m[2] });
+    }
+    // Aviso largo para el detalle de la solicitud (solicitante y Coordinador)
+    function avisoPlazo(s) {
+        if (s.estado === 'VENCIDA') return el('div', { class: 'aviso a-warn', text: 'Esta solicitud venció: nadie la aprobó ni la rechazó a tiempo' + (s.diasAtraso > 0 ? ' (' + plural(s.diasAtraso, 'día', 'días') + ' de atraso)' : '')
+            + '. Ya no se puede aprobar ni modificar; para volver a pedirla use «Reutilizar» con una fecha nueva.' });
+        if (s.franjaSinAprobar > 0) return el('div', { class: 'aviso a-warn', text: 'Franja en curso sin aprobar: ya pasaron ' + plural(s.franjaSinAprobar, 'día', 'días')
+            + ' desde que empezó y aún no se decide. Si la franja termina sin aprobarse, la solicitud vencerá.' });
+        return null;
+    }
 
     // Estado de una persona dentro de la solicitud: aprobación + lo que ocurrió en portería.
     function chipPersona(p) {
@@ -702,6 +733,80 @@ var SOL = (function () {
         return caja;
     }
 
-    return { chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo, fila: fila, w: w, opcional: opcional,
+    // ── D-252: correos de la solicitud (resultado del envío) y reenvío manual ─────────────────────────────────────────────
+    var TIPOS_CORREO = { SOLICITUD_NUEVA: 'Solicitud nueva', SOLICITUD_EDITADA: 'Solicitud modificada', SOLICITUD_DECISION: 'Decisión',
+        SOLICITUD_OBSERVADA: 'Observación', SOLICITUD_APROBADA: 'Aprobación', PERSONA_POR_APROBAR: 'Personas por aprobar',
+        SOLICITUD_CORRECCION: 'Corrección de emergencia', SOLICITUD_VIGILANCIA: 'Aviso a Vigilancia', SOLICITUD_CANCELADA: 'Cancelación',
+        SOLICITUD_REENVIO: 'Reenvío manual', PROVEEDOR_AVISO: 'Aviso de entrega' };
+
+    function fechaHoraCorta(t) { var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(t || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] : (t || ''); }
+
+    function estadoCorreo(c) {
+        if (c.estado === 'ENVIADO') return el('span', { class: 'chip c-ok', text: 'Enviado' });
+        if (c.estado === 'ERROR') return el('span', { class: 'chip c-rec', text: 'Error' });
+        return el('span', { class: 'chip c-obs', text: 'En cola' });
+    }
+
+    // Ventana de reenvío: casilla «mismos destinatarios» y correos adicionales (mismo campo que «Correos en copia»).
+    function reenviarCorreo(o, despues) {
+        var mismos = el('input', { type: 'checkbox' }); mismos.checked = true;
+        var adic = chipsCorreo('', o.urlSugerir, 'Escriba un correo o nombre y elija de la lista');
+        var error = el('p', { class: 'field-e' });
+        var ayuda = el('p', { class: 'field-h' });
+        function texto() {
+            ayuda.textContent = mismos.checked
+                ? 'Se envía el estado actual de la solicitud a todos los que ya recibieron avisos de ella (solicitante, Coordinación, Vigilancia y copias), más los correos que agregue.'
+                : 'Se envía el estado actual de la solicitud solo a los correos que indique abajo (obligatorio al menos uno).';
+        }
+        mismos.addEventListener('change', texto); texto();
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('label', { class: 'chk' }, [mismos, el('span', { text: 'Reenviar a los mismos destinatarios' })]), ayuda,
+            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Correos adicionales' }), adic]), error]);
+        CAF.modal('Reenviar correo', cuerpo, [
+            { texto: 'Cancelar', onclick: function (c) { c(); } },
+            { texto: 'Reenviar', tipo: 'primary', onclick: function (c) {
+                error.textContent = '';
+                if (!mismos.checked && !adic.value.trim()) { error.textContent = 'Si no reenvía a los mismos destinatarios, indique al menos un correo adicional.'; return; }
+                CAF.pedir(o.urlReenviar, { method: 'POST', body: { solicitudId: o.solicitudId, mismos: mismos.checked, adicionales: adic.value } }).then(function (r) {
+                    if (!r.success) { error.textContent = errores(r); return; }
+                    c(); CAF.aviso(r.message || 'Reenvío en cola.'); despues(); if (o.alReenviar) o.alReenviar();
+                });
+            } }
+        ]);
+    }
+
+    // Panel «Correos» del detalle: cada aviso de la solicitud con su resultado (solo dentro del sistema; nada de esto va en el correo)
+    // y el botón «Reenviar correo». o = { solicitudId, urlListar, urlReenviar, urlSugerir }
+    function panelCorreos(o) {
+        var nodo = el('section', { class: 'card' });
+        var lista = el('div', {});
+        function cargar() {
+            return CAF.pedir(o.urlListar + '?solicitudId=' + o.solicitudId).then(function (r) {
+                lista.textContent = '';
+                if (!r.success) { lista.appendChild(el('p', { class: 'vacio', text: r.message || 'No se pudieron cargar los correos.' })); return; }
+                if (!r.data.length) { lista.appendChild(el('p', { class: 'vacio', text: 'Todavía no se envió ningún correo de esta solicitud.' })); return; }
+                var filas = r.data.map(function (c) {
+                    var det = [c.esReenvio && c.enviadoPor ? 'Reenviado por ' + c.enviadoPor : null,
+                               c.estado === 'ERROR' ? c.intentos + ' intento(s)' : null].filter(Boolean).join(' · ');
+                    return el('tr', {}, [
+                        el('td', { text: fechaHoraCorta(c.estado === 'ENVIADO' && c.enviado ? c.enviado : c.creado) }),
+                        el('td', {}, [el('div', { text: TIPOS_CORREO[c.tipo] || c.tipo }), det ? el('div', { class: 'field-h', text: det }) : null]),
+                        el('td', { text: c.destinatarios + (c.copia ? ' · Cc: ' + c.copia : '') }),
+                        el('td', {}, [estadoCorreo(c), c.estado === 'ERROR' && c.error ? el('div', { class: 'field-e', text: c.error }) : null])
+                    ]);
+                });
+                lista.appendChild(el('div', { class: 'tw' }, [el('table', { class: 'tabla-simple' }, [
+                    el('thead', {}, [el('tr', {}, [el('th', { text: 'Fecha' }), el('th', { text: 'Aviso' }), el('th', { text: 'Destinatarios' }), el('th', { text: 'Resultado' })])]),
+                    el('tbody', {}, filas)])]));
+            });
+        }
+        nodo.appendChild(el('div', { class: 'card-hd' }, [el('h3', { text: 'Correos' }),
+            CAF.btn({ icono: 'reenviar', texto: 'Reenviar correo', titulo: 'Reenviar el estado actual de la solicitud', clase: 'btn-sm', onclick: function () { reenviarCorreo(o, cargar); } })]));
+        nodo.appendChild(lista);
+        cargar();
+        return { nodo: nodo, recargar: cargar };
+    }
+
+    return { panelCorreos: panelCorreos, reenviarCorreo: reenviarCorreo, notaCorreo: notaCorreo, chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipAtraso: chipAtraso, chipFranja: chipFranja, estadoNodo: estadoNodo, avisoPlazo: avisoPlazo, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo, fila: fila, w: w, opcional: opcional,
              errores: errores, cargarOpciones: cargarOpciones, placaObligatoria: function () { return placaObl; }, formDatos: formDatos, formPersona: formPersona };
 })();

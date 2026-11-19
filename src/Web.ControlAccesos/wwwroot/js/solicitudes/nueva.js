@@ -12,6 +12,7 @@
     var adj = null;               // selector de documentos adjuntos (Entrega J): vive en memoria y sobrevive al cambio de paso
     var cuerpo = document.getElementById('w-cuerpo'), pasos = document.getElementById('w-pasos'), ayuda = document.getElementById('w-ayuda');
     var atras = document.getElementById('w-atras'), sigue = document.getElementById('w-sigue');
+    CAF.rotular(atras, 'atras', 'Atrás');
     var TITULOS = ['Datos de la visita', 'Personas', 'Revisión y envío'];
     var AYUDAS = ['Elija el tipo de ingreso y la sede; indique cuándo, quién atiende y a qué zonas irán.', 'Agregue a cada persona que ingresará. Si ya la registró antes, se completa sola con su documento.', 'Revise y envíe. Coordinación decidirá persona por persona.'];
 
@@ -57,7 +58,7 @@
         });
         ayuda.textContent = paso === 2 && esProv() ? 'Agregue a cada persona de la entrega: el conductor (con la placa de su vehículo) y, si hay, el ayudante de descarga.' : AYUDAS[paso - 1];
         atras.hidden = paso === 1;
-        sigue.textContent = paso === 3 ? 'Enviar solicitud' : 'Continuar';
+        if (paso === 3) CAF.rotular(sigue, 'reenviar', 'Enviar solicitud'); else CAF.rotular(sigue, 'continuar', 'Continuar');
     }
 
     function paso2() {
@@ -70,7 +71,7 @@
                 var etiqueta = !prov ? '' : p.transp ? (personas.filter(function (x) { return x.transp; })[0] === p ? ' · Conductor principal' : ' · Conductor') + ' · placa ' + (p.datos.placa || '—') : ' · Ayudante de descarga';
                 lista.appendChild(el('li', {}, [
                     el('div', { class: 'plist-m' }, [el('div', { class: 'pn', text: p.nombre }), el('div', { class: 'field-h', text: p.doc + etiqueta })]),
-                    el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Quitar', onclick: function () { personas.splice(i, 1); pintarLista(); } })
+                    CAF.btn({ icono: 'persona-menos', texto: 'Quitar', clase: 'btn-sm btn-danger-o', onclick: function () { personas.splice(i, 1); pintarLista(); } })
                 ]));
             });
         }
@@ -86,7 +87,7 @@
         }
         function rolActual() { return rolSel ? subs.filter(function (x) { return String(x.id) === rolSel.value; })[0] : null; }
         formPer = SOL.formPersona(op, d.urlBuscar, d.urlPersona);
-        var agregar = el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona' });
+        var agregar = CAF.btn({ icono: 'persona-mas', texto: 'Agregar persona', modo: 'texto', clase: 'btn-sm' });
         agregar.addEventListener('click', function () {
             error.textContent = '';
             var rol0 = rolActual();
@@ -184,12 +185,12 @@
             var destino = d.urlDetalle.replace('__ID__', r.data.id) + '?nueva=1';
             if (!adj || !adj.archivos().length) { location.href = destino; return; }
             // La solicitud ya existe: se suben los documentos. Si alguno falla no se pierde la solicitud; se avisa y se puede adjuntar desde su detalle.
-            enviando = true; sigue.disabled = true; sigue.textContent = 'Subiendo documentos...';
+            enviando = true; sigue.disabled = true; CAF.rotular(sigue, 'adjunto', 'Subiendo documentos...');
             adj.subirTodos(r.data.id).then(function (fallos) {
                 enviando = false; sigue.disabled = false;
                 if (!fallos.length) { location.href = destino; return; }
                 err.textContent = 'La solicitud ' + r.data.codigo + ' se creó, pero no se pudo adjuntar: ' + fallos.map(function (f) { return f.nombre + ' (' + f.mensaje + ')'; }).join('; ') + ' Puede adjuntarlo desde el detalle de la solicitud.';
-                sigue.textContent = 'Ir a la solicitud'; atras.hidden = true;
+                CAF.rotular(sigue, 'ver', 'Ir a la solicitud'); atras.hidden = true;
                 var nuevo = sigue.cloneNode(true); sigue.parentNode.replaceChild(nuevo, sigue); sigue = nuevo;
                 sigue.addEventListener('click', function () { location.href = destino; });
             });

@@ -88,7 +88,7 @@
 
 /* D-238: atención por empresa */
 .pv-aten{display:inline-flex;flex-wrap:wrap;gap:6px}
-.pv-aten-i{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:1px 8px;border-radius:999px;background:var(--surface-2,#eef1f4)}
+.pv-aten-i{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:1px 8px;border-radius:999px;background:var(--sf2)}
 .pv-aten-i.at-ing{background:#fff1d6}
 .pv-aten-i.at-ok{background:#d9f2e3}
 .pv-aten-i.at-sin{background:#e6e6e6;color:#555}
@@ -96,7 +96,7 @@
 /* D-244: panel de cupos (quién ocupa qué solicitud y cuántos cupos quedan) */
 .pv-cupos{margin:6px 0 10px}
 .pv-cupos:empty{display:none}
-.pv-cupos details{border:1px solid var(--line2);border-radius:8px;background:var(--surface-2,#f6f8fa);padding:6px 10px}
+.pv-cupos details{border:1px solid var(--line2);border-radius:8px;background:var(--sf2);padding:6px 10px}
 .pv-cupos summary{cursor:pointer;font-weight:700;font-size:13px}
 .pv-cupos-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 18px;margin-top:6px}
 .pv-cupos-g h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#667)}
@@ -146,3 +146,16 @@
 .pv-ir .btn.pv-b-ver{background:#64748B;border-color:#64748B;color:#fff}.pv-ir .btn.pv-b-ver:hover{filter:brightness(1.12)}
 :root[data-theme="dark"] .pv-ir .btn.pv-b-rev{background:#6366F1;border-color:#818CF8;color:#fff}:root[data-theme="dark"] .pv-ir .btn.pv-b-cur{background:#0891B2;border-color:#22D3EE;color:#fff}:root[data-theme="dark"] .pv-ir .btn.pv-b-ver{background:#475569;border-color:#94A3B8;color:#fff}
 .pv-acc .btn:disabled,.pv-acc .btn.is-off{opacity:.45;cursor:not-allowed;filter:saturate(.6)}
+
+/* D-257: chips de atención legibles en modo oscuro (antes heredaban texto claro sobre fondo claro) */
+.pv-aten-i{color:var(--ink,#1f2937)}
+.pv-aten-i.at-ing{color:#5b3a00}.pv-aten-i.at-ok{color:#0f3d24}
+:root[data-theme="dark"] .pv-aten-i{background:#243247;color:#e2e8f0}
+:root[data-theme="dark"] .pv-aten-i.at-ing{background:#4a3a0e;color:#fde7a8}
+:root[data-theme="dark"] .pv-aten-i.at-ok{background:#17402b;color:#bff0d3}
+:root[data-theme="dark"] .pv-aten-i.at-sin{background:#374151;color:#d1d5db}
+:root[data-theme="dark"] .pv-aten-i.at-pau{background:#5b4300;color:#fde68a}
+/* D-258: panel de cupos y etiquetas legibles en tema oscuro */
+.pv-cupos details{color:var(--ink)}
+:root[data-theme="dark"] .pv-cupo-tag{background:#1b2f55;color:#bcd2ff}
+:root[data-theme="dark"] .pv-cupo-tag.at{background:#17402b;color:#bff0d3}

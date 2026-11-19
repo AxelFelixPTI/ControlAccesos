@@ -4,7 +4,7 @@
     var raiz = document.getElementById('caf-coord');
     if (!raiz) return;
     var el = CAF.el, d = raiz.dataset;
-    var pestana = 'POR_DECIDIR', primera = true, porDecidir = 0, filas = [], op = null;
+    var pestana = 'POR_DECIDIR', primera = true, porDecidir = 0, fueraTiempo = 0, filas = [], op = null;
     var cuerpo = document.getElementById('c-filas'), tabs = document.getElementById('c-tabs');
     var f = { empresa: document.getElementById('c-empresa'), solicitante: document.getElementById('c-solicitante'), persona: document.getElementById('c-persona'),
               fecha: document.getElementById('c-fecha'), estado: document.getElementById('c-estado') };
@@ -12,8 +12,8 @@
     // ── Bandeja ──────────────────────────────────────────────────────────────────────────────
     function pintarTabs() {
         tabs.textContent = '';
-        [['POR_DECIDIR', 'Por decidir (' + porDecidir + ')'], ['TODAS', 'Todas']].forEach(function (t) {
-            tabs.appendChild(el('button', { type: 'button', class: 'pill' + (pestana === t[0] ? ' on' : ''), text: t[1], onclick: function () { pestana = t[0]; cargar(); } }));
+        [['POR_DECIDIR', 'Por decidir (' + porDecidir + ')'], ['FUERA_DE_TIEMPO', 'Fuera de tiempo (' + fueraTiempo + ')'], ['TODAS', 'Todas']].forEach(function (t) {
+            tabs.appendChild(el('button', { type: 'button', class: 'pill' + (pestana === t[0] ? ' on' : '') + (t[0] === 'FUERA_DE_TIEMPO' && fueraTiempo > 0 ? ' pill-alerta' : ''), text: t[1], onclick: function () { pestana = t[0]; cargar(); } }));
         });
     }
 
@@ -24,7 +24,7 @@
         cuerpo.textContent = '';
         var vistas = filas.filter(function (s) { return ftipos.pasa(s.tipo); });
         if (!vistas.length) {
-            cuerpo.appendChild(el('tr', {}, [el('td', { colspan: '7', class: 'vacio', text: pestana === 'POR_DECIDIR' ? 'No tiene solicitudes por decidir.' : 'No hay solicitudes con ese filtro.' })]));
+            cuerpo.appendChild(el('tr', {}, [el('td', { colspan: '7', class: 'vacio', text: pestana === 'POR_DECIDIR' ? 'No tiene solicitudes por decidir.' : pestana === 'FUERA_DE_TIEMPO' ? 'No hay solicitudes fuera de tiempo.' : 'No hay solicitudes con ese filtro.' })]));
             return;
         }
         vistas.forEach(function (s) {
@@ -33,15 +33,16 @@
             if (s.pendientes) detalle.push(s.pendientes + ' pendiente(s)');
             if (s.observadas) detalle.push(s.observadas + ' observada(s)');
             if (s.rechazadas) detalle.push(s.rechazadas + ' rechazada(s)');
-            cuerpo.appendChild(el('tr', { class: s.esHoy ? 'hoy' : (s.estado === 'CANCELADA' ? 'off' : '') }, [
+            cuerpo.appendChild(el('tr', { class: s.esHoy ? 'hoy' : (s.estado === 'CANCELADA' || s.estado === 'VENCIDA' ? 'off' : '') }, [
                 el('td', {}, [el('button', { type: 'button', class: 'link', text: s.codigo, onclick: function () { revisar(s.id); } }), el('div', {}, [SOL.chipTipo(s.tipoCodigo, s.tipo)])]),
                 el('td', {}, [el('span', { text: SOL.fechaLarga(s.fecha) + ' · ' + s.hora }), s.esHoy ? el('span', { class: 'chip c-obs', text: 'Hoy' }) : null]),
                 el('td', {}, [el('div', { text: s.empresa || '' }), SOL.chipEmpresa(s.empresaCodigo)]),
                 el('td', { text: s.solicitante || '' }),
                 el('td', {}, [SOL.personasLista(s.personas), el('div', { class: 'field-h', text: s.total + ' persona(s)' }), el('div', { class: 'field-h', text: detalle.join(' · ') }),
                               s.porDecidirMis ? el('div', { class: 'field-h', text: s.porDecidirMis + ' por decidir por usted' }) : null]),
-                el('td', {}, [SOL.chipEstado(s.estado)]),
-                el('td', {}, [el('button', { type: 'button', class: 'btn btn-sm' + (s.porDecidirMis ? ' btn-primary' : ''), text: s.porDecidirMis ? 'Revisar' : 'Ver', onclick: function () { revisar(s.id); } })])
+                el('td', { 'data-orden': s.estado }, [SOL.estadoNodo(s)]),
+                el('td', {}, [el('div', { class: 'acc' }, [CAF.btn({ icono: 'ver', texto: s.porDecidirMis ? 'Revisar' : 'Ver', titulo: s.porDecidirMis ? 'Revisar y decidir' : 'Ver detalle', modo: 'icono', clase: 'btn-sm' + (s.porDecidirMis ? ' btn-primary' : ''), onclick: function () { revisar(s.id); } }),
+                    CAF.btn({ icono: 'reenviar', texto: 'Reenviar correo', titulo: 'Reenviar correo con el estado actual', modo: 'icono', clase: 'btn-sm', onclick: function () { SOL.reenviarCorreo({ solicitudId: s.id, urlReenviar: d.urlReenviar, urlSugerir: d.urlSugerir }, cargar); } })])])
             ]));
         });
     }
@@ -51,7 +52,7 @@
               + '&persona=' + encodeURIComponent(f.persona.value) + '&fecha=' + f.fecha.value + '&estado=' + f.estado.value;
         return CAF.pedir(d.urlLista + q).then(function (r) {
             if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
-            porDecidir = r.porDecidir; filas = r.data; ftipos.registrar(filas.map(function (s) { return s.tipo; }));
+            porDecidir = r.porDecidir; fueraTiempo = r.fueraDeTiempo || 0; filas = r.data; ftipos.registrar(filas.map(function (s) { return s.tipo; }));
             if (primera) { primera = false; if (porDecidir === 0 && pestana === 'POR_DECIDIR') { pestana = 'TODAS'; return cargar(); } }
             pintar();
         });
@@ -79,6 +80,8 @@
         function pintar() {
             cont.textContent = '';
             cont.appendChild(el('div', { class: 'det-h' }, [el('h3', { text: s.codigo }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo), SOL.chipEstado(s.estado), s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null]));
+            var notaC = SOL.notaCorreo(s.correoEstado); if (notaC) cont.appendChild(notaC);   // D-254
+            var avisoP = SOL.avisoPlazo(s); if (avisoP) cont.appendChild(avisoP);   // D-251
             if (s.estado === 'CANCELADA') cont.appendChild(el('div', { class: 'aviso a-info', text: 'Solicitud cancelada' + (s.motivoCancelacion ? ': ' + s.motivoCancelacion : '.') }));
             var dl = el('dl', { class: 'dl' });
             var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';
@@ -96,6 +99,7 @@
             cont.appendChild(dl);
             if (pv) cont.appendChild(SOL.transportistasNodo(s.transportistas));
             cont.appendChild(ADJ.panel({ solicitudId: id, urlListar: d.urlAdj, puedeAdjuntar: false }).nodo);
+            cont.appendChild(SOL.panelCorreos({ solicitudId: id, urlListar: d.urlCorreos, urlReenviar: d.urlReenviar, urlSugerir: d.urlSugerir }).nodo);   // D-252
             if (s.exigeSctr || s.exigeEpp) cont.appendChild(el('div', { class: 'aviso a-warn', text: 'Las zonas exigen ' + [s.exigeSctr ? 'SCTR' : '', s.exigeEpp ? 'EPP' : ''].filter(Boolean).join(' y ') + ': Vigilancia lo verifica al ingreso.' }));
             cont.appendChild(el('div', { class: 'pills' }, [['personas', 'Personas (' + s.personas.filter(function (p) { return p.aprobacion !== 'RETIRADA'; }).length + ')'], ['historial', 'Historial']].map(function (x) {
                 return el('button', { type: 'button', class: 'pill' + (tab === x[0] ? ' on' : ''), text: x[1], onclick: function () { tab = x[0]; pintar(); } });
@@ -129,8 +133,8 @@
             s.personas.forEach(function (p) {
                 var chk = null;
                 var quitable = (p.puedeQuitar || p.puedeCorregirDatos) ? el('div', { class: 'plist-r' }, [
-                    p.puedeCorregirDatos ? el('button', { type: 'button', class: 'btn btn-sm', text: 'Corregir datos (emergencia)', onclick: function () { corregir(p); } }) : null,
-                    p.puedeQuitar ? el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: p.esUnica ? 'Quitar y rechazar (emergencia)' : 'Quitar (emergencia)', onclick: function () { quitar(p); } }) : null
+                    p.puedeCorregirDatos ? CAF.btn({ icono: 'persona-editar', texto: 'Corregir datos', titulo: 'Corregir datos (emergencia)', emergencia: true, clase: 'btn-sm', onclick: function () { corregir(p); } }) : null,
+                    p.puedeQuitar ? CAF.btn({ icono: 'persona-menos', texto: p.esUnica ? 'Quitar y rechazar' : 'Quitar', titulo: p.esUnica ? 'Quitar y rechazar la solicitud (emergencia)' : 'Quitar (emergencia)', emergencia: true, clase: 'btn-sm btn-danger-o', onclick: function () { quitar(p); } }) : null
                 ]) : null;
                 var yaIngreso = s.puedeCorregir && p.aprobacion === 'APROBADA' && p.estado === 'DENTRO';
                 if (p.puedeDecidir) {
@@ -187,10 +191,10 @@
                 marcarTodas = el('input', { type: 'checkbox' });
                 marcarTodas.addEventListener('change', function () { decidibles.forEach(function (p) { p._chk.checked = marcarTodas.checked; }); });
                 caja.appendChild(el('label', { class: 'chk-all' }, [marcarTodas, 'Marcar todas las que puedo decidir (' + decidibles.length + ')']));
-                acciones.appendChild(el('button', { type: 'button', class: 'btn btn-primary', text: 'Aprobar todas', onclick: function () { decidir('APROBADA', true); } }));
-                acciones.appendChild(el('button', { type: 'button', class: 'btn', text: 'Aprobar seleccionadas', onclick: function () { decidir('APROBADA', false); } }));
-                acciones.appendChild(el('button', { type: 'button', class: 'btn', text: 'Observar seleccionadas', onclick: function () { decidir('OBSERVADA', false); } }));
-                acciones.appendChild(el('button', { type: 'button', class: 'btn btn-danger-o', text: 'Rechazar seleccionadas', onclick: function () { decidir('RECHAZADA', false); } }));
+                acciones.appendChild(CAF.btn({ icono: 'aprobar', texto: 'Aprobar todas', modo: 'texto', clase: 'btn-primary', onclick: function () { decidir('APROBADA', true); } }));
+                acciones.appendChild(CAF.btn({ icono: 'aprobar', texto: 'Aprobar seleccionadas', modo: 'texto', onclick: function () { decidir('APROBADA', false); } }));
+                acciones.appendChild(CAF.btn({ icono: 'observar', texto: 'Observar seleccionadas', modo: 'texto', onclick: function () { decidir('OBSERVADA', false); } }));
+                acciones.appendChild(CAF.btn({ icono: 'rechazar', texto: 'Rechazar seleccionadas', modo: 'texto', clase: 'btn-danger-o', onclick: function () { decidir('RECHAZADA', false); } }));
                 caja.appendChild(el('div', { class: 'decide' }, [texto, acciones, pregunta]));
             } else if (s.puedeDecidir) {
                 caja.appendChild(el('p', { class: 'field-h', text: 'No hay personas pendientes para usted en esta solicitud.' }));
@@ -201,8 +205,8 @@
             if (s.puedeCorregir) {
                 caja.appendChild(el('div', { class: 'aviso a-warn' }, [
                     el('span', { text: 'Corrección de emergencia: solo si la visita cambia el mismo día. Agregue a quien llegó sin estar en la solicitud, corrija un dato mal escrito (menos el número de documento) o quite a quien ya no viene. Vigilancia lo ve al instante y el solicitante y Vigilancia reciben un correo con su sustento.' }),
-                    el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona (emergencia)', onclick: agregar }),
-                    (s.tipoCodigo === 'CONTRATISTA' && s.dias && s.dias.length) ? el('button', { type: 'button', class: 'btn btn-sm', text: '+ Ampliar días (emergencia)', onclick: ampliarDias }) : null
+                    CAF.btn({ icono: 'persona-mas', texto: 'Agregar persona', titulo: 'Agregar persona (emergencia)', emergencia: true, clase: 'btn-sm', onclick: agregar }),
+                    (s.tipoCodigo === 'CONTRATISTA' && s.dias && s.dias.length) ? CAF.btn({ icono: 'calendario-mas', texto: 'Ampliar días', titulo: 'Ampliar días (emergencia)', emergencia: true, clase: 'btn-sm', onclick: ampliarDias }) : null
                 ]));
             }
             return caja;

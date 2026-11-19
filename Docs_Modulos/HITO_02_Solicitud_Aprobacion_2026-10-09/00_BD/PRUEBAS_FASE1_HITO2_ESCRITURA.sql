@@ -1334,6 +1334,8 @@ BEGIN
     CALL "ERP_USUARIO_LICENCIA_AGREGAR"(v_uvp, v_lic_da, v_ves, 0, v_ul, v_cod, v_msg);
     PERFORM pg_temp.chk('Calendario: Vigilancia con la licencia de lectura lo ve', 'true',
         pg_temp.q('SELECT (COUNT(*) >= 3)::TEXT FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_uvp || ',' || v_ves || ', NULL, NULL)'), '');
+    PERFORM pg_temp.chk('Calendario: cada entrega trae el nombre de quien hizo la solicitud (D-250)', '0',
+        pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_uvp || ',' || v_ves || ', NULL, NULL) C WHERE C."Solicitante_Nombre" IS NULL OR C."Solicitante_Nombre" <> (SELECT U."Apellido_Paterno" || COALESCE('' '' || U."Apellido_Materno", '''') || '', '' || U."Nombres" FROM "CAF_GOVERNANCE"."Usuario" U JOIN "CAF_Solicitud" S ON S."ID_Usuario_Solicitante" = U."ID_Usuario" WHERE S."ID_Solicitud" = C."ID_Solicitud")'), '');
     PERFORM pg_temp.chk('Calendario: la solicitud pendiente no aparece', '0',
         pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_CALENDARIO"(' || v_ud || ',' || v_ves || ', NULL, NULL) WHERE "ID_Solicitud" = ' || v_spend), '');
     PERFORM pg_temp.chk('Calendario: la solicitud cancelada no aparece', '0',

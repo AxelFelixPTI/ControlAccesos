@@ -480,6 +480,9 @@ BEGIN
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
+        END IF;
         IF lv_estado = 'RECHAZADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Todas las personas fueron rechazadas. Use «Reutilizar» para crear una solicitud nueva.'; RETURN;
         END IF;
@@ -798,6 +801,9 @@ BEGIN
         END IF;
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud ya está cancelada.'; RETURN;
+        END IF;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
         END IF;
         IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó.'; RETURN;

@@ -39,4 +39,8 @@ public sealed class Dto_Solicitud_Bandeja
     public string? Tipo_Acceso_Codigo { get; set; }
     public string? Empresa_Destino_Codigo { get; set; }
     public DateTime? Fecha_Envio { get; set; }
+    public int Dias_Atraso { get; set; }                   // D-251
+    /// <summary>D-254: cómo le fue al último correo: ENVIADO|ERROR|PENDIENTE + «:A» (automático) o «:M» (reenvío manual). Nulo si no hay correos.</summary>
+    public string? Correo_Estado { get; set; }
+    public int Franja_Sin_Aprobar { get; set; }            // D-251
 }

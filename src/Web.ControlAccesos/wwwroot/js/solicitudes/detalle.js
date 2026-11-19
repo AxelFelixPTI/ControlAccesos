@@ -24,15 +24,18 @@
     function pintarCab() {
         cab.textContent = '';
         var acc = [];
-        if (s.puedeEditar) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Editar datos', onclick: editarDatos }));
+        if (s.puedeEditar) acc.push(CAF.btn({ icono: 'editar', texto: 'Editar datos', clase: 'btn-sm', onclick: editarDatos }));
         else if (s.motivoNoEditar) acc.push(el('span', { class: 'field-h', text: s.motivoNoEditar }));
         var franjaVigente = s.dias && s.dias.length && s.esPropia !== false && (s.estado === 'APROBADA' || s.estado === 'APROBADA_PARCIAL');
-        if (franjaVigente) acc.push(el('a', { class: 'btn btn-sm', href: d.urlNueva + '?reutilizar=' + s.id, text: 'Ampliar plazo (solicitud nueva)' }));
-        else if (s.puedeReutilizar) acc.push(el('a', { class: 'btn btn-sm', href: d.urlNueva + '?reutilizar=' + s.id, text: 'Reutilizar' }));
-        if (s.puedeCancelar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar solicitud', onclick: cancelar }));
+        if (franjaVigente) acc.push(CAF.btn({ href: d.urlNueva + '?reutilizar=' + s.id, icono: 'calendario-mas', texto: 'Ampliar plazo', titulo: 'Ampliar plazo (solicitud nueva)', clase: 'btn-sm' }));
+        else if (s.puedeReutilizar) acc.push(CAF.btn({ href: d.urlNueva + '?reutilizar=' + s.id, icono: 'reutilizar', texto: 'Reutilizar', titulo: 'Reutilizar con una fecha nueva', clase: 'btn-sm' }));
+        acc.push(CAF.btn({ icono: 'reenviar', texto: 'Reenviar correo', titulo: 'Reenviar correo con el estado actual', clase: 'btn-sm', onclick: function () { SOL.reenviarCorreo({ solicitudId: id, urlReenviar: d.urlReenviar, urlSugerir: d.urlSugerir }, cargar); } }));
+        if (s.puedeCancelar) acc.push(CAF.btn({ icono: 'cancelar', texto: 'Cancelar solicitud', clase: 'btn-sm btn-danger-o', onclick: cancelar }));
         else if (s.estado !== 'CANCELADA' && s.motivoNoCancelar) acc.push(el('span', { class: 'field-h', text: s.motivoNoCancelar }));
         cab.appendChild(el('div', { class: 'det-h' }, [el('h2', { text: s.codigo }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo), SOL.chipEstado(s.estado),
             s.codigoOrigen ? el('span', { class: 'field-h', text: 'basada en ' + s.codigoOrigen }) : null, el('div', { class: 'acc acc-r' }, acc)]));
+        var notaC = SOL.notaCorreo(s.correoEstado); if (notaC) cab.appendChild(notaC);   // D-254
+        var avisoP = SOL.avisoPlazo(s); if (avisoP) cab.appendChild(avisoP);   // D-251
         if (s.estado === 'CANCELADA' && s.motivoCancelacion) cab.appendChild(el('div', { class: 'aviso a-info', text: 'Motivo de la cancelación: ' + s.motivoCancelacion }));
         if (s.observacionCoordinador && s.observadas) cab.appendChild(el('div', { class: 'aviso a-warn', text: 'Coordinación: ' + s.observacionCoordinador }));
         var dl = el('dl', { class: 'dl' });
@@ -146,15 +149,15 @@
     function pintarPersonas() {
         caja.textContent = '';
         var tit = [el('h3', { text: 'Personas (' + s.total + ')' })];
-        if (s.puedeModificar) tit.push(el('button', { type: 'button', class: 'btn btn-sm', text: '+ Agregar persona', onclick: agregar }));
+        if (s.puedeModificar) tit.push(CAF.btn({ icono: 'persona-mas', texto: 'Agregar persona', clase: 'btn-sm', onclick: agregar }));
         caja.appendChild(el('div', { class: 'row-sp' }, tit));
         if (!s.puedeModificar && s.motivoNoModificar) caja.appendChild(el('p', { class: 'field-h', text: s.motivoNoModificar }));
         var ul = el('ul', { class: 'plist' });
         s.personas.forEach(function (p) {
             var acc = [];
-            if (p.puedeCorregir) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: p.aprobacion === 'OBSERVADA' ? 'Corregir y reenviar' : 'Editar', onclick: function () { corregir(p); } }));
-            if (p.puedeRetirar) acc.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Retirar', onclick: function () { retirar(p); } }));
-            if (p.puedeReactivar) acc.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Volver a agregar', onclick: function () { accion(d.urlAgregar, { solicitudId: id, personaId: p.personaId }, null, null, 'Persona agregada de nuevo.'); } }));
+            if (p.puedeCorregir) acc.push(CAF.btn({ icono: 'persona-editar', texto: p.aprobacion === 'OBSERVADA' ? 'Corregir y reenviar' : 'Editar', clase: 'btn-sm', onclick: function () { corregir(p); } }));
+            if (p.puedeRetirar) acc.push(CAF.btn({ icono: 'persona-menos', texto: 'Retirar', clase: 'btn-sm btn-danger-o', onclick: function () { retirar(p); } }));
+            if (p.puedeReactivar) acc.push(CAF.btn({ icono: 'persona-mas', texto: 'Volver a agregar', clase: 'btn-sm', onclick: function () { accion(d.urlAgregar, { solicitudId: id, personaId: p.personaId }, null, null, 'Persona agregada de nuevo.'); } }));
             ul.appendChild(el('li', { class: p.aprobacion === 'RETIRADA' ? 'ret' : '' }, [
                 el('div', { class: 'plist-m' }, [
                     el('div', { class: 'plist-n' }, [el('span', { class: 'pn', text: p.nombre }), SOL.chipPersona(p), (p.subtipo || s.tipoCodigo === 'PROVEEDOR') ? el('span', { class: 'chip c-line', text: p.subtipo || (p.esTransportista ? 'Conductor' : 'Ayudante de descarga') }) : null]),
@@ -183,6 +186,13 @@
         c.appendChild(ADJ.panel({ solicitudId: id, urlListar: d.urlAdj, puedeAdjuntar: !!s.puedeEditar && s.esPropia !== false }).nodo);
     }
 
+    // D-252: resultado de los correos y reenvío manual (lo ve quien ve la solicitud)
+    function pintarCorreos() {
+        var c = document.getElementById('d-correos');
+        c.textContent = '';
+        c.appendChild(SOL.panelCorreos({ solicitudId: id, urlListar: d.urlCorreos, urlReenviar: d.urlReenviar, urlSugerir: d.urlSugerir, alReenviar: cargar }).nodo);
+    }
+
     function cargar() {
         return CAF.pedir(d.urlDatos + '?id=' + id).then(function (r) {
             if (!r.success) { cab.textContent = ''; cab.appendChild(el('p', { class: 'vacio', text: r.message || 'No se pudo cargar la solicitud.' })); caja.textContent = ''; hist.textContent = ''; return; }
@@ -191,7 +201,7 @@
                 s.puedeEditar = s.puedeModificar = s.puedeCancelar = s.puedeReutilizar = false; s.motivoNoEditar = s.motivoNoModificar = s.motivoNoCancelar = '';
                 (s.personas || []).forEach(function (p) { p.puedeCorregir = p.puedeRetirar = p.puedeReactivar = false; });
             }
-            pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial();
+            pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial(); pintarCorreos();
         });
     }
 

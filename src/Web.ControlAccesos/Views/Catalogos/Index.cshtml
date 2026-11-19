@@ -1,5 +1,11 @@
-@{ ViewData["Titulo"] = "Catálogos"; ViewData["Migas"] = "Administración · Sede VES"; }
-<div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")"
+@using Web.ControlAccesos.Seguridad
+@{
+    ViewData["Titulo"] = "Catálogos";
+    // D-258: con solo la licencia de configuración se ven zonas, checklist, motivos, tratamientos, incidencias y 5 parámetros
+    var esAdmin = User.TienePermiso("PER_CAF_ADMIN_CATALOGOS");
+    ViewData["Migas"] = esAdmin ? "Administración · Sede VES" : "Configuración";
+}
+<div class="stack" id="caf-catalogos" data-url-listar="@Url.Action("Listar", "Catalogos")" data-url-sedes="@Url.Action("Sedes", "Catalogos")" data-url-guardar="@Url.Action("Guardar", "Catalogos")"
      data-url-al-listar="@Url.Action("Listar", "AlmacenEmpresa")" data-url-al-guardar="@Url.Action("Guardar", "AlmacenEmpresa")"
      data-url-pa-listar="@Url.Action("Listar", "Parametros")" data-url-pa-guardar="@Url.Action("Guardar", "Parametros")"
      data-url-ck-listar="@Url.Action("Listar", "ChecklistPorteria")" data-url-ck-guardar="@Url.Action("Guardar", "ChecklistPorteria")"
@@ -11,10 +17,15 @@
     <section class="card">
         <div class="card-hd">
             <div>
-                <h3>Zonas de VES</h3>
-                <p class="small muted">Lo que marque aquí decide los avisos de la solicitud y los ítems del checklist en portería.</p>
+                <h3>Zonas de <span id="zona-sede-nombre">la sede</span></h3>
+                <p class="small muted">Lo que marque aquí decide los avisos de la solicitud y los ítems del checklist en portería. Cada sede tiene sus propias zonas.</p>
             </div>
-            <button type="button" class="btn" data-nuevo="zona">+ Nueva zona</button>
+            <div class="fila">
+                <label class="small muted" for="zona-sede" id="zona-sede-et" hidden>Sede
+                    <select id="zona-sede"></select>
+                </label>
+                <button type="button" class="btn" data-nuevo="zona">+ Nueva zona</button>
+            </div>
         </div>
         <div class="tw">
             <table class="tabla">
@@ -24,6 +35,8 @@
         </div>
     </section>
 
+    @if (esAdmin)
+    {
     <section class="card" id="caf-tipos">
         <div class="card-hd">
             <div>
@@ -39,6 +52,8 @@
             </table>
         </div>
     </section>
+
+    }
 
     <section class="card" id="caf-checklist">
         <div class="card-hd">
@@ -56,6 +71,8 @@
         </div>
     </section>
 
+    @if (esAdmin)
+    {
     <section class="card" id="caf-almacen">
         <div class="card-hd">
             <div>
@@ -70,6 +87,8 @@
             </table>
         </div>
     </section>
+
+    }
 
     <section class="card" id="caf-parametros">
         <div class="card-hd">
@@ -86,6 +105,8 @@
         </div>
     </section>
 
+    @if (esAdmin)
+    {
     <div class="grid g2 cat3">
         <section class="card">
             <h3>Áreas</h3>
@@ -100,6 +121,8 @@
             <button type="button" class="btn" data-nuevo="cargo">+ Agregar</button>
         </section>
     </div>
+
+    }
 
     <div class="grid g3 cat3">
         <section class="card">

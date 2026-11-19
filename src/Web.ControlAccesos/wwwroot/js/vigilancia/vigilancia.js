@@ -5,7 +5,7 @@
     'use strict';
     var raiz = document.getElementById('caf-vig');
     if (!raiz) return;
-    var el = CAF.el, d = raiz.dataset, puede = d.puedeRegistrar === 'Y', puedeInc = d.puedeIncidencia === 'Y', puedeProv = d.puedeProveedor === 'Y';
+    var el = CAF.el, d = raiz.dataset, puede = d.puedeRegistrar === 'Y', puedeInc = d.puedeIncidencia === 'Y', puedeProv = d.puedeProveedor === 'Y', incPostSalida = d.incidenciaPostSalida === 'Y';   // D-257: parámetro INCIDENCIA_POST_SALIDA
     var todas = [], brutas = [], grupo = 'TODOS', texto = '', temporizador = null, secuencia = 0, modo = 'HOY', hayLimite = false;
     var modos = document.getElementById('v-modos'), desde = document.getElementById('v-desde'), hasta = document.getElementById('v-hasta');
     var cajaTexto = document.getElementById('v-texto'), pills = document.getElementById('v-pills');
@@ -106,7 +106,7 @@
             var cab = el('div', { class: 'blk-h' }, [
                 el('div', {}, [el('div', { class: 'blk-t' }, [el('strong', { text: s.empresa || '(sin empresa)' }), SOL.chipTipo(s.tipoCodigo, s.tipo), SOL.chipEmpresa(s.empresaCodigo)]), el('div', { class: 'field-h', text: s.codigo + ' · ' + (soloLectura ? 'visita ' + SOL.fechaLarga(s.fecha) + ' ' + s.hora : 'hora prevista ' + s.hora) + (s.atiende ? ' · atiende ' + s.atiende : '') })]),
                 el('div', { class: 'vrow-e' }, [s.zonas ? el('span', { class: 'field-h', text: 'Zonas: ' + s.zonas }) : null, exige ? chip('Exige ' + exige, 'c-obs') : null,
-                    el('button', { type: 'button', class: 'btn btn-sm', text: 'Documentos', onclick: function () { documentos(s); } }),
+                    CAF.btn({ icono: 'adjunto', texto: 'Documentos', clase: 'btn-sm', onclick: function () { documentos(s); } }),
                     botonGrupo(s)])
             ]);
             var blk = el('section', { class: 'card blk' }, [cab]);
@@ -134,12 +134,12 @@
             var grp = todas.filter(function (x) { return x.solicitudId === p.solicitudId; });
             var activa = op === 'EN_ESPERA' || op === 'INGRESO' || op === 'EN_ATENCION';
             if (p.estado === 'ESPERADA') {
-                if (puede && (activa || op === 'PROGRAMADO') && !p.verificada) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Verificar datos', onclick: function () { movimiento(p, 'INGRESO', true); } }));
+                if (puede && (activa || op === 'PROGRAMADO') && !p.verificada) botones.push(CAF.btn({ icono: 'verificar', texto: 'Verificar datos', modo: 'texto', clase: 'btn-sm btn-primary', onclick: function () { movimiento(p, 'INGRESO', true); } }));
                 if (p.verificada && activa && puedeProv) {
-                    var bv = el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar ingreso' });
+                    var bv = CAF.btn({ icono: 'ingreso', texto: 'Registrar ingreso', modo: 'texto', clase: 'btn-sm btn-primary' });
                     if (p.almacenListo) bv.addEventListener('click', function () { registrarIngreso([p]); }); else { bv.disabled = true; bv.classList.add('is-off'); bv.title = 'Almacén aún no confirmó su disponibilidad'; }
                     botones.push(bv);
-                    botones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Retiró sin ingresar', onclick: function () { retiroPersonas([p]); } }));
+                    botones.push(CAF.btn({ icono: 'persona-x', texto: 'Retiró sin ingresar', clase: 'btn-sm', onclick: function () { retiroPersonas([p]); } }));
                 }
                 extra = !p.verificada ? chip('Datos por verificar', 'c-pend')
                     : chip(p.almacenListo ? 'Verificado · Almacén listo' : 'Verificado · esperando a Almacén', p.almacenListo ? 'c-ok' : 'c-obs');
@@ -151,19 +151,19 @@
                 else if (salidaProveedor(p, grp)) extra = chip('Puede salir para dar paso al siguiente vehículo', 'c-par');
             } else if (p.estado === 'NO_SE_PRESENTO') extra = chip(op === 'RETIRO_SIN_INGRESO' ? 'Se retiró sin ingresar' : 'No ingresó', 'c-can');
         }
-        if (!prov && puede && !soloLectura && p.estado === 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Validar ingreso', onclick: function () { movimiento(p, 'INGRESO'); } }));
-        if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || salidaProveedor(p, todas.filter(function (x) { return x.solicitudId === p.solicitudId; })))) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: p.estadoOp === 'CIERRE_FORZADO' ? 'Registrar salida (tardía)' : 'Registrar salida', onclick: function () { movimiento(p, 'SALIDA'); } }));
+        if (!prov && puede && !soloLectura && p.estado === 'ESPERADA') botones.push(CAF.btn({ icono: 'ingreso', texto: 'Validar ingreso', modo: 'texto', clase: 'btn-sm btn-primary', onclick: function () { movimiento(p, 'INGRESO'); } }));
+        if (puede && !soloLectura && p.estado === 'DENTRO' && (!p.esProveedor || salidaProveedor(p, todas.filter(function (x) { return x.solicitudId === p.solicitudId; })))) botones.push(CAF.btn({ icono: 'salida', texto: p.estadoOp === 'CIERRE_FORZADO' ? 'Registrar salida (tardía)' : 'Registrar salida', modo: 'texto', clase: 'btn-sm ' + (p.estadoOp === 'CIERRE_FORZADO' ? 'btn-warn' : 'btn-primary'), onclick: function () { movimiento(p, 'SALIDA'); } }));
         if (puede && !soloLectura && p.esProveedor && p.estado === 'DENTRO') {
             var grpS = todas.filter(function (x) { return x.solicitudId === p.solicitudId; });
-            if (esAnticipable(p, grpS)) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-warn', text: 'Salida anticipada', title: 'Almacén aún no terminó: queda registrada con observación para el Coordinador', onclick: function () { checklistGrupo('SALIDA', p, [p], true, true); } }));
-            else if (!salidaProveedor(p, grpS)) botones.push(el('button', { type: 'button', class: 'btn btn-sm is-off', disabled: true, text: 'Registrar salida', title: 'Disponible cuando Almacén termine la atención.' }));
+            if (esAnticipable(p, grpS)) botones.push(CAF.btn({ icono: 'salida', texto: 'Salida anticipada', titulo: 'Salida anticipada: Almacén aún no terminó; queda registrada con observación para el Coordinador', modo: 'texto', clase: 'btn-sm btn-warn', onclick: function () { checklistGrupo('SALIDA', p, [p], true, true); } }));
+            else if (!salidaProveedor(p, grpS)) botones.push(CAF.btn({ icono: 'salida', texto: 'Registrar salida', titulo: 'Registrar salida: disponible cuando Almacén termine la atención.', modo: 'texto', clase: 'btn-sm is-off', disabled: true }));
         }
-        if (puedeInc && !soloLectura && (p.estado === 'DENTRO' || p.estado === 'SALIO')) botones.push(el('button', { type: 'button', class: 'btn btn-sm btn-danger', text: 'Registrar incidencia', onclick: function () {
+        if (puedeInc && !soloLectura && (p.estado === 'DENTRO' || (p.estado === 'SALIO' && incPostSalida))) botones.push(CAF.btn({ icono: 'incidencia', texto: 'Registrar incidencia', modo: 'texto', clase: 'btn-sm btn-danger', onclick: function () {
             // El Coordinador registra en la pantalla única de Incidencias, con la persona ya elegida (queda confirmada directamente).
             if (d.esCoordinador === 'Y') { window.location.href = d.urlIncidencias + '?persona=' + encodeURIComponent(p.id) + '&nombre=' + encodeURIComponent(p.nombre); return; }
             INC.registrar({ opciones: d.urlIncOpciones, personas: d.urlIncPersonas, registrar: d.urlIncRegistrar }, false, { id: p.id, nombre: p.nombre }, function () { cargar(); });
         } }));
-        if (p.estado !== 'ESPERADA') botones.push(el('button', { type: 'button', class: 'btn btn-sm', text: 'Detalle', onclick: function () { detalle(p); } }));
+        if (p.estado !== 'ESPERADA') botones.push(CAF.btn({ icono: 'ver', texto: 'Detalle', titulo: 'Ver detalle', clase: 'btn-sm', onclick: function () { detalle(p); } }));
         return el('div', { class: 'vrow' }, [
             el('div', { class: 'vrow-n' + (selector ? ' con-sel' : '') }, [selector, el('div', { class: 'vrow-t' }, [el('strong', { text: p.nombre }), el('span', { class: 'field-h', text: docTexto(p) + (prov ? ' · ' + (p.esTransportista ? 'Conductor' : 'Ayudante de descarga') : '') })])]),
             el('div', { class: 'vrow-e' }, [chip(e[0], e[1]), p.franja && p.franja !== 'NA' ? chip(p.franja === 'FUERA' ? 'Fuera de franja' : 'Franja de días', p.franja === 'FUERA' ? 'c-obs' : 'c-line') : null,
@@ -206,7 +206,7 @@
     function botonGrupo(s) {
         if (modo === 'APROBADAS' || !(puede || puedeProv) || personasDe(s).length < 2) return null;
         var hay = accionesGrupo(s, personasDe(s)).some(function (a) { return a.elegibles.length; });
-        var b = el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Verificación en grupo' });
+        var b = CAF.btn({ icono: 'personas', texto: 'Verificación en grupo', modo: 'texto', clase: 'btn-sm btn-primary' });
         // Sin ninguna acción posible el botón queda bloqueado (no abre un modal vacío); se habilita solo cuando alguien pueda avanzar.
         if (hay) b.addEventListener('click', function () { grupoModal(s); });
         else { b.disabled = true; b.classList.add('is-off'); b.title = 'Por ahora ninguna persona de esta solicitud tiene una acción disponible'; }
@@ -281,15 +281,15 @@
                     el('span', { class: 'field-h', text: ' ' + docTexto(x) + (rol ? ' · ' + rol : '') + ' · ' + (ESTADO[x.estado] || [x.estado])[0] + (puedeX ? '' : ' · no disponible para esta acción') })])]));
             });
             cuerpo.appendChild(ul);
-            var sig = el('button', { type: 'button', class: 'btn btn-primary', text: 'Siguiente' });
-            function sinc() { var n = Object.keys(marcados).length; sig.disabled = !n; sig.textContent = 'Siguiente (' + n + ')'; }
+            var sig = CAF.btn({ icono: 'continuar', texto: 'Siguiente', modo: 'texto', clase: 'btn-primary' });
+            function sinc() { var n = Object.keys(marcados).length; sig.disabled = !n; CAF.rotular(sig, 'continuar', 'Siguiente (' + n + ')'); }
             sig.addEventListener('click', function () {
                 var ps = a.elegibles.filter(function (x) { return marcados[x.id]; });
                 if (!ps.length) return;
                 mod.cerrar(); a.abre(ps);   // paso 3: el checklist o la confirmación de siempre
             });
             sinc();
-            cuerpo.appendChild(el('div', { class: 'vrow-e' }, [el('button', { type: 'button', class: 'btn', text: 'Atrás', onclick: function () { opc.saltar = false; paso1(); } }), sig]));
+            cuerpo.appendChild(el('div', { class: 'vrow-e' }, [CAF.btn({ icono: 'atras', texto: 'Atrás', modo: 'texto', onclick: function () { opc.saltar = false; paso1(); } }), sig]));
         }
         var inicial = opc.accion ? acciones.filter(function (x) { return x.id === opc.accion && x.elegibles.length; })[0] : null;
         if (opc.saltar && inicial) elegir(inicial); else paso1();

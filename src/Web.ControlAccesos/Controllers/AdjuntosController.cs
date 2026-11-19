@@ -63,6 +63,35 @@ public sealed class AdjuntosController : Controller
         return Json(new { success = r.Success, message = r.Message });
     }
 
+    // Todos los documentos de la solicitud en un solo ZIP. Cada documento pasa por la misma regla de visibilidad que la descarga
+    // individual (la lista y la lectura las decide la base de datos), así que el ZIP solo trae lo que el usuario puede ver.
+    [HttpGet]
+    public async Task<IActionResult> DescargarTodo(long solicitudId, CancellationToken ct)
+    {
+        var lista = await _adj.ListarAsync(User.UsuarioId(), solicitudId, ct);
+        if (!lista.Success || lista.Data is null || lista.Data.Count == 0) return NotFound();
+        var ms = new MemoryStream();
+        var usados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var a in lista.Data)
+            {
+                var r = await _adj.ObtenerAsync(User.UsuarioId(), a.ID_Solicitud_Adjunto, ct);
+                if (!r.Success || r.Data is null) continue;
+                var nombre = ValidadorAdjuntos.LimpiarNombre(r.Data.Nombre_Archivo);
+                var baseN = Path.GetFileNameWithoutExtension(nombre); var ext = Path.GetExtension(nombre); var n = 2;
+                while (!usados.Add(nombre)) nombre = $"{baseN} ({n++}){ext}";        // dos archivos con el mismo nombre no se pisan
+                var e = zip.CreateEntry(nombre, System.IO.Compression.CompressionLevel.Optimal);
+                await using var s = e.Open();
+                await s.WriteAsync(r.Data.Contenido, ct);
+            }
+        }
+        if (usados.Count == 0) return NotFound();
+        ms.Position = 0;
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return File(ms, "application/zip", $"documentos_solicitud_{solicitudId}.zip");
+    }
+
     [HttpGet]
     public async Task<IActionResult> Descargar(long id, CancellationToken ct)
     {

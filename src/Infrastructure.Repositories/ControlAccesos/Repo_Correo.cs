@@ -132,6 +132,39 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
             ct: ct);
     }
 
+    public async Task<Result<List<Dto_Solicitud_Correo>>> SolicitudCorreosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_CORREOS_LISTAR",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: MapSolicitud_Correo,
+                ct: ct);
+            return Result<List<Dto_Solicitud_Correo>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Solicitud_Correo>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<ResultSp<string>> SolicitudCorreoReenviarAsync(long usuarioId, long solicitudId, bool mismos, string? adicionales, CancellationToken ct = default)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn, procedimiento: "ERP_CAF_SOLICITUD_CORREO_REENVIAR", columnasSalida: new[] { "HV_Destinatarios" },
+            bind: p =>
+            {
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+                AddLongReq(p, "HV_ID_Solicitud", solicitudId);
+                AddStrReq(p, "HV_Mismos", mismos ? "Y" : "N");
+                AddStr(p, "HV_Adicionales", adicionales);
+            }, ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<string>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<string>.Success(Convert.ToString(r.Data["HV_Destinatarios"]) ?? string.Empty, r.Mensaje);
+    }
+
     public async Task<ResultSp> MarcarEnviadoAsync(long correoId, long usuarioId, CancellationToken ct = default)
     {
         return await _exec.EjecutarEscrituraAsync(
@@ -249,6 +282,22 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Aprobacion_Mensaje   = RdStrN(rd, "Aprobacion_Mensaje"),
         Trae_Equipos         = RdBool(rd, "Trae_Equipos"),
         Trae_Herramientas    = RdBool(rd, "Trae_Herramientas"),
+    };
+
+    private static Dto_Solicitud_Correo MapSolicitud_Correo(DbDataReader rd) => new()
+    {
+        ID_Correo_Pendiente = RdLong(rd, "ID_Correo_Pendiente"),
+        Tipo                = RdStr(rd, "Tipo"),
+        Destinatarios       = RdStr(rd, "Destinatarios"),
+        Copia               = RdStrN(rd, "Copia"),
+        Asunto              = RdStr(rd, "Asunto"),
+        Estado              = RdStr(rd, "Estado"),
+        Intentos            = RdLong(rd, "Intentos"),
+        Ultimo_Error        = RdStrN(rd, "Ultimo_Error"),
+        CreateDate          = RdDt(rd, "CreateDate"),
+        Fecha_Envio         = RdDtN(rd, "Fecha_Envio"),
+        Es_Reenvio          = RdStr(rd, "Es_Reenvio") == "Y",
+        Enviado_Por         = RdStrN(rd, "Enviado_Por"),
     };
 
     private static Dto_Correo_Lista MapCorreo_Lista(DbDataReader rd) => new()

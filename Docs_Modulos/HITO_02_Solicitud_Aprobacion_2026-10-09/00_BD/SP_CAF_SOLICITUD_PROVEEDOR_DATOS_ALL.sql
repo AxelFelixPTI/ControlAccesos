@@ -185,7 +185,7 @@ BEGIN
         IF lv_n = 0 THEN "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud no existe.'; RETURN; END IF;
         IF lv_tipo <> 'PROVEEDOR' THEN "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Estos datos corresponden solo a las entregas de proveedor.'; RETURN; END IF;
         IF lv_owner <> "HV_UsuarioID" THEN "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya.'; RETURN; END IF;
-        IF lv_estado IN ('CANCELADA','RECHAZADA') THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud ya no admite cambios.'; RETURN; END IF;
+        IF lv_estado IN ('CANCELADA','RECHAZADA','VENCIDA') THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud ya no admite cambios.'; RETURN; END IF;
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Estado" <> 'ESPERADA';
         IF lv_n > 0 THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Ya ingresó una persona: estos datos no se cambian.'; RETURN; END IF;
 

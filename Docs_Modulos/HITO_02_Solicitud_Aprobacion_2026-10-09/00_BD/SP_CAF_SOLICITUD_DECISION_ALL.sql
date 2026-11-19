@@ -121,8 +121,13 @@ BEGIN
         IF lv_estado = 'CANCELADA' THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está cancelada.'; RETURN;
         END IF;
-        IF CAST(lv_fecha AS DATE) < CURRENT_DATE THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La fecha de la visita ya pasó.'; RETURN;
+        IF lv_estado = 'VENCIDA' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La solicitud está vencida: nadie la decidió a tiempo. El solicitante debe usar «Reutilizar» con una fecha nueva.'; RETURN;
+        END IF;
+        -- D-251: el plazo termina al acabar el ÚLTIMO día de la visita (una franja en curso sigue decidible) y, si el parámetro
+        -- SOLICITUD_HORAS_ANTICIPACION_APROBAR está encendido, N horas antes de la hora prevista.
+        IF "ERP_CAF_FN_SOLICITUD_FUERA_DE_PLAZO"("HV_ID_Solicitud") = 'Y' THEN
+            "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Ya venció el plazo para decidir esta solicitud. El solicitante puede usar «Reutilizar» con una fecha nueva.'; RETURN;
         END IF;
 
         -- A quiénes se decide

@@ -6,6 +6,7 @@
     var urlListar = raiz.getAttribute('data-url-listar');
     var urlGuardar = raiz.getAttribute('data-url-guardar');
     var el = CAF.el;
+    var sedeActual = 'VES', sedes = [];
     var datos = { zona: [], motivo: [], tratamiento: [], incidencia: [], area: [], cargo: [] };
 
     var NOMBRES = { zona: 'zona', motivo: 'motivo de visita', tratamiento: 'tratamiento de desviación', incidencia: 'tipo de incidencia', area: 'área', cargo: 'cargo' };
@@ -16,7 +17,8 @@
 
     function chip(activo) { return el('span', { class: 'chip ' + (activo ? 'c-ok' : 'c-can'), text: activo ? 'Activa' : 'Inactiva' }); }
     function cargar(tipo) {
-        return CAF.pedir(urlListar + '?tipo=' + encodeURIComponent(tipo)).then(function (r) {
+        if (!document.getElementById('cat-' + tipo)) return Promise.resolve();   // sección no disponible con esta licencia (D-258)
+        return CAF.pedir(urlListar + '?tipo=' + encodeURIComponent(tipo) + (tipo === 'zona' ? '&sede=' + encodeURIComponent(sedeActual) : '')).then(function (r) {
             if (!r.success) { CAF.aviso(r.message || 'No se pudo cargar.', 'warn'); return; }
             datos[tipo] = r.data; pintar(tipo);
         });
@@ -104,7 +106,7 @@
                 texto: 'Guardar', tipo: 'primary', onclick: function (cerrar) {
                     error.textContent = '';
                     var cuerpoEnvio = {
-                        tipo: tipo, id: item ? item.id : 0, descripcion: nombre.value, activo: cActivo.input.checked,
+                        tipo: tipo, sede: tipo === 'zona' ? sedeActual : null, id: item ? item.id : 0, descripcion: nombre.value, activo: cActivo.input.checked,
                         tipoZona: cTipo ? cTipo.value : null, exigeSctr: cSctr ? cSctr.input.checked : false, exigeEpp: cEpp ? cEpp.input.checked : false,
                         resultadoIngreso: cIng ? cIng.value : null, resultadoSalida: cSal ? cSal.value : null
                     };
@@ -122,5 +124,22 @@
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-nuevo]'), function (b) {
         b.addEventListener('click', function () { formulario(b.getAttribute('data-nuevo'), null); });
     });
-    ['zona', 'motivo', 'tratamiento', 'incidencia', 'area', 'cargo'].forEach(cargar);
+    // D-258: las zonas dependen de la sede; con una sola sede el selector no se muestra
+    function nombreSede() { var x = sedes.filter(function (q) { return q.codigo === sedeActual; })[0]; return x ? x.nombre : sedeActual; }
+    function iniciarSedes() {
+        var sel = document.getElementById('zona-sede'), et = document.getElementById('zona-sede-et'), tit = document.getElementById('zona-sede-nombre');
+        var urlSedes = raiz.getAttribute('data-url-sedes');
+        if (!sel || !urlSedes) return Promise.resolve();
+        return CAF.pedir(urlSedes).then(function (r) {
+            sedes = (r && r.success && r.data) ? r.data : [];
+            if (sedes.length && !sedes.some(function (x) { return x.codigo === sedeActual; })) sedeActual = sedes[0].codigo;
+            sel.textContent = '';
+            sedes.forEach(function (x) { sel.appendChild(el('option', { value: x.codigo, text: x.nombre + ' (' + x.codigo + ')' })); });
+            sel.value = sedeActual;
+            if (et) et.hidden = sedes.length < 2;
+            if (tit) tit.textContent = nombreSede();
+            sel.addEventListener('change', function () { sedeActual = sel.value; if (tit) tit.textContent = nombreSede(); cargar('zona'); });
+        });
+    }
+    iniciarSedes().then(function () { ['zona', 'motivo', 'tratamiento', 'incidencia', 'area', 'cargo'].forEach(cargar); });
 })();

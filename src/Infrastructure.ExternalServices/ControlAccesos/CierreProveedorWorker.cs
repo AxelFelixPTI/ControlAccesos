@@ -1,7 +1,8 @@
 // ============================================================
 // D-218. Servicio en segundo plano del día operativo de proveedores. Cada minuto:
 //   1) cierra a la fuerza lo que siguió abierto de un día anterior (libera la exclusa);
-//   2) encola el aviso horario de «salida pendiente» a Vigilancia.
+//   2) encola el aviso horario de «salida pendiente» a Vigilancia;
+//   3) (D-251) vence las solicitudes que nadie aprobó ni rechazó a tiempo.
 // Las rutinas son idempotentes y deciden por la hora de corte (parámetro PROVEEDOR_HORA_CORTE); este servicio solo
 // las dispara. Un fallo de una vuelta se registra y se reintenta en la siguiente; nunca detiene el servicio.
 // El usuario 0 es «el sistema» (igual que el cierre de «No se presentó»).
@@ -43,6 +44,11 @@ public sealed class CierreProveedorWorker : BackgroundService
                 var a = await por.ProveedorAvisosSalidaAsync(UsuarioSistema, stoppingToken);
                 if (a.Success && a.Data > 0) _log.LogInformation("Avisos de salida pendiente encolados: {N}.", a.Data);
                 else if (!a.Success) _log.LogError("Avisos de salida de proveedores falló: {M}", a.Message);
+                // D-251: solicitudes que nadie decidió a tiempo pasan a VENCIDA (la hora de corte la fija el parámetro SOLICITUD_HORA_CORTE_VENCIMIENTO)
+                var sol = ambito.ServiceProvider.GetRequiredService<ISrv_Solicitud>();
+                var v = await sol.VencerAsync(UsuarioSistema, stoppingToken);
+                if (v.Success && v.Data > 0) _log.LogInformation("Solicitudes vencidas por falta de decisión: {N}.", v.Data);
+                else if (!v.Success) _log.LogError("Vencimiento de solicitudes falló: {M}", v.Message);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { _log.LogError(ex, "Falló una vuelta del cierre de proveedores; se reintenta."); }

@@ -84,7 +84,7 @@ public sealed class ProveedoresController : Controller
             data = r.Data!.Select(e => new
             {
                 id = e.ID_Solicitud, codigo = e.Codigo, fecha = e.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = e.Fecha_Hora_Prevista.ToString("HH:mm"),
-                empresa = e.Empresa_Proveedor, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, documento = e.Conductor_Documento, telefono = e.Telefono,
+                empresa = e.Empresa_Proveedor, solicitante = e.Solicitante_Nombre, ruc = e.Proveedor_RUC, destino = e.Empresa_Destino, destinoCodigo = e.Empresa_Destino_Codigo, transportista = e.Transportista, documento = e.Conductor_Documento, telefono = e.Telefono,
                 numerosOc = (e.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries), empresaTransportista = e.Empresa_Transportista, horaHasta = e.Hora_Hasta,   // D-237
                 atencion = (e.Atencion_Resumen ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { codigo = t[0], estado = t[1] }),   // D-238
                 placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, transportistas = e.Transportistas_Total, verificados = e.Transportistas_Verificados, dentro = e.Transportistas_Dentro, salieron = e.Transportistas_Salieron, ayudantes = e.Ayudantes_Total, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,

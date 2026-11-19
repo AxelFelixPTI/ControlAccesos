@@ -28,19 +28,21 @@ public sealed class VigilanciaController : Controller
     private readonly ISrv_Desviacion _des;
     private readonly ISrv_Catalogo_Sede _sedes;
     private readonly ISrv_Proveedor _prov;
+    private readonly ISrv_Parametro _parametros;
 
-    public VigilanciaController(ISrv_Solicitud_Vigilancia vig, ISrv_Porteria por, ISrv_Respaldo res, ISrv_Desviacion des, ISrv_Catalogo_Sede sedes, ISrv_Proveedor prov)
+    public VigilanciaController(ISrv_Solicitud_Vigilancia vig, ISrv_Porteria por, ISrv_Respaldo res, ISrv_Desviacion des, ISrv_Catalogo_Sede sedes, ISrv_Proveedor prov, ISrv_Parametro parametros)
     {
-        _vig = vig; _por = por; _res = res; _des = des; _sedes = sedes; _prov = prov;
+        _vig = vig; _por = por; _res = res; _des = des; _sedes = sedes; _prov = prov; _parametros = parametros;
     }
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
         ViewData["PuedeRegistrar"] = User.TienePermiso(PermRegistrar);
         ViewData["PuedeIncidencia"] = User.TienePermiso("PER_CAF_INCIDENCIA_REGISTRAR");
         ViewData["EsCoordinador"] = User.TienePermiso("PER_CAF_INCIDENCIA_DECIDIR");
         ViewData["PuedeProveedor"] = User.TienePermiso(PermProveedor);
+        ViewData["IncidenciaPostSalida"] = await _parametros.IncidenciaPostSalidaAsync(ct);   // D-257: parámetro INCIDENCIA_POST_SALIDA
         return View();
     }
 

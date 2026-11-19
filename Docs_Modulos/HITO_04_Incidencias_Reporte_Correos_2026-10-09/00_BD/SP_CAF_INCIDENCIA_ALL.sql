@@ -169,6 +169,15 @@ BEGIN
         lv_origen := CASE WHEN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y'
                           THEN 'COORDINADOR' ELSE 'VIGILANCIA' END;
 
+        -- V1.1 2026-11-19 (D-257): Vigilancia no registra incidencias a quien ya salió, salvo que el parámetro INCIDENCIA_POST_SALIDA sea Y.
+        IF lv_origen = 'VIGILANCIA' AND lv_hay = 'Y' AND COALESCE("ERP_CAF_PARAMETRO_VALOR"('INCIDENCIA_POST_SALIDA'), 'N') <> 'Y' THEN
+            SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona" P
+             WHERE P."Eliminado" = 'N' AND P."Estado" = 'SALIO' AND lv_lista LIKE '%,' || CAST(P."ID_Solicitud_Persona" AS VARCHAR) || ',%';
+            IF lv_n > 0 THEN
+                "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'No se pueden registrar incidencias a personas que ya salieron del establecimiento.'; RETURN;
+            END IF;
+        END IF;
+
         INSERT INTO "CAF_Incidencia" ("ID_Catalogo_Sede","ID_Catalogo_Tipo_Incidencia","Tipo_Detalle","Fecha_Hora_Hecho",
                                       "ID_Catalogo_Zona_Acceso","Lugar_Detalle","Descripcion","Origen","ID_Usuario_Registro",
                                       "Estado","ID_Usuario_Decision","Fecha_Decision","Sustento_Decision","UsuarioID_Create")
@@ -487,13 +496,17 @@ DECLARE
     lv_d1  DATE := COALESCE("HV_Fecha_Desde", CURRENT_DATE - 1);
     lv_d2  DATE := COALESCE("HV_Fecha_Hasta", COALESCE("HV_Fecha_Desde", CURRENT_DATE));
     lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
+    lv_post CHAR(1);
 BEGIN
+    -- V1.1 2026-11-19 (D-257): quien no es Coordinador y con INCIDENCIA_POST_SALIDA en N no ve en la búsqueda a quienes ya salieron
     -- V1.0 2026-10-18
     IF "HV_ID_Catalogo_Sede" IS NULL
        OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', "HV_ID_Catalogo_Sede") <> 'Y' THEN
         RETURN;
     END IF;
     IF lv_d2 < lv_d1 THEN RETURN; END IF;
+    lv_post := CASE WHEN COALESCE("ERP_CAF_PARAMETRO_VALOR"('INCIDENCIA_POST_SALIDA'), 'N') = 'Y'
+                      OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y' THEN 'Y' ELSE 'N' END;
     RETURN QUERY
     SELECT P."ID_Solicitud_Persona", S."ID_Solicitud", S."Codigo", S."Fecha_Hora_Prevista", TD."Codigo", PE."Numero_Documento",
            CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),
@@ -503,6 +516,7 @@ BEGIN
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TD ON TD."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
      WHERE P."Eliminado" = 'N' AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+       AND (lv_post = 'Y' OR P."Estado" <> 'SALIO')
        AND CAST(S."Fecha_Hora_Prevista" AS DATE) BETWEEN lv_d1 AND lv_d2
        AND (lv_txt = '' OR "ERP_CAF_FN_NORMALIZAR"(PE."Numero_Documento" || ' ' || PE."Apellido_Paterno" || ' ' || COALESCE(PE."Apellido_Materno", '')
                                                     || ' ' || PE."Nombres" || ' ' || COALESCE(S."Empresa_Visitante", '') || ' ' || S."Codigo") LIKE '%' || lv_txt || '%')

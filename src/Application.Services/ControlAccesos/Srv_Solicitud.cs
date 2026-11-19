@@ -51,8 +51,30 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
+    public async Task<Result<long>> VencerAsync(long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.VencerAsync(usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result<long>.Ok(sp.Data!, sp.Mensaje) : Result<long>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "VENCER Solicitud ERROR");
+            return Result<long>.Fail(ex.Message);
+        }
+    }
+
+    /// <summary>Red de seguridad: antes de listar se vencen las solicitudes fuera de plazo (si falla, se lista igual).</summary>
+    private async Task VencerSilencioAsync(CancellationToken ct)
+    {
+        try { await _repo.VencerAsync(0, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogWarning(ex, "VENCER (red de seguridad) no se pudo ejecutar"); }
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
+        await VencerSilencioAsync(ct).ConfigureAwait(false);
         try { return await _repo.MisListarAsync(usuarioId, f, ct).ConfigureAwait(false); }
         catch (Exception ex)
         {
@@ -63,6 +85,7 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
 
     public async Task<Result<List<Dto_Solicitud_Bandeja>>> BandejaListarAsync(long usuarioId, Dto_Filtro_Bandeja? f = null, CancellationToken ct = default)
     {
+        await VencerSilencioAsync(ct).ConfigureAwait(false);
         try { return await _repo.BandejaListarAsync(usuarioId, f, ct).ConfigureAwait(false); }
         catch (Exception ex)
         {
@@ -90,6 +113,7 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
 
     public async Task<Result<Dto_Solicitud_Detalle>> DetalleAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
     {
+        await VencerSilencioAsync(ct).ConfigureAwait(false);
         try
         {
             var r = await _repo.DetalleAsync(usuarioId, solicitudId, ct).ConfigureAwait(false);

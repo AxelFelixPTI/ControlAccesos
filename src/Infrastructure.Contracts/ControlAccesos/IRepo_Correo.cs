@@ -24,4 +24,8 @@ public interface IRepo_Correo
     Task<Result<Dto_Correo_Solicitud>> SolicitudDatosAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<Result<List<Dto_Correo_Solicitud_Persona>>> SolicitudPersonasAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<ResultSp> ReencolarAsync(long correoId, long sedeId, long usuarioId, CancellationToken ct = default);
+    /// <summary>D-252: correos de una solicitud con su resultado (quien puede ver la solicitud).</summary>
+    Task<Result<List<Dto_Solicitud_Correo>>> SolicitudCorreosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
+    /// <summary>D-252: reenvío manual con el estado actual. Devuelve la lista final de destinatarios.</summary>
+    Task<ResultSp<string>> SolicitudCorreoReenviarAsync(long usuarioId, long solicitudId, bool mismos, string? adicionales, CancellationToken ct = default);
 }

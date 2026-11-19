@@ -33,7 +33,7 @@ public sealed class MenuCaf
         // Calendario de entregas de proveedores: lo ven todos los que tienen alguna licencia de proveedores (solo lectura); Almacén además actúa.
         new("Entregas de proveedores",    "Proveedores",    new[] { "PER_CAF_PROVEEDOR_DASHBOARD" }, true, "Proveedores", "Index"),
         new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, true, "Usuarios", "Index"),
-        new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS" }, true, "Catalogos", "Index"),
+        new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS", "PER_CAF_CONFIG_SISTEMA" }, true, "Catalogos", "Index"),
         new("Personal",                   "Administración", new[] { "PER_CAF_ADMIN_TRABAJADORES" }, true, "Personal", "Index"),
     };
 

@@ -123,7 +123,7 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_EVENTO_REGISTRAR"(
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
-    lv_matriz VARCHAR(2000) := '|SOLICITUD:CREAR|SOLICITUD:EDITAR|SOLICITUD:CANCELAR|SOLICITUD:ADJUNTO_AGREGAR|SOLICITUD:ADJUNTO_QUITAR'
+    lv_matriz VARCHAR(2000) := '|SOLICITUD:CREAR|SOLICITUD:EDITAR|SOLICITUD:CANCELAR|SOLICITUD:VENCER|SOLICITUD:CORREO_REENVIAR|SOLICITUD:ADJUNTO_AGREGAR|SOLICITUD:ADJUNTO_QUITAR'
         || '|SOLICITUD_PERSONA:AGREGAR|SOLICITUD_PERSONA:AGREGAR_APROBADA|SOLICITUD_PERSONA:RETIRAR'
         || '|SOLICITUD_PERSONA:AGREGAR_EMERGENCIA|SOLICITUD_PERSONA:RETIRAR_EMERGENCIA'
         || '|SOLICITUD_PERSONA:CORREGIR_EMERGENCIA|SOLICITUD:RECHAZAR_EMERGENCIA|SOLICITUD:EXTENDER_DIAS|SOLICITUD_PERSONA:CIERRE_FORZADO|SOLICITUD:SALIDA_ANTICIPADA'
@@ -393,7 +393,7 @@ $$;
 --      ninguna aprobada y alguna pendiente ...... PENDIENTE
 --      ninguna aprobada, alguna observada ....... OBSERVADA
 --      todas rechazadas ......................... RECHAZADA
---    CANCELADA nunca se toca. Sin personas vigentes, el estado no cambia.
+--    CANCELADA y VENCIDA (D-251) nunca se tocan. Sin personas vigentes, el estado no cambia.
 --
 --    Se recalcula TODO desde las decisiones vigentes: es idempotente (llamarlo
 --    dos veces da lo mismo) y no depende de en qué orden pasaron las cosas.
@@ -508,7 +508,7 @@ BEGIN
           FROM "CAF_Solicitud_Persona"
          WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Aprobacion" <> 'RETIRADA';
 
-        IF lv_estado <> 'CANCELADA' AND (lv_apr + lv_pen + lv_obs + lv_rec) > 0 THEN
+        IF lv_estado NOT IN ('CANCELADA','VENCIDA') AND (lv_apr + lv_pen + lv_obs + lv_rec) > 0 THEN
             IF lv_apr > 0 THEN
                 IF lv_pen + lv_obs > 0 THEN lv_estado := 'APROBADA_PARCIAL'; ELSE lv_estado := 'APROBADA'; END IF;
             ELSIF lv_pen > 0 THEN lv_estado := 'PENDIENTE';

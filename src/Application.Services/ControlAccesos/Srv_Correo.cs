@@ -124,4 +124,29 @@ public sealed class Srv_Correo : ISrv_Correo
         }
     }
 
+    public async Task<Result<List<Dto_Solicitud_Correo>>> SolicitudCorreosAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.SolicitudCorreosListarAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CORREOS de la solicitud {ID} ERROR", solicitudId);
+            return Result<List<Dto_Solicitud_Correo>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<string>> SolicitudReenviarAsync(long usuarioId, long solicitudId, bool mismos, string? adicionales, CancellationToken ct = default)
+    {
+        if (solicitudId <= 0)
+            return Result<string>.Validation("Datos inválidos.", new List<ResultError> { new ResultError(nameof(solicitudId), "Falta la solicitud.") });
+        try
+        {
+            var sp = await _repo.SolicitudCorreoReenviarAsync(usuarioId, solicitudId, mismos, adicionales, ct).ConfigureAwait(false);
+            return sp.Ok ? Result<string>.Ok(sp.Data ?? string.Empty, sp.Mensaje) : Result<string>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "REENVIAR correo de la solicitud {ID} ERROR", solicitudId);
+            return Result<string>.Fail(ex.Message);
+        }
+    }
 }

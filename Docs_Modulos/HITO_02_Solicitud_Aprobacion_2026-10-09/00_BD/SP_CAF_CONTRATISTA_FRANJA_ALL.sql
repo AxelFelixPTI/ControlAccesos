@@ -272,6 +272,7 @@ BEGIN
         IF lv_estado NOT IN ('APROBADA','APROBADA_PARCIAL') THEN
             "HV_Codigo_Resp" := 409;
             "HV_Mensaje" := CASE WHEN lv_estado = 'CANCELADA' THEN 'La solicitud está cancelada.'
+                                 WHEN lv_estado = 'VENCIDA' THEN 'La solicitud venció sin decisión.'
                                  ELSE 'Solo se amplía una solicitud ya aprobada.' END;
             RETURN;
         END IF;

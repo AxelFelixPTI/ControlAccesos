@@ -114,6 +114,16 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         }
     }
 
+    /// <summary>D-251: pasa a VENCIDA las solicitudes que nadie decidió a tiempo (idempotente). Devuelve cuántas venció.</summary>
+    public async Task<ResultSp<long>> VencerAsync(long usuarioId, CancellationToken ct = default)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn, procedimiento: "ERP_CAF_SOLICITUD_VENCER", columnasSalida: new[] { "HV_Vencidas" },
+            bind: p => AddLongReq(p, "HV_UsuarioID", usuarioId), ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<long>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<long>.Success(Convert.ToInt64(r.Data["HV_Vencidas"] ?? 0L), r.Mensaje);
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
         try
@@ -631,6 +641,9 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Tipo_Acceso_Codigo           = RdStrN(rd, "Tipo_Acceso_Codigo"),
         Empresa_Destino_Codigo       = RdStrN(rd, "Empresa_Destino_Codigo"),
         Personas_Resumen             = RdStrN(rd, "Personas_Resumen"),
+        Dias_Atraso                  = RdInt(rd, "Dias_Atraso"),
+        Franja_Sin_Aprobar           = RdInt(rd, "Franja_Sin_Aprobar"),
+        Correo_Estado           = RdStrN(rd, "Correo_Estado"),
     };
 
     private static Dto_Solicitud_Bandeja MapSolicitud_Bandeja(DbDataReader rd) => new()
@@ -658,6 +671,9 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Fecha_Envio            = RdDtN(rd, "Fecha_Envio"),
         Tipo_Acceso_Codigo     = RdStrN(rd, "Tipo_Acceso_Codigo"),
         Empresa_Destino_Codigo = RdStrN(rd, "Empresa_Destino_Codigo"),
+        Dias_Atraso            = RdInt(rd, "Dias_Atraso"),
+        Franja_Sin_Aprobar     = RdInt(rd, "Franja_Sin_Aprobar"),
+        Correo_Estado     = RdStrN(rd, "Correo_Estado"),
     };
 
     private static Dto_Solicitud_Contadores MapSolicitud_Contadores(DbDataReader rd) => new()
@@ -665,6 +681,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Mis_Con_Observadas      = RdInt(rd, "Mis_Con_Observadas"),
         Por_Decidir_Solicitudes = RdInt(rd, "Por_Decidir_Solicitudes"),
         Por_Decidir_Personas    = RdInt(rd, "Por_Decidir_Personas"),
+        Fuera_De_Tiempo         = RdInt(rd, "Fuera_De_Tiempo"),
     };
 
     private static Dto_Solicitud_Detalle MapSolicitud_Detalle(DbDataReader rd) => new()
@@ -716,6 +733,9 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Numeros_OC                   = RdStrN(rd, "Numeros_OC"),
         Empresa_Transportista        = RdStrN(rd, "Empresa_Transportista"),
         Hora_Hasta_Prevista          = RdStrN(rd, "Hora_Hasta_Prevista"),
+        Dias_Atraso                  = RdInt(rd, "Dias_Atraso"),
+        Franja_Sin_Aprobar           = RdInt(rd, "Franja_Sin_Aprobar"),
+        Correo_Estado           = RdStrN(rd, "Correo_Estado"),
         Copias                       = RdStrN(rd, "Copias"),
         CreateDate                   = RdDtN(rd, "CreateDate"),
         Total_Personas               = RdInt(rd, "Total_Personas"),

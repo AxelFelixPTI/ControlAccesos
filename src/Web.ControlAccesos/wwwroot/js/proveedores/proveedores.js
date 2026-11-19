@@ -44,7 +44,7 @@
         ['q', 'emp', 'est', 'fec'].forEach(function (k) { if (filtro[k]) q.set(k, filtro[k]); else q.delete(k); });
         try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (x) { /* sin historial: no pasa nada */ }
     }
-    // Búsqueda libre: OC, empresa (proveedor o transportista), conductor (nombre o documento) y placa. Sin tildes ni mayúsculas;
+    // Búsqueda libre: OC, empresa (proveedor o transportista), solicitante, conductor (nombre o documento) y placa. Sin tildes ni mayúsculas;
     // la placa y las OC también coinciden sin guiones ni espacios («abc 123» encuentra «ABC-123»).
     function norm(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
     function compacto(t) { return norm(t).replace(/[^a-z0-9]/g, ''); }
@@ -52,7 +52,7 @@
         var q = norm(filtro.q).trim();
         if (!q) return true;
         var oc = (e.numerosOc || []).join(' ');
-        var pajar = norm([oc, e.empresa, e.empresaTransportista, e.transportista, e.documento, e.placa].join(' | '));
+        var pajar = norm([oc, e.empresa, e.solicitante, e.empresaTransportista, e.transportista, e.documento, e.placa].join(' | '));
         if (pajar.indexOf(q) >= 0) return true;
         var qc = compacto(q);
         return qc.length >= 2 && compacto([oc, e.placa, e.documento].join(' ')).indexOf(qc) >= 0;
@@ -300,6 +300,7 @@
         var porPersona = e.transportistas > 1 || e.ayudantes > 0;
         // D-241: solo lo útil para atender; la OC sin el prefijo, el conductor con su documento, sin repetir la empresa que recibe (ya va en la etiqueta) ni el RUC (queda en el título del proveedor)
         linea('OC:', (e.numerosOc || []).map(function (x) { return String(x).replace(/^\s*OC[\s-]*/i, ''); }).join(', '));
+        linea('Solicitante:', e.solicitante);
         linea('Transporte:', e.empresaTransportista);
         linea('Conductor:', e.transportista + (e.documento ? ' · ' + e.documento : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
         if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' conductor' : ' conductores') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
@@ -357,18 +358,18 @@
         if (d.puedeVigilar === 'Y') {
             var sinAt = e.modoIngreso === 'SIN' && e.disponible && (e.estado === 'EN_ATENCION' || e.estado === 'INGRESO');   // D-243: sin vehículo Vigilancia sigue validando ingresos mientras Almacén atiende
             var t = { PROGRAMADO: 'Verificar datos', EN_ESPERA: 'Validar ingreso', RECEPCIONADO: 'Registrar salida', CIERRE_FORZADO: 'Registrar salida (tardía)' }[e.estado];
-            var cls = { 'Verificar datos': 'pv-b-vf', 'Validar ingreso': 'pv-b-vi' }[t] || 'pv-b-vs';
+            var cls = { 'Verificar datos': 'pv-b-vf', 'Validar ingreso': 'pv-b-vi' }[t] || (e.estado === 'CIERRE_FORZADO' ? 'btn-warn' : 'pv-b-vs');   // la salida tardía va en ámbar, no en verde
             if (e.estado === 'EN_ESPERA' && e.transportistas > e.verificados) { l.push(['Verificar datos', d.urlVig + '?solicitud=' + e.id, 'Falta verificar a un conductor agregado', 'pv-b-vf']); }   // D-243: conductor agregado con otro ya verificado
             if (t) l.push([t, d.urlVig + '?solicitud=' + e.id, 'Abre Control de accesos con esta entrega', cls]);
             else if (sinAt) l.push(['Validar ingreso', d.urlVig + '?solicitud=' + e.id, 'Registra el ingreso de las personas (no depende de la atención de Almacén)', 'pv-b-vi']);
         }
         if (!l.length) return null;
-        var caja = el('div', { class: 'pv-ir' }, l.map(function (x) { return el('a', { class: 'btn btn-sm' + (x[3] ? ' ' + x[3] : ''), href: x[1], text: x[0], title: x[2] }); }));
+        var ICO = { 'Ver solicitud': 'ver', 'Ver solicitud (en curso)': 'ver', 'Revisar solicitud': 'aprobar', 'Duplicar': 'reutilizar', 'Verificar datos': 'verificar', 'Validar ingreso': 'ingreso', 'Registrar salida': 'salida', 'Registrar salida (tardía)': 'salida' };
+        var caja = el('div', { class: 'pv-ir' }, l.map(function (x) { return CAF.btn({ icono: ICO[x[0]], texto: x[0], titulo: x[0], clase: 'btn-sm' + (x[3] ? ' ' + x[3] : ''), href: x[1], modo: 'auto' }); }));
+        l.forEach(function (x, i) { if (x[2]) caja.children[i].title = x[2]; });
         if (pie) {
-            var bc = el('button', { type: 'button', class: 'btn btn-sm btn-danger-o', text: 'Cancelar' });
-            if (e.puedeCancelarSol) bc.addEventListener('click', function () { modalCancelarSolicitud(e); });
-            else { bc.disabled = true; bc.classList.add('is-off'); bc.title = e.motivoNoCancelarSol || 'No se puede cancelar'; }
-            caja.appendChild(bc);
+            // Lo que no se puede usar no se muestra (solo aparece Cancelar cuando la solicitud todavía se puede cancelar).
+            if (e.puedeCancelarSol) caja.appendChild(CAF.btn({ icono: 'cancelar', texto: 'Cancelar', titulo: 'Cancelar la solicitud', clase: 'btn-sm btn-danger-o', onclick: function () { modalCancelarSolicitud(e); } }));
         }
         return caja;
     }
@@ -380,8 +381,8 @@
         var cuerpo = el('div', { class: 'stack' }, [el('p', { text: '¿Cancelar la solicitud ' + e.codigo + '? Sus invitados ya no podrán ingresar con ella.' }), motivo, err]);
         var env = false;
         CAF.modal('Cancelar solicitud', cuerpo, [
-            { texto: 'Volver', onclick: function (c) { c(); } },
-            { texto: 'Cancelar solicitud', tipo: 'primary', onclick: function (c) {
+            { texto: 'Volver', icono: 'atras', onclick: function (c) { c(); } },
+            { texto: 'Cancelar solicitud', icono: 'cancelar', tipo: 'primary', onclick: function (c) {
                 if (env) return; env = true;
                 CAF.pedir(d.urlSolCancelar, { method: 'POST', body: { solicitudId: e.id, motivo: motivo.value } }).then(function (r) {
                     env = false;
@@ -395,11 +396,12 @@
     function acciones(e) {
         if (!almacen) return null;
         var caja = el('div', { class: 'pv-acc' }), hay = false;
+        var ICA = { 'Tomar reserva': 'tomar', 'Confirmar disponibilidad': 'confirmar', 'Iniciar atención': 'iniciar', 'Detener atención': 'pausa', 'Reanudar atención': 'iniciar', 'Terminar atención': 'terminar' };
+        // Lo que el usuario no puede hacer ahora NO se muestra (se explica con la nota pequeña de abajo, si corresponde).
         function boton(texto, fn, primario, off, ayuda, extra) {
+            if (off) return;
             hay = true;
-            var b = el('button', { type: 'button', class: 'btn btn-sm' + (primario ? ' btn-primary' : '') + (extra ? ' ' + extra : '') + (off ? ' is-off' : ''), text: texto });
-            if (off) { b.disabled = true; if (ayuda) b.title = ayuda; } else b.addEventListener('click', fn);
-            caja.appendChild(b);
+            caja.appendChild(CAF.btn({ icono: ICA[texto], texto: texto, clase: 'btn-sm' + (primario ? ' btn-primary' : '') + (extra ? ' ' + extra : ''), modo: 'texto', onclick: fn }));
         }
         // D-239/D-242: antes del ingreso, Confirmar disponibilidad; ya dentro, los botones dependen de lo que el almacenero puede hacer sobre esta entrega:
         //   Iniciar (verde) mientras queden empresas por iniciar · Detener o Reanudar (ámbar, según el estado) · Terminar (rojo).
@@ -411,7 +413,7 @@
         if (e.estado === 'PROGRAMADO' || (e.estado === 'EN_ESPERA' && !sinVeh)) {
             if (e.puedeConfirmar) boton('Confirmar disponibilidad', function () { modalConfirmar(e); }, true);
             else if (!(e.estado === 'EN_ESPERA' && e.disponible)) boton('Confirmar disponibilidad', null, true, true, motivo(e));
-            if (e.puedeCeder) { hay = true; caja.appendChild(el('button', { type: 'button', class: 'pv-enlace', text: 'Ceder reserva…', title: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', onclick: function () { accionReserva(e, 'CEDER'); } })); }
+            if (e.puedeCeder) { hay = true; caja.appendChild(CAF.btn({ icono: 'ceder', texto: 'Ceder reserva', titulo: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', clase: 'btn-sm', modo: 'texto', onclick: function () { accionReserva(e, 'CEDER'); } })); }
         } else if (e.estado === 'EN_ESPERA' || e.estado === 'INGRESO' || e.estado === 'EN_ATENCION') {
             // D-243: lo que no se puede usar ahora se ve bloqueado (con su razón), no habilitado
             if (e.puedeAtender) boton('Iniciar atención', function () { accionAtencion(e, 'INICIAR'); }, true, false, '', 'pv-b-ini');
@@ -421,15 +423,15 @@
             else if (e.motivoReanudar) { boton('Reanudar atención', null, false, true, e.motivoReanudar, 'btn-warn'); textos.push(e.motivoReanudar); }
             if (e.puedeTerminar) boton('Terminar atención', function () { accionAtencion(e, 'TERMINAR'); }, false, false, '', 'btn-danger');
             if (!hay) boton('Iniciar atención', null, true, true, motivo(e) || 'Ninguna empresa de esta entrega es de las que usted atiende.', 'pv-b-ini');
-            if (e.puedeCeder) { hay = true; caja.appendChild(el('button', { type: 'button', class: 'pv-enlace', text: 'Ceder reserva…', title: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', onclick: function () { accionReserva(e, 'CEDER'); } })); }
+            if (e.puedeCeder) { hay = true; caja.appendChild(CAF.btn({ icono: 'ceder', texto: 'Ceder reserva', titulo: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', clase: 'btn-sm', modo: 'texto', onclick: function () { accionReserva(e, 'CEDER'); } })); }
             if (e.puedeCerrar) {
                 hay = true;
-                caja.appendChild(el('button', { type: 'button', class: 'pv-enlace', text: 'Cerrar sin atención…', title: 'Una empresa de la entrega no será atendida (queda registrado con el motivo)', onclick: function () { modalCerrarSin(e); } }));
+                caja.appendChild(CAF.btn({ icono: 'sin-atencion', texto: 'Cerrar sin atención', titulo: 'Una empresa de la entrega no será atendida (queda registrado con el motivo)', clase: 'btn-sm', modo: 'texto', onclick: function () { modalCerrarSin(e); } }));
             }
         }
         var m = textos.length ? textos[0] : ((e.estado === 'PROGRAMADO' || e.estado === 'EN_ESPERA' || e.estado === 'INGRESO') && !(e.puedeConfirmar || e.puedeAtender) ? motivo(e) : '');
         if (m) caja.appendChild(el('div', { class: 'pv-motivo', text: m }));
-        return hay ? caja : null;
+        return (hay || m) ? caja : null;
     }
 
     // D-244: ceder la reserva (con confirmación) o tomar la que cedieron
@@ -438,8 +440,8 @@
         var cuerpo = el('div', { class: 'stack' }, [el('p', { text: 'Va a ceder su reserva de ' + e.codigo + ' (' + e.empresa + '). Quedará libre para que otro almacenero de esas empresas la tome y la inicie; usted dejará de ocupar su cupo con ella.' })]);
         var env = false;
         CAF.modal('Ceder reserva', cuerpo, [
-            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Ceder reserva', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlCeder, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; }); } }
+            { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Ceder reserva', icono: 'ceder', tipo: 'primary', onclick: function (cerrar) { if (env) return; env = true; enviar(d.urlCeder, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; }); } }
         ]);
     }
 
@@ -482,8 +484,8 @@
         ]);
         var env = false;
         CAF.modal('Confirmar disponibilidad · ' + e.empresa, cuerpo, [
-            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Confirmar disponibilidad', tipo: 'primary', onclick: function (cerrar) {
+            { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Confirmar disponibilidad', icono: 'confirmar', tipo: 'primary', onclick: function (cerrar) {
                 if (env) return;
                 if (!elegido) { err.textContent = 'Elija con o sin ingreso vehicular.'; return; }
                 env = true; enviar(d.urlConfirmar, { solicitudId: e.id, conVehiculo: elegido === 'Y' }, { disabled: false }, cerrar).then(function () { env = false; });
@@ -539,7 +541,7 @@
         if (cfg.campo) { extra = el('textarea', { rows: '2', maxlength: '500', placeholder: cfg.campo[1] }); cuerpo.appendChild(extra); }
         cuerpo.appendChild(err);
         CAF.modal(cfg.titulo + ' · ' + e.empresa, cuerpo, [
-            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
             { texto: cfg.titulo, tipo: cfg.tipo, onclick: function (cerrar) {
                 if (env) return;
                 var ids = checks.filter(function (c) { return c.checked && !c.disabled; }).map(function (c) { return +c.value; });
@@ -567,8 +569,8 @@
             cuerpo.appendChild(el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo' }), motSel])); cuerpo.appendChild(det); cuerpo.appendChild(err);
         });
         CAF.modal('Cerrar sin atención · ' + e.empresa, cuerpo, [
-            { texto: 'Volver', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Cerrar sin atención', tipo: 'danger', onclick: function (cerrar) {
+            { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Cerrar sin atención', icono: 'sin-atencion', tipo: 'danger', onclick: function (cerrar) {
                 if (env || !motSel) return;
                 if (!motSel.value) { err.textContent = 'Elija el motivo.'; return; }
                 if (motSel.options[motSel.selectedIndex].getAttribute('data-otro') === 'Y' && det.value.trim().length < 3) { err.textContent = 'Describa el motivo.'; return; }
