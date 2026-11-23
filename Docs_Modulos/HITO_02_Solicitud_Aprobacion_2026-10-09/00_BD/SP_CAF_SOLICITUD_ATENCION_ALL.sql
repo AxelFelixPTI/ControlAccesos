@@ -4,7 +4,7 @@
 --   ERP_CAF_FN_ATENCION_ESTADO(solicitud, empresa)          estado efectivo (fila o, si no existe, derivado del estado operativo)
 --   ERP_CAF_FN_ATENCION_ACTIVAS(empresa)                    entregas que esa empresa está atendiendo ahora
 --   ERP_CAF_FN_ATENCION_AUTORIZADO(usuario, empresa, sede)  'Y' si es de Almacén y atiende a esa empresa
---   ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN(usuario, solicitud, empresa, sede)  D-259: quien la inició o con la licencia «Cerrar sin atención»
+--   ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN(usuario, solicitud, empresa, sede)  D-259: quien la inició o con la licencia «Cerrar sin atención»  (V1.1 D-266)
 --   ERP_CAF_ATENCION_LISTAR(solicitud, usuario)             una fila por empresa con lo que el usuario puede hacer
 --   ERP_CAF_MOTIVO_SIN_ATENCION_LISTAR()                    motivos de «Cerrar sin atención»
 --   ERP_CAF_PROVEEDOR_ATENDER_EMPRESA / RECEPCION_EMPRESA / CERRAR_SIN_ATENCION / DETENER_EMPRESA / REANUDAR_EMPRESA (una empresa)
@@ -79,19 +79,26 @@ BEGIN
 END;
 $$;
 
--- D-259: ¿puede el usuario «Cerrar sin atención» esta empresa? Siempre debe ser un almacenero de esa empresa (Almacén por empresa) y:
---   · la empresa aún no se empezó a atender (PENDIENTE): cualquiera de sus almaceneros (nadie la inició), o
---   · la inició él, o
---   · tiene el permiso PER_CAF_PROVEEDOR_CERRAR_SIN_ATENCION (licencia aparte): puede cerrar aunque la haya iniciado otro.
+-- D-259 / D-266: ¿puede el usuario «Cerrar sin atención» esta empresa? Siempre debe ser un almacenero de ESA empresa (Almacén por empresa) y:
+--   · tiene el permiso PER_CAF_PROVEEDOR_CERRAR_SIN_ATENCION (licencia aparte), o
+--   · inició la atención de esa empresa, o
+--   · es quien reservó / confirmó la disponibilidad de la entrega, o
+--   · la empresa sigue PENDIENTE y quien reservó ya inició la atención de otra empresa de la misma solicitud (los demás almaceneros
+--     pueden cerrar solo la empresa que les falta; nunca antes de que se inicie la atención).
 CREATE OR REPLACE FUNCTION "ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN"("HV_UsuarioID" BIGINT, "HV_ID_Solicitud" BIGINT, "HV_ID_Empresa" BIGINT, "HV_ID_Sede" BIGINT)
 RETURNS CHAR
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 BEGIN
-    -- V1.0 2026-11-20
+    -- V1.1 2026-11-23 (D-266): ya no basta con que la empresa esté pendiente; hace falta que la atención de la solicitud ya haya empezado
     IF "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", "HV_ID_Empresa", "HV_ID_Sede") <> 'Y' THEN RETURN 'N'; END IF;
-    IF "ERP_CAF_FN_ATENCION_ESTADO"("HV_ID_Solicitud", "HV_ID_Empresa") = 'PENDIENTE' THEN RETURN 'Y'; END IF;
-    IF "ERP_CAF_FN_ATENCION_INICIO"("HV_ID_Solicitud", "HV_ID_Empresa") = "HV_UsuarioID" THEN RETURN 'Y'; END IF;
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_CERRAR_SIN_ATENCION', "HV_ID_Sede") = 'Y' THEN RETURN 'Y'; END IF;
+    IF "ERP_CAF_FN_ATENCION_INICIO"("HV_ID_Solicitud", "HV_ID_Empresa") = "HV_UsuarioID" THEN RETURN 'Y'; END IF;
+    IF EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" O
+                WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N' AND O."ID_Usuario_Disponibilidad" = "HV_UsuarioID") THEN RETURN 'Y'; END IF;
+    IF "ERP_CAF_FN_ATENCION_ESTADO"("HV_ID_Solicitud", "HV_ID_Empresa") = 'PENDIENTE'
+       AND EXISTS (SELECT 1 FROM "CAF_Solicitud_Atencion" A
+                    WHERE A."ID_Solicitud" = "HV_ID_Solicitud" AND A."Eliminado" = 'N'
+                      AND A."ID_Catalogo_Empresa_Grupo" <> "HV_ID_Empresa" AND A."Estado" <> 'PENDIENTE') THEN RETURN 'Y'; END IF;
     RETURN 'N';
 END;
 $$;
@@ -173,8 +180,15 @@ DECLARE
     lv_n    INT;
     lv_cods VARCHAR;
 BEGIN
+    -- V1.1 2026-11-23 (D-267): un almacenero que no atiende a ninguna empresa de la entrega no puede confirmarla ni tomarla (tampoco «parchando» con ceder reserva)
     -- V1.0 2026-11-16 (D-244)
     IF "ERP_CAF_FN_CUPO_OCUPA"("HV_UsuarioID", "HV_ID_Solicitud") IS NOT NULL THEN RETURN NULL; END IF;
+    IF EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E0 WHERE E0."ID_Solicitud" = "HV_ID_Solicitud" AND E0."Eliminado" = 'N')
+       AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Empresa" E1 JOIN "CAF_Solicitud" S1 ON S1."ID_Solicitud" = E1."ID_Solicitud"
+                        WHERE E1."ID_Solicitud" = "HV_ID_Solicitud" AND E1."Eliminado" = 'N'
+                          AND "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", E1."ID_Catalogo_Empresa_Grupo", S1."ID_Catalogo_Sede") = 'Y') THEN
+        RETURN CAST('Usted no atiende a ninguna de las empresas de esta entrega: solo la confirma un almacenero asignado a alguna de ellas.' AS VARCHAR);
+    END IF;
     SELECT CAST(COUNT(*) AS INT), STRING_AGG(S."Codigo", ', ' ORDER BY S."Codigo") INTO lv_n, lv_cods
       FROM "CAF_Solicitud_Operacion" O JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud"
      WHERE O."Eliminado" = 'N' AND O."Activa" = 'Y' AND O."Estado_Operativo" IN ('EN_ESPERA','INGRESO','EN_ATENCION')
@@ -539,10 +553,10 @@ BEGIN
         IF lv_c <> 100 THEN "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; RETURN; END IF;
         lv_est := "ERP_CAF_FN_ATENCION_ESTADO"("HV_ID_Solicitud", "HV_ID_Empresa");
         IF lv_est NOT IN ('PENDIENTE','EN_ATENCION','DETENIDA') THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Esa empresa ya terminó su atención.'; RETURN; END IF;
-        -- V1.1 2026-11-20 (D-259): quien inició la atención, o un almacenero con la licencia «Cerrar sin atención» (solo de sus empresas)
+        -- V1.2 2026-11-23 (D-266): ver ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN (licencia, quien inició, quien reservó, o la empresa que falta cuando ya empezó la atención)
         IF "ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN"("HV_UsuarioID", "HV_ID_Solicitud", "HV_ID_Empresa", lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101;
-            "HV_Mensaje" := 'Solo quien inició la atención, o un almacenero con la licencia «Cerrar sin atención», puede cerrarla.';
+            "HV_Mensaje" := 'Solo la puede cerrar quien inició o reservó la atención, un almacenero con la licencia «Cerrar sin atención», o el almacenero de la empresa que falta una vez iniciada la atención de la solicitud.';
             RETURN;
         END IF;
         CALL "ERP_CAF_ATENCION_ASEGURAR"("HV_ID_Solicitud", "HV_UsuarioID");

@@ -29,10 +29,11 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Estado" VARCHAR, "Fecha
                "Asunto_Hilo" VARCHAR,
                "Tipo_Acceso_Codigo" VARCHAR, "Requiere_Cochera" CHAR(1), "Placa_Vehiculo" VARCHAR, "Area_Detalle" VARCHAR,
                "Contacto_Nombre" VARCHAR, "Contacto_Telefonos" VARCHAR, "Contacto_Correos" VARCHAR,
-               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta" VARCHAR)
+               "Numeros_OC" VARCHAR, "Empresa_Transportista" VARCHAR, "Hora_Hasta" VARCHAR, "Empresas_Receptoras" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 BEGIN
+    -- V1.4 2026-11-23 (D-268): + Empresas_Receptoras (nombres de las empresas que reciben la entrega; el correo de proveedor las muestra)
     -- V1.3 2026-11-13 (D-237): + OC, empresa transportista y franja «Hasta» (entrega de proveedor)
     -- V1.2 2026-10-29
     IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <> 0 THEN RETURN; END IF;
@@ -58,7 +59,8 @@ BEGIN
                   ORDER BY C."ID_Correo_Pendiente" LIMIT 1) AS VARCHAR),
            TA."Codigo", S."Requiere_Cochera", S."Placa_Vehiculo", S."Area_Detalle",
            S."Contacto_Nombre", S."Contacto_Telefonos", S."Contacto_Correos",
-           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR)
+           S."Numeros_OC", S."Empresa_Transportista", CAST(TO_CHAR(S."Hora_Hasta_Prevista", 'HH24:MI') AS VARCHAR),
+           CAST("ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'N') AS VARCHAR)
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"("HV_ID_Solicitud") I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"

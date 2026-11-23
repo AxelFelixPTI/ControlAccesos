@@ -120,6 +120,7 @@ var CAF = (function () {
         'personas':     [['path', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'], ['circle', 9, 7, 4], ['path', 'M22 21v-2a4 4 0 0 0-3-3.87'], ['path', 'M16 3.13a4 4 0 0 1 0 7.75']],
         'calendario-mas': [['path', 'M8 2v4'], ['path', 'M16 2v4'], ['path', 'M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8'], ['path', 'M3 10h18'], ['path', 'M19 16v6'], ['path', 'M16 19h6']],
         'sirena':       [['path', 'M7 18v-6a5 5 0 1 1 10 0v6'], ['path', 'M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z'], ['path', 'M21 12h1'], ['path', 'M18.5 4.5 18 5'], ['path', 'M2 12h1'], ['path', 'M12 2v1'], ['path', 'm4.929 4.929.707.707'], ['path', 'M12 12v6']],
+        'subir':        [['path', 'M12 3v12'], ['path', 'm17 8-5-5-5 5'], ['path', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4']],
         'adjunto':      [['path', 'm16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551']],
         'ingreso':      [['path', 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'], ['path', 'm10 17 5-5-5-5'], ['path', 'M15 12H3']],
         'salida':       [['path', 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'], ['path', 'm16 17 5-5-5-5'], ['path', 'M21 12H9']],
@@ -202,7 +203,7 @@ var CAF = (function () {
         [/^(siguiente|continuar)\b/i, 'continuar'], [/^buscar/i, 'buscar'], [/^(actualizar|recargar|refrescar)/i, 'refrescar'],
         [/^(desactivar|inactivar|bloquear|deshabilitar)/i, 'sin-atencion'], [/^(activar|habilitar|desbloquear)/i, 'terminar'],
         [/^(eliminar|retirar|quitar|borrar)\b/i, 'papelera'], [/^(reenviar|enviar)\b/i, 'reenviar'], [/^(restablecer|reiniciar)/i, 'refrescar'],
-        [/^(nuev[oa]|agregar|a[ñn]adir|crear|\+)/i, 'agregar'], [/^salir\b/i, 'salida'], [/^adjuntar|^documentos?\b/i, 'adjunto']
+        [/^(nuev[oa]|agregar|a[ñn]adir|crear|\+)/i, 'agregar'], [/^salir\b/i, 'salida'], [/^subir/i, 'subir'], [/^adjuntar|^documentos?\b/i, 'adjunto']
     ];
     var NOAUTO = /\b(btn-icon|btn-tema|pill|btn-i|is-pagina|tp-)\b/;
     function iconoDe(t) { for (var i = 0; i < AUTO.length; i++) if (AUTO[i][0].test(t)) return AUTO[i][1]; return null; }

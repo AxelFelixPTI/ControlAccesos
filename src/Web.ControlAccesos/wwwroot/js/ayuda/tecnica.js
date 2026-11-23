@@ -256,9 +256,11 @@ window.CAF_AYUDA_TEC = {
    "CAF_Solicitud",
    "CAF_Solicitud_Copia_Correo",
    "CAF_Solicitud_Dia",
+   "CAF_Solicitud_Empresa",
    "CAF_Solicitud_Persona",
    "CAF_Solicitud_Zona",
    "Catalogo_Area",
+   "Catalogo_Empresa_Grupo",
    "Catalogo_Licencia",
    "Catalogo_Motivo_Visita",
    "Catalogo_Permiso",
@@ -324,6 +326,36 @@ window.CAF_AYUDA_TEC = {
    "Catalogo_Zona_Acceso",
    "Licencia_Permiso",
    "Personal",
+   "Usuario"
+  ]
+ },
+ "DocumentosIngreso": {
+  "servicios": [
+   "Srv_Catalogo_Sede",
+   "Srv_Documento_Ingreso"
+  ],
+  "sps": [
+   "ERP_CAF_DOC_INGRESO_AGREGAR",
+   "ERP_CAF_DOC_INGRESO_BUSCAR",
+   "ERP_CAF_DOC_INGRESO_DE_SOLICITUD",
+   "ERP_CAF_DOC_INGRESO_LISTAR",
+   "ERP_CAF_DOC_INGRESO_OBTENER",
+   "ERP_CAF_DOC_INGRESO_PERSONAS_ASIGNAR",
+   "ERP_CAF_DOC_INGRESO_PERSONAS_DIA",
+   "ERP_CAF_DOC_INGRESO_QUITAR",
+   "ERP_CAF_DOC_INGRESO_RESUMEN"
+  ],
+  "tablas": [
+   "CAF_Documento_Ingreso",
+   "CAF_Documento_Ingreso_Persona",
+   "CAF_Evento",
+   "CAF_Parametro",
+   "CAF_Persona_Externa",
+   "CAF_Solicitud",
+   "CAF_Solicitud_Persona",
+   "Catalogo_Licencia",
+   "Catalogo_Permiso",
+   "Licencia_Permiso",
    "Usuario"
   ]
  },
@@ -409,6 +441,8 @@ window.CAF_AYUDA_TEC = {
    "ERP_CAF_PORTERIA_REGISTRO_CHECKLIST_LISTAR",
    "ERP_CAF_PORTERIA_REGISTRO_DETALLE",
    "ERP_CAF_PORTERIA_SALIDA_REGISTRAR",
+   "ERP_CAF_PROVEEDOR_ATENCION_EVENTOS",
+   "ERP_CAF_PROVEEDOR_ATENCION_RESUMEN",
    "ERP_CAF_PROVEEDOR_ATENDER",
    "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA",
    "ERP_CAF_PROVEEDOR_ATENDER_EMPRESAS",
@@ -690,6 +724,8 @@ window.CAF_AYUDA_TEC = {
    "ERP_CAF_PORTERIA_REGISTRO_CHECKLIST_LISTAR",
    "ERP_CAF_PORTERIA_REGISTRO_DETALLE",
    "ERP_CAF_PORTERIA_SALIDA_REGISTRAR",
+   "ERP_CAF_PROVEEDOR_ATENCION_EVENTOS",
+   "ERP_CAF_PROVEEDOR_ATENCION_RESUMEN",
    "ERP_CAF_PROVEEDOR_ATENDER",
    "ERP_CAF_PROVEEDOR_ATENDER_EMPRESA",
    "ERP_CAF_PROVEEDOR_ATENDER_EMPRESAS",

@@ -23,6 +23,7 @@ public sealed class ProveedoresController : Controller
     private const string SedeCodigo = "VES";
     private const string PermVer = "PER_CAF_PROVEEDOR_DASHBOARD";
     private const string PermAlmacen = "PER_CAF_PROVEEDOR_ALMACEN";
+    private const string PermHistAlmacen = "PER_CAF_PROVEEDOR_HIST_ALMACEN";   // D-264
 
     private readonly ISrv_Proveedor _prov;
     private readonly ISrv_Catalogo_Sede _sedes;
@@ -103,6 +104,7 @@ public sealed class ProveedoresController : Controller
                 placa = e.Placa, marca = e.Vehiculo_Marca, observaciones = e.Observaciones, apoyo = e.Cantidad_Apoyo, transportistas = e.Transportistas_Total, verificados = e.Transportistas_Verificados, dentro = e.Transportistas_Dentro, salieron = e.Transportistas_Salieron, ayudantes = e.Ayudantes_Total, estado = e.Estado_Operativo, conDesviacion = e.Con_Desviacion,
                 disponible = e.Disponibilidad_Confirmada, modoIngreso = e.Modo_Ingreso, disponibleDesde = Hora(e.Fecha_Disponibilidad),
                 llegada = Hora(e.Fecha_Llegada), ingreso = Hora(e.Fecha_Ingreso), inicio = Hora(e.Fecha_Inicio_Atencion), recepcion = Hora(e.Fecha_Recepcion), salida = Hora(e.Fecha_Salida),
+                atendidoPor = (e.Atendido_Por ?? "").Split('|', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { nombre = t[0], empresas = t[1] }),   // D-264
                 resultado = e.Resultado_Recepcion, programadoId = e.ID_Personal_Programado, programado = e.Programado_Nombre, efectivo = e.Efectivo_Nombre,
                 puedeProgramar = e.Puede_Programar, puedeConfirmar = e.Puede_Confirmar,
                 puedeAtender = e.Puede_Atender, puedeTerminar = e.Puede_Terminar, puedeDetener = e.Puede_Detener, puedeReanudar = e.Puede_Reanudar, puedeCerrar = e.Puede_Cerrar_Sin, motivoIniciar = e.Motivo_Iniciar, motivoReanudar = e.Motivo_Reanudar, puedeCeder = e.Puede_Ceder, puedeTomar = e.Puede_Tomar, motivoTomar = e.Motivo_Tomar, reservaNombre = e.Reserva_Nombre, pausada = e.Pausada, motivoBloqueo = e.Motivo_Bloqueo, esMia = e.Es_Solicitante, puedeCancelarSol = e.Puede_Cancelar_Sol, motivoNoCancelarSol = e.Motivo_No_Cancelar_Sol,
@@ -161,6 +163,24 @@ public sealed class ProveedoresController : Controller
     {
         var r = await _prov.PlazaLiberarAsync(m.SolicitudId, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-264: bloque «Atención de Almacén» del detalle: resumen por empresa y línea de tiempo. Solo con la licencia del historial (Almacén y Vigilancia).</summary>
+    [HttpGet, ExigirPermiso(PermHistAlmacen)]
+    public async Task<IActionResult> AtencionHistorial(long id, CancellationToken ct)
+    {
+        var uid = User.UsuarioId();
+        var res = await _prov.AtencionResumenAsync(uid, id, ct);
+        if (!res.Success) return Falla(res.Message);
+        var ev = await _prov.AtencionEventosAsync(uid, id, ct);
+        if (!ev.Success) return Falla(ev.Message);
+        string F(DateTime? f) => f?.ToString("yyyy-MM-dd HH:mm") ?? "";
+        return Json(new
+        {
+            success = true,
+            resumen = res.Data!.Select(x => new { codigo = x.Codigo, empresa = x.Empresa, estado = x.Estado, inicio = x.Inicio_Nombre, fechaInicio = F(x.Fecha_Inicio), fin = x.Fin_Nombre, fechaFin = F(x.Fecha_Fin), resultado = x.Resultado, observacion = x.Observacion, motivoSin = x.Motivo_Sin_Atencion, motivoDetencion = x.Motivo_Detencion }),
+            eventos = ev.Data!.Select(x => new { fecha = F(x.Fecha_Evento), usuario = x.Usuario_Nombre, de = x.Estado_Anterior, a = x.Estado_Nuevo, resultado = x.Resultado, detalle = x.Detalle }),
+        });
     }
 
     /// <summary>D-263: conductores de la entrega con su placa y estado (lista informativa del modal «Terminar atención»).</summary>

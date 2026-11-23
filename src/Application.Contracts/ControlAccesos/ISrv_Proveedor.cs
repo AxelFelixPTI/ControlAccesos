@@ -29,6 +29,9 @@ public interface ISrv_Proveedor
     /// <summary>D-263: liberación temprana de plazas (solo entregas de más de 1 vehículo).</summary>
     Task<Result> PlazaLiberarAsync(long solicitudId, long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Proveedor_Plaza>>> PlazasListarAsync(long usuarioId, long sedeId, CancellationToken ct = default);
+    /// <summary>D-264: bloque «Atención de Almacén» (exige la licencia del historial).</summary>
+    Task<Result<List<Dto_Proveedor_Atencion_Resumen>>> AtencionResumenAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
+    Task<Result<List<Dto_Proveedor_Atencion_Evento>>> AtencionEventosAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     Task<Result<List<Dto_Proveedor_Vehiculo>>> VehiculosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default);
     /// <summary>D-260: el almacenero en curso (o el Coordinador de Almacén) confirma o rechaza; el motivo del rechazo es opcional.</summary>
     Task<Result> IngresoVehResponderAsync(long solicitudIngresoId, string accion, string? motivo, long usuarioId, CancellationToken ct = default);

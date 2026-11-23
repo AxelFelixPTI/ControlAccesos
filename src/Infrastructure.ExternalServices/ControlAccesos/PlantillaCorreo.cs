@@ -121,7 +121,7 @@ public static class PlantillaCorreo
             (contratista ? "Servicio previsto" : proveedor ? "Entrega prevista" : "Visita prevista",
                 d.Fecha_Hora_Prevista.ToString("dd/MM/yyyy HH:mm") + (proveedor && !string.IsNullOrWhiteSpace(d.Hora_Hasta) ? $" – {d.Hora_Hasta} (estimada)" : "")),
             (contratista ? "Empresa contratista" : proveedor ? "Empresa proveedora" : "Empresa visitante", d.Empresa_Visitante),
-            ("Responsable", Responsable(d)),
+            (contratista ? "Responsable designado del área usuaria" : "Responsable de atención", Responsable(d)),
             contratista
                 ? ("Actividad(es)", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? "-" : d.Motivo_Detalle!)
                 : ("Motivo", string.IsNullOrWhiteSpace(d.Motivo_Detalle) ? (d.Motivo ?? "-") : $"{d.Motivo} — {d.Motivo_Detalle}"),
@@ -136,8 +136,10 @@ public static class PlantillaCorreo
             if (!string.IsNullOrWhiteSpace(d.Numeros_OC)) extra.Add(("OC", d.Numeros_OC!.Replace(";", ", ")));
             extra.Add(("Transporte", string.IsNullOrWhiteSpace(d.Empresa_Transportista) ? "El mismo proveedor" : d.Empresa_Transportista!));
             datos.InsertRange(i + 1, extra);
-            var r = datos.FindIndex(x => x.Item1 == "Responsable");
-            if (r >= 0) datos[r] = ("Contacto de la entrega", ContactoEntrega(d));
+            // D-268: las empresas receptoras figuran en el correo (como en el detalle) y el contacto se rotula completo
+            datos.Insert(i + 1 + extra.Count, ("Empresa(s) receptora(s)", string.IsNullOrWhiteSpace(d.Empresas_Receptoras) ? "-" : d.Empresas_Receptoras!));
+            var r = datos.FindIndex(x => x.Item1 == "Responsable de atención");
+            if (r >= 0) datos[r] = ("Contacto responsable de la entrega", ContactoEntrega(d));
         }
         if (!vig) { datos.Insert(1, ("Estado", EtiquetaEstado(d.Estado))); datos.Add(("Personas", Resumen(d))); }
         if (contratista && !string.IsNullOrWhiteSpace(d.Contacto_Nombre))

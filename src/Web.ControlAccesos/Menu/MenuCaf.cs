@@ -32,6 +32,9 @@ public sealed class MenuCaf
         new("Incidencias", "Vigilancia", new[] { "PER_CAF_INCIDENCIA_REGISTRAR" }, true, "Incidencias", "Index", new[] { "PER_CAF_INCIDENCIA_DECIDIR" }),
         // Calendario de entregas de proveedores: lo ven todos los que tienen alguna licencia de proveedores (solo lectura); Almacén además actúa.
         new("Entregas de proveedores",    "Proveedores",    new[] { "PER_CAF_PROVEEDOR_DASHBOARD" }, true, "Proveedores", "Index"),
+        // D-265: documentos de ingreso. Vigilancia los sube; Almacén (sin ser Vigilancia) solo los consulta. PORTERIA_VER no basta.
+        new("Documentos de ingreso",      "Vigilancia",     new[] { "PER_CAF_PORTERIA_REGISTRAR" }, true, "DocumentosIngreso", "Index"),
+        new("Documentos de ingreso",      "Proveedores",    new[] { "PER_CAF_PROVEEDOR_ALMACEN", "PER_CAF_PROVEEDOR_HIST_ALMACEN" }, true, "DocumentosIngreso", "Index", new[] { "PER_CAF_PORTERIA_REGISTRAR" }),
         new("Usuarios y roles",           "Administración", new[] { "PER_CAF_ADMIN_USUARIOS" }, true, "Usuarios", "Index"),
         new("Catálogos",                  "Administración", new[] { "PER_CAF_ADMIN_CATALOGOS", "PER_CAF_CONFIG_SISTEMA" }, true, "Catalogos", "Index"),
         new("Personal",                   "Administración", new[] { "PER_CAF_ADMIN_TRABAJADORES" }, true, "Personal", "Index"),

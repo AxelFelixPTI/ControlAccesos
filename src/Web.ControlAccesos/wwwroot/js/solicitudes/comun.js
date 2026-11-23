@@ -460,7 +460,6 @@ var SOL = (function () {
         }
 
         // D-237: opcionales del contratista compactados
-        var opcResp = opcional('Indicar responsable de atención', caja, !!resp.id, function () { resp = { id: 0, nombre: '' }; pintarResp(); });
         var opcArea = opcional('Añadir detalle del área', campo('Detalle del área', areaDetalle), !!(v.areaDetalle && String(v.areaDetalle).trim()), function () { areaDetalle.value = ''; });
         var OBS_PH = obs.placeholder;
 
@@ -501,8 +500,9 @@ var SOL = (function () {
                 nodo.appendChild(campo('Detalles adicionales para el correo (opcional)', obs));
                 return;
             }
-            if (c) nodo.appendChild(opcResp.nodo);
-            else nodo.appendChild(fila([w('f-l', el('div', { class: 'field' }, [el('span', { class: 'field-l', text: 'Responsable de atención *' }), caja]))]));
+            // D-268: el contratista también lo pide siempre (antes iba escondido tras «Indicar responsable»); su nombre es «Responsable designado del área usuaria»
+            nodo.appendChild(fila([w('f-l', el('div', { class: 'field' }, [el('span', { class: 'field-l', text: c ? 'Responsable designado del área usuaria *' : 'Responsable de atención *' }),
+                caja, c ? el('span', { class: 'field-h', text: 'Persona del área que recibe el servicio y responde por la visita del contratista.' }) : null]))]));
             if (c) {
                 nodo.appendChild(campo('Actividad(es) a realizar *', actividades));
                 nodo.appendChild(zonasNodo); nodo.appendChild(aviso);
@@ -563,7 +563,7 @@ var SOL = (function () {
                 if (!pTel.lista().length) return 'Indique al menos un teléfono celular del responsable (mínimo 9 dígitos).';
                 return '';
             }
-            if (!d.responsableId && !c) return 'Elija al responsable de atención.';
+            if (!d.responsableId) return c ? 'Elija al responsable designado del área usuaria.' : 'Elija al responsable de atención.';
             if (c) {
                 if (!d.motivoDetalle.trim()) return 'Describa la(s) actividad(es) a realizar.';
             } else {

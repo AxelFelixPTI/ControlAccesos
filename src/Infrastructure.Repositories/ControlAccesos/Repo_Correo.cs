@@ -270,6 +270,7 @@ public sealed class Repo_Correo : RepoHelpers, IRepo_Correo
         Numeros_OC              = RdStrN(rd, "Numeros_OC"),
         Empresa_Transportista   = RdStrN(rd, "Empresa_Transportista"),
         Hora_Hasta              = RdStrN(rd, "Hora_Hasta"),
+        Empresas_Receptoras     = RdStrN(rd, "Empresas_Receptoras"),
     };
 
     private static Dto_Correo_Solicitud_Persona MapCorreo_Solicitud_Persona(DbDataReader rd) => new()

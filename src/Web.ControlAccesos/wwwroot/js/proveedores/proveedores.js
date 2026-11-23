@@ -326,7 +326,11 @@
         linea('Vehículo:', [e.placa, e.marca].filter(Boolean).join(' · '));
         linea('Detalle:', e.observaciones);
         c.appendChild(el('div', { class: 'pv-resp' }, [
-            e.efectivo ? el('div', { class: 'pv-linea' }, [el('b', { text: 'Atiende: ' }), e.efectivo]) : null
+            // D-264: todos los almaceneros que atendieron (uno por empresa o varios); si aún no hay detalle por empresa, el último que pasó la entrega a atención
+            (e.atendidoPor && e.atendidoPor.length)
+                ? el('div', { class: 'pv-linea' }, [el('b', { text: (e.estado === 'EN_ATENCION' ? 'Atiende: ' : 'Atendió: ') }),
+                    e.atendidoPor.map(function (a) { return a.nombre + (e.atendidoPor.length > 1 || codigos(e).length > 1 ? ' (' + a.empresas.split(',').map(function (c) { var x = EMPRESAS[c]; return x ? x[1] : c; }).join(', ') + ')' : ''); }).join(' · ')])
+                : (e.efectivo ? el('div', { class: 'pv-linea' }, [el('b', { text: 'Atiende: ' }), e.efectivo]) : null)
         ]));
         var tiempos = [];
         if (e.llegada) tiempos.push((e.estado === 'INGRESO_DENEGADO' ? 'Verificado ' : 'Verificado ') + e.llegada); if (e.ingreso) tiempos.push('Ingresó ' + e.ingreso);
@@ -617,11 +621,11 @@
         ], 'chico');
     }
 
-    // D-242: Iniciar / Detener / Reanudar / Terminar. Con una sola empresa posible, Iniciar y Reanudar se ejecutan de inmediato; con varias, un modal pequeño
+    // D-242/D-267: Iniciar / Detener / Reanudar / Terminar. Iniciar SIEMPRE pide confirmar en el modal (aunque quede una sola empresa) para evitar iniciar por accidente; con una sola empresa posible, Reanudar se ejecuta de inmediato; con varias, un modal pequeño
     // deja elegir una, varias o todas. Detener y Terminar piden además un texto opcional (motivo / observación). Solo quien inició puede detener, reanudar o terminar.
     var ACC = {
-        INICIAR:  { titulo: 'Iniciar atención',  flag: 'puedeAtender',     estado: 'PENDIENTE', url: 'urlAtenderEmpresas',  tipo: 'primary', directo: true,  vacio: 'No hay empresas pendientes que usted pueda iniciar.',
-                    intro: 'Elija las empresas cuya atención va a iniciar. Se inician las que tienen cupo; de las demás se le avisa.' },
+        INICIAR:  { titulo: 'Iniciar atención',  flag: 'puedeAtender',     estado: 'PENDIENTE', url: 'urlAtenderEmpresas',  tipo: 'primary', vacio: 'No hay empresas pendientes que usted pueda iniciar.',
+                    intro: 'Confirme las empresas cuya atención va a iniciar usted. Se inician las que tienen cupo; de las demás se le avisa.' },
         DETENER:  { titulo: 'Detener atención',  flag: 'puedeDetener',     estado: 'EN_ATENCION', url: 'urlDetenerEmpresas',  tipo: 'warn', vacio: 'No tiene empresas en atención (iniciadas por usted) para detener.',
                     intro: 'Se libera el cupo de la empresa para otra entrega urgente. Luego podrá reanudarla.', campo: ['motivo', 'Motivo (opcional)'] },
         REANUDAR: { titulo: 'Reanudar atención', flag: 'puedeReanudar',    estado: 'DETENIDA', url: 'urlReanudarEmpresas', tipo: 'warn', directo: true, vacio: 'No tiene empresas detenidas por usted para reanudar.',

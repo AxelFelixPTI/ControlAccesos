@@ -884,6 +884,12 @@ BEGIN
         IF "HV_Clave" = 'INCIDENCIA_POST_SALIDA' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Permitir incidencias a quien ya salió debe ser Y o N.'; RETURN;
         END IF;
+        IF "HV_Clave" = 'DOCUMENTO_INGRESO_OBLIGATORIO' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Documento de ingreso obligatorio debe ser Y o N.'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'DOCUMENTO_INGRESO_MAX_MB' AND COALESCE("HV_Valor", '') !~ '^([1-9]|[12][0-9]|30)$' THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El tamaño máximo del documento de ingreso debe ser un número entero de 1 a 30 (MB).'; RETURN;
+        END IF;
         IF "HV_Clave" = 'PLACA_OBLIGATORIA' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La placa obligatoria debe ser Y o N.'; RETURN;
         END IF;

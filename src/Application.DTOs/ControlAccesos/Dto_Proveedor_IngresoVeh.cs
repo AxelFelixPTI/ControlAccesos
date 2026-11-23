@@ -69,3 +69,31 @@ public sealed class Dto_Proveedor_Vehiculo
     public string? Placa { get; set; }
     public string Estado { get; set; } = string.Empty;
 }
+
+/// <summary>D-264: una empresa de la entrega con quién la atendió, cuándo y con qué resultado (bloque «Atención de Almacén»).</summary>
+public sealed class Dto_Proveedor_Atencion_Resumen
+{
+    public long ID_Empresa { get; set; }
+    public string Codigo { get; set; } = string.Empty;
+    public string Empresa { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+    public string? Inicio_Nombre { get; set; }
+    public DateTime? Fecha_Inicio { get; set; }
+    public string? Fin_Nombre { get; set; }
+    public DateTime? Fecha_Fin { get; set; }
+    public string? Resultado { get; set; }
+    public string? Observacion { get; set; }
+    public string? Motivo_Sin_Atencion { get; set; }
+    public string? Motivo_Detencion { get; set; }
+}
+
+/// <summary>D-264: un evento de la línea de tiempo de Almacén (bitácora de la operación de la entrega).</summary>
+public sealed class Dto_Proveedor_Atencion_Evento
+{
+    public DateTime Fecha_Evento { get; set; }
+    public string? Usuario_Nombre { get; set; }
+    public string? Estado_Anterior { get; set; }
+    public string? Estado_Nuevo { get; set; }
+    public string? Resultado { get; set; }
+    public string? Detalle { get; set; }
+}

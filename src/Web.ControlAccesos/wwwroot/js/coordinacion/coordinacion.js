@@ -87,11 +87,11 @@
             var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';
             var filas = [['Tipo de ingreso', s.tipo || '—'], (c && s.dias && s.dias.length) ? ['Días de trabajo (' + s.dias.length + ')', s.dias.map(function (x) { return SOL.fechaLarga(x.fecha) + (x.origen === 'EXTENSION' ? ' (ampliado)' : ''); }).join(', ') + ' · ' + SOL.textoHoras(s.dias[0].desde, s.dias[0].hasta) + ' · ' + s.sede] : [c ? 'Servicio' : pv ? 'Entrega' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
             if (pv) filas.push(['N.º de OC', (s.numerosOc || []).join(', ') || '—'], ['Transporte', s.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', s.empresaDestino || '—'],
-                ['Contacto del responsable', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
+                ['Contacto responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
             else if (c) filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
             else filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
-            if (!pv) filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+            if (!pv) filas.push([s.tipoCodigo === 'CONTRATISTA' ? 'Responsable designado del área usuaria' : 'Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
             if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
             filas.push(['Solicitante', (s.solicitante || '—') + (s.solicitanteCorreo ? ' · ' + s.solicitanteCorreo : '')], ['Observaciones', s.observaciones || '—']);
             filas

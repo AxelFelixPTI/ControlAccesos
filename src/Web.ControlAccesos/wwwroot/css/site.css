@@ -332,3 +332,6 @@ hr.sep{border:0;border-top:1px solid var(--line2);margin:8px 0}
 .ay-tb td.ay-i{width:26px;padding-right:6px}.ay-tb td.ay-i svg{width:18px;height:18px}
 .ay-cod{max-height:220px;overflow:auto;border:1px solid var(--faint,#e2e8f0);border-radius:8px;padding:8px 10px;background:var(--soft,#f8fafc);margin-bottom:10px}
 .ay-cod code{white-space:pre;font-size:12px}
+
+/* D-264: bloque «Atención de Almacén» del detalle */
+.ah-res li{align-items:start}.ah-n{font-size:12px;color:var(--muted,#667)}

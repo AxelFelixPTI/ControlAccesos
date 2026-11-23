@@ -122,13 +122,13 @@
         var filas = [['Tipo de ingreso', v.tipoTexto], ['Sede', sede.texto], (c && v.dias && v.dias.length) ? ['Días de trabajo (' + v.dias.length + ')', v.dias.map(function (f) { return SOL.fechaLarga(f); }).join(', ') + ' · ' + SOL.textoHoras(v.horaDesde, v.horaHasta)] : [c ? 'Servicio' : p ? 'Entrega' : 'Visita', SOL.fechaLarga(v.fecha) + ' · ' + v.hora + (p && v.horaHasta ? ' – ' + v.horaHasta + ' (estimada)' : '')], [c ? 'Empresa contratista' : p ? 'Empresa proveedora' : 'Empresa', v.empresa]];
         if (p) {
             filas.push(['N.º de OC', (v.numerosOc || []).join(', ')], ['Transporte', v.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', v.empresaDestino],
-                ['Contacto del responsable', v.contactoNombre + ' · ' + v.contactoTelefonos.split(';').join(', ')]);
+                ['Contacto responsable de la entrega', v.contactoNombre + ' · ' + v.contactoTelefonos.split(';').join(', ')]);
             if (v.contactoCorreos) filas.push(['Correo del responsable', v.contactoCorreos]);
         }
         else if (c) filas.push(['Actividad(es)', v.motivoDetalle], ['Área de trabajo', zonas + (v.areaDetalle ? ' — ' + v.areaDetalle : '')],
             ['Contacto', v.contactoNombre + ' · ' + v.contactoTelefonos], ['Correos de contacto', v.contactoCorreos]);
         else filas.push(['Motivo', motivo + (v.motivoDetalle ? ' — ' + v.motivoDetalle : '')], ['Zonas', zonas]);
-        if (!p && (v.responsable || !c)) filas.push(['Responsable de atención', v.responsable]);
+        if (!p && (v.responsable || !c)) filas.push([c ? 'Responsable designado del área usuaria' : 'Responsable de atención', v.responsable]);
         if (v.cochera) filas.push(['Cochera', 'Sí · placa ' + v.placa]);
         filas.push(['Detalles adicionales', v.observaciones || '—'], ['Correos en copia', v.copias || '—']);
         filas

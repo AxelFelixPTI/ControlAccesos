@@ -1,0 +1,28 @@
+/* D-265: pantalla «Documentos de ingreso» */
+.di-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: .4rem 0; }
+.di-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 999px; background: #e8eef7; font-size: .85rem; }
+.di-chip button { border: 0; background: transparent; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 .1rem; }
+.di-sug { border: 1px solid #cbd5e1; border-radius: 6px; max-height: 14rem; overflow: auto; background: #fff; }
+.di-sug button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #eef2f7; background: transparent; padding: .4rem .6rem; cursor: pointer; }
+.di-sug button:hover, .di-sug button:focus { background: #f1f5f9; }
+.di-sug small { color: #64748b; display: block; }
+.di-prog { height: .45rem; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: .25rem; }
+.di-prog > i { display: block; height: 100%; width: 0; background: #2563eb; transition: width .15s; }
+.di-prog.err > i { background: #dc2626; }
+.di-arch { padding: .4rem 0; border-bottom: 1px solid #eef2f7; }
+.di-doc { padding: .5rem 0; border-bottom: 1px solid #eef2f7; }
+.di-doc .di-pers { color: #475569; font-size: .88rem; }
+
+/* D-269: rediseño en dos pestañas */
+.di-stats { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .75rem; }
+.di-stat { flex: 1 1 9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: .5rem .75rem; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+.di-stat b { font-size: 1.35rem; line-height: 1.2; }
+.di-stat span { font-size: .8rem; color: #475569; }
+.di-stat.warn { border-color: #f59e0b; background: #fffbeb; }
+.di-nombre { display: inline-block; padding: .15rem .6rem; border-radius: 999px; background: #e8eef7; font-size: .85rem; margin: 0 .3rem .3rem 0; }
+.di-tabla { width: 100%; border-collapse: collapse; margin-top: .4rem; font-size: .88rem; }
+.di-tabla th { text-align: left; color: #64748b; font-weight: 600; padding: .25rem .5rem; border-bottom: 1px solid #e2e8f0; }
+.di-tabla td { padding: .3rem .5rem; border-bottom: 1px solid #f1f5f9; }
+.di-fecha { display: inline-block; padding: .05rem .5rem; border-radius: 6px; background: #dbeafe; font-size: .8rem; margin-right: .4rem; }
+.di-arch { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+#di-adj .plist { margin: .35rem 0 0; }

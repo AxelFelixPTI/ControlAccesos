@@ -49,6 +49,8 @@ public sealed class Dto_Correo_Solicitud
     public string? Numeros_OC { get; set; }
     public string? Empresa_Transportista { get; set; }
     public string? Hora_Hasta { get; set; }
+    /// <summary>D-268: nombres de las empresas que reciben la entrega (proveedor), separados por « / ».</summary>
+    public string? Empresas_Receptoras { get; set; }
 }
 
 public sealed class Dto_Correo_Solicitud_Persona

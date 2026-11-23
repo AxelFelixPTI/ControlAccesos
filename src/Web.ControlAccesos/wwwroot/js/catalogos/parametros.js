@@ -11,6 +11,8 @@
     var NOMBRE = {
         ATENCIONES_SIMULTANEAS_EMPRESA: ['Atenciones simultáneas por empresa (general)', 'Cuántas entregas puede atender a la vez una misma empresa, salvo que tenga su propio cupo abajo. Número de 1 a 99 o sin límite (por defecto 1).'],
         ATENCIONES_SIMULTANEAS_ALMACENERO: ['Solicitudes simultáneas por almacenero', 'Cuántas solicitudes puede tener a la vez un almacenero, desde que confirma la disponibilidad hasta que termina o detiene su atención. De 1 a 99 o sin límite (por defecto 1). Con «sin límite» se desactiva esta restricción.'],
+        DOCUMENTO_INGRESO_OBLIGATORIO: ['Documento de ingreso obligatorio', 'Si Vigilancia debe subir un documento por cada persona que trajo equipos o herramientas. Por defecto No (opcional). Si es Sí, la pantalla «Documentos de ingreso» marca como pendientes a quienes no lo tienen; nunca bloquea el ingreso ni la salida.'],
+        DOCUMENTO_INGRESO_MAX_MB: ['Tamaño máximo del documento de ingreso (MB)', 'Tamaño máximo de cada archivo (PDF, JPG o PNG) que sube Vigilancia en «Documentos de ingreso»: un número entero de 1 a 30. Por defecto 10.'],
         EXCLUSA_CAPACIDAD: ['Capacidad de la esclusa', 'Cuántos conductores (vehículos con placa) pueden estar dentro de la esclusa a la vez: un número de 1 a 99 o sin límite. Cuenta vehículos de todas las entregas: con 2 pueden estar dentro, a la vez, dos vehículos aunque sean de solicitudes distintas (también es el máximo de entregas con la esclusa reservada).'],
         INCIDENCIA_POST_SALIDA: ['Permitir incidencias a quien ya salió', 'Si Vigilancia y Coordinación pueden registrar incidencias a personas que ya salieron del establecimiento. Por defecto No: el botón «Registrar incidencia» solo aparece mientras la persona está dentro. Vale igual para Vigilancia y para el Coordinador.'],
         PLACA_OBLIGATORIA: ['Placa obligatoria', 'Si se exige la placa del vehículo de cada conductor al registrar la solicitud (Sí por ahora; se puede desactivar).'],
@@ -54,6 +56,8 @@
         if (esCupo(p) && p.valor === 'GENERAL') return 'General (' + general() + ')';
         if (p.clave === 'PLACA_OBLIGATORIA') return p.valor === 'N' ? 'No' : 'Sí';
         if (p.clave === 'INCIDENCIA_POST_SALIDA') return p.valor === 'Y' ? 'Sí' : 'No';
+        if (p.clave === 'DOCUMENTO_INGRESO_OBLIGATORIO') return p.valor === 'Y' ? 'Sí' : 'No';
+        if (p.clave === 'DOCUMENTO_INGRESO_MAX_MB') return p.valor + ' MB';
         if (p.clave === 'SOLICITUD_HORAS_ANTICIPACION_APROBAR') return p.valor === '0' ? 'Apagado (0)' : p.valor + ' h antes de la visita';
         return p.valor === '' ? '—' : p.valor;
     }
@@ -63,6 +67,12 @@
         if (p.clave === 'PLACA_OBLIGATORIA') {
             inp = el('select', {}, [el('option', { value: 'Y', text: 'Sí, se exige' }), el('option', { value: 'N', text: 'No, es opcional' })]);
             inp.value = p.valor === 'N' ? 'N' : 'Y'; leer = function () { return inp.value; }; ctl = inp;
+        } else if (p.clave === 'DOCUMENTO_INGRESO_OBLIGATORIO') {
+            inp = el('select', {}, [el('option', { value: 'N', text: 'No, es opcional' }), el('option', { value: 'Y', text: 'Sí, marcar pendientes a quien no lo tenga' })]);
+            inp.value = p.valor === 'Y' ? 'Y' : 'N'; leer = function () { return inp.value; }; ctl = inp;
+        } else if (p.clave === 'DOCUMENTO_INGRESO_MAX_MB') {
+            inp = el('input', { type: 'number', min: '1', max: '30', step: '1', value: /^\d+$/.test(p.valor) ? p.valor : '10' });
+            leer = function () { return inp.value.trim(); }; ctl = inp;
         } else if (p.clave === 'INCIDENCIA_POST_SALIDA') {
             inp = el('select', {}, [el('option', { value: 'N', text: 'No, solo mientras la persona está dentro' }), el('option', { value: 'Y', text: 'Sí, también a quien ya salió' })]);
             inp.value = p.valor === 'Y' ? 'Y' : 'N'; leer = function () { return inp.value; }; ctl = inp;

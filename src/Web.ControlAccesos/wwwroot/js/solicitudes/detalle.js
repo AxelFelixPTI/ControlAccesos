@@ -44,14 +44,14 @@
             [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
         if (pv) {
             filas.push(['N.º de OC', (s.numerosOc || []).join(', ') || '—'], ['Transporte', s.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', s.empresaDestino || '—'],
-                ['Contacto del responsable', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
+                ['Contacto responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
         } else if (c) {
             filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
         } else {
             filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
         }
-        if (!pv) filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+        if (!pv) filas.push([s.tipoCodigo === 'CONTRATISTA' ? 'Responsable designado del área usuaria' : 'Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
         if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
         filas.push(['Detalles adicionales', s.observaciones || '—'], ['Correos en copia', s.copias || '—']);
         filas
@@ -179,6 +179,62 @@
         })));
     }
 
+    // D-264: bloque «Atención de Almacén» (solo con la licencia del historial y solo solicitudes de proveedor): quién atendió cada empresa y la línea de tiempo.
+    var EST_ATENCION = { PENDIENTE: 'Pendiente', EN_ATENCION: 'En atención', DETENIDA: 'Detenida', ATENDIDA: 'Atendida', CERRADA_SIN_ATENCION: 'Cerrada sin atención' };
+    function legible(t) { t = String(t || '').replace(/_/g, ' ').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); }
+    function pintarAlmacen() {
+        var c = document.getElementById('d-almacen');
+        if (!c) return;
+        c.textContent = '';
+        if (d.puedeHist !== 'Y' || !d.urlAtencionHist || !s || s.tipoCodigo !== 'PROVEEDOR') return;
+        c.appendChild(el('h3', { text: 'Atención de Almacén' }));
+        var cuerpo = el('div', { class: 'stack' }, [el('p', { class: 'vacio', text: 'Cargando…' })]);
+        c.appendChild(cuerpo);
+        CAF.pedir(d.urlAtencionHist + '?id=' + id).then(function (r) {
+            cuerpo.textContent = '';
+            if (!r.success) { cuerpo.appendChild(el('p', { class: 'vacio', text: r.message || 'No se pudo cargar la atención de Almacén.' })); return; }
+            if (!(r.resumen || []).length) { cuerpo.appendChild(el('p', { class: 'vacio', text: 'Esta solicitud no tiene empresas de destino.' })); return; }
+            cuerpo.appendChild(el('ul', { class: 'hist ah-res' }, r.resumen.map(function (x) {
+                var quien = x.inicio ? (x.fin && x.fin !== x.inicio ? x.inicio + ' (inició) · ' + x.fin + ' (terminó)' : x.inicio) : '';
+                var l = [el('b', { text: x.codigo + ' · ' + (EST_ATENCION[x.estado] || legible(x.estado)) })];
+                if (x.estado === 'CERRADA_SIN_ATENCION') l.push(el('span', { text: 'No se atendió' + (x.motivoSin ? ': ' + x.motivoSin : '') + (x.observacion ? ' — ' + x.observacion : '') + (x.fin ? ' — cerró ' + x.fin : '') }));
+                else {
+                    l.push(el('span', { text: quien ? 'Atendió: ' + quien : 'Aún sin atender' }));
+                    if (x.fechaInicio) l.push(el('span', { class: 'ah-n', text: 'Inicio ' + x.fechaInicio + (x.fechaFin ? ' · Fin ' + x.fechaFin : '') }));
+                    if (x.resultado) l.push(el('span', { class: 'ah-n', text: (x.resultado === 'CONFORME' ? 'Recepción conforme' : 'Recepción con observación') + (x.observacion ? ': ' + x.observacion : '') }));
+                    if (x.estado === 'DETENIDA' && x.motivoDetencion) l.push(el('span', { class: 'ah-n', text: 'Detenida: ' + x.motivoDetencion }));
+                }
+                return el('li', {}, [el('span', { class: 'hist-t', text: x.empresa }), el('span', { class: 'stack' }, l)]);
+            })));
+            if ((r.eventos || []).length) {
+                cuerpo.appendChild(el('h4', { text: 'Línea de tiempo' }));
+                cuerpo.appendChild(el('ul', { class: 'hist' }, r.eventos.map(function (e) {
+                    var t = e.detalle || (e.de && e.a && e.de !== e.a ? legible(e.de) + ' → ' + legible(e.a) : legible(e.a || e.resultado));
+                    return el('li', {}, [el('span', { class: 'hist-t', text: e.fecha }), el('span', { text: t + (e.usuario ? ' — ' + e.usuario : '') })]);
+                })));
+            }
+        });
+    }
+
+    // D-265: bloque «Documentos de ingreso» (Almacén y Vigilancia): documentos del día que Vigilancia asoció a personas de esta solicitud.
+    function pintarDocIngreso() {
+        var c = document.getElementById('d-docing');
+        if (!c) { c = el('section', { class: 'card', id: 'd-docing' }); var ref = document.getElementById('d-almacen'); if (ref && ref.parentNode) ref.parentNode.insertBefore(c, ref.nextSibling); else return; }
+        c.textContent = '';
+        if (d.puedeHist !== 'Y' || !d.urlDocIngreso || !s) return;
+        CAF.pedir(d.urlDocIngreso + '?id=' + id).then(function (r) {
+            if (!r.success || !(r.data || []).length) { c.hidden = true; return; }
+            c.hidden = false;
+            c.appendChild(el('h3', { text: 'Documentos de ingreso' }));
+            c.appendChild(el('ul', { class: 'hist' }, r.data.map(function (x) {
+                return el('li', {}, [el('span', { class: 'hist-t', text: x.fecha }), el('span', { class: 'stack' }, [
+                    el('span', {}, [el('b', { text: x.nombre }), ' · ' + legible(x.tipo) + (x.por ? ' — ' + x.por : '')]),
+                    el('span', { class: 'ah-n', text: 'Personas: ' + x.personas.join('; ') }),
+                    CAF.btn({ href: d.urlDocIngresoDescargar + '?id=' + x.id, icono: 'descargar', texto: 'Descargar', clase: 'btn-sm' })])]);
+            })));
+        });
+    }
+
     // Documentos adjuntos (Entrega J): el dueño puede adjuntar y retirar mientras puede editar los datos.
     function pintarAdjuntos() {
         var c = document.getElementById('d-adj');
@@ -201,7 +257,7 @@
                 s.puedeEditar = s.puedeModificar = s.puedeCancelar = s.puedeReutilizar = false; s.motivoNoEditar = s.motivoNoModificar = s.motivoNoCancelar = '';
                 (s.personas || []).forEach(function (p) { p.puedeCorregir = p.puedeRetirar = p.puedeReactivar = false; });
             }
-            pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial(); pintarCorreos();
+            pintarCab(); pintarAdjuntos(); pintarPersonas(); pintarHistorial(); pintarAlmacen(); pintarDocIngreso(); pintarCorreos();
         });
     }
 

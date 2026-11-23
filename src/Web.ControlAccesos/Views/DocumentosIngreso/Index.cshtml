@@ -1,0 +1,45 @@
+@{ ViewData["Titulo"] = "Documentos de ingreso"; ViewData["Migas"] = "Documentos de ingreso"; var puede = (bool)(ViewData["PuedeSubir"] ?? false); }
+<link rel="stylesheet" href="~/css/documentos-ingreso.css" asp-append-version="true" />
+<div class="stack" id="caf-docing" data-puede-subir="@(puede ? "Y" : "N")"
+     data-url-datos="@Url.Action("Datos", "DocumentosIngreso")" data-url-personas="@Url.Action("Personas", "DocumentosIngreso")" data-url-buscar="@Url.Action("Buscar", "DocumentosIngreso")"
+     data-url-subir="@Url.Action("Subir", "DocumentosIngreso")" data-url-asignar="@Url.Action("Asignar", "DocumentosIngreso")"
+     data-url-quitar="@Url.Action("Quitar", "DocumentosIngreso")" data-url-descargar="@Url.Action("Descargar", "DocumentosIngreso")">
+    @Html.AntiForgeryToken()
+    <div class="seg" id="di-tabs" role="tablist" aria-label="Documentos de ingreso">
+        @if (puede) { <button type="button" role="tab" data-tab="subir" class="on">Subir</button> }
+        <button type="button" role="tab" data-tab="consultar" class="@(puede ? "" : "on")">Consultar</button>
+    </div>
+    @if (puede)
+    {
+        <div class="stack" id="di-p-subir">
+            <section class="card">
+                <div class="di-stats" id="di-resumen"></div>
+                <div class="fila">
+                    <label class="field f-s"><span class="field-l">Día</span><input type="date" id="di-fecha" /></label>
+                    <label class="field f-s"><span class="field-l">Tipo de documento</span><select id="di-tipo"></select></label>
+                    <div class="field f-m"><span class="field-l">Archivos</span><div id="di-adj"></div></div>
+                </div>
+                <p class="field-h" id="di-ayuda"></p>
+                <div id="di-sel"></div>
+                <div class="acc" id="di-acc"></div>
+                <div id="di-cola"></div>
+            </section>
+            <section class="card" id="di-lista"></section>
+        </div>
+    }
+    <div class="stack" id="di-p-consultar" @(puede ? "hidden" : "")>
+        <section class="card">
+            <div class="fila">
+                <label class="field f-s"><span class="field-l">Desde</span><input type="date" id="di-desde" /></label>
+                <label class="field f-s"><span class="field-l">Hasta</span><input type="date" id="di-hasta" /></label>
+                <label class="field f-l"><span class="field-l">Persona, documento, solicitud o empresa</span><input type="search" id="di-q" autocomplete="off" placeholder="Ej.: apellido, DNI o SOL-0001" /></label>
+                <div class="field f-xs"><span class="field-l">&nbsp;</span><span id="di-buscar"></span></div>
+            </div>
+            <p class="field-h">Sin fechas se muestran los últimos 30 días (máximo 366 días y 200 documentos).</p>
+        </section>
+        <section class="card" id="di-result"></section>
+    </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/documentos/documentos-ingreso.js" asp-append-version="true"></script>

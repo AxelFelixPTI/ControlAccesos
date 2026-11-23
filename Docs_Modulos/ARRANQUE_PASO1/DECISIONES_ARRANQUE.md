@@ -861,3 +861,64 @@ En el proveedor el «responsable» es el contacto de la empresa proveedora (`Con
 - **Pruebas:** Hito 2 escritura 997/997 (+7 de D-263: sin permiso 101; botón libera 1 de 2 y la última 409; otra entrega confirma y el tope físico la frena; lista de placas solo para Almacén; listado de plazas; entrega de 1 vehículo 409; recepcionar libera todo y sigue «confirmada»; dos pruebas de D-261 S2 ajustadas al nuevo comportamiento). Las 12 suites SQL en verde; demos cargan y limpian (integral, escenarios, multiempresa).
 - **T-58** — HANA: `ERP_CAF_PROVEEDOR_PLAZA_LIBERAR` usa `SELECT ... FOR UPDATE` sobre `CAF_Exclusa` y `UPDATE ... WHERE ID = :id` (sin `ORDER BY ... LIMIT` dentro del UPDATE; el `TOP 1` va en un `SELECT` previo); `RETURNS TABLE` pasa a funciones de tabla; el valor de `Resultado` del evento debe caber en `VARCHAR(20)` (`PLAZA_LIB_ALMACEN` tiene 17).
 
+## D-264 — «Atendido por» completo y bloque «Atención de Almacén» (2C-2m, Entrega 2c)
+
+- **Problema 1:** si varios almaceneros atendían una entrega con varias empresas, la tarjeta del calendario mostraba solo a uno («Atiende: …»). Los datos estaban completos (`CAF_Solicitud_Atencion` guarda quién inició y quién terminó cada empresa); lo que fallaba era la lectura: la tarjeta usaba un único campo de la entrega (`ID_Usuario_Atencion`).
+- **Problema 2:** una vez pasada la atención no había dónde reconsultar lo de Almacén. El historial del detalle (`ERP_CAF_SOLICITUD_HISTORIAL_LISTAR`) lee `CAF_Evento`; Almacén escribe en `CAF_Solicitud_Operacion_Evento`, que ninguna pantalla mostraba.
+- **Decisión (del usuario):** bloque **aparte** del historial, visible **solo para Almacén y Vigilancia**, controlado por **otra licencia**.
+- **Licencia:** script 42, permiso `PER_CAF_PROVEEDOR_HIST_ALMACEN` y licencia `LIC_CAF_HIST_ALMACEN` («Historial de Almacén»). Es un complemento: se asigna ADEMÁS de la licencia de Almacén o de Vigilancia en Usuarios y roles; no está en el Administrador. El servidor lo exige (las lecturas devuelven vacío y el endpoint responde 403 sin el permiso). **Supuesto mío:** no hay un chequeo adicional de «ser Almacén o Vigilancia»: quien reciba la licencia lo ve. El Coordinador no lo ve salvo que se le asigne.
+- **Calendario:** `ERP_CAF_PROVEEDOR_CALENDARIO` V3.1 trae `Atendido_Por` (función `ERP_CAF_FN_ATENDIDO_POR`: quien inició cada empresa, agrupado por almacenero; una empresa cerrada sin atención no cuenta). La tarjeta dice «Atiende:» mientras la entrega está en atención y «Atendió:» después, con la empresa de cada uno cuando hay varios.
+- **Bloque «Atención de Almacén»** en el detalle de la solicitud de proveedor (vista de Almacén y vista del solicitante, si tiene la licencia): por empresa, estado, quién inició y quién terminó, horas, resultado u observación, motivo si se cerró sin atención y motivo de detención; debajo la línea de tiempo (de lo más antiguo a lo más nuevo) con los eventos de Almacén. SP nuevos en `SP_CAF_PROVEEDOR_ATENCION_HISTORIAL_ALL.sql`: `ERP_CAF_PROVEEDOR_ATENCION_RESUMEN`, `ERP_CAF_PROVEEDOR_ATENCION_EVENTOS`.
+- **Alcance:** solo lectura; no se cambió ninguna tabla ni regla. No se guarda histórico de las veces que una empresa cambió de almacenero: si una empresa se detiene y otro la reanuda, queda quien la inició (la regla vigente es que solo quien inicia detiene o reanuda).
+- **Pruebas:** Hito 2 escritura 1003/1003 (+6: dos almaceneros figuran con su empresa, sin licencia las lecturas devuelven vacío, con licencia una fila por empresa y línea de tiempo, el calendario trae `Atendido_Por`); Permisos 45/45 con 22 permisos. Las 12 suites en verde con la base reconstruida desde cero.
+- **T-59** — HANA: funciones de tabla; `STRING_AGG` con `ORDER BY` nativo; la función `ERP_CAF_FN_ATENDIDO_POR` usa `STRING_AGG` anidado sobre una subconsulta agrupada.
+
+## D-265 — Documentos de ingreso (Vigilancia sube, Almacén consulta) (Entrega 2d)
+- **Pedido:** cuando Vigilancia marca «Trae equipos» o «Trae herramientas», faltaba poder subir los documentos (casi siempre PDF escaneado). Se suben **después** de registrar entradas y salidas, en una pantalla aparte, para no frenar a Vigilancia (nunca dentro del modal «Validar ingreso»).
+- **Modelo:** un documento es **del día** y puede asociarse a **una o varias personas** (aun de solicitudes distintas). Tablas `CAF_Documento_Ingreso` (contenido `BYTEA`, hash SHA-256, tipo EQUIPOS/HERRAMIENTAS/GUIA/OTRO) y `CAF_Documento_Ingreso_Persona` (vínculo documento ↔ persona de solicitud) en el script 43. Solo se pueden etiquetar personas que **ingresaron ese día** en la sede.
+- **Reglas en BD:** solo Vigilancia sube, reasigna y retira (`PER_CAF_PORTERIA_REGISTRAR`); PDF, JPG o PNG; tamaño máximo por parámetro `DOCUMENTO_INGRESO_MAX_MB` (1–30, por defecto 10); el mismo archivo (hash) no se repite el mismo día y sede; fecha no futura; hasta 100 personas por documento. Cada solicitud tocada registra evento `ADJUNTO_AGREGAR`/`ADJUNTO_QUITAR` en su historial.
+- **Obligatorio o no:** parámetro `DOCUMENTO_INGRESO_OBLIGATORIO` (por defecto **N**). Con **Y** la pantalla marca «N personas con equipos sin documento» (pendiente); **nunca bloquea** ingreso ni salida (nivel a).
+- **Quién ve:** Vigilancia y Almacén (`PER_CAF_PROVEEDOR_ALMACEN` o `PER_CAF_PROVEEDOR_HIST_ALMACEN`); `PER_CAF_PORTERIA_VER` no basta, así que el Coordinador **no** los ve. Almacén solo consulta y descarga. No hay licencia nueva: se reutilizan permisos existentes. (Supuesto mío; ver P-173.)
+- **Pantalla** `DocumentosIngreso/Index`: día (hoy por defecto), resumen, subida asíncrona (un archivo a la vez con barra de avance real; si uno falla los demás siguen), etiquetas de personas con autocompletado y filtro «solo quienes trajeron equipos o herramientas» activo por defecto (se puede desmarcar para ver a todos los que ingresaron). Cada documento: descargar, cambiar personas, retirar. En el detalle de la solicitud aparece el bloque «Documentos de ingreso» (con la licencia de historial).
+- **Menú:** «Documentos de ingreso» en Vigilancia; en Proveedores para Almacén si no es Vigilancia.
+- **SP nuevos** (`SP_CAF_DOCUMENTO_INGRESO_ALL.sql`): `ERP_CAF_DOC_INGRESO_AGREGAR/PERSONAS_ASIGNAR/QUITAR` y lecturas `_LISTAR/_OBTENER/_PERSONAS_DIA/_RESUMEN/_DE_SOLICITUD`; `ERP_CAF_PARAMETRO_GUARDAR` valida las dos claves nuevas.
+- **Límites conocidos:** el contenido se guarda en la base (como los adjuntos de solicitud); el servidor valida la firma real del archivo; el límite del servidor web es 31 MB aunque el parámetro sea menor (el procedimiento aplica el valor vigente).
+- **Pruebas:** Hito 2 escritura 1017/1017 (+14); las 13 suites en verde con la base reconstruida desde cero.
+- **T-60** — HANA: `BYTEA` → `BLOB`; `STRING_AGG` con `ORDER BY` nativo; el índice único parcial (`WHERE Eliminado='N'`) se resuelve con columna calculada o validación en el SP.
+
+## D-266 — «Cerrar sin atención»: quién puede (corrige D-259)
+- **Problema visto en pantalla:** con la entrega reservada por Alma y nada iniciado, Ana (otro almacenero de las mismas empresas, sin la licencia especial) veía «Cerrar sin atención». La regla de D-259 dejaba cerrar a cualquier almacenero de la empresa mientras estuviera «Pendiente».
+- **Regla nueva** (`ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN` V1.1; la usan el listado, el calendario y el procedimiento): siempre se exige ser almacenero asignado a **esa** empresa y, además, una de estas:
+  1. tiene la licencia «Cerrar sin atención»; o
+  2. inició la atención de esa empresa; o
+  3. es quien reservó (confirmó la disponibilidad) la entrega; o
+  4. la empresa sigue **Pendiente** y la atención de la solicitud **ya empezó** (otra empresa ya no está pendiente): así los otros almaceneros cierran solo la empresa que les falta, nunca antes de que se inicie la atención.
+- Sin reserva ni licencia, antes de iniciar nadie puede cerrar. Una empresa que no tiene asignada nunca se puede cerrar, ni con licencia.
+- **Pruebas:** Hito 2 escritura 1023/1023 (+6); las 12 suites en verde. Mensaje de rechazo y ayuda actualizados.
+- **Pendiente de validar (P-174):** si quien reservó debe poder cerrar aun antes de iniciar (hoy sí); y el caso de una empresa «detenida» por otro, que hoy solo cierra quien la inició o con licencia.
+
+## D-267 — Confirmar disponibilidad solo para quien atiende; «Iniciar atención» siempre con confirmación
+- **Incongruencia vista:** cualquier almacenero con licencia de Almacén podía confirmar la disponibilidad de cualquier entrega aunque no atendiera ninguna de sus empresas, y luego «arreglarlo» cediendo la reserva.
+- **Regla nueva:** para **confirmar** (y tomar la reserva) hay que estar asignado a **al menos una empresa de esa entrega** (Almacén por empresa). Se aplica en `ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO` V1.1 (la usan el botón del calendario, «Tomar reserva» y la confirmación) y `ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS` responde 101 con el motivo. El botón «Confirmar disponibilidad» ya no se ofrece y la tarjeta explica por qué. Las entregas sin ninguna empresa asignada conservan el comportamiento anterior (no hay a quién exigirle).
+- **Iniciar atención:** el botón siempre abre el modal con las casillas de empresa y pide confirmar, aunque quede una sola, para evitar iniciar por accidente (y luego tener que forzar el cierre). Reanudar sigue siendo directo cuando hay una sola empresa.
+- **Pruebas:** Hito 2 escritura 1026/1026 (+3). Se ajustaron los escenarios de prueba que confirmaban con almaceneros sin empresa asignada (justo la incongruencia corregida).
+- **Pendiente de decidir (no implementado):** «ceder atención» una vez iniciada. Ver P-175.
+
+## D-268 — Correos y formularios: empresas receptoras y rótulos del responsable
+- **Correo de proveedor** (automático y reenvío manual, misma plantilla): ahora lista las **«Empresa(s) receptora(s)»** (nombres, como en el detalle) y el contacto se rotula **«Contacto responsable de la entrega»**. `ERP_CAF_CORREO_SOLICITUD_DATOS` V1.4 trae `Empresas_Receptoras` (`ERP_CAF_FN_EMPRESAS_SOLICITUD`), con `Dto_Correo_Solicitud`, `Repo_Correo` y `PlantillaCorreo` ajustados.
+- **Rótulos por tipo** (correo, detalle, vista de Coordinación y resumen de «Nueva solicitud»): Contratista = **«Responsable designado del área usuaria»**; Visitante externo = **«Responsable de atención»** (completo); Proveedor = «Contacto responsable de la entrega».
+- **Formulario del contratista:** el responsable ya no va escondido tras «Indicar responsable de atención»: siempre se ve como **«Responsable designado del área usuaria \*»** y es obligatorio en el formulario. **La base de datos no lo exige** (acepta solicitudes sin responsable; solo valida que exista si se indica), para no romper datos y pruebas existentes: si se quiere exigirlo también ahí es un cambio aparte (P-176).
+- **Efecto al editar:** una solicitud de contratista anterior sin responsable pedirá elegirlo al editarla.
+- **Pruebas:** Hito 2 escritura 1027 (+1: las empresas receptoras salen en los datos del correo). La plantilla del correo (C#) no tiene pruebas automáticas; no la compilé ni vi un correo generado.
+
+## D-269 — «Documentos de ingreso»: rediseño en dos pestañas y consulta por rango y persona (T-61)
+
+**Qué se decidió (a partir de la revisión de la pantalla de D-265):**
+- Dos pestañas: **«Subir»** (solo Vigilancia) y **«Consultar»** (Vigilancia y Almacén). Almacén ya no ve la pestaña de subida.
+- «Subir»: en **una sola fila** Día + Tipo de documento + «Adjuntar documento» (mismo patrón del formulario: botón, lista de archivos y «Quitar»; sin el selector gris nativo). Contadores del día como tarjetas centradas. El botón «Subir documentos» ahora tiene ícono (`subir`, nuevo en `caf.js`). Si un archivo falla, queda en la lista para reintentar.
+- «Documentos del día»: solo el **nombre completo** de cada persona, como etiquetas.
+- «Consultar»: filtros Desde / Hasta / texto (apellido, nombre, DNI, solicitud, empresa o archivo); cada documento muestra una tabla con **persona, DNI, empresa y solicitud**. Sin fechas: últimos 30 días; máximo 366 días y 200 documentos; el rango invertido no devuelve nada.
+
+**BD:** `ERP_CAF_DOC_INGRESO_BUSCAR(usuario, sede, desde, hasta, texto)` en `SP_CAF_DOCUMENTO_INGRESO_ALL.sql`, con la misma regla de acceso que el listado del día. **HANA (T-61):** equivalente directo; `ILIKE` → `LIKE` con `LOWER()`, `STRING_AGG` → `STRING_AGG` (igual), `LIMIT 200` igual.
+**.NET:** `Dto_Documento_Ingreso_Busqueda`, `BuscarAsync` en repo y servicio, acción `Buscar` (GET) en `DocumentosIngresoController`.
+**Pruebas:** +2 en Hito 2 escritura (1029/1029). No se probó en navegador ni se compiló C# (sin `dotnet` ni navegador aquí).

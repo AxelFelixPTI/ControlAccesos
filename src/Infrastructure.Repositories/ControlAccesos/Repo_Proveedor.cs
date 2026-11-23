@@ -274,6 +274,56 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         catch (Exception ex) { return Result<List<Dto_Proveedor_Vehiculo>>.Fail(ex.InnerException?.Message ?? ex.Message); }
     }
 
+    public async Task<Result<List<Dto_Proveedor_Atencion_Resumen>>> AtencionResumenAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn, funcion: "ERP_CAF_PROVEEDOR_ATENCION_RESUMEN",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: rd => new Dto_Proveedor_Atencion_Resumen
+                {
+                    ID_Empresa          = RdLong(rd, "ID_Empresa"),
+                    Codigo              = RdStr(rd, "Codigo"),
+                    Empresa             = RdStr(rd, "Empresa"),
+                    Estado              = RdStr(rd, "Estado"),
+                    Inicio_Nombre       = RdStrN(rd, "Inicio_Nombre"),
+                    Fecha_Inicio        = RdDtN(rd, "Fecha_Inicio"),
+                    Fin_Nombre          = RdStrN(rd, "Fin_Nombre"),
+                    Fecha_Fin           = RdDtN(rd, "Fecha_Fin"),
+                    Resultado           = RdStrN(rd, "Resultado"),
+                    Observacion         = RdStrN(rd, "Observacion"),
+                    Motivo_Sin_Atencion = RdStrN(rd, "Motivo_Sin_Atencion"),
+                    Motivo_Detencion    = RdStrN(rd, "Motivo_Detencion"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_Atencion_Resumen>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_Atencion_Resumen>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_Atencion_Evento>>> AtencionEventosAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn, funcion: "ERP_CAF_PROVEEDOR_ATENCION_EVENTOS",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: rd => new Dto_Proveedor_Atencion_Evento
+                {
+                    Fecha_Evento    = RdDt(rd, "Fecha_Evento"),
+                    Usuario_Nombre  = RdStrN(rd, "Usuario_Nombre"),
+                    Estado_Anterior = RdStrN(rd, "Estado_Anterior"),
+                    Estado_Nuevo    = RdStrN(rd, "Estado_Nuevo"),
+                    Resultado       = RdStrN(rd, "Resultado"),
+                    Detalle         = RdStrN(rd, "Detalle"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_Atencion_Evento>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_Atencion_Evento>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
     public Task<ResultSp> IngresoVehResponderAsync(long solicitudIngresoId, string accion, string? motivo, long usuarioId, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
             clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER",
@@ -574,6 +624,7 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         Reserva_Nombre             = RdStrN(rd, "Reserva_Nombre"),
         Pausada                    = RdBool(rd, "Pausada"),
         Solicitante_Nombre         = RdStrN(rd, "Solicitante_Nombre"),
+        Atendido_Por               = RdStrN(rd, "Atendido_Por"),
         Estado_Operativo       = RdStr(rd, "Estado_Operativo"),
         Con_Desviacion         = RdBool(rd, "Con_Desviacion"),
         Disponibilidad_Confirmada = RdBool(rd, "Disponibilidad_Confirmada"),

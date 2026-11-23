@@ -110,6 +110,18 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         catch (Exception ex) { _logger.LogError(ex, "PLAZAS LISTAR ERROR"); return Result<List<Dto_Proveedor_Plaza>>.Fail(ex.Message); }
     }
 
+    public async Task<Result<List<Dto_Proveedor_Atencion_Resumen>>> AtencionResumenAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.AtencionResumenAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "ATENCION RESUMEN ID={ID} ERROR", solicitudId); return Result<List<Dto_Proveedor_Atencion_Resumen>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_Atencion_Evento>>> AtencionEventosAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.AtencionEventosAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "ATENCION EVENTOS ID={ID} ERROR", solicitudId); return Result<List<Dto_Proveedor_Atencion_Evento>>.Fail(ex.Message); }
+    }
+
     public async Task<Result<List<Dto_Proveedor_Vehiculo>>> VehiculosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
     {
         try { return await _repo.VehiculosListarAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }

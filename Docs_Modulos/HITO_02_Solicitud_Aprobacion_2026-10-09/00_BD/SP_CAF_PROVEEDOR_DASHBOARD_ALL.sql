@@ -252,7 +252,7 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "Puede_Detener" CHAR, "Puede_Reanudar" CHAR, "Puede_Cerrar_Sin" CHAR,
                "Motivo_Iniciar" VARCHAR, "Motivo_Reanudar" VARCHAR,
                "Puede_Ceder" CHAR, "Puede_Tomar" CHAR, "Motivo_Tomar" VARCHAR, "Reserva_Nombre" VARCHAR, "Pausada" CHAR,
-               "Solicitante_Nombre" VARCHAR)
+               "Solicitante_Nombre" VARCHAR, "Atendido_Por" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -363,7 +363,9 @@ BEGIN
                      THEN 'Y' ELSE 'N' END AS CHAR),
            -- V2.2 2026-11-18: quién hizo la solicitud (se muestra en la tarjeta)
            CAST((SELECT US."Apellido_Paterno" || COALESCE(' ' || US."Apellido_Materno", '') || ', ' || US."Nombres" FROM "CAF_GOVERNANCE"."Usuario" US
-                  WHERE US."ID_Usuario" = S."ID_Usuario_Solicitante") AS VARCHAR)
+                  WHERE US."ID_Usuario" = S."ID_Usuario_Solicitante") AS VARCHAR),
+           -- V3.1 2026-11-22 (D-264): todos los almaceneros que atendieron (nombre:empresas|nombre:empresas), no solo el último
+           "ERP_CAF_FN_ATENDIDO_POR"(S."ID_Solicitud")
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
       JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
@@ -469,7 +471,8 @@ BEGIN
         -- D-244: confirmar reserva el cupo del almacenero; con otras solicitudes en curso no puede tomar esta
         lv_cupo := "ERP_CAF_FN_CUPO_ALMACENERO_MOTIVO"("HV_UsuarioID", "HV_ID_Solicitud");
         IF lv_cupo IS NOT NULL THEN
-            "HV_Codigo_Resp" := 409; "HV_Mensaje" := LEFT(lv_cupo, 250); RETURN;
+            -- D-267: no atiende a ninguna empresa de la entrega → 101 (permiso), no 409
+            "HV_Codigo_Resp" := CASE WHEN lv_cupo LIKE 'Usted no atiende a ninguna%' THEN 101 ELSE 409 END; "HV_Mensaje" := LEFT(lv_cupo, 250); RETURN;
         END IF;
         IF "HV_Con_Vehiculo" = 'Y' THEN
             SELECT COUNT(*) INTO lv_n FROM "CAF_Exclusa" WHERE "ID_Catalogo_Sede" = lv_sede AND "Eliminado" = 'N';
