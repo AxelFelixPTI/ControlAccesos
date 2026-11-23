@@ -1921,6 +1921,7 @@ BEGIN
         c_e1 TEXT; c_e2 TEXT; c_e3 TEXT; c_x1 BIGINT; c_x2 BIGINT; c_x3 BIGINT; c_s1 BIGINT; c_s2 BIGINT; c_s3 BIGINT; c_cs VARCHAR(20); c_p1 BIGINT; c_p2 BIGINT; c_p3 BIGINT; c_ual3 BIGINT; c_pal3 BIGINT;
         k1 TEXT; k2 TEXT; k3 TEXT; k4 TEXT; k5 TEXT; k6 TEXT; k7 TEXT; k8 TEXT; k9 TEXT; k10 TEXT; k11 TEXT; k12 TEXT; k13 TEXT; k14 TEXT; k15 TEXT; k16 TEXT; k17 TEXT; k18 TEXT; k19 TEXT; k20 TEXT; k21 TEXT; k22 TEXT;
         k23 TEXT; k24 TEXT; k25 TEXT; k26 TEXT; k27 TEXT; k28 TEXT;
+        m1 TEXT; m2 TEXT; m3 TEXT; m4 TEXT; m5 TEXT; m6 TEXT; m_mot BIGINT; m_lic BIGINT;
     BEGIN
         BEGIN
             SELECT "ID_Catalogo_Empresa_Grupo"::TEXT INTO c_e1 FROM "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" WHERE "Eliminado" = 'N' AND "Activo" = 'Y' ORDER BY "Orden", "ID_Catalogo_Empresa_Grupo" OFFSET 0 LIMIT 1;
@@ -1982,6 +1983,30 @@ BEGIN
             -- el listado: solo el que inició puede detener/terminar
             k17 := pg_temp.q('SELECT STRING_AGG(L."ID_Empresa" || '':'' || L."Puede_Detener" || L."Puede_Recepcionar", '','' ORDER BY L."ID_Empresa") FROM "ERP_CAF_ATENCION_LISTAR"(' || c_s1 || ',' || v_ual || ') L')
                    || '|' || pg_temp.q('SELECT STRING_AGG(L."ID_Empresa" || '':'' || L."Puede_Detener" || L."Puede_Recepcionar", '','' ORDER BY L."ID_Empresa") FROM "ERP_CAF_ATENCION_LISTAR"(' || c_s1 || ',' || c_ual3 || ') L');
+            -- D-259: «Cerrar sin atención» de una empresa que inició OTRO almacenero (v_ual inició e1; c_ual3 atiende e1 pero no la inició)
+            SELECT "ID_Motivo_Sin_Atencion" INTO m_mot FROM "CAF_Motivo_Sin_Atencion" WHERE "Codigo" = 'SIN_MERCADERIA';
+            SELECT "ID_Catalogo_Licencia" INTO m_lic FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_PROVEEDOR_CERRAR_SIN_ATENCION';
+            CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(c_s1, c_e1::BIGINT, m_mot, NULL, c_ual3, v_cod, v_msg);   m1 := v_cod::TEXT;       -- sin la licencia: 101
+            m2 := pg_temp.q('SELECT L."Puede_Cerrar_Sin" FROM "ERP_CAF_ATENCION_LISTAR"(' || c_s1 || ',' || c_ual3 || ') L WHERE L."ID_Empresa" = ' || c_e1);
+            BEGIN
+                CALL "ERP_USUARIO_LICENCIA_AGREGAR"(c_ual3, m_lic, v_ves, 0, v_ul, v_cod, v_msg);
+                m3 := pg_temp.q('SELECT L."Puede_Cerrar_Sin" FROM "ERP_CAF_ATENCION_LISTAR"(' || c_s1 || ',' || c_ual3 || ') L WHERE L."ID_Empresa" = ' || c_e1);
+                -- con la licencia pero SIN tener asignada la empresa: sigue sin poder (101) y el listado no lo ofrece
+                CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(c_ual3, c_e2, v_ucp, v_cod, v_msg);
+                CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(c_s1, c_e1::BIGINT, m_mot, NULL, c_ual3, v_cod, v_msg);  m4 := v_cod::TEXT
+                    || '|' || pg_temp.q('SELECT L."Puede_Cerrar_Sin" FROM "ERP_CAF_ATENCION_LISTAR"(' || c_s1 || ',' || c_ual3 || ') L WHERE L."ID_Empresa" = ' || c_e1);
+                CALL "ERP_CAF_ALMACEN_EMPRESA_GUARDAR"(c_ual3, c_e1 || ',' || c_e2, v_ucp, v_cod, v_msg);
+                -- con la licencia y la empresa asignada: cierra aunque no la haya iniciado
+                CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(c_s1, c_e1::BIGINT, m_mot, NULL, c_ual3, v_cod, v_msg);  m5 := v_cod::TEXT || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(c_s1, c_e1::BIGINT);
+                RAISE EXCEPTION 'deshacer D-259';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+            BEGIN
+                -- quien inició la atención siempre puede cerrarla (sin licencia)
+                CALL "ERP_CAF_PROVEEDOR_CERRAR_SIN_ATENCION"(c_s1, c_e1::BIGINT, m_mot, NULL, v_ual, v_cod, v_msg);  m6 := v_cod::TEXT || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(c_s1, c_e1::BIGINT);
+                RAISE EXCEPTION 'deshacer D-259';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
             -- detener e1 SIN motivo: libera el cupo de e1
             CALL "ERP_CAF_PROVEEDOR_DETENER_EMPRESA"(c_s1, c_e1::BIGINT, NULL, v_ual, v_cod, v_msg);
             k18 := v_cod::TEXT || '|' || "ERP_CAF_FN_ATENCION_ESTADO"(c_s1, c_e1::BIGINT) || '|' || "ERP_CAF_FN_ATENCION_ACTIVAS"(c_e1::BIGINT)::TEXT;
@@ -2018,7 +2043,13 @@ BEGIN
         PERFORM pg_temp.chk('D-239 varias empresas: sin selección = 400', '400', COALESCE(k12, ''), '');
         PERFORM pg_temp.chk('D-239 varias empresas: se inician las dos a la vez', '100|EN_ATENCION|EN_ATENCION', COALESCE(k13, ''), '');
         PERFORM pg_temp.chk('D-239 cupo: la empresa con la atención al límite bloquea la otra entrega con aviso', '409|true', COALESCE(k14, ''), '');
-        PERFORM pg_temp.chk('D-242 calendario: quien inició puede detener y terminar (no reanudar); otro almacenero de la empresa solo puede cerrar sin atención', 'YNYY|NNNY', COALESCE(k27, ''), '');
+        PERFORM pg_temp.chk('D-242 calendario: quien inició puede detener y terminar (no reanudar); otro almacenero de la empresa (sin la licencia «Cerrar sin atención») no puede nada (D-259)', 'YNYY|NNNN', COALESCE(k27, ''), '');
+        PERFORM pg_temp.chk('D-259 cerrar sin atención: otro almacenero de la empresa SIN la licencia no puede cerrar lo que inició otro (101)', '101', COALESCE(m1, ''), '');
+        PERFORM pg_temp.chk('D-259 listado: sin la licencia no se ofrece «Cerrar sin atención» sobre lo que inició otro', 'N', COALESCE(m2, ''), '');
+        PERFORM pg_temp.chk('D-259 listado: con la licencia y la empresa asignada sí se ofrece', 'Y', COALESCE(m3, ''), '');
+        PERFORM pg_temp.chk('D-259 licencia: sin tener asignada la empresa no puede cerrar (101) ni se le ofrece', '101|N', COALESCE(m4, ''), '');
+        PERFORM pg_temp.chk('D-259 licencia: con la empresa asignada cierra aunque no la haya iniciado', '100|CERRADA_SIN_ATENCION', COALESCE(m5, ''), '');
+        PERFORM pg_temp.chk('D-259 cerrar sin atención: quien inició la atención siempre puede cerrarla', '100|CERRADA_SIN_ATENCION', COALESCE(m6, ''), '');
         PERFORM pg_temp.chk('D-242 calendario: con una empresa detenida y otra en atención, puede detener, reanudar, terminar y cerrar', 'YYYY', COALESCE(k28, ''), '');
         PERFORM pg_temp.chk('D-239 detener: solo quien inició (101)', '101', COALESCE(k15, ''), '');
         PERFORM pg_temp.chk('D-239 terminar: solo quien inició (101)', '101', COALESCE(k16, ''), '');
@@ -2494,6 +2525,297 @@ BEGIN
         -- SIN_LIMITE
         UPDATE "CAF_Parametro" SET "Valor" = 'SIN_LIMITE' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
         PERFORM pg_temp.chk('D-247 SIN_LIMITE: la capacidad no tiene tope', '2147483647', "ERP_CAF_FN_EXCLUSA_CAPACIDAD"()::TEXT, '');
+        UPDATE "CAF_Parametro" SET "Valor" = '1' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+    END;
+
+    -- ===================================================== D-260. Solicitud de ingreso vehicular entre almaceneros (esclusa con cupo pero otra entrega con vehículos por ingresar)
+    DECLARE
+        i_s1 BIGINT; i_s2 BIGINT; i_s3 BIGINT; i_cs VARCHAR(20); i_q1 BIGINT; i_q2 BIGINT; i_q3 BIGINT; i_p1 BIGINT; i_p2 BIGINT; i_p3 BIGINT;
+        i_ub BIGINT; i_uc BIGINT; i_lic BIGINT; i_id1 BIGINT; i_id2 BIGINT; i_id3 BIGINT; i_id4 BIGINT;
+        n1 TEXT; n2 TEXT; n3 TEXT; n4 TEXT; n5 TEXT; n6 TEXT; n7 TEXT; n8 TEXT; n9 TEXT; n10 TEXT; n11 TEXT; n12 TEXT; n13 TEXT; n14 TEXT; n15 TEXT; n16 TEXT; n17 TEXT; n18 TEXT; n19 TEXT; n20 TEXT; n21 TEXT; n22 TEXT; n23 TEXT;
+    BEGIN
+        UPDATE "CAF_Parametro" SET "Valor" = 'SIN_LIMITE' WHERE "Clave" = 'ATENCIONES_SIMULTANEAS_ALMACENERO';
+        UPDATE "CAF_Parametro" SET "Valor" = '2' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Catalogo_Sede" = v_ves;
+        UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'SALIO' WHERE "Estado" = 'DENTRO';
+        -- dos almaceneros más: B (pide el ingreso) y C = Coordinador de Almacén (licencia de Almacén + licencia de Coordinador de Almacén)
+        SELECT "ID_Catalogo_Licencia" INTO i_lic FROM "CAF_GOVERNANCE"."Catalogo_Licencia" WHERE "Codigo" = 'LIC_CAF_COORD_ALMACEN';
+        CALL "ERP_USUARIO_CREAR"('almacen4.prov@ejemplo.pe', v_dni,'30000197','Almacen','Cuatro','Beto',NULL,'Ejemplo','Y',0, i_ub, v_cod, v_msg);
+        CALL "ERP_USUARIO_LICENCIA_AGREGAR"(i_ub, v_lic_al, v_ves, 0, v_ul, v_cod, v_msg);
+        CALL "ERP_USUARIO_CREAR"('coordalm.prov@ejemplo.pe', v_dni,'30000198','Coord','Almacen','Carla',NULL,'Ejemplo','Y',0, i_uc, v_cod, v_msg);
+        CALL "ERP_USUARIO_LICENCIA_AGREGAR"(i_uc, v_lic_al, v_ves, 0, v_ul, v_cod, v_msg);
+        CALL "ERP_USUARIO_LICENCIA_AGREGAR"(i_uc, i_lic, v_ves, 0, v_ul, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000295','Ing','Uno','Eva',0, i_q1, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000296','Ing','Dos','Fer',0, i_q2, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000297','Ing','Tres','Gil',0, i_q3, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Ingreso Uno S.A.', NULL, NULL, NULL, NULL, i_q1::TEXT, NULL, NULL, NULL, 'IVH111', NULL, NULL, '988777666', NULL, v_emp, '20987654451', 'Jr. Lima 51', 'Hino', 'Q87654451', i_q1, v_usp, i_s1, i_cs, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Ingreso Dos S.A.', NULL, NULL, NULL, NULL, i_q2::TEXT, NULL, NULL, NULL, 'IVH222', NULL, NULL, '988777666', NULL, v_emp, '20987654452', 'Jr. Lima 52', 'Hino', 'Q87654452', i_q2, v_usp, i_s2, i_cs, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_CREAR"(v_ves, v_prov, NULL, v_fhoy, 'Ingreso Tres S.A.', NULL, NULL, NULL, NULL, i_q3::TEXT, NULL, NULL, NULL, 'IVH333', NULL, NULL, '988777666', NULL, v_emp, '20987654453', 'Jr. Lima 53', 'Hino', 'Q87654453', i_q3, v_usp, i_s3, i_cs, v_cod, v_msg);
+        i_p1 := pg_temp.sp(i_s1, i_q1); i_p2 := pg_temp.sp(i_s2, i_q2); i_p3 := pg_temp.sp(i_s3, i_q3);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(i_s1, v_paso_p, 'APROBADA', NULL, i_p1::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(i_s2, v_paso_p, 'APROBADA', NULL, i_p2::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(i_s3, v_paso_p, 'APROBADA', NULL, i_p3::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        PERFORM pg_temp.verif(i_p1, v_uvp); PERFORM pg_temp.verif(i_p2, v_uvp); PERFORM pg_temp.verif(i_p3, v_uvp);
+        -- A (v_ual) confirma la entrega 1 CON vehículo: queda con un vehículo por ingresar
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s1, v_ual, 'Y', v_cod, v_msg);                       n1 := v_cod::TEXT;
+        n2 := pg_temp.q('SELECT "Veh_Total" || ''|'' || "Veh_Por_Ingresar" || ''|'' || "Veh_Dentro" || ''|'' || "Veh_Salieron" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s2 || ') WHERE "ID_Solicitud_Otra" = ' || i_s1);
+        -- Caso A: B (otro almacenero) ve la advertencia
+        n3 := pg_temp.q('SELECT "Caso" || ''|'' || "Requiere_Conformidad" || ''|'' || "Capacidad" || ''|'' || "Reservas" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s2 || ') WHERE "ID_Solicitud_Otra" = ' || i_s1);
+        -- B no puede confirmar CON sin conformidad: lo valida el servidor
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s2, i_ub, 'Y', v_cod, v_msg);                       n4 := v_cod::TEXT || '|' || (POSITION('Solicite el ingreso vehicular' IN v_msg) > 0)::TEXT;
+        -- A confirma la entrega 2 él mismo (es el responsable de la entrega 1): no hace falta pedirse permiso; se deshace
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s2, v_ual, 'Y', v_cod, v_msg);                  n5 := v_cod::TEXT;
+            RAISE EXCEPTION 'deshacer D-260';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- B solicita; repetir no duplica
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR"(i_s2, i_ub, v_cod, v_msg);                          n6 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR"(i_s2, i_ub, v_cod, v_msg);                          n7 := v_cod::TEXT || '|' || pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Ingreso_Vehicular" WHERE "ID_Solicitud" = ' || i_s2 || ' AND "Estado" = ''PENDIENTE''');
+        -- quién ve y decide: el responsable A (aviso), el Coordinador de Almacén (decide por él) y B (solo la ve y puede retirarla)
+        n8 := pg_temp.q('SELECT "Estado" || ''|'' || "Es_Responsable" || ''|'' || "Puede_Decidir" || ''|'' || "Es_Solicitante" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_LISTAR"(' || v_ual || ',' || v_ves || ') WHERE "ID_Solicitud" = ' || i_s2)
+             || ' ' || pg_temp.q('SELECT "Estado" || ''|'' || "Es_Responsable" || ''|'' || "Puede_Decidir" || ''|'' || "Es_Solicitante" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_LISTAR"(' || i_uc || ',' || v_ves || ') WHERE "ID_Solicitud" = ' || i_s2)
+             || ' ' || pg_temp.q('SELECT "Estado" || ''|'' || "Es_Responsable" || ''|'' || "Puede_Decidir" || ''|'' || "Es_Solicitante" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_LISTAR"(' || i_ub || ',' || v_ves || ') WHERE "ID_Solicitud" = ' || i_s2);
+        n9 := pg_temp.q('SELECT "Solicitud_Estado" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s2 || ') WHERE "ID_Solicitud_Otra" = ' || i_s1);
+        SELECT "ID_Solicitud_Ingreso" INTO i_id1 FROM "CAF_Solicitud_Ingreso_Vehicular" WHERE "ID_Solicitud" = i_s2 AND "Estado" = 'PENDIENTE';
+        -- mientras espera, B sigue sin poder; B no puede responder su propia solicitud; el vigilante no responde
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s2, i_ub, 'Y', v_cod, v_msg);                       n10 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER"(i_id1, i_ub, 'CONFIRMAR', NULL, v_cod, v_msg);      n11 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER"(i_id1, v_uvp, 'CONFIRMAR', NULL, v_cod, v_msg);     n11 := n11 || '|' || v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER"(i_id1, v_ual, 'TAL', NULL, v_cod, v_msg);           n11 := n11 || '|' || v_cod::TEXT;
+        -- SIN ingreso vehicular con la solicitud pendiente: confirma y la solicitud queda retirada (se deshace)
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s2, i_ub, 'N', v_cod, v_msg);
+            n12 := v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud_Ingreso_Vehicular" WHERE "ID_Solicitud_Ingreso" = ' || i_id1);
+            RAISE EXCEPTION 'deshacer D-260';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- A rechaza con motivo: B sigue bloqueado
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER"(i_id1, v_ual, 'RECHAZAR', 'Aún falta descargar el camión 1', v_cod, v_msg);
+        n13 := v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado" || ''|'' || COALESCE("Motivo_Rechazo", '''') || ''|'' || "Decidida_Por_Coord" FROM "CAF_Solicitud_Ingreso_Vehicular" WHERE "ID_Solicitud_Ingreso" = ' || i_id1);
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER"(i_id1, v_ual, 'CONFIRMAR', NULL, v_cod, v_msg);     n14 := v_cod::TEXT;       -- ya respondida
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s2, i_ub, 'Y', v_cod, v_msg);                       n15 := v_cod::TEXT;
+        -- B vuelve a solicitar y la retira; retirar sin nada pendiente = 409
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR"(i_s2, i_ub, v_cod, v_msg);                          n16 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RETIRAR"(i_s2, i_ub, v_cod, v_msg);                            n16 := n16 || '|' || v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RETIRAR"(i_s2, i_ub, v_cod, v_msg);                            n16 := n16 || '|' || v_cod::TEXT;
+        -- tercera solicitud: la decide el Coordinador de Almacén por A y queda marcada; entonces B confirma CON y reserva la segunda plaza
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR"(i_s2, i_ub, v_cod, v_msg);
+        SELECT "ID_Solicitud_Ingreso" INTO i_id3 FROM "CAF_Solicitud_Ingreso_Vehicular" WHERE "ID_Solicitud" = i_s2 AND "Estado" = 'PENDIENTE';
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER"(i_id3, i_uc, 'CONFIRMAR', NULL, v_cod, v_msg);
+        n17 := v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado" || ''|'' || "Decidida_Por_Coord" FROM "CAF_Solicitud_Ingreso_Vehicular" WHERE "ID_Solicitud_Ingreso" = ' || i_id3);
+        n23 := pg_temp.q('SELECT "Requiere_Conformidad" || "Solicitud_Estado" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s2 || ') WHERE "ID_Solicitud_Otra" = ' || i_s1);
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s2, i_ub, 'Y', v_cod, v_msg);
+        n18 := v_cod::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+        -- Caso B: con las dos plazas ocupadas, la tercera entrega ve «completa» y no puede solicitar
+        n19 := pg_temp.q('SELECT "Caso" || ''|'' || COUNT(*) FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s3 || ') GROUP BY "Caso"');
+        CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR"(i_s3, i_ub, v_cod, v_msg);                          n20 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s3, i_ub, 'Y', v_cod, v_msg);                       n20 := n20 || '|' || v_cod::TEXT || '|' || (POSITION('completa' IN v_msg) > 0)::TEXT;
+        -- Si el otro ya no tiene vehículos por ingresar: sin advertencia (se deshace)
+        BEGIN
+            UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Solicitud_Actual" = i_s2;
+            UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'DENTRO' WHERE "ID_Solicitud_Persona" = i_p1;
+            n21 := pg_temp.q('SELECT "Caso" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s3 || ') LIMIT 1');
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s3, i_ub, 'Y', v_cod, v_msg);                    n21 := n21 || '|' || v_cod::TEXT;
+            RAISE EXCEPTION 'deshacer D-260';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- SIN_LIMITE: ni avisos ni solicitudes (se deshace)
+        BEGIN
+            UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Solicitud_Actual" = i_s2;
+            UPDATE "CAF_Parametro" SET "Valor" = 'SIN_LIMITE' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+            n22 := pg_temp.q('SELECT "Caso" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || i_ub || ',' || i_s3 || ') LIMIT 1');
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR"(i_s3, i_ub, v_cod, v_msg);                       n22 := n22 || '|' || v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(i_s3, i_ub, 'Y', v_cod, v_msg);                    n22 := n22 || '|' || v_cod::TEXT;
+            RAISE EXCEPTION 'deshacer D-260';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        PERFORM pg_temp.chk('D-260 prep: A confirma la entrega 1 CON ingreso vehicular', '100', COALESCE(n1, ''), '');
+        PERFORM pg_temp.chk('D-260 vehículos de la entrega en curso: 1 declarado, 1 por ingresar, 0 dentro, 0 salieron', '1|1|0|0', COALESCE(n2, ''), '');
+        PERFORM pg_temp.chk('D-260 caso A: hay cupo (1 de 2) pero otra entrega tiene vehículos por ingresar: pide conformidad', 'ADVERTENCIA|Y|2|1', COALESCE(n3, ''), '');
+        PERFORM pg_temp.chk('D-260 el servidor exige la conformidad al confirmar CON (409)', '409|true', COALESCE(n4, ''), '');
+        PERFORM pg_temp.chk('D-260 si el responsable de la otra entrega es el mismo usuario no hace falta pedirse permiso', '100', COALESCE(n5, ''), '');
+        PERFORM pg_temp.chk('D-260 solicitar: B envía la solicitud', '100', COALESCE(n6, ''), '');
+        PERFORM pg_temp.chk('D-260 solicitar de nuevo no duplica (sigue 1 pendiente)', '100|1', COALESCE(n7, ''), '');
+        PERFORM pg_temp.chk('D-260 listado: A responsable decide; el Coordinador de Almacén decide sin ser el responsable; B solo la ve', 'PENDIENTE|Y|Y|N PENDIENTE|N|Y|N PENDIENTE|N|N|Y', COALESCE(n8, ''), '');
+        PERFORM pg_temp.chk('D-260 el modal ve la solicitud como pendiente («Esperando conformidad»)', 'PENDIENTE', COALESCE(n9, ''), '');
+        PERFORM pg_temp.chk('D-260 mientras espera, confirmar CON sigue siendo 409', '409', COALESCE(n10, ''), '');
+        PERFORM pg_temp.chk('D-260 responder: el solicitante (101), el vigilante (101) y una acción inválida (400) no pueden', '101|101|400', COALESCE(n11, ''), '');
+        PERFORM pg_temp.chk('D-260 SIN ingreso vehicular confirma y deja retirada la solicitud pendiente', '100|RETIRADA', COALESCE(n12, ''), '');
+        PERFORM pg_temp.chk('D-260 rechazar: queda RECHAZADA con su motivo, decidida por el propio almacenero', '100|RECHAZADA|Aún falta descargar el camión 1|N', COALESCE(n13, ''), '');
+        PERFORM pg_temp.chk('D-260 una solicitud ya respondida no se vuelve a responder (409)', '409', COALESCE(n14, ''), '');
+        PERFORM pg_temp.chk('D-260 tras el rechazo, confirmar CON sigue siendo 409', '409', COALESCE(n15, ''), '');
+        PERFORM pg_temp.chk('D-260 retirar: solicita de nuevo (100), retira (100) y retirar sin pendiente es 409', '100|100|409', COALESCE(n16, ''), '');
+        PERFORM pg_temp.chk('D-260 el Coordinador de Almacén decide por el almacenero y queda marcado', '100|CONFIRMADA|Y', COALESCE(n17, ''), '');
+        PERFORM pg_temp.chk('D-260 con la conformidad recibida el estado ya no la pide (el botón vuelve a «Confirmar»)', 'NCONFIRMADA', COALESCE(n23, ''), '');
+        PERFORM pg_temp.chk('D-260 con la conformidad, B confirma CON y la esclusa pasa a 2 de 2 reservas', '100|2', COALESCE(n18, ''), '');
+        PERFORM pg_temp.chk('D-260 caso B: con las dos plazas ocupadas el estado es COMPLETA y lista las 2 entregas', 'COMPLETA|2', COALESCE(n19, ''), '');
+        PERFORM pg_temp.chk('D-260 caso B: no se puede solicitar (409) ni confirmar (409, «completa»)', '409|409|true', COALESCE(n20, ''), '');
+        PERFORM pg_temp.chk('D-260 si el otro ya no tiene vehículos por ingresar: sin advertencia y confirma directo', 'LIBRE|100', COALESCE(n21, ''), '');
+        PERFORM pg_temp.chk('D-260 SIN_LIMITE: sin avisos ni solicitudes y confirma directo', 'SIN_LIMITE|409|100', COALESCE(n22, ''), '');
+        PERFORM pg_temp.chk('D-260 licencia: el Coordinador de Almacén tiene el permiso nuevo y el almacenero común no', 'Y|N',
+                            "ERP_CAF_FN_USUARIO_TIENE_PERMISO"(i_uc, 'PER_CAF_PROVEEDOR_COORD_ALMACEN', v_ves) || '|' || "ERP_CAF_FN_USUARIO_TIENE_PERMISO"(i_ub, 'PER_CAF_PROVEEDOR_COORD_ALMACEN', v_ves), '');
+        UPDATE "CAF_Parametro" SET "Valor" = '1' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+    END;
+
+    -- ===================================================== D-261. Plazas por entrega: el almacenero reserva 1 o varias; tope por entrega; liberación automática del sobrante
+    DECLARE
+        z_a BIGINT; z_b BIGINT; z_c BIGINT; z_cs VARCHAR(20); z_a1 BIGINT; z_a2 BIGINT; z_b1 BIGINT; z_c1 BIGINT; z_c2 BIGINT; z_c3 BIGINT;
+        z_pa1 BIGINT; z_pa2 BIGINT; z_pb1 BIGINT; z_pc1 BIGINT; z_pc2 BIGINT; z_pc3 BIGINT; z_tr TEXT;
+        r1 TEXT; r2 TEXT; r3 TEXT; r4 TEXT; r5 TEXT; r6 TEXT; r7 TEXT; r8 TEXT; r9 TEXT; r10 TEXT; r11 TEXT; r12 TEXT; r13 TEXT; r14 TEXT; r15 TEXT; r16 TEXT; r17 TEXT; r18 TEXT;
+        z_ia TEXT; z_ib TEXT; z_ic TEXT;
+    BEGIN
+        UPDATE "CAF_Parametro" SET "Valor" = 'SIN_LIMITE' WHERE "Clave" = 'ATENCIONES_SIMULTANEAS_ALMACENERO';
+        UPDATE "CAF_Parametro" SET "Valor" = '2' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
+        UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Catalogo_Sede" = v_ves;
+        UPDATE "CAF_Solicitud_Persona" SET "Estado" = 'SALIO' WHERE "Estado" = 'DENTRO';
+        -- A: 2 conductores; B: 1 conductor; C: 3 conductores
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000411','Pla','Uno','Ana',0, z_a1, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000412','Pla','Dos','Ben',0, z_a2, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000413','Pla','Tres','Cai',0, z_b1, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000414','Pla','Cuatro','Dan',0, z_c1, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000415','Pla','Cinco','Eli',0, z_c2, v_cod, v_msg);
+        CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000416','Pla','Seis','Fiz',0, z_c3, v_cod, v_msg);
+        z_tr := z_a1::TEXT || CHR(31) || '20411111111' || CHR(31) || 'Flete A' || CHR(31) || 'Calle 1' || CHR(31) || 'PLA-001' || CHR(31) || 'Volvo' || CHR(31) || 'Q4110001'
+             || CHR(30) || z_a2::TEXT || CHR(31) || '20411111112' || CHR(31) || 'Flete A2' || CHR(31) || 'Calle 2' || CHR(31) || 'PLA-002' || CHR(31) || 'Scania' || CHR(31) || 'Q4110002';
+        CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fhoy, 'Plazas A S.A.', NULL, z_a1 || ',' || z_a2, NULL, NULL, 'Luis Jefe', '999111222', v_emp, z_tr, 'OC-PLA-A', NULL, NULL, NULL, v_usp, z_a, z_cs, v_cod, v_msg);
+        z_tr := z_b1::TEXT || CHR(31) || '20411111113' || CHR(31) || 'Flete B' || CHR(31) || 'Calle 3' || CHR(31) || 'PLA-003' || CHR(31) || 'Hino' || CHR(31) || 'Q4110003';
+        CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fhoy, 'Plazas B S.A.', NULL, z_b1::TEXT, NULL, NULL, 'Luis Jefe', '999111222', v_emp, z_tr, 'OC-PLA-B', NULL, NULL, NULL, v_usp, z_b, z_cs, v_cod, v_msg);
+        z_tr := z_c1::TEXT || CHR(31) || '20411111114' || CHR(31) || 'Flete C1' || CHR(31) || 'Calle 4' || CHR(31) || 'PLA-004' || CHR(31) || 'Volvo' || CHR(31) || 'Q4110004'
+             || CHR(30) || z_c2::TEXT || CHR(31) || '20411111115' || CHR(31) || 'Flete C2' || CHR(31) || 'Calle 5' || CHR(31) || 'PLA-005' || CHR(31) || 'Scania' || CHR(31) || 'Q4110005'
+             || CHR(30) || z_c3::TEXT || CHR(31) || '20411111116' || CHR(31) || 'Flete C3' || CHR(31) || 'Calle 6' || CHR(31) || 'PLA-006' || CHR(31) || 'Hino' || CHR(31) || 'Q4110006';
+        CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fhoy, 'Plazas C S.A.', NULL, z_c1 || ',' || z_c2 || ',' || z_c3, NULL, NULL, 'Luis Jefe', '999111222', v_emp, z_tr, 'OC-PLA-C', NULL, NULL, NULL, v_usp, z_c, z_cs, v_cod, v_msg);
+        z_pa1 := pg_temp.sp(z_a, z_a1); z_pa2 := pg_temp.sp(z_a, z_a2); z_pb1 := pg_temp.sp(z_b, z_b1);
+        z_pc1 := pg_temp.sp(z_c, z_c1); z_pc2 := pg_temp.sp(z_c, z_c2); z_pc3 := pg_temp.sp(z_c, z_c3);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(z_a, v_paso_p, 'APROBADA', NULL, z_pa1 || ',' || z_pa2, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(z_b, v_paso_p, 'APROBADA', NULL, z_pb1::TEXT, v_ucp, v_cant, v_cod, v_msg);
+        CALL "ERP_CAF_SOLICITUD_DECIDIR"(z_c, v_paso_p, 'APROBADA', NULL, z_pc1 || ',' || z_pc2 || ',' || z_pc3, v_ucp, v_cant, v_cod, v_msg);
+        PERFORM pg_temp.verif(z_pa1, v_uvp); PERFORM pg_temp.verif(z_pa2, v_uvp); PERFORM pg_temp.verif(z_pb1, v_uvp);
+        PERFORM pg_temp.verif(z_pc1, v_uvp); PERFORM pg_temp.verif(z_pc2, v_uvp); PERFORM pg_temp.verif(z_pc3, v_uvp);
+        -- Estado y validaciones de la cantidad de plazas
+        r1 := pg_temp.q('SELECT "Veh_Propios" || ''|'' || "Plazas_Libres" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || v_ual || ',' || z_a || ') LIMIT 1')
+              || ' ' || pg_temp.q('SELECT "Veh_Propios" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || v_ual || ',' || z_b || ') LIMIT 1');
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'Y', 3, v_cod, v_msg);                      r2 := v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'Y', 0, v_cod, v_msg);                      r2 := r2 || '|' || v_cod::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_b, v_ual, 'Y', 2, v_cod, v_msg);                      r2 := r2 || '|' || v_cod::TEXT;
+        -- S1: por defecto 1 plaza; los conductores ingresan de a uno
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(z_a, v_ual, 'Y', v_cod, v_msg);                    r3 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_a, z_pa1 || ',' || z_pa2, v_uvp, v_cod, v_msg);       r4 := v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_a, z_pa1::TEXT, v_uvp, v_cod, v_msg);                 r4 := r4 || '|' || v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_a, z_pa2::TEXT, v_uvp, v_cod, v_msg);                 r4 := r4 || '|' || v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(z_a, z_pa1::TEXT, COALESCE(pg_temp.items(z_pa1, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+            r4 := r4 || '|' || v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_a, z_pa2::TEXT, v_uvp, v_cod, v_msg);                 r4 := r4 || '|' || v_cod::TEXT;
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- S2: A reserva 2 plazas y entran juntos; al salir el primero se libera una y otra entrega puede reservar
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'Y', 2, v_cod, v_msg);                 r5 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(z_b, v_ual, 'Y', v_cod, v_msg);                    r6 := v_cod::TEXT;
+            z_ia := pg_temp.q('SELECT "Caso" || ''|'' || "Plazas_Libres" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || v_ual || ',' || z_b || ') LIMIT 1');
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_a, z_pa1 || ',' || z_pa2, v_uvp, v_cod, v_msg);       r7 := v_cod::TEXT;
+            -- la salida de Vigilancia solo se registra con la entrega recepcionada (o para dar paso a otro vehículo): Almacén termina primero
+            CALL "ERP_CAF_PROVEEDOR_ATENDER"(z_a, v_ual, v_cod, v_msg);
+            CALL "ERP_CAF_PROVEEDOR_RECEPCION"(z_a, 'CONFORME', NULL, v_ual, v_cod, v_msg);                 r7 := r7 || '|' || v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(z_a, z_pa1::TEXT, COALESCE(pg_temp.items(z_pa1, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+            r8 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(z_b, v_ual, 'Y', v_cod, v_msg);                    r9 := v_cod::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- S3: C (3 conductores) reserva 2; con 2 dentro y 1 pendiente conserva las 2; al salir los dos queda 1 y otra entrega puede reservar
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_c, v_ual, 'Y', 2, v_cod, v_msg);                 r10 := v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(z_b, v_ual, 'Y', v_cod, v_msg);                    r10 := r10 || '|' || v_cod::TEXT;
+            z_ib := pg_temp.q('SELECT "Caso" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || v_ual || ',' || z_b || ') LIMIT 1');
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_c, z_pc1 || ',' || z_pc2, v_uvp, v_cod, v_msg);       r11 := v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_c, z_pc3::TEXT, v_uvp, v_cod, v_msg);                 r11 := r11 || '|' || v_cod::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(z_c, z_pc1::TEXT, COALESCE(pg_temp.items(z_pc1, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+            r12 := "ERP_CAF_FN_PLAZAS_ENTREGA"(z_c)::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(z_c, z_pc2::TEXT, COALESCE(pg_temp.items(z_pc2, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+            r12 := r12 || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_c)::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+            CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_c, z_pc3::TEXT, v_uvp, v_cod, v_msg);                 r13 := v_cod::TEXT;
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- S4: no se pueden reservar más plazas de las libres
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(z_b, v_ual, 'Y', v_cod, v_msg);
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'Y', 2, v_cod, v_msg);                 r14 := v_cod::TEXT || '|' || (POSITION('Solo hay 1' IN v_msg) > 0)::TEXT;
+            z_ic := pg_temp.q('SELECT "Plazas_Libres" FROM "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO"(' || v_ual || ',' || z_a || ') LIMIT 1');
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- S5: SIN ingreso vehicular ignora las plazas; cancelar la disponibilidad libera todas las plazas de la entrega
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'N', 5, v_cod, v_msg);                 r15 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT;
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'Y', 2, v_cod, v_msg);
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CANCELAR"(z_a, 'Prueba de plazas', v_ual, v_cod, v_msg);
+            r16 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        -- S6: sin los parámetros nuevos las llamadas viejas siguen valiendo (plazas por defecto = 1)
+        BEGIN
+            CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(z_b, v_ual, v_cod, v_msg);                    r17 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_b)::TEXT;
+            RAISE EXCEPTION 'deshacer D-261';
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+        PERFORM pg_temp.chk('D-261 el estado informa vehículos propios y plazas libres (A: 2 vehículos y 2 libres; B: 1 vehículo)', '2|2 1', COALESCE(r1, ''), '');
+        PERFORM pg_temp.chk('D-261 validación: más plazas que vehículos 400, cero plazas 400, una entrega de 1 vehículo con 2 plazas 400', '400|400|400', COALESCE(r2, ''), '');
+        PERFORM pg_temp.chk('D-261 por defecto la entrega reserva 1 plaza', '100|1|1', COALESCE(r3, ''), '');
+        PERFORM pg_temp.chk('D-261 con 1 plaza reservada: dos conductores a la vez 409, uno 100, el segundo 409, tras salir el primero 100', '409|100|409|100|100', COALESCE(r4, ''), '');
+        PERFORM pg_temp.chk('D-261 reservar 2 plazas: 2 plazas y 2 reservas en la esclusa', '100|2|2', COALESCE(r5, ''), '');
+        PERFORM pg_temp.chk('D-261 con la esclusa completa por plazas, otra entrega recibe 409', '409', COALESCE(r6, ''), '');
+        PERFORM pg_temp.chk('D-261 el estado de la otra entrega es COMPLETA con 0 plazas libres', 'COMPLETA|0', COALESCE(z_ia, ''), '');
+        PERFORM pg_temp.chk('D-261 con 2 plazas los 2 conductores ingresan juntos y Almacén termina la atención', '100|100', COALESCE(r7, ''), '');
+        PERFORM pg_temp.chk('D-263 con 2 vehículos, al recepcionar se libera toda la reserva aunque el primero aún no salga (Vigilancia registra la salida real)', '100|0|0', COALESCE(r8, ''), '');
+        PERFORM pg_temp.chk('D-263 con la reserva liberada, otra entrega confirma y la esclusa queda con 1 reserva', '100|1', COALESCE(r9, ''), '');
+        PERFORM pg_temp.chk('D-261 C (3 conductores) reserva 2 plazas y B queda bloqueada (esclusa completa)', '100|409', COALESCE(r10, ''), '');
+        PERFORM pg_temp.chk('D-261 estado de B con la esclusa completa', 'COMPLETA', COALESCE(z_ib, ''), '');
+        PERFORM pg_temp.chk('D-261 entran 2 juntos (100) y el tercero espera (409, tope por entrega)', '100|409', COALESCE(r11, ''), '');
+        PERFORM pg_temp.chk('D-261 con 1 dentro y 1 por ingresar conserva 2 plazas; al salir los 2 deja 1 plaza y 1 reserva', '2|1|1', COALESCE(r12, ''), '');
+        PERFORM pg_temp.chk('D-261 con la plaza que quedó, el tercer conductor ingresa', '100', COALESCE(r13, ''), '');
+        PERFORM pg_temp.chk('D-261 no se reservan más plazas que las libres (409 «Solo hay 1»)', '409|true', COALESCE(r14, ''), '');
+        PERFORM pg_temp.chk('D-261 con otra entrega ocupando 1 plaza, A ve 1 plaza libre', '1', COALESCE(z_ic, ''), '');
+        PERFORM pg_temp.chk('D-261 SIN ingreso vehicular ignora las plazas (no reserva ninguna)', '100|0', COALESCE(r15, ''), '');
+        PERFORM pg_temp.chk('D-261 cancelar la disponibilidad libera todas las plazas de la entrega', '100|0|0', COALESCE(r16, ''), '');
+        PERFORM pg_temp.chk('D-261 la llamada antigua (atajo CONFIRMAR) reserva 1 plaza', '100|1', COALESCE(r17, ''), '');
+        -- D-263: liberación temprana de plazas por Almacén (solo entregas de más de 1 vehículo)
+        DECLARE w1 TEXT; w2 TEXT; w3 TEXT; w4 TEXT; w5 TEXT; w6 TEXT; w7 TEXT;
+        BEGIN
+            BEGIN
+                CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(z_a, v_ual, 'Y', 2, v_cod, v_msg);
+                CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_a, z_pa1 || ',' || z_pa2, v_uvp, v_cod, v_msg);
+                CALL "ERP_CAF_PROVEEDOR_ATENDER"(z_a, v_ual, v_cod, v_msg);
+                w1 := "ERP_CAF_FN_PLAZA_LIBERAR_MOTIVO"(v_uvp, z_a);                                       -- vigilancia no tiene permiso de Almacén
+                CALL "ERP_CAF_PROVEEDOR_PLAZA_LIBERAR"(z_a, v_uvp, v_cod, v_msg);                          w1 := v_cod::TEXT;
+                CALL "ERP_CAF_PROVEEDOR_PLAZA_LIBERAR"(z_a, v_ual, v_cod, v_msg);                          w2 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+                CALL "ERP_CAF_PROVEEDOR_PLAZA_LIBERAR"(z_a, v_ual, v_cod, v_msg);                          w2 := w2 || '|' || v_cod::TEXT;     -- la última plaza no se libera a mano
+                CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(z_b, v_ual, 'Y', v_cod, v_msg);               w3 := v_cod::TEXT || '|' || "ERP_CAF_FN_EXCLUSA_RESERVAS"(v_ves)::TEXT;
+                CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(z_b, z_pb1::TEXT, v_uvp, v_cod, v_msg);            w3 := w3 || '|' || v_cod::TEXT;     -- el tope físico (2 dentro) protege
+                w4 := pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_VEHICULOS_LISTAR"(' || v_ual || ',' || z_a || ')') || '|' || pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PROVEEDOR_VEHICULOS_LISTAR"(' || v_uvp || ',' || z_a || ')');
+                w5 := pg_temp.q('SELECT "Plazas" || ''-'' || "Puede_Liberar" FROM "ERP_CAF_PROVEEDOR_PLAZAS_LISTAR"(' || v_ual || ',' || v_ves || ') WHERE "ID_Solicitud" = ' || z_a);
+                CALL "ERP_CAF_PROVEEDOR_PLAZA_LIBERAR"(z_b, v_ual, v_cod, v_msg);                          w6 := v_cod::TEXT;                  -- B tiene 1 vehículo
+                CALL "ERP_CAF_PROVEEDOR_RECEPCION"(z_a, 'CONFORME', NULL, v_ual, v_cod, v_msg);
+                w7 := v_cod::TEXT || '|' || "ERP_CAF_FN_PLAZAS_ENTREGA"(z_a)::TEXT || '|' || "ERP_CAF_FN_DISPONIBLE"(z_a);
+                RAISE EXCEPTION 'deshacer D-263';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+            PERFORM pg_temp.chk('D-263 sin permiso de Almacén no se libera una plaza (101)', '101', COALESCE(w1, ''), '');
+            PERFORM pg_temp.chk('D-263 el botón libera 1 de 2 plazas (queda 1) y la última no se libera a mano (409)', '100|1|1|409', COALESCE(w2, ''), '');
+            PERFORM pg_temp.chk('D-263 con la plaza liberada otra entrega confirma (2 reservas) pero el tope físico impide su ingreso mientras los 2 siguen dentro', '100|2|409', COALESCE(w3, ''), '');
+            PERFORM pg_temp.chk('D-263 la lista de vehículos la ve Almacén (2) y no Vigilancia (0)', '2|0', COALESCE(w4, ''), '');
+            PERFORM pg_temp.chk('D-263 el listado de plazas informa 1 plaza y que se puede liberar solo si queda más de una (no)', '1-N', COALESCE(w5, ''), '');
+            PERFORM pg_temp.chk('D-263 una entrega de 1 vehículo no tiene botón (409)', '409', COALESCE(w6, ''), '');
+            PERFORM pg_temp.chk('D-263 recepcionar libera todas las plazas y la entrega sigue figurando confirmada', '100|0|Y', COALESCE(w7, ''), '');
+        END;
         UPDATE "CAF_Parametro" SET "Valor" = '1' WHERE "Clave" = 'EXCLUSA_CAPACIDAD';
     END;
     END;

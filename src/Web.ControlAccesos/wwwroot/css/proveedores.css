@@ -159,3 +159,28 @@
 .pv-cupos details{color:var(--ink)}
 :root[data-theme="dark"] .pv-cupo-tag{background:#1b2f55;color:#bcd2ff}
 :root[data-theme="dark"] .pv-cupo-tag.at{background:#17402b;color:#bff0d3}
+
+/* D-260: coordinación de ingreso vehicular entre almaceneros */
+.pv-opcion-off{opacity:.55;cursor:not-allowed;background:var(--bg2,#f1f2f4)}
+.pv-opcion-off:hover{border-color:var(--line2)}
+.pv-opcion-warn{border-color:var(--warn-line);background:var(--warn-bg)}
+.pv-opcion-n{display:block;margin-top:4px;font-size:12px;line-height:1.35;color:var(--warn-ink)}
+.pv-opcion-off .pv-opcion-n{color:var(--muted)}
+.pv-esperando{font-weight:600}
+.pv-rechazo{color:var(--dang-ink)}
+.pv-aviso-warn{margin:0;padding:8px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line);font-size:13px;font-weight:600}
+.pv-ingveh:empty{display:none}
+.pv-ingveh-caja{display:flex;flex-direction:column;gap:6px;background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn-ink)}
+.pv-ingveh-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+/* D-261: selector de plazas a reservar */
+.pv-plazas{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--sf)}
+.pv-plazas[hidden]{display:none}
+.pv-plazas label{font-size:13px;font-weight:600;color:var(--ink)}
+.pv-plazas select{max-width:100%}
+
+/* D-263: casilla «Liberar plaza vehicular» y lista informativa de placas dentro (modal Terminar atención) */
+.pv-opc-plaza{margin-top:6px}
+.pv-placas{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 0 26px;font-size:12px}
+.pv-placas-t{flex-basis:100%;color:var(--muted,#667)}
+.pv-placa{padding:2px 8px;border:1px solid var(--line,#d5dbe3);border-radius:10px;background:var(--bg-soft,#f4f6f9)}

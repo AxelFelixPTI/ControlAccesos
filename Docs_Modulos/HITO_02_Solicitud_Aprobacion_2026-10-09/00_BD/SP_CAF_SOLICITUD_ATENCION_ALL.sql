@@ -4,6 +4,7 @@
 --   ERP_CAF_FN_ATENCION_ESTADO(solicitud, empresa)          estado efectivo (fila o, si no existe, derivado del estado operativo)
 --   ERP_CAF_FN_ATENCION_ACTIVAS(empresa)                    entregas que esa empresa está atendiendo ahora
 --   ERP_CAF_FN_ATENCION_AUTORIZADO(usuario, empresa, sede)  'Y' si es de Almacén y atiende a esa empresa
+--   ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN(usuario, solicitud, empresa, sede)  D-259: quien la inició o con la licencia «Cerrar sin atención»
 --   ERP_CAF_ATENCION_LISTAR(solicitud, usuario)             una fila por empresa con lo que el usuario puede hacer
 --   ERP_CAF_MOTIVO_SIN_ATENCION_LISTAR()                    motivos de «Cerrar sin atención»
 --   ERP_CAF_PROVEEDOR_ATENDER_EMPRESA / RECEPCION_EMPRESA / CERRAR_SIN_ATENCION / DETENER_EMPRESA / REANUDAR_EMPRESA (una empresa)
@@ -74,6 +75,23 @@ BEGIN
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', "HV_ID_Sede") <> 'Y' THEN RETURN 'N'; END IF;
     IF EXISTS (SELECT 1 FROM "CAF_Usuario_Empresa_Almacen" X
                 WHERE X."ID_Usuario" = "HV_UsuarioID" AND X."ID_Catalogo_Empresa_Grupo" = "HV_ID_Empresa" AND X."Eliminado" = 'N') THEN RETURN 'Y'; END IF;
+    RETURN 'N';
+END;
+$$;
+
+-- D-259: ¿puede el usuario «Cerrar sin atención» esta empresa? Siempre debe ser un almacenero de esa empresa (Almacén por empresa) y:
+--   · la empresa aún no se empezó a atender (PENDIENTE): cualquiera de sus almaceneros (nadie la inició), o
+--   · la inició él, o
+--   · tiene el permiso PER_CAF_PROVEEDOR_CERRAR_SIN_ATENCION (licencia aparte): puede cerrar aunque la haya iniciado otro.
+CREATE OR REPLACE FUNCTION "ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN"("HV_UsuarioID" BIGINT, "HV_ID_Solicitud" BIGINT, "HV_ID_Empresa" BIGINT, "HV_ID_Sede" BIGINT)
+RETURNS CHAR
+LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+BEGIN
+    -- V1.0 2026-11-20
+    IF "ERP_CAF_FN_ATENCION_AUTORIZADO"("HV_UsuarioID", "HV_ID_Empresa", "HV_ID_Sede") <> 'Y' THEN RETURN 'N'; END IF;
+    IF "ERP_CAF_FN_ATENCION_ESTADO"("HV_ID_Solicitud", "HV_ID_Empresa") = 'PENDIENTE' THEN RETURN 'Y'; END IF;
+    IF "ERP_CAF_FN_ATENCION_INICIO"("HV_ID_Solicitud", "HV_ID_Empresa") = "HV_UsuarioID" THEN RETURN 'Y'; END IF;
+    IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_CERRAR_SIN_ATENCION', "HV_ID_Sede") = 'Y' THEN RETURN 'Y'; END IF;
     RETURN 'N';
 END;
 $$;
@@ -254,6 +272,7 @@ DECLARE
     lv_lim   INT;
     lv_sin   BOOLEAN;
 BEGIN
+    -- V2.3 2026-11-20 (D-259): Puede_Cerrar_Sin = quien inició la atención, o con la licencia «Cerrar sin atención» (solo sus empresas); una empresa PENDIENTE la puede cerrar cualquiera de sus almaceneros
     -- V2.2 2026-11-16 (D-244): reserva (solo quien confirmó inicia), cupo del almacenero y cupo por empresa configurables, todo vía ERP_CAF_ATENCION_CUPO_MOTIVO
     -- V2.1 2026-11-16 (D-243): SIN ingreso vehicular la atención puede iniciarse con la entrega EN_ESPERA (Almacén y Vigilancia son independientes)
     -- V2.0 2026-11-15 (D-239): DETENIDA, Puede_Detener/Puede_Reanudar, solo quien inició actúa sobre una empresa en atención; sin ingreso vehicular no usa la esclusa
@@ -272,7 +291,8 @@ BEGIN
            CAST(CASE WHEN AU.aut = 'Y' AND ST.est = 'PENDIENTE' AND lv_act = 'Y' AND (lv_eop IN ('INGRESO','EN_ATENCION') OR (lv_sin AND lv_eop = 'EN_ESPERA')) AND lv_res
                           AND CAST(lv_fecha AS DATE) <= CURRENT_DATE AND MOT.m IS NULL THEN 'Y' ELSE 'N' END AS CHAR),
            CAST(CASE WHEN AU.aut = 'Y' AND ST.est = 'EN_ATENCION' AND lv_act = 'Y' AND lv_eop = 'EN_ATENCION' AND INI.u = "HV_UsuarioID" THEN 'Y' ELSE 'N' END AS CHAR),
-           CAST(CASE WHEN AU.aut = 'Y' AND ST.est IN ('PENDIENTE','EN_ATENCION','DETENIDA') AND lv_act = 'Y' AND (lv_eop IN ('INGRESO','EN_ATENCION') OR (lv_sin AND lv_eop = 'EN_ESPERA')) THEN 'Y' ELSE 'N' END AS CHAR),
+           CAST(CASE WHEN AU.aut = 'Y' AND ST.est IN ('PENDIENTE','EN_ATENCION','DETENIDA')
+                          AND "ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN"("HV_UsuarioID", E."ID_Solicitud", E."ID_Catalogo_Empresa_Grupo", lv_sede) = 'Y' AND lv_act = 'Y' AND (lv_eop IN ('INGRESO','EN_ATENCION') OR (lv_sin AND lv_eop = 'EN_ESPERA')) THEN 'Y' ELSE 'N' END AS CHAR),
            CAST(CASE WHEN ST.est = 'PENDIENTE' THEN
                           CASE WHEN AU.aut <> 'Y' THEN 'Usted no atiende a esta empresa.'
                                WHEN lv_act IS DISTINCT FROM 'Y' OR NOT (lv_eop IN ('INGRESO','EN_ATENCION') OR (lv_sin AND lv_eop = 'EN_ESPERA')) THEN CASE WHEN lv_sin THEN 'Vigilancia aún no verificó los datos del proveedor.' ELSE 'La entrega aún no está lista para atenderse (el proveedor debe haber ingresado).' END
@@ -519,6 +539,12 @@ BEGIN
         IF lv_c <> 100 THEN "HV_Codigo_Resp" := lv_c; "HV_Mensaje" := lv_m; RETURN; END IF;
         lv_est := "ERP_CAF_FN_ATENCION_ESTADO"("HV_ID_Solicitud", "HV_ID_Empresa");
         IF lv_est NOT IN ('PENDIENTE','EN_ATENCION','DETENIDA') THEN "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Esa empresa ya terminó su atención.'; RETURN; END IF;
+        -- V1.1 2026-11-20 (D-259): quien inició la atención, o un almacenero con la licencia «Cerrar sin atención» (solo de sus empresas)
+        IF "ERP_CAF_FN_ATENCION_PUEDE_CERRAR_SIN"("HV_UsuarioID", "HV_ID_Solicitud", "HV_ID_Empresa", lv_sede) <> 'Y' THEN
+            "HV_Codigo_Resp" := 101;
+            "HV_Mensaje" := 'Solo quien inició la atención, o un almacenero con la licencia «Cerrar sin atención», puede cerrarla.';
+            RETURN;
+        END IF;
         CALL "ERP_CAF_ATENCION_ASEGURAR"("HV_ID_Solicitud", "HV_UsuarioID");
         UPDATE "CAF_Solicitud_Atencion"
            SET "Estado" = 'CERRADA_SIN_ATENCION', "Fecha_Fin" = CURRENT_TIMESTAMP, "ID_Usuario_Fin" = "HV_UsuarioID", "ID_Motivo_Sin_Atencion" = "HV_ID_Motivo",

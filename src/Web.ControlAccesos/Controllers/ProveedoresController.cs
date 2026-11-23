@@ -69,6 +69,10 @@ public sealed class ProveedoresController : Controller
         var ex = x.Success ? x.Data : null;
         var cu = await _prov.CuposAsync(uid, sede.Value, ct);                                  // D-244: panel de cupos
         var cupos = cu.Success ? cu.Data! : new List<Dto_Proveedor_Cupo>();
+        var iv = await _prov.IngresoVehListarAsync(uid, sede.Value, ct);                       // D-260: solicitudes de ingreso vehicular
+        var ingresoVeh = iv.Success ? iv.Data! : new List<Dto_Proveedor_IngresoVeh_Solicitud>();
+        var pz = await _prov.PlazasListarAsync(uid, sede.Value, ct);                           // D-263: entregas con varias plazas (botón «Liberar plaza vehicular»)
+        var plazasVeh = pz.Success ? pz.Data! : new List<Dto_Proveedor_Plaza>();
         return Json(new
         {
             success = true,
@@ -81,6 +85,15 @@ public sealed class ProveedoresController : Controller
                 plazas = (ex?.Plazas ?? new List<Dto_Proveedor_Exclusa>()).Select(x => new { estado = x.Estado, id = x.ID_Solicitud, codigo = x.Codigo, empresa = x.Empresa, desde = Hora(x.Desde), atiende = x.Atiende }),
             },
             cupos = cupos.Select(c => new { tipo = c.Tipo, nombre = c.Nombre, codigo = c.Codigo, solicitud = c.Solicitud, ocupa = c.Ocupa, detalle = (c.Detalle ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Split(':')).Where(t => t.Length == 2).Select(t => new { codigo = t[0], estado = t[1] }), usados = c.Usados, limite = c.Limite, sinLimite = c.Limite >= int.MaxValue }),
+            plazasVeh = plazasVeh.Select(x => new { solicitudId = x.ID_Solicitud, plazas = x.Plazas, vehDeclarados = x.Veh_Declarados, vehDentro = x.Veh_Dentro, puede = x.Puede_Liberar, motivo = x.Motivo }),
+            ingresoVeh = ingresoVeh.Select(s => new
+            {
+                id = s.ID_Solicitud_Ingreso, solicitudId = s.ID_Solicitud, codigo = s.Codigo, empresas = s.Empresas, solicitante = s.Solicitante_Nombre,
+                otraId = s.ID_Solicitud_Otra, otraCodigo = s.Codigo_Otra, otraEmpresas = s.Empresas_Otra, responsable = s.Responsable_Nombre,
+                vehTotal = s.Veh_Total_Otra, vehPorIngresar = s.Veh_Por_Ingresar_Otra, estado = s.Estado, motivo = s.Motivo_Rechazo,
+                solicitada = Hora(s.Fecha_Solicitud), decidida = Hora(s.Fecha_Decision), decide = s.Decide_Nombre, porCoord = s.Decidida_Por_Coord,
+                esResponsable = s.Es_Responsable, puedeDecidir = s.Puede_Decidir, esSolicitante = s.Es_Solicitante,
+            }),
             data = r.Data!.Select(e => new
             {
                 id = e.ID_Solicitud, codigo = e.Codigo, fecha = e.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = e.Fecha_Hora_Prevista.ToString("HH:mm"),
@@ -119,7 +132,67 @@ public sealed class ProveedoresController : Controller
     [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
     public async Task<IActionResult> ConfirmarDisponibilidad([FromBody] ProveedorDisponibilidadVM m, CancellationToken ct)
     {
-        var r = await _prov.ConfirmarDisponibilidadAsync(m.SolicitudId, m.ConVehiculo, User.UsuarioId(), ct);
+        var r = await _prov.ConfirmarDisponibilidadAsync(m.SolicitudId, m.ConVehiculo, User.UsuarioId(), m.Plazas, ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-260: al abrir «Confirmar disponibilidad»: estado de la esclusa (caso A advertencia / caso B completa) y de la solicitud de ingreso vehicular propia.</summary>
+    [HttpGet, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> IngresoVehEstado(long id, CancellationToken ct)
+    {
+        var r = await _prov.IngresoVehEstadoAsync(User.UsuarioId(), id, ct);
+        if (!r.Success) return Falla(r.Message);
+        return Json(new
+        {
+            success = true,
+            data = r.Data!.Select(x => new
+            {
+                caso = x.Caso, capacidad = x.Capacidad, reservas = x.Reservas, otraId = x.ID_Solicitud_Otra, otraCodigo = x.Codigo_Otra, otraEmpresas = x.Empresas_Otra, otraAlmacenero = x.Almacenero_Otra,
+                vehTotal = x.Veh_Total, vehPorIngresar = x.Veh_Por_Ingresar, vehDentro = x.Veh_Dentro, vehSalieron = x.Veh_Salieron, requiere = x.Requiere_Conformidad,
+                solicitudId = x.ID_Solicitud_Ingreso, solicitudEstado = x.Solicitud_Estado, motivoRechazo = x.Motivo_Rechazo,
+                vehPropios = x.Veh_Propios, plazasLibres = x.Plazas_Libres, plazasOtra = x.Plazas_Otra,
+            }),
+        });
+    }
+
+    /// <summary>D-263: Almacén libera UNA plaza de la esclusa (entregas de más de 1 vehículo); Vigilancia sigue registrando la salida real.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> LiberarPlaza([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    {
+        var r = await _prov.PlazaLiberarAsync(m.SolicitudId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-263: conductores de la entrega con su placa y estado (lista informativa del modal «Terminar atención»).</summary>
+    [HttpGet, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> VehiculosListar(long id, CancellationToken ct)
+    {
+        var r = await _prov.VehiculosListarAsync(User.UsuarioId(), id, ct);
+        if (!r.Success) return Falla(r.Message);
+        return Json(new { success = true, data = r.Data!.Select(x => new { personaId = x.ID_Solicitud_Persona, nombre = x.Nombre, placa = x.Placa, estado = x.Estado }) });
+    }
+
+    /// <summary>D-260: pide la conformidad del almacenero con la entrega en curso para confirmar CON ingreso vehicular.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> SolicitarIngresoVeh([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    {
+        var r = await _prov.IngresoVehSolicitarAsync(m.SolicitudId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-260: el solicitante retira su solicitud pendiente (puede elegir «Sin ingreso vehicular»).</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> RetirarIngresoVeh([FromBody] ProveedorAtenderVM m, CancellationToken ct)
+    {
+        var r = await _prov.IngresoVehRetirarAsync(m.SolicitudId, User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
+    }
+
+    /// <summary>D-260: confirmar o rechazar una solicitud de ingreso vehicular (almacenero en curso o Coordinador de Almacén).</summary>
+    [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
+    public async Task<IActionResult> ResponderIngresoVeh([FromBody] ProveedorIngresoVehRespuestaVM m, CancellationToken ct)
+    {
+        var r = await _prov.IngresoVehResponderAsync(m.SolicitudIngresoId, m.Accion ?? string.Empty, m.Motivo, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 
@@ -215,7 +288,7 @@ public sealed class ProveedoresController : Controller
     [HttpPost, ValidateAntiForgeryToken, ExigirPermiso(PermAlmacen)]
     public async Task<IActionResult> TerminarEmpresas([FromBody] ProveedorEmpresasVM m, CancellationToken ct)
     {
-        var r = await _prov.TerminarEmpresasAsync(m.SolicitudId, m.EmpresasIds, m.Observacion, User.UsuarioId(), ct);
+        var r = await _prov.TerminarEmpresasAsync(m.SolicitudId, m.EmpresasIds, m.Observacion, User.UsuarioId(), m.LiberarPlaza, ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }
 

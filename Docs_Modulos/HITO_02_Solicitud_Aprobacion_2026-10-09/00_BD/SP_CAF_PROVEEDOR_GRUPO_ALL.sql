@@ -41,6 +41,7 @@ DECLARE
     lv_val   VARCHAR(200);
     lv_dentro INT := 0;
     lv_nuevos INT := 0;
+    lv_plz   INT := 0;
     lv_mal   VARCHAR(2000);
     lv_c     INT;
     lv_m     VARCHAR(250);
@@ -120,6 +121,14 @@ BEGIN
             "HV_Codigo_Resp" := 409;
             "HV_Mensaje" := 'La exclusa admite ' || lv_cap || ' vehículo(s) a la vez y ya hay ' || (lv_dentro + lv_otras) || ' dentro'
                             || CASE WHEN lv_otras > 0 THEN ' (' || lv_otras || ' de otra entrega)' ELSE '' END || ': registre primero su salida.'; RETURN;
+        END IF;
+        -- D-261: tope por entrega: una entrega no tiene dentro más vehículos que las plazas que reservó (así no ocupa la plaza que otra reservó)
+        IF lv_cap < 2147483647 THEN
+            SELECT COUNT(*) INTO lv_plz FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = "HV_ID_Solicitud" AND X."Eliminado" = 'N';
+            IF lv_plz > 0 AND lv_dentro + lv_nuevos > lv_plz THEN
+                "HV_Codigo_Resp" := 409;
+                "HV_Mensaje" := 'La entrega reservó ' || lv_plz || ' plaza(s) de la esclusa y ya tiene ' || lv_dentro || ' vehículo(s) dentro: registre primero su salida o pida a Almacén liberar o ampliar la reserva.'; RETURN;
+            END IF;
         END IF;
         -- D-243: SIN ingreso vehicular el ayudante (o el conductor a pie) puede ingresar por su cuenta: no hay vehículo que acompañar
         IF lv_dentro + lv_nuevos = 0 AND COALESCE((SELECT O."Con_Vehiculo" FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N'), 'Y') <> 'N' THEN

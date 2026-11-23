@@ -10,6 +10,8 @@
      data-url-atencion="@Url.Action("AtencionEmpresas", "Proveedores")"
      data-url-cerrar-sin="@Url.Action("CerrarSinAtencion", "Proveedores")"
      data-url-confirmar="@Url.Action("ConfirmarDisponibilidad", "Proveedores")"
+     data-url-ingveh-estado="@Url.Action("IngresoVehEstado", "Proveedores")" data-url-ingveh-solicitar="@Url.Action("SolicitarIngresoVeh", "Proveedores")"
+     data-url-ingveh-retirar="@Url.Action("RetirarIngresoVeh", "Proveedores")" data-url-plaza-liberar="@Url.Action("LiberarPlaza", "Proveedores")" data-url-vehiculos="@Url.Action("VehiculosListar", "Proveedores")" data-url-ingveh-responder="@Url.Action("ResponderIngresoVeh", "Proveedores")"
      data-url-ceder="@Url.Action("CederReserva", "Proveedores")" data-url-tomar="@Url.Action("TomarReserva", "Proveedores")">
     @Html.AntiForgeryToken()
     <p class="lead">
@@ -33,6 +35,7 @@
     </section>
     <section class="card pv-filtros" id="pv-filtros" aria-label="Filtros"></section>
     <div class="aviso" id="pv-exclusa"></div>
+    <div class="pv-ingveh" id="pv-ingveh" aria-live="polite"></div>
     <div class="pv-cupos" id="pv-cupos"></div>
     <div id="pv-cal"></div>
 </div>

@@ -7,7 +7,7 @@
     var raiz = document.getElementById('caf-prov');
     if (!raiz) return;
     var el = CAF.el, d = raiz.dataset, almacen = d.puedeAlmacen === 'Y';
-    var vista = 'SEMANA', ancla = lunes(new Date()), anclado = false, hoy = null, datos = [], exclusa = null, cupos = [], cargado = { desde: '', hasta: '' }, secuencia = 0;
+    var vista = 'SEMANA', ancla = lunes(new Date()), anclado = false, hoy = null, datos = [], exclusa = null, cupos = [], ingresoVeh = [], plazasVeh = [], avisadas = {}, cargado = { desde: '', hasta: '' }, secuencia = 0;
     var cal = document.getElementById('pv-cal'), titulo = document.getElementById('pv-titulo'), hora = document.getElementById('pv-hora');
     var avExc = document.getElementById('pv-exclusa');
 
@@ -86,7 +86,7 @@
         return CAF.pedir(d.urlDatos + '?desde=' + r.desde + '&hasta=' + r.hasta).then(function (res) {
             if (mi !== secuencia) return;
             if (!res.success) { if (!silencioso) CAF.aviso(res.message || 'No se pudo cargar el calendario.', 'warn'); return; }
-            hoy = res.hoy; datos = res.data || []; exclusa = res.exclusa; cupos = res.cupos || []; cargado = r;
+            hoy = res.hoy; datos = res.data || []; exclusa = res.exclusa; cupos = res.cupos || []; ingresoVeh = res.ingresoVeh || []; plazasVeh = res.plazasVeh || []; cargado = r;
             if (!anclado) {
                 // Primera carga: el «hoy» es el del servidor. Si cambia el rango visible, se vuelve a pedir.
                 anclado = true; ancla = vista === 'MES' ? aFecha(hoy) : lunes(aFecha(hoy));
@@ -95,6 +95,7 @@
             }
             hora.textContent = 'Actualizado a las ' + res.ahora;
             pintar();
+            avisarIngresoVeh();
         });
     }
 
@@ -137,8 +138,11 @@
         var activa = plazas.some(function (z) { return z.estado === 'EN_ATENCION' || z.estado === 'POR_SALIR'; });
         avExc.className = 'aviso ' + (activa ? 'pv-exc-on' : 'pv-exc-res');
         if (cap > 1 || plazas.length > 1) avExc.appendChild(el('div', {}, [el('b', { text: 'Esclusa: ' + (x.usadas || plazas.length) + ' de ' + (cap >= 2147483647 ? 'sin límite' : cap) + ' plazas ocupadas.' })]));
-        plazas.forEach(function (z) {
-            var quien = (z.empresa || '') + (z.codigo ? ' (' + z.codigo + ')' : ''), t, m;
+        // D-261: una entrega puede tener varias plazas: se muestra una sola línea con «(n plazas)»
+        var porEntrega = {}, unicas = [];
+        plazas.forEach(function (z) { var k = z.id || ('p' + unicas.length); if (porEntrega[k]) { porEntrega[k].n++; } else { z.n = 1; porEntrega[k] = z; unicas.push(z); } });
+        unicas.forEach(function (z) {
+            var quien = (z.empresa || '') + (z.codigo ? ' (' + z.codigo + ')' : '') + (z.n > 1 ? ' · ' + z.n + ' plazas' : ''), t, m;
             if (z.estado === 'RESERVADA') { t = 'Exclusa reservada: '; m = quien + (z.desde ? ' desde las ' + z.desde : '') + '. Almacén confirmó su disponibilidad y espera que ingrese.' + (cap === 1 ? ' Para atender a otro proveedor, cancele esa disponibilidad.' : ''); }
             else if (z.estado === 'DENTRO') { t = 'Proveedor dentro, esperando atención: '; m = quien + '. La plaza sigue reservada para esa entrega.'; }
             else if (z.estado === 'POR_SALIR') { t = 'Plaza ocupada, esperando la salida: '; m = quien + '. Almacén ya terminó; el camión sale por la misma exclusa y solo cuando Vigilancia registre su salida se liberará la plaza.'; }
@@ -303,6 +307,10 @@
         linea('Solicitante:', e.solicitante);
         linea('Transporte:', e.empresaTransportista);
         linea('Conductor:', e.transportista + (e.documento ? ' · ' + e.documento : '') + (e.apoyo && !porPersona ? ' (+' + e.apoyo + ' apoyo)' : ''));
+        if (e.modoIngreso === 'Y' && e.transportistas > 0) {   // D-260: el vehículo se cuenta aparte de la atención
+            var porIng = Math.max(0, e.transportistas - e.dentro - e.salieron);
+            linea('Vehículos:', (e.dentro + e.salieron) + ' de ' + e.transportistas + (e.transportistas === 1 ? ' ingresado' : ' ingresados') + ' · ' + e.dentro + ' dentro' + (e.salieron ? ' · ' + e.salieron + ' salió' : '') + (porIng ? ' · ' + porIng + ' por ingresar' : ''));
+        }
         if (porPersona) linea('Personas:', e.transportistas + (e.transportistas === 1 ? ' conductor' : ' conductores') + ' · verificados ' + e.verificados + ' · dentro ' + e.dentro +
             (e.salieron ? ' · salieron ' + e.salieron : '') + (e.ayudantes ? ' · ' + e.ayudantes + (e.ayudantes === 1 ? ' ayudante' : ' ayudantes') + ' de descarga' : ''));
         // D-238: con varias empresas, el estado de la atención de cada una
@@ -393,10 +401,27 @@
         ]);
     }
 
+    // D-263: datos de plazas de la entrega (solo existen para entregas de más de 1 vehículo con plaza en la esclusa)
+    function plazaDe(e) { for (var i = 0; i < plazasVeh.length; i++) if (plazasVeh[i].solicitudId === e.id) return plazasVeh[i]; return null; }
+
+    function modalLiberarPlaza(e, pz) {
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('p', { class: 'pv-modal-p', text: 'La entrega reserva ' + pz.plazas + ' plazas de la esclusa. Se libera UNA para que otra entrega pueda reservarla.' }),
+            el('p', { class: 'pv-modal-p', text: 'La salida real del vehículo la sigue registrando Vigilancia, que verifica las placas. Si la esclusa está llena, el siguiente camión espera a que salga uno.' })
+        ]), env = false;
+        CAF.modal('Liberar plaza vehicular · ' + e.empresa, cuerpo, [
+            { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Liberar plaza', icono: 'ceder', tipo: 'primary', onclick: function (cerrar) {
+                if (env) return; env = true;
+                enviar(d.urlPlazaLiberar, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; });
+            } }
+        ], 'chico');
+    }
+
     function acciones(e) {
         if (!almacen) return null;
         var caja = el('div', { class: 'pv-acc' }), hay = false;
-        var ICA = { 'Tomar reserva': 'tomar', 'Confirmar disponibilidad': 'confirmar', 'Iniciar atención': 'iniciar', 'Detener atención': 'pausa', 'Reanudar atención': 'iniciar', 'Terminar atención': 'terminar' };
+        var ICA = { 'Liberar plaza vehicular': 'ceder', 'Tomar reserva': 'tomar', 'Confirmar disponibilidad': 'confirmar', 'Iniciar atención': 'iniciar', 'Detener atención': 'pausa', 'Reanudar atención': 'iniciar', 'Terminar atención': 'terminar' };
         // Lo que el usuario no puede hacer ahora NO se muestra (se explica con la nota pequeña de abajo, si corresponde).
         function boton(texto, fn, primario, off, ayuda, extra) {
             if (off) return;
@@ -422,6 +447,9 @@
             if (e.puedeReanudar) boton('Reanudar atención', function () { accionAtencion(e, 'REANUDAR'); }, false, false, '', 'btn-warn');
             else if (e.motivoReanudar) { boton('Reanudar atención', null, false, true, e.motivoReanudar, 'btn-warn'); textos.push(e.motivoReanudar); }
             if (e.puedeTerminar) boton('Terminar atención', function () { accionAtencion(e, 'TERMINAR'); }, false, false, '', 'btn-danger');
+            // D-263: entrega de más de 1 vehículo con varias plazas: Almacén libera una (la salida real la sigue registrando Vigilancia)
+            var pz = plazaDe(e);
+            if (pz && pz.puede) boton('Liberar plaza vehicular', function () { modalLiberarPlaza(e, pz); }, false, false, '');
             if (!hay) boton('Iniciar atención', null, true, true, motivo(e) || 'Ninguna empresa de esta entrega es de las que usted atiende.', 'pv-b-ini');
             if (e.puedeCeder) { hay = true; caja.appendChild(CAF.btn({ icono: 'ceder', texto: 'Ceder reserva', titulo: 'Libera su cupo para que otro almacenero de la empresa tome esta entrega', clase: 'btn-sm', modo: 'texto', onclick: function () { accionReserva(e, 'CEDER'); } })); }
             if (e.puedeCerrar) {
@@ -465,32 +493,128 @@
 
     function botonDe(ev) { return ev && ev.currentTarget ? ev.currentTarget : { disabled: false }; }
 
-    // D-239/D-242: la disponibilidad no es anticipada (solo tras la verificación de Vigilancia) y Almacén decide si el vehículo ingresa o no. No se puede deshacer.
+    // D-239/D-242/D-260: la disponibilidad no es anticipada (solo tras la verificación de Vigilancia) y Almacén decide si el vehículo ingresa o no. No se puede deshacer.
+    // D-260: al abrir se consulta el estado de la esclusa. Caso B (completa): «Con ingreso vehicular» queda gris y bloqueada. Caso A (hay cupo, pero otra entrega aún tiene
+    // vehículos por ingresar): tarjeta naranja con el aviso y el botón principal pasa a «Solicitar ingreso vehicular»; se espera la conformidad de ese almacenero.
     function modalConfirmar(e) {
-        var elegido = null, err = el('span', { class: 'field-e' });
-        var cajas = [];
-        function opcion(valor, titulo, ayuda, glifo) {
+        CAF.pedir(d.urlIngvehEstado + '?id=' + e.id).then(function (r) {
+            if (!r.success) { CAF.aviso(r.message || 'No se pudo consultar el estado de la esclusa.', 'warn'); return; }
+            abrirConfirmar(e, r.data || []);
+        });
+    }
+
+    function abrirConfirmar(e, filas) {
+        var caso = filas.length ? filas[0].caso : 'LIBRE';
+        var otras = filas.filter(function (f) { return f.otraId; });
+        var pend = otras.filter(function (f) { return f.solicitudEstado === 'PENDIENTE'; });
+        var espera = pend.length > 0;
+        var avisos = otras.filter(function (f) { return f.requiere; });
+        var rechazo = otras.filter(function (f) { return f.solicitudEstado === 'RECHAZADA'; })[0];
+        var bloqueada = caso === 'COMPLETA';
+        var advertir = caso === 'ADVERTENCIA' && avisos.length > 0;
+        // D-261: el selector de plazas solo aparece con ingreso vehicular, si la entrega tiene varios vehículos y quedan varias plazas libres; con 1 vehículo se reserva 1 plaza sin preguntar
+        var vehPropios = filas.length ? filas[0].vehPropios : 1, libres = filas.length ? filas[0].plazasLibres : 1;
+        var maxPlazas = Math.max(1, Math.min(vehPropios, libres));
+        var pidePlazas = !bloqueada && !advertir && vehPropios > 1 && libres > 1;
+        var selPlazas = null, cajaPlazas = null;
+        if (pidePlazas) {
+            selPlazas = el('select', { id: 'pv-plazas', 'aria-label': 'Plazas de la esclusa a reservar' });
+            for (var k = 1; k <= maxPlazas; k++) selPlazas.appendChild(el('option', { value: String(k), text: k === 1 ? '1 plaza (los vehículos entran uno a uno)' : k + ' plazas (' + (k === vehPropios ? 'entran todos a la vez' : 'entran ' + k + ' a la vez') + ')' }));
+            cajaPlazas = el('div', { class: 'pv-plazas', hidden: '' }, [el('label', { for: 'pv-plazas', text: 'Plazas de la esclusa a reservar' }), selPlazas,
+                el('span', { class: 'pv-opcion-a', text: 'Esta entrega tiene ' + vehPropios + ' vehículos. Con más plazas entran juntos, pero las demás entregas tendrán menos cupo; puede liberar plazas luego.' })]);
+        }
+        var elegido = null, err = el('span', { class: 'field-e' }), cajas = [], btnPrim = null;
+        function opcion(valor, titulo, ayuda, glifo, extra) {
             var inp = el('input', { type: 'radio', name: 'pv-modo', value: valor });
-            var lab = el('label', { class: 'pv-opcion' }, [inp, el('span', { class: 'pv-opcion-i', 'aria-hidden': 'true', text: glifo }), el('b', { text: titulo }), el('span', { class: 'pv-opcion-a', text: ayuda })]);
-            inp.addEventListener('change', function () { elegido = valor; err.textContent = ''; cajas.forEach(function (c) { c.classList.toggle('sel', c === lab); }); });
+            var deshab = valor === 'Y' && bloqueada;
+            if (deshab) inp.disabled = true;
+            var lab = el('label', { class: 'pv-opcion' + (deshab ? ' pv-opcion-off' : '') + (valor === 'Y' && advertir && !deshab ? ' pv-opcion-warn' : ''), 'aria-disabled': deshab ? 'true' : 'false' },
+                [inp, el('span', { class: 'pv-opcion-i', 'aria-hidden': 'true', text: glifo }), el('b', { text: titulo }), el('span', { class: 'pv-opcion-a', text: ayuda })].concat(extra || []));
+            inp.addEventListener('change', function () { elegido = valor; err.textContent = ''; cajas.forEach(function (c) { c.classList.toggle('sel', c === lab); }); if (cajaPlazas) cajaPlazas.hidden = (valor !== 'Y'); rotularPrincipal(); });
             cajas.push(lab); return lab;
+        }
+        var extraY = [];
+        if (bloqueada) {
+            extraY.push(el('span', { class: 'pv-opcion-n', text: 'Esclusa completa (' + filas[0].reservas + ' de ' + filas[0].capacidad + ' plazas' + (otras.length ? ': ' + otras.map(function (f) { return f.otraCodigo; }).join(', ') : '') + ').' }));
+        } else if (advertir) {
+            avisos.forEach(function (f) {
+                extraY.push(el('span', { class: 'pv-opcion-n' }, [el('b', { text: f.otraCodigo }), ' (' + (f.otraEmpresas || 'empresa') + ') · almacenero: ' + (f.otraAlmacenero || 'sin asignar') + ' · vehículos pendientes: ' + f.vehPorIngresar + ' de ' + f.vehTotal + '.']));
+            });
+            if (espera) extraY.push(el('span', { class: 'pv-opcion-n pv-esperando', text: 'Esperando conformidad de ' + pend.map(function (f) { return f.otraAlmacenero || f.otraCodigo; }).join(', ') + '.' }));
+            else if (rechazo) extraY.push(el('span', { class: 'pv-opcion-n pv-rechazo', text: 'Solicitud rechazada' + (rechazo.motivoRechazo ? ': ' + rechazo.motivoRechazo : '.') }));
         }
         var cuerpo = el('div', { class: 'stack' }, [
             el('p', { class: 'pv-modal-p', text: 'Elija cómo se atenderá a este proveedor. Los conductores ya fueron verificados por Vigilancia.' }),
             el('div', { class: 'pv-opciones', role: 'radiogroup', 'aria-label': 'Ingreso vehicular' }, [
-                opcion('Y', 'Con ingreso vehicular', 'El vehículo entra por la esclusa, que queda reservada para esta entrega hasta su salida.', '🚚'),
-                opcion('N', 'Sin ingreso vehicular', 'No se usa la esclusa; las personas ingresan a pie.', '🚶')]),
-            el('p', { class: 'pv-aviso-irrev', text: 'Esta decisión no se puede deshacer.' }), err
+                opcion('Y', 'Con ingreso vehicular', 'El vehículo entra por la esclusa, que queda reservada para esta entrega hasta su salida.', '🚚', extraY),
+                opcion('N', 'Sin ingreso vehicular', 'No se usa la esclusa; las personas ingresan a pie.', '🚶')])
         ]);
+        if (cajaPlazas) cuerpo.appendChild(cajaPlazas);
+        if (advertir && !espera) cuerpo.appendChild(el('p', { class: 'pv-aviso-warn', text: 'Hay entregas con vehículos por ingresar. Para confirmar con ingreso vehicular debe solicitarlo y esperar la conformidad de su almacenero.' }));
+        cuerpo.appendChild(el('p', { class: 'pv-aviso-irrev', text: advertir && elegido !== 'N' ? 'Al confirmar no se puede deshacer. Esperará la conformidad del otro almacenero.' : 'Esta decisión no se puede deshacer.' }));
+        cuerpo.appendChild(err);
         var env = false;
-        CAF.modal('Confirmar disponibilidad · ' + e.empresa, cuerpo, [
-            { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
-            { texto: 'Confirmar disponibilidad', icono: 'confirmar', tipo: 'primary', onclick: function (cerrar) {
-                if (env) return;
-                if (!elegido) { err.textContent = 'Elija con o sin ingreso vehicular.'; return; }
-                env = true; enviar(d.urlConfirmar, { solicitudId: e.id, conVehiculo: elegido === 'Y' }, { disabled: false }, cerrar).then(function () { env = false; });
-            } }
-        ]);
+        function rotularPrincipal() {
+            if (!btnPrim) return;
+            var solicitar = advertir && !espera && elegido === 'Y';
+            CAF.rotular(btnPrim, solicitar ? 'confirmar' : 'confirmar', solicitar ? 'Solicitar ingreso vehicular' : 'Confirmar disponibilidad');
+        }
+        var botones = [{ texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } }];
+        if (espera) botones.push({ texto: 'Retirar solicitud', icono: 'cancelar', tipo: 'warn', onclick: function (cerrar) {
+            if (env) return; env = true; enviar(d.urlIngvehRetirar, { solicitudId: e.id }, { disabled: false }, cerrar).then(function () { env = false; });
+        } });
+        botones.push({ texto: 'Confirmar disponibilidad', icono: 'confirmar', tipo: 'primary', onclick: function (cerrar) {
+            if (env) return;
+            if (!elegido) { err.textContent = 'Elija con o sin ingreso vehicular.'; return; }
+            if (elegido === 'Y' && bloqueada) { err.textContent = 'La esclusa está completa: elija «Sin ingreso vehicular» o espere a que se libere una plaza.'; return; }
+            if (elegido === 'Y' && espera) { err.textContent = 'Su solicitud espera la conformidad. Puede retirarla y elegir «Sin ingreso vehicular».'; return; }
+            env = true;
+            var url = elegido === 'Y' && advertir ? d.urlIngvehSolicitar : d.urlConfirmar;
+            var cuerpoEnv = elegido === 'Y' && advertir ? { solicitudId: e.id } : { solicitudId: e.id, conVehiculo: elegido === 'Y', plazas: (elegido === 'Y' && selPlazas) ? parseInt(selPlazas.value, 10) : 1 };
+            enviar(url, cuerpoEnv, { disabled: false }, cerrar).then(function () { env = false; });
+        } });
+        CAF.modal('Confirmar disponibilidad · ' + e.empresa, cuerpo, botones);
+        btnPrim = document.querySelector('.modal-back:last-of-type .modal-f .btn-primary');
+    }
+
+    // D-260: al almacenero a cargo de la entrega en curso le salta un aviso Confirmar / Rechazar (una sola vez por solicitud; «Después» la deja en el aviso fijo).
+    // El Coordinador de Almacén ve las solicitudes sin respuesta en el aviso fijo y puede decidir por el almacenero que no responde.
+    function avisarIngresoVeh() {
+        var c = document.getElementById('pv-ingveh'); if (!c) return;
+        c.textContent = '';
+        if (!almacen) return;
+        var mias = ingresoVeh.filter(function (s) { return s.estado === 'PENDIENTE' && s.puedeDecidir; });
+        var espero = ingresoVeh.filter(function (s) { return s.estado === 'PENDIENTE' && s.esSolicitante; });
+        var resp = ingresoVeh.filter(function (s) { return s.estado !== 'PENDIENTE' && s.esSolicitante; });
+        if (!mias.length && !espero.length && !resp.length) return;
+        var caja = el('section', { class: 'aviso pv-ingveh-caja', 'aria-label': 'Solicitudes de ingreso vehicular' });
+        mias.forEach(function (s) {
+            caja.appendChild(el('div', { class: 'pv-ingveh-fila' }, [
+                el('span', {}, [el('b', { text: s.codigo }), ' (' + (s.empresas || 'empresa') + ', ' + (s.solicitante || 'almacenero') + ') pide ingreso vehicular' + (s.esResponsable ? '' : ' · a cargo de ' + (s.responsable || 'la entrega en curso') + ' (usted decide como Coordinador de Almacén)') + '.']),
+                el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Responder', onclick: function () { modalResponder(s); } })]));
+        });
+        espero.forEach(function (s) { caja.appendChild(el('div', { class: 'pv-ingveh-fila' }, [el('span', {}, [el('b', { text: s.codigo }), ' · Esperando conformidad de ' + (s.responsable || s.otraCodigo) + '.'])])); });
+        resp.forEach(function (s) { caja.appendChild(el('div', { class: 'pv-ingveh-fila' }, [el('span', {}, [el('b', { text: s.codigo }), s.estado === 'CONFIRMADA' ? ' · Conforme: ya puede confirmar con ingreso vehicular.' : ' · Rechazada' + (s.motivo ? ': ' + s.motivo : '.')])])); });
+        c.appendChild(caja);
+        var nueva = mias.filter(function (s) { return s.esResponsable && !avisadas[s.id]; })[0];
+        if (nueva && !document.querySelector('.modal-back')) { avisadas[nueva.id] = true; modalResponder(nueva); }
+    }
+
+    function modalResponder(s) {
+        var motivo = el('input', { type: 'text', maxlength: '200', placeholder: 'Motivo del rechazo (opcional, corto)' }), env = false;
+        var cuerpo = el('div', { class: 'stack' }, [
+            el('p', { class: 'pv-modal-p' }, [el('b', { text: s.codigo }), ' (' + (s.empresas || 'empresa') + ') solicita ingreso vehicular por la esclusa. Su entrega ' + (s.otraCodigo || '') + ' tiene ' + s.vehPorIngresar + ' de ' + s.vehTotal + ' vehículos por ingresar.']),
+            el('p', { class: 'pv-modal-p', text: 'Si confirma, esa entrega podrá confirmar su disponibilidad con ingreso vehicular. Si no responde, el Coordinador de Almacén puede decidir.' }),
+            motivo]);
+        function responder(accion, cerrar) {
+            if (env) return; env = true;
+            enviar(d.urlIngvehResponder, { solicitudIngresoId: s.id, accion: accion, motivo: accion === 'rechazar' ? motivo.value : null }, { disabled: false }, cerrar).then(function () { env = false; });
+        }
+        CAF.modal('Solicitud de ingreso vehicular', cuerpo, [
+            { texto: 'Después', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
+            { texto: 'Rechazar', icono: 'cancelar', tipo: 'danger', onclick: function (cerrar) { responder('rechazar', cerrar); } },
+            { texto: 'Confirmar', icono: 'confirmar', tipo: 'primary', onclick: function (cerrar) { responder('confirmar', cerrar); } }
+        ], 'chico');
     }
 
     // D-242: Iniciar / Detener / Reanudar / Terminar. Con una sola empresa posible, Iniciar y Reanudar se ejecutan de inmediato; con varias, un modal pequeño
@@ -539,6 +663,19 @@
             cuerpo.appendChild(fila);
         });
         if (cfg.campo) { extra = el('textarea', { rows: '2', maxlength: '500', placeholder: cfg.campo[1] }); cuerpo.appendChild(extra); }
+        // D-263: casilla opcional «Liberar plaza vehicular» (solo al terminar, con más de 1 vehículo y plazas por liberar). Con 2+ vehículos dentro se listan sus placas.
+        var pzT = tipo === 'TERMINAR' ? plazaDe(e) : null, libPlaza = null;
+        if (pzT && pzT.puede) {
+            libPlaza = el('input', { type: 'checkbox' });
+            cuerpo.appendChild(el('label', { class: 'pv-opc pv-opc-plaza' }, [libPlaza, el('b', { text: 'Liberar plaza vehicular' }), el('span', { class: 'pv-opc-n', text: 'Opcional. Libera una plaza de la esclusa; Vigilancia registra la salida real.' })]));
+            var lista = el('div', { class: 'pv-placas' }); cuerpo.appendChild(lista);
+            CAF.pedir(d.urlVehiculos + '?id=' + e.id).then(function (rv) {
+                var dentro = (rv.success ? rv.data || [] : []).filter(function (v) { return v.estado === 'DENTRO'; });
+                if (dentro.length < 2) return;
+                lista.appendChild(el('span', { class: 'pv-placas-t', text: 'Vehículos dentro ahora:' }));
+                dentro.forEach(function (v) { lista.appendChild(el('span', { class: 'pv-placa', text: (v.placa || 'sin placa') + ' · ' + v.nombre })); });
+            });
+        }
         cuerpo.appendChild(err);
         CAF.modal(cfg.titulo + ' · ' + e.empresa, cuerpo, [
             { texto: 'Volver', icono: 'atras', onclick: function (cerrar) { cerrar(); } },
@@ -548,6 +685,7 @@
                 if (!ids.length) { err.textContent = 'Elija al menos una empresa.'; return; }
                 var body = { solicitudId: e.id, empresasIds: ids };
                 if (cfg.campo) body[cfg.campo[0]] = extra.value;
+                if (libPlaza && libPlaza.checked) body.liberarPlaza = true;
                 env = true; enviar(d[cfg.url], body, { disabled: false }, cerrar).then(function () { env = false; });
             } }
         ], 'chico');

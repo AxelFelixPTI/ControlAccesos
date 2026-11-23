@@ -78,14 +78,82 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         catch (Exception ex) { _logger.LogError(ex, "TOMAR RESERVA Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
-    public async Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, CancellationToken ct = default)
+    public async Task<Result> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, int plazas = 1, CancellationToken ct = default)
     {
         try
         {
-            var sp = await _repo.ConfirmarDisponibilidadAsync(solicitudId, conVehiculo, usuarioId, ct).ConfigureAwait(false);
+            var sp = await _repo.ConfirmarDisponibilidadAsync(solicitudId, conVehiculo, usuarioId, plazas, ct).ConfigureAwait(false);
             return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
         }
         catch (Exception ex) { _logger.LogError(ex, "DISPONIBILIDAD Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_IngresoVeh_Estado>>> IngresoVehEstadoAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.IngresoVehEstadoAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "INGRESO VEH ESTADO ID={ID} ERROR", solicitudId); return Result<List<Dto_Proveedor_IngresoVeh_Estado>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result> PlazaLiberarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.PlazaLiberarAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "PLAZA LIBERAR ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_Plaza>>> PlazasListarAsync(long usuarioId, long sedeId, CancellationToken ct = default)
+    {
+        try { return await _repo.PlazasListarAsync(usuarioId, sedeId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "PLAZAS LISTAR ERROR"); return Result<List<Dto_Proveedor_Plaza>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_Vehiculo>>> VehiculosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try { return await _repo.VehiculosListarAsync(usuarioId, solicitudId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "VEHICULOS LISTAR ID={ID} ERROR", solicitudId); return Result<List<Dto_Proveedor_Vehiculo>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_IngresoVeh_Solicitud>>> IngresoVehListarAsync(long usuarioId, long sedeId, CancellationToken ct = default)
+    {
+        try { return await _repo.IngresoVehListarAsync(usuarioId, sedeId, ct).ConfigureAwait(false); }
+        catch (Exception ex) { _logger.LogError(ex, "INGRESO VEH LISTAR ERROR"); return Result<List<Dto_Proveedor_IngresoVeh_Solicitud>>.Fail(ex.Message); }
+    }
+
+    public async Task<Result> IngresoVehSolicitarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.IngresoVehSolicitarAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "INGRESO VEH SOLICITAR ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> IngresoVehRetirarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.IngresoVehRetirarAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "INGRESO VEH RETIRAR ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
+    }
+
+    public async Task<Result> IngresoVehResponderAsync(long solicitudIngresoId, string accion, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var a = (accion ?? string.Empty).Trim().ToUpperInvariant();
+            if (a != "CONFIRMAR" && a != "RECHAZAR") return Result.Fail("La acción debe ser confirmar o rechazar.", MapeoSp.Codigo(400));
+            var m = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
+            if (m is not null && m.Length > 200) return Result.Fail("El motivo no puede superar 200 caracteres.", MapeoSp.Codigo(400));
+            var sp = await _repo.IngresoVehResponderAsync(solicitudIngresoId, a, m, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex) { _logger.LogError(ex, "INGRESO VEH RESPONDER ID={ID} ERROR", solicitudIngresoId); return Result.Fail(ex.Message); }
     }
 
     public async Task<Result> ValidarIngresoAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
@@ -258,14 +326,22 @@ public sealed class Srv_Proveedor : ISrv_Proveedor
         catch (Exception ex) { _logger.LogError(ex, "REANUDAR EMPRESAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }
 
-    public async Task<Result> TerminarEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, string? observacion, long usuarioId, CancellationToken ct = default)
+    public async Task<Result> TerminarEmpresasAsync(long solicitudId, IEnumerable<long> empresasIds, string? observacion, long usuarioId, bool liberarPlaza = false, CancellationToken ct = default)
     {
         try
         {
             var ids = Ids(empresasIds); if (ids is null) return Result.Fail("Elija al menos una empresa.", MapeoSp.Codigo(400));
             var obs = string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim();
             var sp = await _repo.RecepcionarEmpresasAsync(solicitudId, ids, obs is null ? "CONFORME" : "CON_OBSERVACION", obs, usuarioId, ct).ConfigureAwait(false);
-            return sp.Ok ? Result.Ok(sp.Mensaje) : Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+            if (!sp.Ok) return Result.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+            // D-263: casilla «Liberar plaza vehicular»: la atención ya quedó terminada; si la plaza no se pudo liberar se avisa sin deshacer lo hecho
+            // (si esa fue la última empresa, la reserva ya se liberó entera y el procedimiento responde 100: no hay nada más que liberar)
+            if (liberarPlaza)
+            {
+                var pl = await _repo.PlazaLiberarAsync(solicitudId, usuarioId, ct).ConfigureAwait(false);
+                return Result.Ok(pl.Ok ? sp.Mensaje + " " + pl.Mensaje : sp.Mensaje + " No se liberó la plaza: " + pl.Mensaje);
+            }
+            return Result.Ok(sp.Mensaje);
         }
         catch (Exception ex) { _logger.LogError(ex, "TERMINAR EMPRESAS Proveedor ID={ID} ERROR", solicitudId); return Result.Fail(ex.Message); }
     }

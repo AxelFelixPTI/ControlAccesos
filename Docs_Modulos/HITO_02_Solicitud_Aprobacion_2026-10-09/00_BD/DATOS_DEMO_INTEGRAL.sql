@@ -84,7 +84,7 @@ CREATE OR REPLACE FUNCTION pg_temp.emps2(p TEXT) RETURNS TEXT LANGUAGE sql AS $f
 --   ILS igual que IL y luego sale     D  ingreso DENEGADO                          IL ingresa con desviacion liberada (conformidad dada)   ILP igual, conformidad pendiente
 --   IRI ingresa y sale con RETENCION + incidencia confirmada   ISD ingresa/sale + incidencia desestimada   ISX ingresa/sale + incidencia pendiente
 CREATE OR REPLACE FUNCTION pg_temp.accion(p_plan TEXT, p_sp BIGINT, p_ves BIGINT, p_vg BIGINT, p_co BIGINT, p_falla TEXT, p_txt TEXT) RETURNS VOID LANGUAGE plpgsql AS $f$
-DECLARE v_r BIGINT; v_d BIGINT; v_x VARCHAR(30); v_cod INT; v_msg VARCHAR(250); v_cs VARCHAR(30);
+DECLARE v_r BIGINT; v_d BIGINT; v_x VARCHAR(30); v_cod INT; v_msg VARCHAR(250); v_cs VARCHAR(30); v_inc BIGINT;
 BEGIN
     IF p_plan = '-' THEN RETURN; END IF;
     IF p_plan = 'D' THEN
@@ -100,17 +100,21 @@ BEGIN
     ELSE
         CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(p_sp,pg_temp.items(p_sp,'INGRESO',''),'N','N',NULL,NULL,NULL,NULL,NULL,NULL,NULL,p_vg,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion ingreso');
     END IF;
+    -- V1.1 2026-11-22 (D-259): ya no se registran incidencias a quien salió (INCIDENCIA_POST_SALIDA = N), así que la incidencia se registra
+    -- mientras la persona sigue dentro y la salida va después; la decisión del Coordinador puede ir al final.
     IF p_plan = 'IRI' THEN
+        CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(p_ves,pg_temp.tinc('HURTO'),NULL,LOCALTIMESTAMP-INTERVAL '30 minutes',NULL::BIGINT,'Almacen general','[DEMO-INT] Falta una herramienta tras la visita.',p_sp::TEXT,p_vg,v_inc,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc hurto');
         CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(p_sp,pg_temp.items(p_sp,'SALIDA','SAL_SIN_ELEMENTOS'),NULL,'Lleva una herramienta de la planta.',p_co,pg_temp.trat('RETENCION_ELEMENTO'),NULL,NULL,NULL,p_vg,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion salida retencion');
-        CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(p_ves,pg_temp.tinc('HURTO'),NULL,LOCALTIMESTAMP-INTERVAL '30 minutes',NULL::BIGINT,'Almacen general','[DEMO-INT] Falta una herramienta tras la visita.',p_sp::TEXT,p_vg,v_r,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc hurto');
-        CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_r,'CONFIRMAR','Se verifico con las camaras: la herramienta salio con la persona.',p_co,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc confirmar');
+        CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_inc,'CONFIRMAR','Se verifico con las camaras: la herramienta salio con la persona.',p_co,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc confirmar');
     ELSIF p_plan IN ('IS','ISD','ISX','ILS') THEN
+        IF p_plan = 'ISD' THEN
+            CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(p_ves,pg_temp.tinc('USO_NO_AUTORIZADO_AREA'),NULL,LOCALTIMESTAMP-INTERVAL '20 minutes',NULL::BIGINT,'Pasillo de produccion','[DEMO-INT] Se vio a un visitante fuera de su zona autorizada.',p_sp::TEXT,p_vg,v_inc,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc area');
+        ELSIF p_plan = 'ISX' THEN
+            CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(p_ves,pg_temp.tinc('USO_NO_AUTORIZADO_EQUIPO'),NULL,LOCALTIMESTAMP-INTERVAL '10 minutes',NULL::BIGINT,'Oficinas','[DEMO-INT] Uso de un equipo sin autorizacion (pendiente de decision).',p_sp::TEXT,p_vg,v_inc,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc equipo');
+        END IF;
         CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(p_sp,pg_temp.items(p_sp,'SALIDA',''),NULL,NULL,NULL,NULL,NULL,NULL,NULL,p_vg,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion salida');
         IF p_plan = 'ISD' THEN
-            CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(p_ves,pg_temp.tinc('USO_NO_AUTORIZADO_AREA'),NULL,LOCALTIMESTAMP-INTERVAL '20 minutes',NULL::BIGINT,'Pasillo de produccion','[DEMO-INT] Se vio a un visitante fuera de su zona autorizada.',p_sp::TEXT,p_vg,v_r,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc area');
-            CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_r,'DESESTIMAR','Se aclaro: iba acompanado por su responsable.',p_co,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc desestimar');
-        ELSIF p_plan = 'ISX' THEN
-            CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(p_ves,pg_temp.tinc('USO_NO_AUTORIZADO_EQUIPO'),NULL,LOCALTIMESTAMP-INTERVAL '10 minutes',NULL::BIGINT,'Oficinas','[DEMO-INT] Uso de un equipo sin autorizacion (pendiente de decision).',p_sp::TEXT,p_vg,v_r,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc equipo');
+            CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_inc,'DESESTIMAR','Se aclaro: iba acompanado por su responsable.',p_co,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'accion inc desestimar');
         END IF;
     END IF;
 END $f$;

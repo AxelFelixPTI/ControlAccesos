@@ -140,6 +140,152 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
         catch (Exception ex) { return Result<List<Dto_Proveedor_Cupo>>.Fail(ex.InnerException?.Message ?? ex.Message); }
     }
 
+    /// <summary>D-260: estado de la esclusa y de las otras entregas para el modal «Confirmar disponibilidad».</summary>
+    public async Task<Result<List<Dto_Proveedor_IngresoVeh_Estado>>> IngresoVehEstadoAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_PROVEEDOR_INGRESO_VEH_ESTADO",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: rd => new Dto_Proveedor_IngresoVeh_Estado
+                {
+                    Caso                 = RdStr(rd, "Caso"),
+                    Capacidad            = RdInt(rd, "Capacidad"),
+                    Reservas             = RdInt(rd, "Reservas"),
+                    ID_Solicitud_Otra    = RdLongN(rd, "ID_Solicitud_Otra"),
+                    Codigo_Otra          = RdStrN(rd, "Codigo_Otra"),
+                    Empresas_Otra        = RdStrN(rd, "Empresas_Otra"),
+                    Almacenero_Otra      = RdStrN(rd, "Almacenero_Otra"),
+                    Veh_Total            = RdInt(rd, "Veh_Total"),
+                    Veh_Por_Ingresar     = RdInt(rd, "Veh_Por_Ingresar"),
+                    Veh_Dentro           = RdInt(rd, "Veh_Dentro"),
+                    Veh_Salieron         = RdInt(rd, "Veh_Salieron"),
+                    Requiere_Conformidad = RdBool(rd, "Requiere_Conformidad"),
+                    ID_Solicitud_Ingreso = RdLongN(rd, "ID_Solicitud_Ingreso"),
+                    Solicitud_Estado     = RdStrN(rd, "Solicitud_Estado"),
+                    Motivo_Rechazo       = RdStrN(rd, "Motivo_Rechazo"),
+                    Veh_Propios          = RdInt(rd, "Veh_Propios"),
+                    Plazas_Libres        = RdInt(rd, "Plazas_Libres"),
+                    Plazas_Otra          = RdInt(rd, "Plazas_Otra"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_IngresoVeh_Estado>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_IngresoVeh_Estado>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    /// <summary>D-260: solicitudes de ingreso vehicular vigentes de la sede.</summary>
+    public async Task<Result<List<Dto_Proveedor_IngresoVeh_Solicitud>>> IngresoVehListarAsync(long usuarioId, long sedeId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_PROVEEDOR_INGRESO_VEH_LISTAR",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Catalogo_Sede", sedeId); },
+                map: rd => new Dto_Proveedor_IngresoVeh_Solicitud
+                {
+                    ID_Solicitud_Ingreso  = RdLong(rd, "ID_Solicitud_Ingreso"),
+                    ID_Solicitud          = RdLong(rd, "ID_Solicitud"),
+                    Codigo                = RdStr(rd, "Codigo"),
+                    Empresas              = RdStrN(rd, "Empresas"),
+                    Solicitante_Nombre    = RdStrN(rd, "Solicitante_Nombre"),
+                    ID_Solicitud_Otra     = RdLong(rd, "ID_Solicitud_Otra"),
+                    Codigo_Otra           = RdStrN(rd, "Codigo_Otra"),
+                    Empresas_Otra         = RdStrN(rd, "Empresas_Otra"),
+                    Responsable_Nombre    = RdStrN(rd, "Responsable_Nombre"),
+                    Veh_Total_Otra        = RdInt(rd, "Veh_Total_Otra"),
+                    Veh_Por_Ingresar_Otra = RdInt(rd, "Veh_Por_Ingresar_Otra"),
+                    Estado                = RdStr(rd, "Estado"),
+                    Motivo_Rechazo        = RdStrN(rd, "Motivo_Rechazo"),
+                    Fecha_Solicitud       = RdDtN(rd, "Fecha_Solicitud"),
+                    Fecha_Decision        = RdDtN(rd, "Fecha_Decision"),
+                    Decide_Nombre         = RdStrN(rd, "Decide_Nombre"),
+                    Decidida_Por_Coord    = RdBool(rd, "Decidida_Por_Coord"),
+                    Es_Responsable        = RdBool(rd, "Es_Responsable"),
+                    Puede_Decidir         = RdBool(rd, "Puede_Decidir"),
+                    Es_Solicitante        = RdBool(rd, "Es_Solicitante"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_IngresoVeh_Solicitud>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_IngresoVeh_Solicitud>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public Task<ResultSp> IngresoVehSolicitarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_INGRESO_VEH_SOLICITAR",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public Task<ResultSp> IngresoVehRetirarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_INGRESO_VEH_RETIRAR",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public Task<ResultSp> PlazaLiberarAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_PLAZA_LIBERAR",
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddLongReq(p, "HV_UsuarioID", usuarioId); },
+            ct: ct);
+
+    public async Task<Result<List<Dto_Proveedor_Plaza>>> PlazasListarAsync(long usuarioId, long sedeId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn, funcion: "ERP_CAF_PROVEEDOR_PLAZAS_LISTAR",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Catalogo_Sede", sedeId); },
+                map: rd => new Dto_Proveedor_Plaza
+                {
+                    ID_Solicitud   = RdLong(rd, "ID_Solicitud"),
+                    Plazas         = RdInt(rd, "Plazas"),
+                    Veh_Declarados = RdInt(rd, "Veh_Declarados"),
+                    Veh_Dentro     = RdInt(rd, "Veh_Dentro"),
+                    Puede_Liberar  = RdBool(rd, "Puede_Liberar"),
+                    Motivo         = RdStrN(rd, "Motivo"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_Plaza>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_Plaza>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public async Task<Result<List<Dto_Proveedor_Vehiculo>>> VehiculosListarAsync(long usuarioId, long solicitudId, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn, funcion: "ERP_CAF_PROVEEDOR_VEHICULOS_LISTAR",
+                bind: p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
+                map: rd => new Dto_Proveedor_Vehiculo
+                {
+                    ID_Solicitud_Persona = RdLong(rd, "ID_Solicitud_Persona"),
+                    Nombre = RdStr(rd, "Nombre"),
+                    Placa  = RdStrN(rd, "Placa"),
+                    Estado = RdStr(rd, "Estado"),
+                },
+                ct: ct);
+            return Result<List<Dto_Proveedor_Vehiculo>>.Ok(lista);
+        }
+        catch (Exception ex) { return Result<List<Dto_Proveedor_Vehiculo>>.Fail(ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    public Task<ResultSp> IngresoVehResponderAsync(long solicitudIngresoId, string accion, string? motivo, long usuarioId, CancellationToken ct = default)
+        => _exec.EjecutarEscrituraAsync(
+            clave: Conn, procedimiento: "ERP_CAF_PROVEEDOR_INGRESO_VEH_RESPONDER",
+            bind: p =>
+            {
+                AddLongReq(p, "HV_ID_Solicitud_Ingreso", solicitudIngresoId);
+                AddLongReq(p, "HV_UsuarioID", usuarioId);
+                AddStrReq(p, "HV_Accion", accion);
+                AddStr(p, "HV_Motivo", motivo);
+            },
+            ct: ct);
+
     /// <summary>D-244: quien confirmó la disponibilidad cede la reserva (antes de iniciar la atención).</summary>
     public Task<ResultSp> CederReservaAsync(long solicitudId, long usuarioId, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
@@ -154,15 +300,16 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
             bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddLongReq(p, "HV_UsuarioID", usuarioId); },
             ct: ct);
 
-    public Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, CancellationToken ct = default)
+    public Task<ResultSp> ConfirmarDisponibilidadAsync(long solicitudId, bool conVehiculo, long usuarioId, int plazas = 1, CancellationToken ct = default)
         => _exec.EjecutarEscrituraAsync(
             clave: Conn,
-            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO",
+            procedimiento: "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS",
             bind: p =>
             {
                 AddLongReq(p, "HV_ID_Solicitud", solicitudId);
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
                 AddStrReq(p, "HV_Con_Vehiculo", conVehiculo ? "Y" : "N");
+                AddInt(p, "HV_Plazas", plazas < 1 ? 1 : plazas);   // D-261: va antes de las salidas del procedimiento (el ejecutor pasa por posición)
             },
             ct: ct);
 

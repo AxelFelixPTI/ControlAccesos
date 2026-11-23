@@ -45,7 +45,7 @@ DECLARE
     s1 BIGINT; s2 BIGINT; s3 BIGINT; c1 BIGINT; c2 BIGINT; vg1 BIGINT; vg2 BIGINT; vg3 BIGINT; a1 BIGINT; a2 BIGINT;
     pe_s1 BIGINT; pe_s2 BIGINT; pe_s3 BIGINT; pe_a1 BIGINT; pe_a2 BIGINT; pe_c2 BIGINT;
     v_ul BIGINT; v_cod INT; v_msg VARCHAR(250); v_cant BIGINT;
-    v_id BIGINT; v_cs VARCHAR(30); v_r BIGINT; v_d BIGINT; v_x VARCHAR(30); v_n INT; v_ag INT;
+    v_id BIGINT; v_cs VARCHAR(30); v_r BIGINT; v_inc BIGINT; v_d BIGINT; v_x VARCHAR(30); v_n INT; v_ag INT;
     n INT := 0; v_hoy TIMESTAMP := CAST(CURRENT_DATE AS TIMESTAMP); v_h TEXT := TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD');
     v_m1 TEXT := TO_CHAR(CURRENT_DATE + 1, 'YYYY-MM-DD'); v_m2 TEXT := TO_CHAR(CURRENT_DATE + 2, 'YYYY-MM-DD');
     q1 BIGINT; q2 BIGINT; q3 BIGINT; sp1 BIGINT; sp2 BIGINT; sp3 BIGINT; k INT; v_tr TEXT;
@@ -209,9 +209,10 @@ BEGIN
     CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_id,paso_ext,'APROBADA',NULL,sp1||','||sp2,c1,v_cant,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 decidir');
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sp1,pg_temp.items(sp1,'INGRESO',''),'N','N',NULL,NULL,NULL,NULL,NULL,NULL,NULL,vg2,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 ingreso1');
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sp2,pg_temp.items(sp2,'INGRESO',''),'N','N',NULL,NULL,NULL,NULL,NULL,NULL,NULL,vg2,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 ingreso2');
+    -- V1.1 2026-11-22 (D-259): la incidencia se registra mientras la persona sigue dentro (ya no se registran a quien salió); la salida con retención va después.
+    CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves,pg_temp.tinc('HURTO'),NULL,LOCALTIMESTAMP-INTERVAL '30 minutes',NULL::BIGINT,'Almacen general','[DEMO-ESC] Falta una herramienta tras la visita de mantenimiento.',sp1::TEXT,vg2,v_inc,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc1');
     CALL "ERP_CAF_PORTERIA_SALIDA_REGISTRAR"(sp1,pg_temp.items(sp1,'SALIDA','SAL_SIN_ELEMENTOS'),NULL,'Lleva una herramienta de la planta.',c1,pg_temp.trat('RETENCION_ELEMENTO'),NULL,NULL,NULL,vg2,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 salida retencion');
-    CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves,pg_temp.tinc('HURTO'),NULL,LOCALTIMESTAMP-INTERVAL '30 minutes',NULL::BIGINT,'Almacen general','[DEMO-ESC] Falta una herramienta tras la visita de mantenimiento.',sp1::TEXT,vg2,v_r,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc1');
-    CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_r,'CONFIRMAR','Se verifico con las camaras: la herramienta salio con la persona.',c2,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc1 confirmar');
+    CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_inc,'CONFIRMAR','Se verifico con las camaras: la herramienta salio con la persona.',c2,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc1 confirmar');
     CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves,pg_temp.tinc('USO_NO_AUTORIZADO_AREA'),NULL,LOCALTIMESTAMP-INTERVAL '20 minutes',NULL,'Pasillo de produccion','[DEMO-ESC] Se vio a un visitante fuera de su zona autorizada.',sp2::TEXT,vg3,v_r,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc2');
     CALL "ERP_CAF_INCIDENCIA_DECIDIR"(v_r,'DESESTIMAR','Se aclaro: iba acompanado por su responsable.',c1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc2 desestimar');
     CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves,pg_temp.tinc('USO_NO_AUTORIZADO_EQUIPO'),NULL,LOCALTIMESTAMP-INTERVAL '10 minutes',NULL,'Oficinas','[DEMO-ESC] Uso de un equipo sin autorizacion (pendiente de decision).',sp2::TEXT,vg1,v_r,v_cs,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'V09 inc3');

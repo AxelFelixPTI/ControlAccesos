@@ -1,6 +1,6 @@
 -- ============================================================================================================
 -- Archivo : LIMPIAR_DEMO_INTEGRAL.sql      (OPCIONAL, solo pruebas; NO lo corre restaurar_bd.ps1)
--- Version : V1.0 2026-11-17
+-- Version : V1.1 2026-11-22 (libera todas las plazas de la esclusa; las solicitudes de ingreso vehicular, D-260, se borran con la solicitud)
 -- Proposito: borrar SOLO los datos de DATOS_DEMO_INTEGRAL.sql para poder volver a cargarlo.
 -- Borra  : todas las solicitudes que incluyen personas con DNI 7600NNNN (con lo que cuelga: personas, dias, operacion,
 --          atenciones por empresa, empresas receptoras, documentos adjuntos, eventos, checklist, accesos, desviaciones,
@@ -39,7 +39,8 @@ DECLARE v_n INT;
 BEGIN
     SELECT COUNT(*) INTO v_n FROM tmp_int_sol;
     RAISE NOTICE 'Solicitudes del demo integral encontradas: %', v_n;
-    UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL WHERE "ID_Solicitud_Actual" IN (SELECT id FROM tmp_int_sol);
+    -- V1.1 2026-11-22 (D-261): una entrega puede tener varias plazas (una fila por plaza); se liberan todas y se limpia quién y cuándo las ocupó.
+    UPDATE "CAF_Exclusa" SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL WHERE "ID_Solicitud_Actual" IN (SELECT id FROM tmp_int_sol);
     PERFORM pg_temp.borrar('"CAF_Incidencia"'::regclass, '"Descripcion" LIKE ''[DEMO-INT]%''');
     PERFORM pg_temp.borrar('"CAF_Solicitud"'::regclass, '"ID_Solicitud" IN (SELECT id FROM tmp_int_sol)');
     PERFORM pg_temp.borrar('"CAF_Persona_Externa"'::regclass, '"Numero_Documento" ~ ''^7600[0-9]{4}$''');

@@ -36,6 +36,16 @@ public sealed class ProveedorDisponibilidadVM
 {
     public long SolicitudId { get; set; }
     public bool ConVehiculo { get; set; }
+    /// <summary>D-261: plazas de la esclusa a reservar (1 por defecto; solo aplica con ingreso vehicular y varios vehículos).</summary>
+    public int Plazas { get; set; } = 1;
+}
+
+/// <summary>D-260: responder una solicitud de ingreso vehicular (Accion = confirmar | rechazar; el motivo del rechazo es corto y opcional).</summary>
+public sealed class ProveedorIngresoVehRespuestaVM
+{
+    public long SolicitudIngresoId { get; set; }
+    public string? Accion { get; set; }
+    public string? Motivo { get; set; }
 }
 
 /// <summary>D-239: iniciar, detener, reanudar o terminar la atención de una o varias empresas de la entrega. Motivo solo al detener; observación solo al terminar.</summary>
@@ -45,6 +55,8 @@ public sealed class ProveedorEmpresasVM
     public List<long> EmpresasIds { get; set; } = new();
     public string? Motivo { get; set; }
     public string? Observacion { get; set; }
+    /// <summary>D-263: casilla opcional «Liberar plaza vehicular» al terminar la atención (solo entregas de más de 1 vehículo).</summary>
+    public bool LiberarPlaza { get; set; }
 }
 
 /// <summary>Terminar la atención. Sin observación la recepción es conforme.</summary>

@@ -169,8 +169,9 @@ BEGIN
         lv_origen := CASE WHEN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y'
                           THEN 'COORDINADOR' ELSE 'VIGILANCIA' END;
 
-        -- V1.1 2026-11-19 (D-257): Vigilancia no registra incidencias a quien ya salió, salvo que el parámetro INCIDENCIA_POST_SALIDA sea Y.
-        IF lv_origen = 'VIGILANCIA' AND lv_hay = 'Y' AND COALESCE("ERP_CAF_PARAMETRO_VALOR"('INCIDENCIA_POST_SALIDA'), 'N') <> 'Y' THEN
+        -- V1.2 2026-11-20 (D-259): la regla vale igual para Vigilancia y para Coordinación (se quitó la exención del Coordinador).
+        -- V1.1 2026-11-19 (D-257): no se registran incidencias a quien ya salió, salvo que el parámetro INCIDENCIA_POST_SALIDA sea Y.
+        IF lv_hay = 'Y' AND COALESCE("ERP_CAF_PARAMETRO_VALOR"('INCIDENCIA_POST_SALIDA'), 'N') <> 'Y' THEN
             SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona" P
              WHERE P."Eliminado" = 'N' AND P."Estado" = 'SALIO' AND lv_lista LIKE '%,' || CAST(P."ID_Solicitud_Persona" AS VARCHAR) || ',%';
             IF lv_n > 0 THEN
@@ -498,15 +499,15 @@ DECLARE
     lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
     lv_post CHAR(1);
 BEGIN
-    -- V1.1 2026-11-19 (D-257): quien no es Coordinador y con INCIDENCIA_POST_SALIDA en N no ve en la búsqueda a quienes ya salieron
+    -- V1.2 2026-11-20 (D-259): con INCIDENCIA_POST_SALIDA en N tampoco el Coordinador ve en la búsqueda a quienes ya salieron
+    -- V1.1 2026-11-19 (D-257): con INCIDENCIA_POST_SALIDA en N no se ve en la búsqueda a quienes ya salieron
     -- V1.0 2026-10-18
     IF "HV_ID_Catalogo_Sede" IS NULL
        OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_REGISTRAR', "HV_ID_Catalogo_Sede") <> 'Y' THEN
         RETURN;
     END IF;
     IF lv_d2 < lv_d1 THEN RETURN; END IF;
-    lv_post := CASE WHEN COALESCE("ERP_CAF_PARAMETRO_VALOR"('INCIDENCIA_POST_SALIDA'), 'N') = 'Y'
-                      OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_INCIDENCIA_DECIDIR', "HV_ID_Catalogo_Sede") = 'Y' THEN 'Y' ELSE 'N' END;
+    lv_post := CASE WHEN COALESCE("ERP_CAF_PARAMETRO_VALOR"('INCIDENCIA_POST_SALIDA'), 'N') = 'Y' THEN 'Y' ELSE 'N' END;
     RETURN QUERY
     SELECT P."ID_Solicitud_Persona", S."ID_Solicitud", S."Codigo", S."Fecha_Hora_Prevista", TD."Codigo", PE."Numero_Documento",
            CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR),

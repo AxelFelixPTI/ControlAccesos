@@ -354,13 +354,15 @@ BEGIN
     CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves, pg_temp.ti('HURTO'), NULL, v_hecho, NULL, 'Almacén', 'Persona que sigue.', v_p3::TEXT, v_u_vig, v_reg2, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Post-salida N: Vigilancia sí registra a quien no ha salido', '100', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves, pg_temp.ti('HURTO'), NULL, v_hecho, NULL, 'Almacén', 'Persona que ya salió.', v_p2::TEXT, v_u_coo, v_reg2, v_cs, v_cod, v_msg);
-    PERFORM pg_temp.chk('Post-salida N: el Coordinador no se ve afectado', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Post-salida N: el Coordinador tampoco registra a quien ya salió (D-259: sin exención)', '409', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Post-salida N: la búsqueda de Vigilancia no ofrece a quien salió', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_INCIDENCIA_PERSONAS_BUSCAR"(' || v_u_vig || ',' || v_ves || ',CURRENT_DATE - 1,CURRENT_DATE + 3,NULL) WHERE "ID_Solicitud_Persona" = ' || v_p2), '');
-    PERFORM pg_temp.chk('Post-salida N: la búsqueda del Coordinador sí la ofrece', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_INCIDENCIA_PERSONAS_BUSCAR"(' || v_u_coo || ',' || v_ves || ',CURRENT_DATE - 1,CURRENT_DATE + 3,NULL) WHERE "ID_Solicitud_Persona" = ' || v_p2), '');
+    PERFORM pg_temp.chk('Post-salida N: la búsqueda del Coordinador tampoco la ofrece (D-259)', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_INCIDENCIA_PERSONAS_BUSCAR"(' || v_u_coo || ',' || v_ves || ',CURRENT_DATE - 1,CURRENT_DATE + 3,NULL) WHERE "ID_Solicitud_Persona" = ' || v_p2), '');
     CALL "ERP_CAF_PARAMETRO_GUARDAR"('INCIDENCIA_POST_SALIDA', 'Y', v_u_coo, v_cod, v_msg);
     PERFORM pg_temp.chk('Post-salida: el administrador lo activa', '100', v_cod::TEXT, v_msg);
     CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves, pg_temp.ti('HURTO'), NULL, v_hecho, NULL, 'Almacén', 'Persona que ya salió.', v_p2::TEXT, v_u_vig, v_reg2, v_cs, v_cod, v_msg);
     PERFORM pg_temp.chk('Post-salida Y: Vigilancia sí registra a quien ya salió', '100', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_INCIDENCIA_REGISTRAR"(v_ves, pg_temp.ti('HURTO'), NULL, v_hecho, NULL, 'Almacén', 'Persona que ya salió.', v_p2::TEXT, v_u_coo, v_reg2, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Post-salida Y: el Coordinador también registra a quien ya salió (D-259)', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('Post-salida Y: la búsqueda de Vigilancia la ofrece', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_INCIDENCIA_PERSONAS_BUSCAR"(' || v_u_vig || ',' || v_ves || ',CURRENT_DATE - 1,CURRENT_DATE + 3,NULL) WHERE "ID_Solicitud_Persona" = ' || v_p2), '');
 END;
 $$;

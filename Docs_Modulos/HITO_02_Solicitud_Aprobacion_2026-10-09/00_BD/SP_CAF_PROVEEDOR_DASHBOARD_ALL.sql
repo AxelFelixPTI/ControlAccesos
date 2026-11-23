@@ -389,10 +389,13 @@ $$;
 --    obtiene la fila; el otro recibe 409. Antes se libera una reserva huerfana (la entrega ya no esta vigente).
 --    No cambia el estado: habilita a Vigilancia para validar el ingreso fisico.
 -- -----------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(
+-- D-261: la lógica pasa a ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS (con HV_Plazas antes de las salidas, porque el ejecutor .NET pasa los parámetros por posición).
+-- ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO queda como atajo con 1 plaza (misma firma de siempre; pruebas y llamadas anteriores no cambian).
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(
     IN    "HV_ID_Solicitud"  BIGINT,
     IN    "HV_UsuarioID"     BIGINT,
     IN    "HV_Con_Vehiculo"  CHAR(1),
+    IN    "HV_Plazas"        INT DEFAULT 1,
     INOUT "HV_Codigo_Resp"   INT DEFAULT NULL,
     INOUT "HV_Mensaje"       VARCHAR(250) DEFAULT NULL
 )
@@ -407,7 +410,14 @@ DECLARE
     lv_f     TIMESTAMP;
     lv_modo  CHAR(1);
     lv_cupo  VARCHAR;
+    lv_falt  VARCHAR;
+    lv_plz   INT;
+    lv_veh   INT;
+    lv_libres INT;
+    lv_i     INT;
 BEGIN
+    -- V2.3 2026-11-22 (D-261, ahora DISPONIBILIDAD_PLAZAS): el almacenero reserva 1 o varias plazas (HV_Plazas, por defecto 1; máximo = vehículos de la entrega y plazas libres)
+    -- V2.2 2026-11-20 (D-260): con cupo en la esclusa pero otra entrega con vehículos por ingresar, CON exige la conformidad de su almacenero (solicitud de ingreso vehicular); SIN retira lo pendiente
     -- V2.1 2026-11-16 (D-244): confirmar ocupa el cupo del almacenero
     -- V2.0 2026-11-15 (D-239): el almacenero elige CON o SIN ingreso vehicular al confirmar (no se deshace). Sin ingreso no reserva la esclusa.
     "HV_Codigo_Resp" := 500;
@@ -495,15 +505,39 @@ BEGIN
                 END IF;
                 "HV_Mensaje" := LEFT("HV_Mensaje", 250); RETURN;
             END IF;
-            -- Se toma una plaza libre; si no hay (capacidad aumentada), se crea otra
-            UPDATE "CAF_Exclusa"
-               SET "ID_Solicitud_Actual" = "HV_ID_Solicitud", "Fecha_Ocupada" = CURRENT_TIMESTAMP, "ID_Usuario_Ocupa" = "HV_UsuarioID",
-                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
-             WHERE "ID_Exclusa" = (SELECT MIN(F."ID_Exclusa") FROM "CAF_Exclusa" F WHERE F."ID_Catalogo_Sede" = lv_sede AND F."Eliminado" = 'N' AND F."ID_Solicitud_Actual" IS NULL);
-            IF NOT FOUND THEN
-                INSERT INTO "CAF_Exclusa" ("ID_Catalogo_Sede", "ID_Solicitud_Actual", "Fecha_Ocupada", "ID_Usuario_Ocupa", "UsuarioID_Create")
-                VALUES (lv_sede, "HV_ID_Solicitud", CURRENT_TIMESTAMP, "HV_UsuarioID", "HV_UsuarioID");
+            -- D-261: plazas que reserva esta entrega (1 por defecto; más solo si tiene varios vehículos y hay plazas libres)
+            lv_plz := COALESCE("HV_Plazas", 1);
+            lv_veh := "ERP_CAF_FN_VEHICULOS_CONTAR"("HV_ID_Solicitud", 'ESPERADA') + "ERP_CAF_FN_VEHICULOS_CONTAR"("HV_ID_Solicitud", 'DENTRO') + "ERP_CAF_FN_VEHICULOS_CONTAR"("HV_ID_Solicitud", 'SALIO');
+            IF lv_plz < 1 THEN "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Las plazas a reservar deben ser al menos 1.'; RETURN; END IF;
+            IF lv_plz > GREATEST(1, lv_veh) THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := LEFT('No puede reservar más plazas (' || lv_plz || ') que vehículos tiene la entrega (' || lv_veh || ').', 250); RETURN;
             END IF;
+            lv_libres := "ERP_CAF_FN_EXCLUSA_CAPACIDAD"() - "ERP_CAF_FN_EXCLUSA_RESERVAS"(lv_sede);
+            IF lv_plz > lv_libres THEN
+                "HV_Codigo_Resp" := 409; "HV_Mensaje" := LEFT('Solo hay ' || lv_libres || ' plaza(s) libre(s) en la esclusa; no se pueden reservar ' || lv_plz || '.', 250); RETURN;
+            END IF;
+            -- D-260: otra entrega con vehículos aún por ingresar: hace falta su conformidad (no se pide con SIN_LIMITE ni si el responsable es el mismo usuario)
+            lv_falt := "ERP_CAF_FN_INGRESO_VEH_FALTANTES"("HV_UsuarioID", "HV_ID_Solicitud");
+            IF lv_falt IS NOT NULL THEN
+                "HV_Codigo_Resp" := 409;
+                "HV_Mensaje" := LEFT('Hay entregas con vehículos por ingresar: ' || lv_falt || '. Solicite el ingreso vehicular y espere su conformidad.', 250); RETURN;
+            END IF;
+            -- Se toman las plazas libres (una fila por plaza); si faltan filas (capacidad aumentada), se crean
+            FOR lv_i IN 1..lv_plz LOOP
+                UPDATE "CAF_Exclusa"
+                   SET "ID_Solicitud_Actual" = "HV_ID_Solicitud", "Fecha_Ocupada" = CURRENT_TIMESTAMP, "ID_Usuario_Ocupa" = "HV_UsuarioID",
+                       "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+                 WHERE "ID_Exclusa" = (SELECT MIN(F."ID_Exclusa") FROM "CAF_Exclusa" F WHERE F."ID_Catalogo_Sede" = lv_sede AND F."Eliminado" = 'N' AND F."ID_Solicitud_Actual" IS NULL);
+                IF NOT FOUND THEN
+                    INSERT INTO "CAF_Exclusa" ("ID_Catalogo_Sede", "ID_Solicitud_Actual", "Fecha_Ocupada", "ID_Usuario_Ocupa", "UsuarioID_Create")
+                    VALUES (lv_sede, "HV_ID_Solicitud", CURRENT_TIMESTAMP, "HV_UsuarioID", "HV_UsuarioID");
+                END IF;
+            END LOOP;
+        END IF;
+        IF "HV_Con_Vehiculo" = 'N' THEN
+            -- D-260: quien opta por «Sin ingreso vehicular» deja sin efecto su solicitud pendiente
+            UPDATE "CAF_Solicitud_Ingreso_Vehicular" SET "Estado" = 'RETIRADA', "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Estado" = 'PENDIENTE' AND "Eliminado" = 'N';
         END IF;
         UPDATE "CAF_Solicitud_Operacion"
            SET "Fecha_Disponibilidad" = CURRENT_TIMESTAMP, "ID_Usuario_Disponibilidad" = "HV_UsuarioID", "Con_Vehiculo" = "HV_Con_Vehiculo",
@@ -511,15 +545,29 @@ BEGIN
          WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Resultado","Observacion")
         VALUES ("HV_ID_Solicitud", lv_eop, lv_eop, "HV_UsuarioID", 'DISP_CONFIRMADA',
-                CASE WHEN "HV_Con_Vehiculo" = 'Y' THEN 'Almacén confirmó su disponibilidad CON ingreso vehicular y reservó la esclusa'
+                CASE WHEN "HV_Con_Vehiculo" = 'Y' THEN 'Almacén confirmó su disponibilidad CON ingreso vehicular y reservó la esclusa (' || COALESCE("HV_Plazas", 1) || ' plaza(s))'
                      ELSE 'Almacén confirmó su disponibilidad SIN ingreso vehicular (no usa la esclusa)' END);
         "HV_Codigo_Resp" := 100;
         "HV_Mensaje"     := CASE WHEN "HV_Con_Vehiculo" = 'Y' THEN 'Disponibilidad confirmada con ingreso vehicular. La esclusa quedó reservada para esta entrega.'
                                  ELSE 'Disponibilidad confirmada sin ingreso vehicular.' END;
     EXCEPTION WHEN OTHERS THEN
         "HV_Codigo_Resp" := 500;
-        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO';
+        "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS';
     END;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_MODO"(
+    IN    "HV_ID_Solicitud"  BIGINT,
+    IN    "HV_UsuarioID"     BIGINT,
+    IN    "HV_Con_Vehiculo"  CHAR(1),
+    INOUT "HV_Codigo_Resp"   INT DEFAULT NULL,
+    INOUT "HV_Mensaje"       VARCHAR(250) DEFAULT NULL
+)
+LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
+BEGIN
+    -- V3.0 2026-11-22 (D-261): atajo con 1 plaza (la lógica está en ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS)
+    CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"("HV_ID_Solicitud", "HV_UsuarioID", "HV_Con_Vehiculo", 1, "HV_Codigo_Resp", "HV_Mensaje");
 END;
 $$;
 

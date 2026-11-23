@@ -155,11 +155,14 @@ LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_f TIMESTAMP;
     lv_m CHAR(1);
+    lv_e VARCHAR(20);
 BEGIN
+    -- V1.1 2026-11-22 (D-263): una entrega recepcionada que ya soltó su reserva sigue figurando como confirmada
     -- V1.0 2026-11-15
     IF EXISTS (SELECT 1 FROM "CAF_Exclusa" X WHERE X."ID_Solicitud_Actual" = "HV_ID_Solicitud" AND X."Eliminado" = 'N') THEN RETURN 'Y'; END IF;
-    SELECT O."Fecha_Disponibilidad", O."Con_Vehiculo" INTO lv_f, lv_m FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N';
+    SELECT O."Fecha_Disponibilidad", O."Con_Vehiculo", O."Estado_Operativo" INTO lv_f, lv_m, lv_e FROM "CAF_Solicitud_Operacion" O WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Eliminado" = 'N';
     IF lv_f IS NOT NULL AND lv_m = 'N' THEN RETURN 'Y'; END IF;
+    IF lv_f IS NOT NULL AND lv_e = 'RECEPCIONADO' THEN RETURN 'Y'; END IF;
     RETURN 'N';
 END;
 $$;
@@ -556,6 +559,9 @@ BEGIN
                SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
                    "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
              WHERE "ID_Solicitud_Actual" = lv_sol;
+        ELSIF lv_eop IN ('INGRESO','EN_ATENCION','RECEPCIONADO') THEN
+            -- D-261: sale un vehículo de una entrega con varias plazas: se libera el sobrante (la última plaza se queda hasta terminar y salir)
+            PERFORM "ERP_CAF_FN_PLAZAS_AJUSTAR"(lv_sol, "HV_UsuarioID");
         ELSIF lv_den = 0 AND lv_eop = 'CIERRE_FORZADO' THEN
             -- D-218: salida registrada tarde, sobre una entrega que el sistema ya había cerrado. La exclusa ya está libre.
             -- Es un descuido de Vigilancia: se avisa al Coordinador para que tome las medidas que correspondan.
@@ -791,6 +797,14 @@ BEGIN
              WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N' AND "Aprobacion" = 'APROBADA' AND "Estado" = 'ESPERADA';
             INSERT INTO "CAF_Solicitud_Operacion_Evento" ("ID_Solicitud","Estado_Anterior","Estado_Nuevo","ID_Usuario","Observacion")
             VALUES ("HV_ID_Solicitud", 'RECEPCIONADO', 'RECEPCIONADO', "HV_UsuarioID", 'No ingresó: ' || lv_n || ' persona(s) quedaron sin ingresar al recepcionarse la entrega');
+        END IF;
+        -- D-263: entrega de más de 1 vehículo: al terminar la atención se libera TODA la reserva aunque queden vehículos dentro; Vigilancia sigue
+        -- registrando la salida real y el tope físico de la esclusa protege a las demás (la reserva no se concreta hasta que el camión salga).
+        IF "ERP_CAF_FN_VEHICULOS_DECLARADOS"("HV_ID_Solicitud") > 1 THEN
+            UPDATE "CAF_Exclusa"
+               SET "ID_Solicitud_Actual" = NULL, "Fecha_Ocupada" = NULL, "ID_Usuario_Ocupa" = NULL,
+                   "UsuarioID_Update" = "HV_UsuarioID", "UpdateDate" = CURRENT_TIMESTAMP
+             WHERE "ID_Solicitud_Actual" = "HV_ID_Solicitud";
         END IF;
         -- Si ya no hay nadie dentro (los vehículos salieron uno a uno), la entrega termina aquí y se libera la exclusa
         SELECT COUNT(*) INTO lv_n FROM "CAF_Solicitud_Persona"
