@@ -23,14 +23,16 @@ public sealed class ProcesadorCorreos
 
     private readonly ISrv_Correo _correos;
     private readonly ISrv_Solicitud_Adjunto _adjuntos;
+    private readonly ISrv_Parametro _param;
     private readonly IEnviadorCorreo _enviador;
     private readonly OpcionesCorreo _op;
     private readonly ILogger<ProcesadorCorreos> _log;
 
-    public ProcesadorCorreos(ISrv_Correo correos, ISrv_Solicitud_Adjunto adjuntos, IEnviadorCorreo enviador, IOptions<OpcionesCorreo> op, ILogger<ProcesadorCorreos> log)
+    public ProcesadorCorreos(ISrv_Correo correos, ISrv_Solicitud_Adjunto adjuntos, ISrv_Parametro param, IEnviadorCorreo enviador, IOptions<OpcionesCorreo> op, ILogger<ProcesadorCorreos> log)
     {
         _correos = correos;
         _adjuntos = adjuntos;
+        _param = param;
         _enviador = enviador;
         _op = op.Value;
         _log = log;
@@ -38,7 +40,9 @@ public sealed class ProcesadorCorreos
 
     public async Task<ResumenEnvio> ProcesarLoteAsync(CancellationToken ct = default)
     {
-        var lectura = await _correos.PendientesListarAsync(UsuarioSistema, _op.Lote, _op.RetencionSegundos, ct).ConfigureAwait(false);
+        // D-271: el administrador enciende o apaga el envío automático en «Parámetros»; apagado, solo salen los reenvíos manuales.
+        var automatico = await _param.CorreoEnvioAutomaticoAsync(ct).ConfigureAwait(false);
+        var lectura = await _correos.PendientesListarAsync(UsuarioSistema, _op.Lote, _op.RetencionSegundos, !automatico, ct).ConfigureAwait(false);
         if (!lectura.Success)
         {
             _log.LogError("No se pudo leer la cola de correos: {Msg}", lectura.Message);

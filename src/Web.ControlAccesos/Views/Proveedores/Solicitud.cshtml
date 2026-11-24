@@ -2,7 +2,7 @@
 @* D-246: detalle de solo lectura para Almacén. Reutiliza detalle.js: sin ser dueño ni aprobador, la BD no devuelve ningún botón de escritura. *@
 <div class="stack" id="caf-det" data-id="@ViewData["Id"]" data-solo-lectura="Y"
      data-url-datos="@Url.Action("SolicitudDatos", "Proveedores")" data-url-adj="@Url.Action("Listar", "Adjuntos")"
-     data-puede-hist="@(User.TienePermiso("PER_CAF_PROVEEDOR_HIST_ALMACEN") ? "Y" : "N")" data-url-atencion-hist="@Url.Action("AtencionHistorial", "Proveedores")"
+     data-puede-doc-ingreso="@((User.TienePermiso("PER_CAF_PORTERIA_REGISTRAR") || User.TienePermiso("PER_CAF_DOC_INGRESO_CONSULTAR")) ? "Y" : "N")" data-puede-hist="@(User.TienePermiso("PER_CAF_PROVEEDOR_HIST_ALMACEN") ? "Y" : "N")" data-url-atencion-hist="@Url.Action("AtencionHistorial", "Proveedores")"
      data-url-doc-ingreso="@Url.Action("DeSolicitud", "DocumentosIngreso")" data-url-doc-ingreso-descargar="@Url.Action("Descargar", "DocumentosIngreso")">
     @Html.AntiForgeryToken()
     <div id="d-aviso"></div>

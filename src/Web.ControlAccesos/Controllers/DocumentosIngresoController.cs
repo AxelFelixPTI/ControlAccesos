@@ -2,8 +2,8 @@
 // D-265. «Documentos de ingreso»: Vigilancia sube, después de registrar entradas y salidas, los documentos del día
 // (guías, listas de equipos o herramientas; casi siempre PDF escaneado) y los asocia a una o varias personas que ingresaron.
 //   Subir / asignar / quitar : PER_CAF_PORTERIA_REGISTRAR (solo Vigilancia; lo vuelve a exigir el procedimiento)
-//   Consultar                : además PER_CAF_PROVEEDOR_ALMACEN / PER_CAF_PROVEEDOR_HIST_ALMACEN (Almacén solo consulta)
-// PER_CAF_PORTERIA_VER no basta: el Coordinador no ve estos documentos.
+//   Consultar                : PER_CAF_DOC_INGRESO_CONSULTAR (D-272, licencia aparte); solo consulta. Almacén no tiene acceso
+// PER_CAF_PORTERIA_VER no basta (lo tiene quien solo ve el tablero).
 // ============================================================
 
 using System.Globalization;
@@ -15,13 +15,12 @@ using Web.ControlAccesos.Seguridad;
 
 namespace Web.ControlAccesos.Controllers;
 
-[Authorize, ExigirPermiso(PermSubir, PermAlmacen, PermHist)]
+[Authorize, ExigirPermiso(PermSubir, PermConsultar)]
 public sealed class DocumentosIngresoController : Controller
 {
     private const string SedeCodigo = "VES";
     private const string PermSubir = "PER_CAF_PORTERIA_REGISTRAR";
-    private const string PermAlmacen = "PER_CAF_PROVEEDOR_ALMACEN";
-    private const string PermHist = "PER_CAF_PROVEEDOR_HIST_ALMACEN";
+    private const string PermConsultar = "PER_CAF_DOC_INGRESO_CONSULTAR";   // D-272: licencia aparte para consultar (no sube)
     private const long MaxBytes = (long)ValidadorDocumentosIngreso.MaxMbAbsoluto * 1024 * 1024;
 
     private readonly ISrv_Documento_Ingreso _doc;

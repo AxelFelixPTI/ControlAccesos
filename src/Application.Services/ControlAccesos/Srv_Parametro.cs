@@ -34,6 +34,13 @@ public sealed class Srv_Parametro : ISrv_Parametro
         return p is not null && string.Equals((p.Valor ?? "N").Trim(), "Y", StringComparison.OrdinalIgnoreCase);
     }
 
+    public async Task<bool> CorreoEnvioAutomaticoAsync(CancellationToken ct = default)
+    {
+        var r = await ListarAsync(ct).ConfigureAwait(false);
+        var p = r.Success ? r.Data?.FirstOrDefault(x => x.Clave == "CORREO_ENVIO_AUTOMATICO") : null;
+        return p is not null && string.Equals((p.Valor ?? "N").Trim(), "Y", StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<Result> GuardarAsync(string clave, string? valor, long usuarioId, CancellationToken ct = default)
     {
         try

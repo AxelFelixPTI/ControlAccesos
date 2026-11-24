@@ -1,0 +1,7 @@
+/* D-273: pantalla «Historial de Almacén» */
+.ha-sub { color: #64748b; font-size: .8rem; }
+.ha-pausa { color: #92400e; font-size: .8rem; }
+.ha-ok { color: #166534; font-size: .8rem; }
+.ha-oc { font-weight: 600; font-size: .85rem; word-break: break-word; }
+.tabla td { vertical-align: top; }
+@media print { .acc, .filtros, .fila, .toasts { display: none !important; } }

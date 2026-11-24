@@ -63,6 +63,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<IRepo_Solicitud_Persona, Repo_Solicitud_Persona>();
         s.AddScoped<IRepo_Solicitud_Adjunto, Repo_Solicitud_Adjunto>();
         s.AddScoped<IRepo_Documento_Ingreso, Repo_Documento_Ingreso>();   // D-265
+        s.AddScoped<IRepo_Historial_Almacen, Repo_Historial_Almacen>();   // D-273
         s.AddScoped<IRepo_Solicitud_Vigilancia, Repo_Solicitud_Vigilancia>();
         s.AddScoped<IRepo_Proveedor, Repo_Proveedor>();
         s.AddScoped<IRepo_Tipo_Acceso_Paso, Repo_Tipo_Acceso_Paso>();
@@ -96,6 +97,7 @@ public static class ServiciosControlAccesos
         s.AddScoped<ISrv_Solicitud_Persona, Srv_Solicitud_Persona>();
         s.AddScoped<ISrv_Solicitud_Adjunto, Srv_Solicitud_Adjunto>();
         s.AddScoped<ISrv_Documento_Ingreso, Srv_Documento_Ingreso>();   // D-265
+        s.AddScoped<ISrv_Historial_Almacen, Srv_Historial_Almacen>();   // D-273
         s.AddScoped<ISrv_Solicitud_Vigilancia, Srv_Solicitud_Vigilancia>();
         s.AddScoped<ISrv_Proveedor, Srv_Proveedor>();
         s.AddScoped<ISrv_Tipo_Acceso_Paso, Srv_Tipo_Acceso_Paso>();

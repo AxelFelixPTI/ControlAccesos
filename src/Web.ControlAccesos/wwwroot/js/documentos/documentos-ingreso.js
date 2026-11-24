@@ -203,7 +203,10 @@
     document.getElementById('di-buscar').appendChild(CAF.btn({ icono: 'buscar', texto: 'Buscar', clase: 'btn-primary', modo: 'texto', onclick: consultar }));
     q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); consultar(); } });
 
-    // ── Pestañas ──
+    // ── Pestañas (con ícono) ──
+    Array.prototype.forEach.call(document.querySelectorAll('#di-tabs button'), function (b) {
+        var t = b.textContent; b.textContent = ''; b.appendChild(CAF.icono(b.dataset.tab === 'subir' ? 'subir' : 'buscar')); b.appendChild(el('span', { text: ' ' + t }));
+    });
     var pSubir = document.getElementById('di-p-subir'), pCons = document.getElementById('di-p-consultar'), vistoCons = false;
     Array.prototype.forEach.call(document.querySelectorAll('#di-tabs button'), function (b) {
         b.addEventListener('click', function () {

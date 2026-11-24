@@ -922,3 +922,52 @@ En el proveedor el «responsable» es el contacto de la empresa proveedora (`Con
 **BD:** `ERP_CAF_DOC_INGRESO_BUSCAR(usuario, sede, desde, hasta, texto)` en `SP_CAF_DOCUMENTO_INGRESO_ALL.sql`, con la misma regla de acceso que el listado del día. **HANA (T-61):** equivalente directo; `ILIKE` → `LIKE` con `LOWER()`, `STRING_AGG` → `STRING_AGG` (igual), `LIMIT 200` igual.
 **.NET:** `Dto_Documento_Ingreso_Busqueda`, `BuscarAsync` en repo y servicio, acción `Buscar` (GET) en `DocumentosIngresoController`.
 **Pruebas:** +2 en Hito 2 escritura (1029/1029). No se probó en navegador ni se compiló C# (sin `dotnet` ni navegador aquí).
+
+## D-270 — El Coordinador que aprueba también consulta los documentos de ingreso
+
+**Corrección a D-265:** el Coordinador aprobador (`PER_CAF_SOLICITUD_APROBAR`) es el interesado en esos documentos y quedaba excluido. Ahora **consulta** (listado del día, pestaña «Consultar», descarga y bloque del detalle de la solicitud); **no sube ni retira** (sigue siendo solo Vigilancia).
+- BD: `ERP_CAF_FN_DOC_INGRESO_PUEDE_VER` V1.1 suma `PER_CAF_SOLICITUD_APROBAR`.
+- Web: el controlador acepta ese permiso y el menú muestra «Documentos de ingreso» en el grupo Coordinador (si no es Vigilancia).
+- Pruebas: 5 comprobaciones de D-265/D-269 que decían «Coordinación no ve» se corrigieron (el coordinador de proveedores del banco de pruebas también aprueba); +1 de D-270 (Hito 2 escritura 1030/1030).
+- Almacén sigue consultando (decisión de D-265; ver P-177 por si se prefiere quitarlo).
+
+## D-271 — Envío automático de correos: parámetro del administrador (apagado por defecto)
+
+**Problema:** al arrancar, la app enviaba por SMTP todo lo que hubiera en `CAF_Correo_Pendiente`; los datos DEMO la llenan con correos a direcciones que no existen y Gmail cortó el envío (5.4.5, límite diario).
+**Decisión:** parámetro **`CORREO_ENVIO_AUTOMATICO`** (Y/N, por defecto **N**), editable por el administrador en «Parámetros» (sin tocar appsettings ni reiniciar). Con N solo salen los **reenvíos manuales**; los avisos automáticos esperan en la cola. En producción se pone Y.
+- BD: script `44_ALTER_PARAMETRO_CORREO_AUTOMATICO.sql` (INSERT idempotente), validación Y/N en `ERP_CAF_PARAMETRO_GUARDAR`, `ERP_CAF_CORREO_PENDIENTES_LISTAR` V1.2 con `HV_Solo_Reenvios`. Script `DESCARTAR_CORREOS_PENDIENTES.sql` (pasa los avisos pendientes a ERROR con motivo; no borra nada; no toca reenvíos).
+- .NET: `ISrv_Parametro.CorreoEnvioAutomaticoAsync` (se lee en cada vuelta, así el cambio rige en unos 5 s); `ProcesadorCorreos` lo usa. No hay opción en appsettings.
+- Pantalla: «Parámetros» muestra el parámetro como Sí/No con su ayuda.
+- Pruebas: +3 (Hito 4: filtro de reenvíos; Hito 2: parámetro). HANA (T-62): un parámetro CHAR con valor por defecto y el mismo INSERT.
+**Pendiente:** P-178 (en producción, ¿Y desde el inicio y tope diario?).
+
+## D-272 — Documentos de ingreso: licencia de consulta aparte; Almacén sin acceso
+
+**Corrección a D-265 y D-270:** Almacén no debe ver lo que sube Vigilancia (lo había habilitado yo por mi cuenta; ahora se retira), y la consulta pasa de un permiso heredado de otras licencias a una **licencia propia** que se asigna en Usuarios y roles.
+- Nuevo script **45**: permiso `PER_CAF_DOC_INGRESO_CONSULTAR` + licencia `LIC_CAF_DOC_INGRESO_CONSULTA` («Consultar documentos de ingreso»). Se concede una sola vez a quienes ya tienen `LIC_CAF_COORDINADOR` o `LIC_CAF_COORD_PROVEEDOR` (misma sede); luego se quita o se da a otros desde Usuarios y roles. No se agrega a `LIC_CAF_ADMIN`.
+- `ERP_CAF_FN_DOC_INGRESO_PUEDE_VER` V1.2: Vigilancia (`PER_CAF_PORTERIA_REGISTRAR`) o la licencia nueva. Ya no cuentan `PROVEEDOR_ALMACEN`, `PROVEEDOR_HIST_ALMACEN` ni `SOLICITUD_APROBAR`. Quien solo consulta no sube ni retira.
+- Web: el controlador y el menú usan el permiso nuevo (grupo Coordinador; Vigilancia conserva el suyo). Íconos: «Documentos de ingreso» en el menú lateral y en las pestañas Subir/Consultar.
+- Demos: los coordinadores demo reciben la licencia nueva. HANA (T-63): mismo INSERT idempotente.
+- Pruebas: las de D-265/D-269/D-270 se ajustan (Almacén ve 0; coordinador sin licencia 0, con licencia 1 y sin subir). Hito 2 escritura 1031/1031.
+- **Corrección adicional (D-272):** el bloque «Documentos de ingreso» del detalle de la solicitud dependía por error de la licencia «Historial de Almacén» (`puede-hist`). Ahora depende de `puede-doc-ingreso` (Vigilancia o la licencia de consulta). El historial de Almacén vuelve a tener solo el bloque «Atención de Almacén» (D-264) y ya no tiene relación con los documentos de ingreso.
+
+## D-273 — Pantalla «Historial de Almacén» (listado de atenciones pasadas)
+
+**Pedido:** además del bloque «Atención de Almacén» del detalle, un listado como el «Reporte de accesos» pero para Almacén, para consultar entregas de proveedores pasadas.
+- **Pantalla** `HistorialAlmacen/Index` (menú Proveedores → «Historial de Almacén»), con la licencia «Historial de Almacén» (`PER_CAF_PROVEEDOR_HIST_ALMACEN`); la regla la vuelve a exigir el procedimiento. Sin script de tablas nuevo.
+- **Una fila por entrega y empresa de destino:** solicitud (enlace al detalle), proveedor, solicitante, empresa, quién inició y quién terminó, horario, **tiempo activo**, **pausas** (cantidad y minutos), **con o sin ingreso vehicular**, estado y resultado (o motivo si se cerró sin atención).
+- **Filtros:** entrega desde/hasta (sin fechas: 30 días; máximo 366), texto (solicitud, proveedor, solicitante, almacenero), empresa de destino, estado de la atención y ingreso vehicular. Exportar a CSV (con los mismos filtros) e imprimir.
+- **BD:** `ERP_CAF_PROVEEDOR_HISTORIAL_ALMACEN` (en `SP_CAF_PROVEEDOR_ATENCION_HISTORIAL_ALL.sql`): solo solicitudes APROBADAS de proveedor; máximo 500 filas. Tiempo activo = (fin o ahora) − inicio − pausas; las pausas salen de la bitácora (`ATENCION_DETENIDA` / `ATENCION_REANUDADA`) de esa empresa.
+- **.NET:** `Dto_Historial_Almacen`, `IRepo_/Repo_/ISrv_/Srv_Historial_Almacen`, `HistorialAlmacenController` (Index, Lista, Exportar).
+- **Límite conocido:** la bitácora de pausas es por solicitud y empresa; si una entrega pasó por cesión de reserva o atención, el listado muestra a quien inició y a quien terminó, pero no el detalle intermedio. El ingreso vehicular es el de la entrega completa (no por empresa).
+- Pruebas: +3 (Hito 2 escritura 1034/1034). HANA (T-64): CTE y LATERAL → subconsulta correlacionada; `ILIKE` → `LIKE` con `LOWER()`.
+
+## D-274 — Historial de Almacén: OC, franja programada vs. atención real y sin celdas vacías
+
+**Pedido:** el historial parecía incompleto (muchos «—»); hacía falta la OC (para ubicar quién recibió una compra), la franja horaria de la solicitud frente a la hora real de atención, y juntar visualmente con/sin ingreso vehicular.
+- **Modelo:** una fila por entrega y empresa (una solicitud de 3 empresas = 3 filas, cada una con su atención). El **estado de la atención** por empresa guarda el estado final y las pausas; los **cambios de estado de la entrega** completa (programado → en espera → ingreso → atención → recepción → salida / cierre forzado) están en la bitácora `CAF_Solicitud_Operacion_Evento` (visible en el detalle de la solicitud), no por empresa. El historial muestra el estado final de la entrega y sus marcas (llegada, ingreso, confirmación de disponibilidad, salida).
+- **BD:** `ERP_CAF_PROVEEDOR_HISTORIAL_ALMACEN` V2.0 (DROP + CREATE por cambio de columnas): + `Numeros_OC`, `Placa`, `Conductor`, `Empresa_Transportista`, `Hora_Hasta` (la hora «desde» es la de `Fecha_Entrega`), `Estado_Entrega`, `Fecha_Llegada/Ingreso/Disponibilidad/Salida`, `Minutos_Desvio` (inicio real − inicio de la franja; negativo = antes) y `Fuera_Franja` (inició después de «hasta»). El texto busca también por OC, placa, conductor, transportista y quien confirmó la disponibilidad. Sin tablas nuevas.
+- **Pantalla:** columnas «Solicitud y OC», «Proveedor y transporte» (placa, conductor, transportista), «Empresa de destino», «Franja programada» (la fecha solo una vez), «Atención de Almacén (inicio – fin)» con el desvío contra la franja, «Atendió», «Tiempo activo», «Estado de la entrega» (incluye con/sin ingreso vehicular y las horas de llegada/ingreso/salida) y «Resultado de la atención». Donde no hay dato se explica el motivo (p. ej. «La entrega terminó sin que Almacén atendiera a esta empresa», «Esperando que Almacén confirme disponibilidad») en lugar de «—».
+- **CSV:** 31 columnas (OC, placa, conductor, transportista, franja desde/hasta, estado de la entrega, llegada, ingreso, disponibilidad, salida, desvío, fuera de franja, además de lo anterior).
+- **Límite conocido:** los cambios de estado intermedios son por entrega, no por empresa; la hora de confirmación de disponibilidad también es por entrega.
+- Pruebas: +1 (Hito 2 escritura 1035/1035). HANA (T-65): ídem T-64; `TO_CHAR(hora,'HH24:MI')` → `TO_VARCHAR`; `CAST(ts AS TIME)` → `TO_TIME(ts)`.

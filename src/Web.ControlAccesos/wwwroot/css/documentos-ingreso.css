@@ -26,3 +26,4 @@
 .di-fecha { display: inline-block; padding: .05rem .5rem; border-radius: 6px; background: #dbeafe; font-size: .8rem; margin-right: .4rem; }
 .di-arch { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 #di-adj .plist { margin: .35rem 0 0; }
+.seg button .ic { vertical-align: -3px; margin-right: .15rem; }

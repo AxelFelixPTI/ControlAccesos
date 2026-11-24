@@ -884,6 +884,9 @@ BEGIN
         IF "HV_Clave" = 'INCIDENCIA_POST_SALIDA' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Permitir incidencias a quien ya salió debe ser Y o N.'; RETURN;
         END IF;
+        IF "HV_Clave" = 'CORREO_ENVIO_AUTOMATICO' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El envío automático de correos debe ser Y o N.'; RETURN;
+        END IF;
         IF "HV_Clave" = 'DOCUMENTO_INGRESO_OBLIGATORIO' AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Documento de ingreso obligatorio debe ser Y o N.'; RETURN;
         END IF;

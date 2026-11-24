@@ -2,7 +2,7 @@
 -- SP_CAF_DOCUMENTO_INGRESO_ALL.sql   (2026-11-22, D-265)
 -- Documentos de ingreso del día que sube Vigilancia (fuera del flujo de registrar entradas y salidas).
 --   ERP_CAF_FN_DOC_INGRESO_PUEDE_SUBIR(usuario, sede)       Vigilancia que registra (PER_CAF_PORTERIA_REGISTRAR)
---   ERP_CAF_FN_DOC_INGRESO_PUEDE_VER(usuario, sede)         Vigilancia (registra), Almacén y quien tiene el historial de Almacén; no Coordinación
+--   ERP_CAF_FN_DOC_INGRESO_PUEDE_VER(usuario, sede)         Vigilancia (PER_CAF_PORTERIA_REGISTRAR) y quien tiene la licencia «Consultar documentos de ingreso» (PER_CAF_DOC_INGRESO_CONSULTAR); Almacén no
 --   ERP_CAF_DOC_INGRESO_AGREGAR(...)                        sube el archivo y lo vincula a las personas (≥ 1)
 --   ERP_CAF_DOC_INGRESO_PERSONAS_ASIGNAR(doc, ids, usuario) deja exactamente esas personas (añade y quita)
 --   ERP_CAF_DOC_INGRESO_QUITAR(doc, usuario)                retira el documento y sus vínculos (borrado lógico)
@@ -31,11 +31,10 @@ CREATE OR REPLACE FUNCTION "ERP_CAF_FN_DOC_INGRESO_PUEDE_VER"("HV_UsuarioID" BIG
 RETURNS CHAR
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 BEGIN
-    -- V1.0 2026-11-22 (D-265): Vigilancia sube; Almacén y quien tiene el historial de Almacén solo consultan. PORTERIA_VER no basta: lo tiene también Coordinación
+    -- V1.2 2026-11-24 (D-272): consulta quien tiene la licencia aparte PER_CAF_DOC_INGRESO_CONSULTAR; Almacén y la aprobación de solicitudes ya no dan acceso. V1.1 (D-270): consultaba el Coordinador aprobador. V1.0 (D-265): Vigilancia sube; Almacén y quien tiene el historial de Almacén solo consultan. PORTERIA_VER no basta: lo tiene también Coordinación
     IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <= 0 THEN RETURN 'N'; END IF;
     RETURN CASE WHEN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PORTERIA_REGISTRAR', "HV_ID_Catalogo_Sede") = 'Y'
-                  OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', "HV_ID_Catalogo_Sede") = 'Y'
-                  OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_HIST_ALMACEN', "HV_ID_Catalogo_Sede") = 'Y' THEN 'Y' ELSE 'N' END;
+                  OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_DOC_INGRESO_CONSULTAR', "HV_ID_Catalogo_Sede") = 'Y' THEN 'Y' ELSE 'N' END;
 END;
 $$;
 

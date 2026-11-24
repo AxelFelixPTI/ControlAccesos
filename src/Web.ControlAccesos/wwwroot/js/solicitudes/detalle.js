@@ -216,12 +216,12 @@
         });
     }
 
-    // D-265: bloque «Documentos de ingreso» (Almacén y Vigilancia): documentos del día que Vigilancia asoció a personas de esta solicitud.
+    // D-265: bloque «Documentos de ingreso» (Vigilancia y quien tiene la licencia «Consultar documentos de ingreso»; D-272: ya no depende del historial de Almacén): documentos del día que Vigilancia asoció a personas de esta solicitud.
     function pintarDocIngreso() {
         var c = document.getElementById('d-docing');
         if (!c) { c = el('section', { class: 'card', id: 'd-docing' }); var ref = document.getElementById('d-almacen'); if (ref && ref.parentNode) ref.parentNode.insertBefore(c, ref.nextSibling); else return; }
         c.textContent = '';
-        if (d.puedeHist !== 'Y' || !d.urlDocIngreso || !s) return;
+        if (d.puedeDocIngreso !== 'Y' || !d.urlDocIngreso || !s) return;
         CAF.pedir(d.urlDocIngreso + '?id=' + id).then(function (r) {
             if (!r.success || !(r.data || []).length) { c.hidden = true; return; }
             c.hidden = false;

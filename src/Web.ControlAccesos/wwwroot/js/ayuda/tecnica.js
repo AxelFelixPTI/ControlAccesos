@@ -359,6 +359,32 @@ window.CAF_AYUDA_TEC = {
    "Usuario"
   ]
  },
+ "HistorialAlmacen": {
+  "servicios": [
+   "Srv_Catalogo_Empresa_Grupo",
+   "Srv_Catalogo_Sede",
+   "Srv_Historial_Almacen"
+  ],
+  "sps": [
+   "ERP_CAF_PROVEEDOR_HISTORIAL_ALMACEN"
+  ],
+  "tablas": [
+   "CAF_Motivo_Sin_Atencion",
+   "CAF_Persona_Externa",
+   "CAF_Solicitud",
+   "CAF_Solicitud_Atencion",
+   "CAF_Solicitud_Empresa",
+   "CAF_Solicitud_Operacion",
+   "CAF_Solicitud_Operacion_Evento",
+   "CAF_Solicitud_Persona",
+   "Catalogo_Empresa_Grupo",
+   "Catalogo_Licencia",
+   "Catalogo_Permiso",
+   "Catalogo_Tipo_Acceso",
+   "Licencia_Permiso",
+   "Usuario"
+  ]
+ },
  "Incidencias": {
   "servicios": [
    "Srv_Catalogo_Sede",

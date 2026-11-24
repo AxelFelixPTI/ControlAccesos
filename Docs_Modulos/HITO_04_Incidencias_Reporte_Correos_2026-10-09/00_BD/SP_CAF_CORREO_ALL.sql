@@ -31,10 +31,12 @@ SET search_path TO "TRIANONSATELITAL_CAF_PRODD";
 -- se borra la función anterior (cambia el tipo de retorno). Solo los correos de una solicitud los llevan.
 DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_PENDIENTES_LISTAR"(BIGINT, INT);
 DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_PENDIENTES_LISTAR"(BIGINT, INT, INT);
+DROP FUNCTION IF EXISTS "ERP_CAF_CORREO_PENDIENTES_LISTAR"(BIGINT, INT, INT, CHAR);
 CREATE OR REPLACE FUNCTION "ERP_CAF_CORREO_PENDIENTES_LISTAR"(
     "HV_UsuarioID" BIGINT,
     "HV_Maximo"    INT DEFAULT 20,
-    "HV_Retener_Segundos" INT DEFAULT 0
+    "HV_Retener_Segundos" INT DEFAULT 0,
+    "HV_Solo_Reenvios" CHAR DEFAULT 'N'
 )
 RETURNS TABLE ("ID_Correo_Pendiente" BIGINT, "Tipo" VARCHAR, "ID_Solicitud" BIGINT, "Destinatarios" VARCHAR,
                "Copia" VARCHAR, "Asunto" VARCHAR, "Cuerpo" TEXT, "Intentos" BIGINT,
@@ -44,7 +46,7 @@ LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_max INT := COALESCE("HV_Maximo", 20);
 BEGIN
-    -- V1.1 2026-10-29
+    -- V1.1 2026-10-29. V1.2 2026-11-24 (D-271): HV_Solo_Reenvios='Y' devuelve solo los reenvíos manuales (envío automático apagado).
     IF "HV_UsuarioID" IS NULL OR "HV_UsuarioID" <> 0 THEN RETURN; END IF;
     IF lv_max < 1 THEN lv_max := 1; END IF;
     IF lv_max > 100 THEN lv_max := 100; END IF;
@@ -57,6 +59,7 @@ BEGIN
       LEFT JOIN "CAF_GOVERNANCE"."Usuario" U
              ON U."ID_Usuario" = C."UsuarioID_Create" AND C."ID_Solicitud" IS NOT NULL AND C."UsuarioID_Create" > 0
      WHERE C."Eliminado" = 'N' AND C."Estado" = 'PENDIENTE'
+       AND (COALESCE("HV_Solo_Reenvios", 'N') <> 'Y' OR C."Tipo" = 'SOLICITUD_REENVIO')
        AND (COALESCE("HV_Retener_Segundos", 0) <= 0 OR C."CreateDate" <= CURRENT_TIMESTAMP - COALESCE("HV_Retener_Segundos", 0) * INTERVAL '1 second')
      ORDER BY C."CreateDate", C."ID_Correo_Pendiente"
      LIMIT lv_max;

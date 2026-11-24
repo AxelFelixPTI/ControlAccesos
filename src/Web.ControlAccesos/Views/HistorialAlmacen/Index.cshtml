@@ -1,0 +1,42 @@
+@{ ViewData["Titulo"] = "Historial de Almacén"; ViewData["Migas"] = "Proveedores"; var empresas = (List<(long Id, string Nombre)>)(ViewData["Empresas"] ?? new List<(long Id, string Nombre)>()); }
+<link rel="stylesheet" href="~/css/historial-almacen.css" asp-append-version="true" />
+<div class="stack" id="caf-hist" data-url-lista="@Url.Action("Lista", "HistorialAlmacen")" data-url-exportar="@Url.Action("Exportar", "HistorialAlmacen")" data-url-solicitud="@Url.Action("Solicitud", "Proveedores")">
+    <div class="row-sp">
+        <p class="lead">Todas las atenciones de Almacén en entregas de proveedores: la OC, la franja horaria programada frente a la atención real de Almacén, quién atendió cada empresa, cuánto tiempo, si hubo pausas, con o sin ingreso vehicular y cómo terminó la entrega. Una fila por entrega y empresa de destino.</p>
+        <div class="acc">
+            <button type="button" class="btn" id="h-exportar">Exportar a Excel (CSV)</button>
+            <button type="button" class="btn" id="h-imprimir">Imprimir</button>
+        </div>
+    </div>
+    <section class="card">
+        <div class="fila">
+            <label class="field f-s"><span class="field-l">Entrega desde</span><input type="date" id="h-desde" /></label>
+            <label class="field f-s"><span class="field-l">Entrega hasta</span><input type="date" id="h-hasta" /></label>
+            <label class="field f-l"><span class="field-l">N.° de OC, solicitud, proveedor, placa, conductor, solicitante o almacenero</span><input type="search" id="h-texto" autocomplete="off" placeholder="Ej.: OC-88048, placa o nombre" /></label>
+        </div>
+        <div class="fila">
+            <label class="field f-m"><span class="field-l">Empresa de destino</span>
+                <select id="h-empresa"><option value="">Todas</option>@foreach (var e in empresas) { <option value="@e.Id">@e.Nombre</option> }</select>
+            </label>
+            <label class="field f-m"><span class="field-l">Estado de la atención</span>
+                <select id="h-estado"><option value="">Todos</option><option value="ATENDIDA">Atendida</option><option value="EN_ATENCION">En atención</option><option value="DETENIDA">Detenida</option><option value="CERRADA_SIN_ATENCION">Cerrada sin atención</option><option value="PENDIENTE">Pendiente</option></select>
+            </label>
+            <label class="field f-m"><span class="field-l">Ingreso vehicular</span>
+                <select id="h-vehiculo"><option value="">Todos</option><option value="Y">Con ingreso vehicular</option><option value="N">Sin ingreso vehicular</option></select>
+            </label>
+        </div>
+    </section>
+    <section class="card">
+        <p class="card-cap" id="h-cuenta"></p>
+        <div class="tw">
+            <table class="tabla">
+                <thead><tr><th>Solicitud y OC</th><th>Proveedor y transporte</th><th>Empresa de destino</th><th>Franja programada</th><th>Atención de Almacén (inicio – fin)</th><th>Atendió</th><th>Tiempo activo</th><th>Estado de la entrega</th><th>Resultado de la atención</th></tr></thead>
+                <tbody id="h-filas"><tr><td colspan="9" class="vacio">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="~/js/caf.js" asp-append-version="true"></script>
+<script src="~/js/solicitudes/comun.js" asp-append-version="true"></script>
+<script src="~/js/almacen/historial-almacen.js" asp-append-version="true"></script>

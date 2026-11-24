@@ -39,7 +39,7 @@ DECLARE
     v_lic_sol BIGINT; v_lic_coo BIGINT; v_lic_vig BIGINT; v_lic_min BIGINT;
     v_u_sol BIGINT; v_u_coo BIGINT; v_u_vig BIGINT; v_u_min BIGINT; v_u_nada BIGINT; v_ul BIGINT;
     v_e BIGINT[]; v_z_adm BIGINT; v_z_pt BIGINT; v_mot BIGINT; v_ext BIGINT; v_paso_ext BIGINT;
-    v_s1 BIGINT; v_s2 BIGINT; v_s3 BIGINT; v_s5 BIGINT;
+    v_s1 BIGINT; d271a TEXT; d271b TEXT; v_s2 BIGINT; v_s3 BIGINT; v_s5 BIGINT;
     v_p1 BIGINT; v_p2 BIGINT; v_p3 BIGINT; v_p4 BIGINT; v_p5 BIGINT; v_p6 BIGINT; v_p11 BIGINT; v_p12 BIGINT;
     v_p7 BIGINT; v_p8 BIGINT; v_p9 BIGINT; v_p10 BIGINT;
     v_t_lib BIGINT; v_t_reg BIGINT; v_t_rest BIGINT; v_t_den BIGINT; v_t_ret BIGINT; v_t_otro BIGINT;
@@ -264,6 +264,16 @@ BEGIN
     PERFORM pg_temp.chk('Pendientes: el sistema ve los 3 encolados', '3', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0)'), '');
     PERFORM pg_temp.chk('Pendientes: una persona no puede leerlos (Vigilancia)', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(' || COALESCE(v_u_vig::TEXT, 'NULL') || ')'), '');
     PERFORM pg_temp.chk('Pendientes: ni el Coordinador', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(' || COALESCE(v_u_coo::TEXT, 'NULL') || ')'), '');
+    -- D-271: con el envío automático apagado solo se leen los reenvíos manuales (en un sub-bloque que se deshace para no alterar las pruebas que siguen)
+    d271a := pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 20, 0, ''Y'')');
+    BEGIN
+        CALL "ERP_CAF_CORREO_ENCOLAR"('SOLICITUD_REENVIO', v_s1, 'a@ejemplo.pe', NULL, 'Reenvío manual', '<p>R</p>', v_u_coo, v_cod, v_msg);
+        d271b := v_cod::TEXT || '|' || pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 20, 0, ''Y'')') || '|' || pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0)');
+        RAISE EXCEPTION 'deshacer D-271';
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+    PERFORM pg_temp.chk('D-271 solo reenvíos: con 3 avisos automáticos en cola no se lee ninguno', '0', d271a, '');
+    PERFORM pg_temp.chk('D-271 solo reenvíos: el reenvío manual sí se lee (1) y sin el filtro se leen los 4', '100|1|4', d271b, '');
     PERFORM pg_temp.chk('Pendientes: usuario nulo', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(NULL)'), '');
     PERFORM pg_temp.chk('Pendientes: máximo 2', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 2)'), '');
     PERFORM pg_temp.chk('Pendientes: máximo 0 se corrige a 1', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_CORREO_PENDIENTES_LISTAR"(0, 0)'), '');
