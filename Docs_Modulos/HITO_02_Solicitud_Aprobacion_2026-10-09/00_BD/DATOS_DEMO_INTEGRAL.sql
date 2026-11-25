@@ -413,7 +413,7 @@ BEGIN
             IF r.flow IN ('SALIO','SALIO_OBS','CIERRE','ATENCION') THEN
                 CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(v_id,v_alm,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,r.cod||' disponibilidad');
                 CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(v_id,v_vig,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,r.cod||' ingreso');
-                CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_id,sp2::TEXT,pg_temp.items(sp2,'INGRESO',''),NULL,NULL,NULL,NULL,NULL,NULL,v_vig,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,r.cod||' verificar ayudante');
+                CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_id,sp2::TEXT,pg_temp.items(sp2,'INGRESO',''),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,v_vig,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,r.cod||' verificar ayudante');
                 CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(v_id,sp2::TEXT,v_vig,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,r.cod||' ayudante entra');
                 FOR i IN 1..ne LOOP
                     v_e := (STRING_TO_ARRAY(v_es, ','))[i];

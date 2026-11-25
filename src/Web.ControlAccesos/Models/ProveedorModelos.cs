@@ -22,6 +22,9 @@ public sealed class ProveedorGrupoVM
     public List<ItemRespuestaVM> Items { get; set; } = new();
     public string? Observacion { get; set; }
     public DesviacionVM? Desviacion { get; set; }
+    /// <summary>D-275: solo en la verificación/ingreso en grupo. Personas de la selección que traen equipos o herramientas (lo descubre Vigilancia en la puerta).</summary>
+    public List<long> ConEquiposIds { get; set; } = new();
+    public List<long> ConHerramientasIds { get; set; } = new();
 }
 
 /// <summary>Motivo obligatorio (hoy lo usa Vigilancia en «Retiro sin ingreso»).</summary>

@@ -345,7 +345,7 @@ BEGIN
     CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(sps_p[16],pg_temp.items(sps_p[16],'INGRESO',''),'N','N',NULL,NULL,NULL,NULL,NULL,NULL,NULL,vg1,v_r,v_d,v_x,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 verificar');
     CALL "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_CONFIRMAR"(ids_p[16],a1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 disponibilidad');
     CALL "ERP_CAF_PROVEEDOR_INGRESO_VALIDAR"(ids_p[16],vg1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 ingreso');
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(ids_p[16],sps_a[16]::TEXT,pg_temp.items(sps_a[16],'INGRESO',''),NULL,NULL,NULL,NULL,NULL,NULL,vg1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 verificar ayudante');
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(ids_p[16],sps_a[16]::TEXT,pg_temp.items(sps_a[16],'INGRESO',''),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,vg1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 verificar ayudante');
     CALL "ERP_CAF_PROVEEDOR_INGRESO_FISICO"(ids_p[16],sps_a[16]::TEXT,vg1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 ayudante entra');
     CALL "ERP_CAF_PROVEEDOR_ATENDER"(ids_p[16],a1,v_cod,v_msg); PERFORM pg_temp.ok(v_cod,v_msg,'P16 atender');
 

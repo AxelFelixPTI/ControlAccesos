@@ -20,4 +20,7 @@ public sealed class Dto_Proveedor_Grupo
     public Dto_Porteria_Desviacion_Entrada? Desviacion { get; set; }
     /// <summary>D-245: solo en la salida. Motivo de la SALIDA ANTICIPADA (sin ingreso vehicular, antes de que Almacén termine); obligatorio en ese caso.</summary>
     public string? Motivo_Anticipada { get; set; }
+    /// <summary>D-275: solo en la verificación. Personas de la selección que traen equipos / herramientas (cada una se registra con lo suyo y necesita su respaldo).</summary>
+    public List<long> IDs_Con_Equipos { get; set; } = new();
+    public List<long> IDs_Con_Herramientas { get; set; } = new();
 }
