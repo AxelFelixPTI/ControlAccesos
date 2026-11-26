@@ -1,0 +1,37 @@
+name: CI
+on:
+push:
+branches: [ main-remoto-desarrollo-estable ]
+  pull_request:
+jobs:
+  construir-y-probar:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ClavePruebaCI
+        ports: [ '5432:5432' ]
+        options: >
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compilar
+        run: dotnet build src/ControlAccesos.slnx -c Release
+      - name: Restaurar base de pruebas
+        run: |
+          psql "postgresql://postgres:ClavePruebaCI@localhost:5432/postgres" -c "CREATE DATABASE caf_ci ENCODING 'UTF8'"
+          bash scripts/restaurar_bd.sh
+        env:
+          DATABASE_URL: 
+postgresql://postgres:ClavePruebaCI@localhost:5432/caf_ci
+      - name: Pruebas
+        run: dotnet test src/ControlAccesos.slnx -c Release --no-build
+        env:
+          CAF_DB_BASE: caf_ci
+          CAF_DB_USUARIO: postgres
+          CAF_DB_CLAVE: ClavePruebaCI
