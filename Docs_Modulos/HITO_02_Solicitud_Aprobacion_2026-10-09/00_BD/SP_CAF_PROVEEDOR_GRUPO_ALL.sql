@@ -257,6 +257,7 @@ $$;
 --    portería (misma hora, mismo vigilante) y, si algún ítem no cumple, con su propia desviación (misma decisión).
 --    Las reglas de cada persona (ingreso, salida, ítem crítico, permisos) las aplica ERP_CAF_PORTERIA_*_REGISTRAR; si una falla, nada se guarda.
 -- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BIGINT, BIGINT, VARCHAR, VARCHAR, BIGINT, INT, VARCHAR);
 CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(
     IN    "HV_ID_Solicitud"        BIGINT,
     IN    "HV_IDs_Persona"         VARCHAR(2000),
@@ -267,12 +268,18 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(
     IN    "HV_ID_Tratamiento"      BIGINT,
     IN    "HV_Tratamiento_Detalle" VARCHAR(500),
     IN    "HV_Resultado_Elegido"   VARCHAR(30),
+    IN    "HV_IDs_Con_Equipos"     VARCHAR(2000),
+    IN    "HV_IDs_Con_Herramientas" VARCHAR(2000),
     IN    "HV_UsuarioID"           BIGINT,
     INOUT "HV_Codigo_Resp"         INT DEFAULT NULL,
     INOUT "HV_Mensaje"             VARCHAR(250) DEFAULT NULL
 )
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
+    lv_eq     BIGINT[] := ARRAY[]::BIGINT[];
+    lv_he     BIGINT[] := ARRAY[]::BIGINT[];
+    lv_te     CHAR(1);
+    lv_th     CHAR(1);
     lv_arr    BIGINT[];
     lv_id     BIGINT;
     lv_n      INT := 0;
@@ -289,6 +296,7 @@ DECLARE
     lv_cod_f  INT := NULL;
     lv_msg_f  VARCHAR(250) := NULL;
 BEGIN
+    -- V1.1 2026-11-24 (D-275): + HV_IDs_Con_Equipos / HV_IDs_Con_Herramientas (subconjunto de la selección): cada persona se registra con lo que ella trae y a cada una le aplican sus ítems condicionales
     -- V1.0 2026-11-09
     "HV_Codigo_Resp" := 500;
     "HV_Mensaje"     := 'Error interno en ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO';
@@ -305,22 +313,40 @@ BEGIN
         IF lv_n <> CARDINALITY(ARRAY(SELECT DISTINCT X FROM UNNEST(lv_arr) AS X)) THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'Alguna de las personas no pertenece a esta entrega.'; RETURN;
         END IF;
+        -- D-275: quién trae equipos / herramientas (lista opcional, solo ids de la selección)
+        IF COALESCE(TRIM("HV_IDs_Con_Equipos"), '') <> '' THEN
+            IF REPLACE("HV_IDs_Con_Equipos", ' ', '') !~ '^[0-9]+(,[0-9]+)*$' THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La lista de personas con equipos no es válida.'; RETURN;
+            END IF;
+            lv_eq := CAST(STRING_TO_ARRAY(REPLACE("HV_IDs_Con_Equipos", ' ', ''), ',') AS BIGINT[]);
+        END IF;
+        IF COALESCE(TRIM("HV_IDs_Con_Herramientas"), '') <> '' THEN
+            IF REPLACE("HV_IDs_Con_Herramientas", ' ', '') !~ '^[0-9]+(,[0-9]+)*$' THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La lista de personas con herramientas no es válida.'; RETURN;
+            END IF;
+            lv_he := CAST(STRING_TO_ARRAY(REPLACE("HV_IDs_Con_Herramientas", ' ', ''), ',') AS BIGINT[]);
+        END IF;
+        IF EXISTS (SELECT 1 FROM UNNEST(lv_eq) AS X WHERE X <> ALL(lv_arr)) OR EXISTS (SELECT 1 FROM UNNEST(lv_he) AS X WHERE X <> ALL(lv_arr)) THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Equipos y herramientas solo pueden marcarse para las personas seleccionadas.'; RETURN;
+        END IF;
         lv_lista := ',' || REPLACE(UPPER(COALESCE("HV_Items", '')), ' ', '') || ',';
         FOR lv_id IN SELECT DISTINCT X FROM UNNEST(lv_arr) AS X ORDER BY X LOOP
             SELECT PE."Apellido_Paterno" || ' ' || PE."Nombres" INTO lv_nom
               FROM "CAF_Solicitud_Persona" P JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = P."ID_Persona_Externa"
              WHERE P."ID_Solicitud_Persona" = lv_id;
+            lv_te := CASE WHEN lv_id = ANY(lv_eq) THEN 'Y' ELSE 'N' END;
+            lv_th := CASE WHEN lv_id = ANY(lv_he) THEN 'Y' ELSE 'N' END;
             SELECT STRING_AGG(CAST(A."ID_Catalogo_Item_Checklist" AS VARCHAR) || ':' ||
                               CASE WHEN lv_lista LIKE '%,' || CAST(A."ID_Catalogo_Item_Checklist" AS VARCHAR) || ':Y,%' THEN 'Y' ELSE 'N' END, ','),
                    SUM(CASE WHEN lv_lista LIKE '%,' || CAST(A."ID_Catalogo_Item_Checklist" AS VARCHAR) || ':Y,%'
                               OR lv_lista LIKE '%,' || CAST(A."ID_Catalogo_Item_Checklist" AS VARCHAR) || ':N,%' THEN 0 ELSE 1 END)
               INTO lv_items, lv_falta
-              FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(lv_id, 'INGRESO', 'N', 'N') A;
+              FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(lv_id, 'INGRESO', lv_te, lv_th) A;
             IF lv_items IS NULL OR COALESCE(lv_falta, 0) > 0 THEN
                 lv_cod_f := 400; lv_msg_f := 'Responda todos los ítems del checklist.'; RAISE EXCEPTION 'grupo';
             END IF;
             lv_reg := 0; lv_des := 0; lv_res := NULL;
-            CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(lv_id, lv_items, 'N', 'N', "HV_Observacion", "HV_Desv_Descripcion", "HV_ID_Coordinador",
+            CALL "ERP_CAF_PORTERIA_INGRESO_REGISTRAR"(lv_id, lv_items, lv_te, lv_th, "HV_Observacion", "HV_Desv_Descripcion", "HV_ID_Coordinador",
                  "HV_ID_Tratamiento", "HV_Tratamiento_Detalle", "HV_Resultado_Elegido", NULL, "HV_UsuarioID", lv_reg, lv_des, lv_res, lv_c, lv_m);
             IF lv_c <> 100 THEN
                 lv_cod_f := lv_c; lv_msg_f := LEFT(lv_nom || ': ' || lv_m, 250); RAISE EXCEPTION 'grupo';

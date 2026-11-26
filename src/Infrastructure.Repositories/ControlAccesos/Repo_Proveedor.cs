@@ -434,6 +434,11 @@ public sealed class Repo_Proveedor : RepoHelpers, IRepo_Proveedor
                 AddStr(p, "HV_Tratamiento_Detalle", dto.Desviacion?.Tratamiento_Detalle);
                 AddStr(p, "HV_Resultado_Elegido", dto.Desviacion?.Resultado_Elegido);
                 if (procedimiento == "ERP_CAF_PROVEEDOR_SALIDA_GRUPO") AddStr(p, "HV_Motivo_Anticipada", dto.Motivo_Anticipada);   // D-245
+                else
+                {   // D-275: verificación en grupo; quién trae equipos / herramientas (subconjunto de la selección)
+                    AddStr(p, "HV_IDs_Con_Equipos", dto.IDs_Con_Equipos.Count == 0 ? null : string.Join(",", dto.IDs_Con_Equipos));
+                    AddStr(p, "HV_IDs_Con_Herramientas", dto.IDs_Con_Herramientas.Count == 0 ? null : string.Join(",", dto.IDs_Con_Herramientas));
+                }
                 AddLongReq(p, "HV_UsuarioID", usuarioId);
             },
             ct: ct);

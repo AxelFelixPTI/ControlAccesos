@@ -290,6 +290,7 @@ public sealed class VigilanciaController : Controller
         ID_Solicitud = m.SolicitudId, IDs_Persona = m.PersonasIds,
         Items = m.Items.Select(i => new Dto_Porteria_Respuesta { ID_Catalogo_Item_Checklist = i.Id, Cumple = i.Cumple }).ToList(),
         Observacion = Vacio(m.Observacion), Motivo_Anticipada = Vacio(m.Motivo),
+        IDs_Con_Equipos = m.ConEquiposIds ?? new(), IDs_Con_Herramientas = m.ConHerramientasIds ?? new(),
         Desviacion = m.Desviacion is null ? null : new Dto_Porteria_Desviacion_Entrada
         {
             Descripcion = Vacio(m.Desviacion.Descripcion), ID_Coordinador = m.Desviacion.CoordinadorId, ID_Tratamiento = m.Desviacion.TratamientoId,

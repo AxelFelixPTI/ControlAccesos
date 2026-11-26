@@ -1607,7 +1607,7 @@ BEGIN
     -- ===================================================== Q. VARIOS TRANSPORTISTAS Y AYUDANTES (D-225)
     DECLARE
         v_gT1 BIGINT; v_gT2 BIGINT; v_gA1 BIGINT; v_gA2 BIGINT; v_gs BIGINT; v_gcs VARCHAR(20); v_gtr TEXT;
-        v_pT1 BIGINT; v_pT2 BIGINT; v_pA1 BIGINT; v_pA2 BIGINT; v_gs2 BIGINT; v_gs3 BIGINT; v_gU BIGINT; v_gV BIGINT;
+        v_pT1 BIGINT; v_pT2 BIGINT; v_pA1 BIGINT; v_pA2 BIGINT; d275 TEXT; d275b TEXT; v_gs2 BIGINT; v_gs3 BIGINT; v_gU BIGINT; v_gV BIGINT;
         v_pU BIGINT; v_pV BIGINT; v_gu_r TEXT;
     BEGIN
     CALL "ERP_CAF_PERSONA_EXTERNA_CREAR"(v_dni,'72000031','Trans','Uno','Tito',0, v_gT1, v_cod, v_msg);
@@ -1630,25 +1630,50 @@ BEGIN
     PERFORM pg_temp.chk('D-225: la placa no figura para el ayudante', '0',
         pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(' || v_pA1 || ', ''INGRESO'', ''N'', ''N'') WHERE "Codigo" = ''ING_PLACA'''), '');
 
+    -- D-275: equipos y herramientas descubiertos en la puerta, marcados por persona dentro de la verificación en grupo (todo se deshace)
+    DECLARE t_r BIGINT; t_c INT; t_m VARCHAR(250); t_a TEXT; t_b TEXT; t_d TEXT; t_e TEXT;
+    BEGIN
+        -- trae equipos sin su respaldo: el grupo entero se rechaza (101) y nadie queda verificado
+        CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1 || ',' || v_pA1, pg_temp.items(v_pT1, 'INGRESO', 'Y', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_pT1::TEXT, NULL, v_uvp, t_c, t_m);
+        t_a := t_c || '|' || pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "Fecha_Verificacion" IS NOT NULL AND "ID_Solicitud" = ' || v_gs);
+        -- una marca para alguien que no está en la selección se rechaza (400)
+        CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_pT1::TEXT, NULL, v_uvp, t_c, t_m);
+        t_b := t_c::TEXT;
+        -- con el respaldo registrado, el grupo pasa y cada uno queda con lo que trae
+        CALL "ERP_CAF_RESPALDO_REGISTRAR"('EQUIPOS', 'G_FSCA_009', NULL, v_pT1::TEXT, 'Laptop', v_uvp, t_r, t_c, t_m);
+        t_d := t_c::TEXT;
+        CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1 || ',' || v_pA1, pg_temp.items(v_pT1, 'INGRESO', 'Y', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_pT1::TEXT, NULL, v_uvp, t_c, t_m);
+        t_d := t_d || '|' || t_c;
+        t_e := pg_temp.q('SELECT "Trae_Equipos" || ''/'' || "Trae_Herramientas" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_pT1)
+               || '|' || pg_temp.q('SELECT "Trae_Equipos" || ''/'' || "Trae_Herramientas" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" = ' || v_pA1);
+        d275 := t_a || '|' || t_b || '|' || t_d;
+        d275b := t_e || '|' || (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_pT1, 'INGRESO', 'Y', 'N'))::TEXT || 'vs' || (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_pT1, 'INGRESO', 'N', 'N'))::TEXT
+                 || '|' || pg_temp.q('SELECT COUNT(*) FROM "CAF_Registro_Checklist" C JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = C."ID_Registro_Acceso" WHERE R."ID_Solicitud_Persona" = ' || v_pT1 || ' AND R."Tipo_Movimiento" = ''INGRESO''');
+        RAISE EXCEPTION 'deshacer';
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+    PERFORM pg_temp.chk('D-275 grupo: con equipos sin respaldo se rechaza (101) y no se verifica a nadie; marca ajena 400; con respaldo (100|100)', '101|0|400|100|100', COALESCE(d275, ''), '');
+    PERFORM pg_temp.chk('D-275 grupo: quien trae equipos queda marcado (Y/N), el otro no (N/N) y se guardan sus ítems del checklist', 'Y/N|N/N|4vs4|4', COALESCE(d275b, ''), '');
+
     -- Verificar en grupo
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, '', pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, '', pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: sin selección no procede', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, 'a,b', pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, 'a,b', pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: lista mal formada', '400', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1::TEXT, pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_ud, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1::TEXT, pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_ud, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: sin permiso de Vigilancia no verifica', '101', v_cod::TEXT, v_msg);
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: al transportista le faltan ítems de su checklist (placa)', '400', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: el rechazo no dejó nada guardado', '0', pg_temp.q('SELECT COUNT(*) FROM "CAF_Solicitud_Persona" WHERE "Fecha_Verificacion" IS NOT NULL AND "ID_Solicitud" = ' || v_gs), '');
 
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: un ayudante se verifica por adelantado', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: verificar al ayudante no mueve la entrega', 'PROGRAMADO', pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs), '');
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pA1::TEXT, pg_temp.items(v_pA1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: quien ya está verificado no se verifica dos veces', '409', v_cod::TEXT, v_msg);
 
     -- Selección mixta: un transportista y un ayudante con UN solo checklist (unión de ítems)
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1 || ',' || v_pA2, pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT1 || ',' || v_pA2, pg_temp.items(v_pT1, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: selección mixta con un solo checklist', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: cada uno guardó solo las respuestas que le aplican', 
         (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_pT1, 'INGRESO', 'N', 'N'))::TEXT || '|' || (SELECT COUNT(*) FROM "ERP_CAF_PORTERIA_ITEMS_APLICABLES"(v_pA2, 'INGRESO', 'N', 'N'))::TEXT,
@@ -1660,7 +1685,7 @@ BEGIN
         pg_temp.q('SELECT (SELECT "Es_Transportista" || ''|'' || "Verificada" FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, NULL) WHERE "ID_Solicitud_Persona" = ' || v_pT1 || ') || ''|'' || (SELECT "Es_Transportista" || ''|'' || "Verificada" FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, NULL) WHERE "ID_Solicitud_Persona" = ' || v_pA2 || ') || ''|'' || (SELECT "Es_Transportista" || ''|'' || "Verificada" FROM "ERP_CAF_SOLICITUD_VIGILANCIA_LISTAR"(' || v_uvp || ', NULL, NULL) WHERE "ID_Solicitud_Persona" = ' || v_pT2 || ')'), '');
 
     -- El transportista 2 no coincide en la placa: desviación; el coordinador autorizó restringido
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT2::TEXT, pg_temp.items(v_pT2, 'INGRESO', 'N', 'N', 'ING_EPP'), NULL, 'No porta EPP completo; el coordinador autoriza restringido.', v_u_coo, v_t_rest, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs, v_pT2::TEXT, pg_temp.items(v_pT2, 'INGRESO', 'N', 'N', 'ING_EPP'), NULL, 'No porta EPP completo; el coordinador autoriza restringido.', v_u_coo, v_t_rest, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: verificación con desviación autorizada', '100', v_cod::TEXT, v_msg);
     PERFORM pg_temp.chk('D-225 grupo: la desviación quedó a nombre de esa persona', '1',
         pg_temp.q('SELECT COUNT(*) FROM "CAF_Desviacion" D JOIN "CAF_Registro_Acceso" R ON R."ID_Registro_Acceso" = D."ID_Registro_Acceso" WHERE R."ID_Solicitud_Persona" = ' || v_pT2), '');
@@ -1715,7 +1740,7 @@ BEGIN
     CALL "ERP_CAF_SOLICITUD_CREAR_PROVEEDOR"(v_ves, v_fhoy, 'Retiro S.A.', NULL, v_gU || ',' || v_gV, NULL, NULL, 'Luis Jefe', '999111222', v_emp, v_gtr, 'OC-TEST1', NULL, NULL, NULL, v_usp, v_gs2, v_gcs, v_cod, v_msg);
     v_pU := pg_temp.sp(v_gs2, v_gU); v_pV := pg_temp.sp(v_gs2, v_gV);
     CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_gs2, v_paso_p, 'APROBADA', NULL, v_pU || ',' || v_pV, v_ucp, v_cant, v_cod, v_msg);
-    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs2, v_pU || ',' || v_pV, pg_temp.items(v_pU, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
+    CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_gs2, v_pU || ',' || v_pV, pg_temp.items(v_pU, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_uvp, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 retiro: verificados los dos, la entrega está EN_ESPERA', '100|EN_ESPERA', v_cod::TEXT || '|' || pg_temp.q('SELECT "Estado_Operativo" FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = ' || v_gs2), v_msg);
     CALL "ERP_CAF_PROVEEDOR_RETIRO_PERSONAS"(v_gs2, v_pV::TEXT, 'Se fue el ayudante', 'N', v_ud, v_cod, v_msg);
     PERFORM pg_temp.chk('D-225 retiro: sin permiso de Vigilancia no procede', '101', v_cod::TEXT, v_msg);
@@ -2427,7 +2452,7 @@ BEGIN
             g_t1 TEXT; g_t2 TEXT; g_t3 TEXT; g_t4 TEXT;
         BEGIN
             BEGIN
-                CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_cxa, v_ppa || ',' || v_ppb, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_cod, v_msg);
+                CALL "ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO"(v_cxa, v_ppa || ',' || v_ppb, pg_temp.items(v_ppa, 'INGRESO', 'N', 'N', ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_cod, v_msg);
                 g_t1 := v_cod::TEXT;
                 g_t2 := pg_temp.q('SELECT STRING_AGG("Estado", ''|'' ORDER BY "ID_Solicitud_Persona") FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud_Persona" IN (' || v_ppa || ',' || v_ppb || ')');
                 CALL "ERP_CAF_PROVEEDOR_SALIDA_GRUPO"(v_cxa, v_ppa || ',' || v_ppb, COALESCE(pg_temp.items(v_ppa, 'SALIDA', 'N', 'N', ''), ''), NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_u_vig, v_cod, v_msg);

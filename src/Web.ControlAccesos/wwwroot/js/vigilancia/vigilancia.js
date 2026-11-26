@@ -227,8 +227,8 @@
             a.push({ id: 'SALIDA_ANT', titulo: 'Salida anticipada', ayuda: 'Sin ingreso vehicular y Almacén aún no terminó: exige motivo y queda marcada para el Coordinador.', ok: puede, elegibles: l.filter(function (x) { return esAnticipable(x, l); }),
                 abre: function (ps) { checklistGrupo('SALIDA', s, ps, true, true); } });
         } else {
-            a.push({ id: 'INGRESO', titulo: 'Validar ingreso', ayuda: 'Un solo checklist; quien trae equipos o herramientas se valida de forma individual.', ok: puede,
-                elegibles: l.filter(function (x) { return x.estado === 'ESPERADA' && !x.traeEquipos && !x.traeHerramientas; }), abre: function (ps) { checklistGrupo('INGRESO', s, ps, false); } });
+            a.push({ id: 'INGRESO', titulo: 'Validar ingreso', ayuda: 'Un solo checklist; marque en el modal a quien trae equipos o herramientas.', ok: puede,
+                elegibles: l.filter(function (x) { return x.estado === 'ESPERADA'; }), abre: function (ps) { checklistGrupo('INGRESO', s, ps, false); } });
             a.push({ id: 'SALIDA', titulo: 'Registrar salida', ayuda: 'Checklist de salida para todos los elegidos.', ok: puede, elegibles: l.filter(function (x) { return x.estado === 'DENTRO'; }),
                 abre: function (ps) { checklistGrupo('SALIDA', s, ps, false); } });
         }
@@ -360,11 +360,69 @@
         ]);
     }
 
+    // D-275: en la verificación/ingreso en grupo, Vigilancia marca por persona quién trae equipos o herramientas (lo descubre en la puerta).
+    // Cada marcada necesita su respaldo antes de registrar; un mismo respaldo puede cubrir a varias.
+    function cajaRespaldoGrupo(ctx, cat, pendientes, repintar) {
+        var eq = cat === 'eq', categoria = eq ? 'EQUIPOS' : 'HERRAMIENTAS_MATERIALES';
+        var caja = el('div', { class: 'regbox' });
+        caja.appendChild(el('div', { class: 'regbox-h' }, [el('strong', { text: (eq ? 'Respaldo de equipos (formato G-FSCA-009)' : 'Respaldo de herramientas o materiales') + ' · ' + pendientes.map(function (x) { return x.nombre; }).join('; ') }), chip('Falta registrar', 'c-obs')]));
+        var tipo = el('select');
+        if (eq) tipo.appendChild(el('option', { value: 'G_FSCA_009', text: 'Formato G-FSCA-009' }));
+        else { tipo.appendChild(el('option', { value: 'GUIA_REMISION', text: 'Guía de remisión' })); tipo.appendChild(el('option', { value: 'GUIA_MANUAL_G_FSCA_010', text: 'Guía manual G-FSCA-010' })); }
+        var num = el('input', { type: 'text', maxlength: '50', autocomplete: 'off', placeholder: 'Serie y número de la guía' });
+        var campoNum = SOL.campo('Número de la guía de remisión *', num);
+        var obs = el('input', { type: 'text', maxlength: '500', autocomplete: 'off', placeholder: 'Observación (opcional)' });
+        var err = el('p', { class: 'err', hidden: true });
+        function sinc() { campoNum.hidden = tipo.value !== 'GUIA_REMISION'; }
+        tipo.addEventListener('change', sinc); sinc();
+        var btn = el('button', { type: 'button', class: 'btn btn-sm btn-primary', text: 'Registrar respaldo' });
+        btn.addEventListener('click', function () {
+            btn.disabled = true; err.hidden = true;
+            CAF.pedir(d.urlRespaldo, { method: 'POST', body: { categoria: categoria, tipo: tipo.value, numero: tipo.value === 'GUIA_REMISION' ? num.value : null, personasIds: ids(pendientes), observacion: obs.value } }).then(function (r) {
+                btn.disabled = false;
+                if (!r.success) { err.textContent = SOL.errores(r); err.hidden = false; return; }
+                pendientes.forEach(function (x) { ctx.respOk[cat][x.id] = true; });
+                CAF.aviso('Respaldo registrado.');
+                repintar();
+            });
+        });
+        [SOL.campo('Tipo de respaldo', tipo), campoNum, SOL.campo('Observación', obs), err, el('div', {}, [btn])].forEach(function (x) { caja.appendChild(x); });
+        return caja;
+    }
+
+    // Tabla «¿quién trae qué?» + cajas de respaldo; cambiar una marca vuelve a pedir los ítems (los hay condicionados a equipos o herramientas).
+    function quienesTrae(ctx, personas, marcas, alCambiar) {
+        var raiz = el('div', { class: 'stack' }), zonaResp = el('div', { class: 'stack' });
+        raiz.appendChild(el('p', { class: 'field-h', text: 'Marque a quien trae equipos o herramientas: a cada uno se le registrará lo suyo y se le pedirá su respaldo.' }));
+        personas.forEach(function (x) {
+            function casilla(clave, texto) {
+                var cb = el('input', { type: 'checkbox' }); cb.checked = marcas[x.id][clave];
+                var lb = el('label', { class: 'chk' + (cb.checked ? ' on' : '') }, [cb, el('span', { text: texto })]);
+                cb.addEventListener('change', function () { marcas[x.id][clave] = cb.checked; lb.classList.toggle('on', cb.checked); pintarResp(); alCambiar(); });
+                return lb;
+            }
+            raiz.appendChild(el('div', { class: 'fila' }, [el('span', { class: 'f-l', text: x.nombre + (x.esProveedor ? ' · ' + (x.esTransportista ? 'Conductor' : 'Ayudante de descarga') : '') }), casilla('eq', 'Equipos'), casilla('he', 'Herramientas')]));
+        });
+        raiz.appendChild(zonaResp);
+        function pintarResp() {
+            zonaResp.textContent = '';
+            ['eq', 'he'].forEach(function (cat) {
+                var marcadas = personas.filter(function (x) { return marcas[x.id][cat]; });
+                var pend = marcadas.filter(function (x) { return !ctx.respOk[cat][x.id]; });
+                if (pend.length) zonaResp.appendChild(cajaRespaldoGrupo(ctx, cat, pend, pintarResp));
+                else if (marcadas.length) zonaResp.appendChild(el('div', { class: 'regbox-h' }, [el('strong', { text: (cat === 'eq' ? 'Respaldo de equipos' : 'Respaldo de herramientas o materiales') }), chip('Registrado', 'c-ok')]));
+            });
+        }
+        pintarResp();
+        return raiz;
+    }
+
     // Ítems de la selección: la unión de los de cada rol (la placa y la documentación de la carga solo aplican a transportistas).
-    function itemsUnion(etapa, personas) {
+    function itemsUnion(etapa, personas, marcas) {
         var reps = [], vistos = {};
         personas.forEach(function (x) { var k = x.esTransportista ? 'T' : 'A'; if (!vistos[k]) { vistos[k] = true; reps.push({ k: k, p: x }); } });
-        var eq = etapa === 'SALIDA' && personas.some(function (x) { return x.traeEquipos; }), he = etapa === 'SALIDA' && personas.some(function (x) { return x.traeHerramientas; });
+        var eq = etapa === 'SALIDA' ? personas.some(function (x) { return x.traeEquipos; }) : !!marcas && personas.some(function (x) { return marcas[x.id] && marcas[x.id].eq; });   // D-275: en el ingreso lo marca Vigilancia por persona
+        var he = etapa === 'SALIDA' ? personas.some(function (x) { return x.traeHerramientas; }) : !!marcas && personas.some(function (x) { return marcas[x.id] && marcas[x.id].he; });
         return Promise.all(reps.map(function (r) {
             return CAF.pedir(d.urlChecklist + '?id=' + r.p.id + '&etapa=' + etapa + '&equipos=' + eq + '&herramientas=' + he).then(function (res) { return { k: r.k, res: res }; });
         })).then(function (lista) {
@@ -385,14 +443,16 @@
             { texto: 'Cancelar', onclick: function (c) { c(); } },
             { texto: ingreso ? (verif ? 'Registrar verificación' : 'Registrar ingreso') : (anticipada ? 'Registrar salida anticipada' : 'Registrar salida'), tipo: 'primary', onclick: function (c) { if (ctx && !enviando) enviarGrupo(ctx, c, function (v) { enviando = v; }); } }
         ], 'ancho');
-        itemsUnion(etapa, personas).then(function (u) {
+        var marcas = {};   // D-275: id → {eq, he}; solo se editan en el ingreso
+        personas.forEach(function (x) { marcas[x.id] = { eq: !!x.traeEquipos, he: !!x.traeHerramientas }; });
+        itemsUnion(etapa, personas, marcas).then(function (u) {
             cuerpo.textContent = '';
             if (u.error) { cuerpo.appendChild(el('p', { class: 'err', text: u.error })); return; }
-            ctx = { etapa: etapa, s: s, personas: personas, anticipada: !!anticipada, items: u.items, resp: {}, error: el('p', { class: 'err', hidden: true, role: 'alert' }), desv: null };
+            ctx = { etapa: etapa, s: s, personas: personas, anticipada: !!anticipada, items: u.items, resp: {}, marcas: marcas, respOk: { eq: {}, he: {} }, error: el('p', { class: 'err', hidden: true, role: 'alert' }), desv: null };
             cuerpo.appendChild(el('p', { class: 'field-h', text: (s.empresa || '') + ' · ' + s.codigo }));
-            cuerpo.appendChild(nombres(personas));
+            cuerpo.appendChild(ingreso ? quienesTrae(ctx, personas, marcas, function () { if (ctx.recargar) ctx.recargar(); }) : nombres(personas));
             cuerpo.appendChild(el('div', { class: 'aviso a-info', text: 'Un solo checklist para todos los marcados.' + (u.mixto ? ' Los ítems que dicen «Solo conductores» se exigen únicamente a ellos.' : '') +
-                (ingreso ? ' Si alguien no cumple, ciérrelo y verifíquelo aparte para que la desviación sea solo suya. Quien trae equipos o herramientas debe verificarse de forma individual.' : '') }));
+                (ingreso ? ' Si alguien no cumple, ciérrelo y verifíquelo aparte para que la desviación sea solo suya. Si alguien trae equipos o herramientas, márquelo arriba: su respaldo se registra aquí mismo.' : '') }));
             var zonaCheck = el('div', { class: 'stack' }), zonaDesv = el('div');
             cuerpo.appendChild(el('h4', { text: 'Checklist de ' + (ingreso ? 'ingreso' : 'salida') }));
             cuerpo.appendChild(zonaCheck); cuerpo.appendChild(zonaDesv);
@@ -403,10 +463,10 @@
                 cuerpo.appendChild(SOL.campo('Motivo de la salida anticipada', ctx.motivo));
             }
             cuerpo.appendChild(SOL.campo('Observación', ctx.obs)); cuerpo.appendChild(ctx.error);
-            if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: ctx.etapa === 'SALIDA' ? 'Para esta salida no hay ítems de checklist: puede registrarla directamente.' : 'No hay ítems configurados.' })); return; }
             u.items.forEach(function (i) { ctx.resp[i.id] = false; });
             function pintar2() {
                 zonaCheck.textContent = '';
+                if (!ctx.items.length) { zonaCheck.appendChild(el('p', { class: 'vacio', text: ctx.etapa === 'SALIDA' ? 'Para esta salida no hay ítems de checklist: puede registrarla directamente.' : 'No hay ítems configurados.' })); return; }
                 var todosCb = el('input', { type: 'checkbox' });
                 todosCb.addEventListener('change', function () { ctx.items.forEach(function (i) { ctx.resp[i.id] = todosCb.checked; }); pintar2(); sinc(); });
                 zonaCheck.appendChild(el('label', { class: 'chk-all' }, [todosCb, el('span', { text: 'Marcar todo como cumplido' })]));
@@ -432,6 +492,15 @@
                     ctx.desv = bloqueDesviacion(etapa, op, zonaDesv); ctx.desv.actualizar(ctx.fallan || fallan);
                 });
             }
+            // D-275: al cambiar quién trae equipos o herramientas se piden de nuevo los ítems, conservando lo ya respondido
+            ctx.recargar = function () {
+                itemsUnion(etapa, personas, marcas).then(function (u2) {
+                    if (u2.error) { ctx.error.textContent = u2.error; ctx.error.hidden = false; return; }
+                    var previo = ctx.resp; ctx.resp = {};
+                    u2.items.forEach(function (i) { ctx.resp[i.id] = previo[i.id] === true; });
+                    ctx.items = u2.items; u = u2; pintar2(); sinc();
+                });
+            };
             pintar2(); sinc();
         });
     }
@@ -448,6 +517,10 @@
             observacion: ctx.obs.value, desviacion: ctx.fallan && ctx.fallan.length && ctx.desv ? ctx.desv.valores() : null
         };
         if (ctx.anticipada) cuerpo.motivo = (ctx.motivo.value || '').trim();
+        if (ingreso && ctx.marcas) {   // D-275
+            cuerpo.conEquiposIds = ctx.personas.filter(function (x) { return ctx.marcas[x.id].eq; }).map(function (x) { return x.id; });
+            cuerpo.conHerramientasIds = ctx.personas.filter(function (x) { return ctx.marcas[x.id].he; }).map(function (x) { return x.id; });
+        }
         marcar(true);
         CAF.pedir(ingreso ? d.urlVerificarGrupo : d.urlSalidaGrupo, { method: 'POST', body: cuerpo }).then(function (r) {
             marcar(false);
