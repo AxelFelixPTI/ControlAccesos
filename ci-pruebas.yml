@@ -1,8 +1,11 @@
-name: CI
+name: CI pruebas
+
 on:
-push:
-branches: [ main-remoto-desarrollo-estable ]
+  push:
+    branches: [ pruebas-CAF, main-remoto-desarrollo, main-remoto-desarrollo-estable ]
   pull_request:
+  workflow_dispatch:
+
 jobs:
   construir-y-probar:
     runs-on: ubuntu-latest
@@ -12,9 +15,11 @@ jobs:
         env:
           POSTGRES_PASSWORD: ClavePruebaCI
         ports: [ '5432:5432' ]
-        options: >
-          --health-cmd pg_isready --health-interval 5s
-          --health-timeout 5s --health-retries 10
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -27,8 +32,7 @@ jobs:
           psql "postgresql://postgres:ClavePruebaCI@localhost:5432/postgres" -c "CREATE DATABASE caf_ci ENCODING 'UTF8'"
           bash scripts/restaurar_bd.sh
         env:
-          DATABASE_URL: 
-postgresql://postgres:ClavePruebaCI@localhost:5432/caf_ci
+          DATABASE_URL: postgresql://postgres:ClavePruebaCI@localhost:5432/caf_ci
       - name: Pruebas
         run: dotnet test src/ControlAccesos.slnx -c Release --no-build
         env:
