@@ -20,26 +20,26 @@ public static class PlantillaCorreo
 
     private static readonly Dictionary<string, (string Texto, string Fondo, string Color)> Estados = new()
     {
-        ["PENDIENTE"]        = ("Pendiente",        "#fff4d6", "#7a5a00"),
-        ["OBSERVADA"]        = ("Observada",        "#ffe9d6", "#8a4300"),
-        ["APROBADA"]         = ("Aprobada",         "#dcf3e3", "#1c6b3a"),
+        ["PENDIENTE"] = ("Pendiente", "#fff4d6", "#7a5a00"),
+        ["OBSERVADA"] = ("Observada", "#ffe9d6", "#8a4300"),
+        ["APROBADA"] = ("Aprobada", "#dcf3e3", "#1c6b3a"),
         ["APROBADA_PARCIAL"] = ("Aprobada parcial", "#e3f0fb", "#1d5a8f"),
-        ["RECHAZADA"]        = ("Rechazada",        "#fbe0e0", "#9a1f1f"),
-        ["CANCELADA"]        = ("Cancelada",        "#e7e9ec", "#4a5360"),
-        ["VENCIDA"]          = ("Vencida",          "#f1e3e3", "#7a2e2e"),
+        ["RECHAZADA"] = ("Rechazada", "#fbe0e0", "#9a1f1f"),
+        ["CANCELADA"] = ("Cancelada", "#e7e9ec", "#4a5360"),
+        ["VENCIDA"] = ("Vencida", "#f1e3e3", "#7a2e2e"),
     };
 
     private static readonly Dictionary<string, string> Titulos = new()
     {
-        ["SOLICITUD_NUEVA"]     = "Nueva solicitud por aprobar",
-        ["SOLICITUD_EDITADA"]   = "Solicitud modificada",
-        ["SOLICITUD_DECISION"]  = "Actualización de la solicitud",
+        ["SOLICITUD_NUEVA"] = "Nueva solicitud por aprobar",
+        ["SOLICITUD_EDITADA"] = "Solicitud modificada",
+        ["SOLICITUD_DECISION"] = "Actualización de la solicitud",
         ["PERSONA_POR_APROBAR"] = "Personas por aprobar",
         ["SOLICITUD_CORRECCION"] = "Corrección de emergencia",
         ["SOLICITUD_VIGILANCIA"] = "Ingreso autorizado",
         ["SOLICITUD_CANCELADA"] = "Solicitud cancelada",
-        ["SOLICITUD_REENVIO"]   = "Reenvío de la solicitud",
-        ["PROVEEDOR_AVISO"]     = "Aviso de entrega de proveedor",
+        ["SOLICITUD_REENVIO"] = "Reenvío de la solicitud",
+        ["PROVEEDOR_AVISO"] = "Aviso de entrega de proveedor",
     };
 
     /// <summary>
@@ -259,8 +259,12 @@ public static class PlantillaCorreo
 
     private static string EtiquetaPersona(string a) => a switch
     {
-        "PENDIENTE" => "Pendiente", "APROBADA" => "Autorizada", "OBSERVADA" => "Observada",
-        "RECHAZADA" => "Rechazada", "RETIRADA" => "Retirada", _ => a
+        "PENDIENTE" => "Pendiente",
+        "APROBADA" => "Autorizada",
+        "OBSERVADA" => "Observada",
+        "RECHAZADA" => "Rechazada",
+        "RETIRADA" => "Retirada",
+        _ => a
     };
 
     private static string Esc(string s) => WebUtility.HtmlEncode(s);

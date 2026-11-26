@@ -190,9 +190,16 @@ public sealed class CatalogosController : Controller
 
     private static CatalogoFila Fila(Dto_Catalogo_Universal d) => new()
     {
-        Id = d.ID_Catalogo, Codigo = d.Codigo, Descripcion = d.Descripcion, Activo = d.Activo == "Y", EsOtro = d.Es_Otro == "Y",
-        TipoZona = d.Tipo_Zona, ExigeSctr = d.Exige_SCTR == "Y", ExigeEpp = d.Exige_EPP == "Y",
-        ResultadoIngreso = d.Resultado_Ingreso, ResultadoSalida = d.Resultado_Salida,
+        Id = d.ID_Catalogo,
+        Codigo = d.Codigo,
+        Descripcion = d.Descripcion,
+        Activo = d.Activo == "Y",
+        EsOtro = d.Es_Otro == "Y",
+        TipoZona = d.Tipo_Zona,
+        ExigeSctr = d.Exige_SCTR == "Y",
+        ExigeEpp = d.Exige_EPP == "Y",
+        ResultadoIngreso = d.Resultado_Ingreso,
+        ResultadoSalida = d.Resultado_Salida,
     };
 
     private static string Norm(string s)

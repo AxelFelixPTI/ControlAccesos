@@ -55,9 +55,13 @@ public sealed class Repo_Solicitud_Adjunto : RepoHelpers, IRepo_Solicitud_Adjunt
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
                 rd => new Dto_Solicitud_Adjunto
                 {
-                    ID_Solicitud_Adjunto = RdLong(rd, "ID_Solicitud_Adjunto"), ID_Solicitud = RdLong(rd, "ID_Solicitud"),
-                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"), Extension = RdStr(rd, "Extension"),
-                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"), Fecha = RdDt(rd, "Fecha"), Puede_Quitar = RdBool(rd, "Puede_Quitar"),
+                    ID_Solicitud_Adjunto = RdLong(rd, "ID_Solicitud_Adjunto"),
+                    ID_Solicitud = RdLong(rd, "ID_Solicitud"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
+                    Fecha = RdDt(rd, "Fecha"),
+                    Puede_Quitar = RdBool(rd, "Puede_Quitar"),
                 }, ct);
             return Result<List<Dto_Solicitud_Adjunto>>.Ok(lista);
         }
@@ -76,9 +80,12 @@ public sealed class Repo_Solicitud_Adjunto : RepoHelpers, IRepo_Solicitud_Adjunt
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud_Adjunto", adjuntoId); },
                 rd => new Dto_Solicitud_Adjunto_Contenido
                 {
-                    ID_Solicitud_Adjunto = RdLong(rd, "ID_Solicitud_Adjunto"), ID_Solicitud = RdLong(rd, "ID_Solicitud"),
-                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"), Extension = RdStr(rd, "Extension"),
-                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"), Contenido = RdBytes(rd, "Contenido"),
+                    ID_Solicitud_Adjunto = RdLong(rd, "ID_Solicitud_Adjunto"),
+                    ID_Solicitud = RdLong(rd, "ID_Solicitud"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
+                    Contenido = RdBytes(rd, "Contenido"),
                 }, ct);
             return Result<Dto_Solicitud_Adjunto_Contenido?>.Ok(d);
         }
@@ -97,8 +104,10 @@ public sealed class Repo_Solicitud_Adjunto : RepoHelpers, IRepo_Solicitud_Adjunt
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
                 rd => new Dto_Correo_Adjunto
                 {
-                    ID_Solicitud_Adjunto = RdLong(rd, "ID_Solicitud_Adjunto"), Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
-                    Extension = RdStr(rd, "Extension"), Contenido = RdBytes(rd, "Contenido"),
+                    ID_Solicitud_Adjunto = RdLong(rd, "ID_Solicitud_Adjunto"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Contenido = RdBytes(rd, "Contenido"),
                 }, ct);
             return Result<List<Dto_Correo_Adjunto>>.Ok(lista);
         }

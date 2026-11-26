@@ -161,70 +161,70 @@ public sealed class Repo_Desviacion : RepoHelpers, IRepo_Desviacion
 
     private static Dto_Desviacion_Lista MapDesviacion_Lista(DbDataReader rd) => new()
     {
-        ID_Desviacion      = RdLong(rd, "ID_Desviacion"),
-        Codigo             = RdStr(rd, "Codigo"),
+        ID_Desviacion = RdLong(rd, "ID_Desviacion"),
+        Codigo = RdStr(rd, "Codigo"),
         ID_Registro_Acceso = RdLong(rd, "ID_Registro_Acceso"),
-        Tipo_Movimiento    = RdStr(rd, "Tipo_Movimiento"),
-        Resultado          = RdStrN(rd, "Resultado"),
-        Fecha_Hora         = RdDt(rd, "Fecha_Hora"),
-        Persona_Nombre     = RdStr(rd, "Persona_Nombre"),
-        Numero_Documento   = RdStrN(rd, "Numero_Documento"),
-        Empresa_Visitante  = RdStrN(rd, "Empresa_Visitante"),
-        Codigo_Solicitud   = RdStr(rd, "Codigo_Solicitud"),
-        Descripcion        = RdStr(rd, "Descripcion"),
-        Tratamiento        = RdStrN(rd, "Tratamiento"),
+        Tipo_Movimiento = RdStr(rd, "Tipo_Movimiento"),
+        Resultado = RdStrN(rd, "Resultado"),
+        Fecha_Hora = RdDt(rd, "Fecha_Hora"),
+        Persona_Nombre = RdStr(rd, "Persona_Nombre"),
+        Numero_Documento = RdStrN(rd, "Numero_Documento"),
+        Empresa_Visitante = RdStrN(rd, "Empresa_Visitante"),
+        Codigo_Solicitud = RdStr(rd, "Codigo_Solicitud"),
+        Descripcion = RdStr(rd, "Descripcion"),
+        Tratamiento = RdStrN(rd, "Tratamiento"),
         Coordinador_Nombre = RdStrN(rd, "Coordinador_Nombre"),
-        Estado             = RdStr(rd, "Estado"),
-        Fecha_Conformidad  = RdDtN(rd, "Fecha_Conformidad"),
+        Estado = RdStr(rd, "Estado"),
+        Fecha_Conformidad = RdDtN(rd, "Fecha_Conformidad"),
     };
 
     private static Dto_Desviacion_Detalle MapDesviacion_Detalle(DbDataReader rd) => new()
     {
-        ID_Desviacion                      = RdLong(rd, "ID_Desviacion"),
-        Codigo                             = RdStr(rd, "Codigo"),
-        ID_Registro_Acceso                 = RdLong(rd, "ID_Registro_Acceso"),
-        ID_Solicitud                       = RdLong(rd, "ID_Solicitud"),
-        Codigo_Solicitud                   = RdStr(rd, "Codigo_Solicitud"),
-        Tipo_Movimiento                    = RdStr(rd, "Tipo_Movimiento"),
-        Resultado                          = RdStrN(rd, "Resultado"),
-        Fecha_Hora                         = RdDt(rd, "Fecha_Hora"),
-        Persona_Nombre                     = RdStr(rd, "Persona_Nombre"),
-        Numero_Documento                   = RdStrN(rd, "Numero_Documento"),
-        Empresa_Visitante                  = RdStrN(rd, "Empresa_Visitante"),
-        Descripcion                        = RdStr(rd, "Descripcion"),
+        ID_Desviacion = RdLong(rd, "ID_Desviacion"),
+        Codigo = RdStr(rd, "Codigo"),
+        ID_Registro_Acceso = RdLong(rd, "ID_Registro_Acceso"),
+        ID_Solicitud = RdLong(rd, "ID_Solicitud"),
+        Codigo_Solicitud = RdStr(rd, "Codigo_Solicitud"),
+        Tipo_Movimiento = RdStr(rd, "Tipo_Movimiento"),
+        Resultado = RdStrN(rd, "Resultado"),
+        Fecha_Hora = RdDt(rd, "Fecha_Hora"),
+        Persona_Nombre = RdStr(rd, "Persona_Nombre"),
+        Numero_Documento = RdStrN(rd, "Numero_Documento"),
+        Empresa_Visitante = RdStrN(rd, "Empresa_Visitante"),
+        Descripcion = RdStr(rd, "Descripcion"),
         ID_Catalogo_Tratamiento_Desviacion = RdLong(rd, "ID_Catalogo_Tratamiento_Desviacion"),
-        Tratamiento                        = RdStrN(rd, "Tratamiento"),
-        Tratamiento_Detalle                = RdStrN(rd, "Tratamiento_Detalle"),
-        ID_Usuario_Coordinador_Consultado  = RdLongN(rd, "ID_Usuario_Coordinador_Consultado"),
-        Coordinador_Nombre                 = RdStrN(rd, "Coordinador_Nombre"),
-        Registrado_Por_Nombre              = RdStrN(rd, "Registrado_Por_Nombre"),
-        Estado                             = RdStr(rd, "Estado"),
-        Conformidad_Nombre                 = RdStrN(rd, "Conformidad_Nombre"),
-        Fecha_Conformidad                  = RdDtN(rd, "Fecha_Conformidad"),
-        Comentario_Conformidad             = RdStrN(rd, "Comentario_Conformidad"),
-        ID_Incidencia                      = RdLongN(rd, "ID_Incidencia"),
-        Puede_Dar_Conformidad              = RdBool(rd, "Puede_Dar_Conformidad"),
-        Motivo_No_Conformidad              = RdStrN(rd, "Motivo_No_Conformidad"),
+        Tratamiento = RdStrN(rd, "Tratamiento"),
+        Tratamiento_Detalle = RdStrN(rd, "Tratamiento_Detalle"),
+        ID_Usuario_Coordinador_Consultado = RdLongN(rd, "ID_Usuario_Coordinador_Consultado"),
+        Coordinador_Nombre = RdStrN(rd, "Coordinador_Nombre"),
+        Registrado_Por_Nombre = RdStrN(rd, "Registrado_Por_Nombre"),
+        Estado = RdStr(rd, "Estado"),
+        Conformidad_Nombre = RdStrN(rd, "Conformidad_Nombre"),
+        Fecha_Conformidad = RdDtN(rd, "Fecha_Conformidad"),
+        Comentario_Conformidad = RdStrN(rd, "Comentario_Conformidad"),
+        ID_Incidencia = RdLongN(rd, "ID_Incidencia"),
+        Puede_Dar_Conformidad = RdBool(rd, "Puede_Dar_Conformidad"),
+        Motivo_No_Conformidad = RdStrN(rd, "Motivo_No_Conformidad"),
     };
 
     private static Dto_Desviacion_Contadores MapDesviacion_Contadores(DbDataReader rd) => new()
     {
         Por_Revisar = RdLong(rd, "Por_Revisar"),
-        Revisadas   = RdLong(rd, "Revisadas"),
+        Revisadas = RdLong(rd, "Revisadas"),
     };
 
     private static Dto_Desviacion_Coordinador MapDesviacion_Coordinador(DbDataReader rd) => new()
     {
         ID_Usuario = RdLong(rd, "ID_Usuario"),
-        Nombre     = RdStr(rd, "Nombre"),
+        Nombre = RdStr(rd, "Nombre"),
     };
 
     private static Dto_Desviacion_Tratamiento MapDesviacion_Tratamiento(DbDataReader rd) => new()
     {
         ID_Catalogo_Tratamiento_Desviacion = RdLong(rd, "ID_Catalogo_Tratamiento_Desviacion"),
-        Codigo                             = RdStr(rd, "Codigo"),
-        Descripcion                        = RdStr(rd, "Descripcion"),
-        Es_Otro                            = RdBool(rd, "Es_Otro"),
-        Resultado                          = RdStrN(rd, "Resultado"),
+        Codigo = RdStr(rd, "Codigo"),
+        Descripcion = RdStr(rd, "Descripcion"),
+        Es_Otro = RdBool(rd, "Es_Otro"),
+        Resultado = RdStrN(rd, "Resultado"),
     };
 }

@@ -38,8 +38,11 @@ public sealed class CoordinacionController : Controller
         var u = User.UsuarioId();
         var r = await _sol.BandejaListarAsync(u, new Dto_Filtro_Bandeja
         {
-            Pestana = pestana is "POR_DECIDIR" or "FUERA_DE_TIEMPO" ? pestana : "TODAS", Empresa = Vacio(empresa), Solicitante = Vacio(solicitante),
-            Persona = Vacio(persona), Fecha = DateTime.TryParseExact(fecha, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null,
+            Pestana = pestana is "POR_DECIDIR" or "FUERA_DE_TIEMPO" ? pestana : "TODAS",
+            Empresa = Vacio(empresa),
+            Solicitante = Vacio(solicitante),
+            Persona = Vacio(persona),
+            Fecha = DateTime.TryParseExact(fecha, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null,
             Estado = Vacio(estado),
         }, ct);
         if (!r.Success) return Falla(r.Message);
@@ -51,10 +54,27 @@ public sealed class CoordinacionController : Controller
             fueraDeTiempo = c.Success ? c.Data!.Fuera_De_Tiempo : 0,   // D-251
             data = r.Data!.Select(s => new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
-                esHoy = s.Es_Hoy, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, empresa = s.Empresa_Visitante, solicitante = s.Solicitante_Nombre, estado = s.Estado, total = s.Total_Personas,
-                autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, porDecidirMis = s.Por_Decidir_Mis,
-                personas = s.Personas_Nombres, diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
+                id = s.ID_Solicitud,
+                codigo = s.Codigo,
+                fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"),
+                hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
+                esHoy = s.Es_Hoy,
+                tipo = s.Tipo_Acceso,
+                tipoCodigo = s.Tipo_Acceso_Codigo,
+                empresaCodigo = s.Empresa_Destino_Codigo,
+                empresa = s.Empresa_Visitante,
+                solicitante = s.Solicitante_Nombre,
+                estado = s.Estado,
+                total = s.Total_Personas,
+                autorizadas = s.Autorizadas,
+                observadas = s.Observadas,
+                pendientes = s.Pendientes,
+                rechazadas = s.Rechazadas,
+                porDecidirMis = s.Por_Decidir_Mis,
+                personas = s.Personas_Nombres,
+                diasAtraso = s.Dias_Atraso,
+                franjaSinAprobar = s.Franja_Sin_Aprobar,
+                correoEstado = s.Correo_Estado,   // D-251
             })
         });
     }
@@ -85,37 +105,88 @@ public sealed class CoordinacionController : Controller
             success = true,
             data = new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo,
-                areaDetalle = s.Area_Detalle, contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries), empresaTransportista = s.Empresa_Transportista, horaHasta = s.Hora_Hasta_Prevista, contactoCorreos = s.Contacto_Correos,
-                estado = s.Estado, diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),   // D-251
-                empresa = s.Empresa_Visitante, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, zonas = s.Zonas_Nombres, observaciones = s.Observaciones,
-                responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area, solicitante = s.Solicitante_Nombre, solicitanteCorreo = s.Solicitante_Correo,
-                exigeSctr = s.Exige_SCTR, exigeEpp = s.Exige_EPP, motivoCancelacion = s.Motivo_Cancelacion, codigoOrigen = s.Codigo_Origen,
+                id = s.ID_Solicitud,
+                codigo = s.Codigo,
+                sede = s.Sede,
+                tipo = s.Tipo_Acceso,
+                tipoId = s.ID_Catalogo_Tipo_Acceso,
+                tipoCodigo = s.Tipo_Acceso_Codigo,
+                empresaCodigo = s.Empresa_Destino_Codigo,
+                cochera = s.Requiere_Cochera,
+                placa = s.Placa_Vehiculo,
+                areaDetalle = s.Area_Detalle,
+                contactoNombre = s.Contacto_Nombre,
+                contactoTelefonos = s.Contacto_Telefonos,
+                numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries),
+                empresaTransportista = s.Empresa_Transportista,
+                horaHasta = s.Hora_Hasta_Prevista,
+                contactoCorreos = s.Contacto_Correos,
+                estado = s.Estado,
+                diasAtraso = s.Dias_Atraso,
+                franjaSinAprobar = s.Franja_Sin_Aprobar,
+                correoEstado = s.Correo_Estado,
+                fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"),
+                hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),   // D-251
+                empresa = s.Empresa_Visitante,
+                motivo = s.Motivo,
+                motivoDetalle = s.Motivo_Detalle,
+                zonas = s.Zonas_Nombres,
+                observaciones = s.Observaciones,
+                responsable = s.Responsable_Nombre,
+                responsableArea = s.Responsable_Area,
+                solicitante = s.Solicitante_Nombre,
+                solicitanteCorreo = s.Solicitante_Correo,
+                exigeSctr = s.Exige_SCTR,
+                exigeEpp = s.Exige_EPP,
+                motivoCancelacion = s.Motivo_Cancelacion,
+                codigoOrigen = s.Codigo_Origen,
                 puedeDecidir = s.Puede_Decidir,
                 empresaDestino = s.Empresa_Destino,
                 dias = dia.Data!.Select(x => new { fecha = x.Fecha.ToString("yyyy-MM-dd"), desde = x.Hora_Desde, hasta = x.Hora_Hasta, origen = x.Origen }),
                 transportistas = tra.Data!.Select(t => new
                 {
-                    personaId = t.ID_Persona_Externa, principal = t.Es_Principal, tipoDoc = t.Tipo_Documento, doc = t.Numero_Documento, nombrePersona = t.Nombre_Completo,
-                    ruc = t.Ruc, nombre = t.Nombre, direccion = t.Direccion, placa = t.Placa, marca = t.Marca, licencia = t.Licencia, completos = t.Datos_Completos,
+                    personaId = t.ID_Persona_Externa,
+                    principal = t.Es_Principal,
+                    tipoDoc = t.Tipo_Documento,
+                    doc = t.Numero_Documento,
+                    nombrePersona = t.Nombre_Completo,
+                    ruc = t.Ruc,
+                    nombre = t.Nombre,
+                    direccion = t.Direccion,
+                    placa = t.Placa,
+                    marca = t.Marca,
+                    licencia = t.Licencia,
+                    completos = t.Datos_Completos,
                 }),
                 // Corrección de emergencia (D-169): solo sobre una solicitud ya aprobada y hasta el día de la visita.
                 // Es solo para mostrar el botón: la rutina vuelve a validar estado, fecha, rol y sustento.
                 puedeCorregir = puedeCorregir,
                 personas = per.Data!.Select(p => new
                 {
-                    id = p.ID_Solicitud_Persona, personaId = p.ID_Persona_Externa, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento, nombre = p.Nombre_Completo,
-                    aprobacion = p.Aprobacion, mensaje = p.Aprobacion_Mensaje, aprobadoPor = p.Aprobado_Por_Nombre, estado = p.Estado, origen = p.Origen,
+                    id = p.ID_Solicitud_Persona,
+                    personaId = p.ID_Persona_Externa,
+                    tipoDoc = p.Tipo_Documento,
+                    doc = p.Numero_Documento,
+                    nombre = p.Nombre_Completo,
+                    aprobacion = p.Aprobacion,
+                    mensaje = p.Aprobacion_Mensaje,
+                    aprobadoPor = p.Aprobado_Por_Nombre,
+                    estado = p.Estado,
+                    origen = p.Origen,
                     puedeDecidir = p.Puede_Decidir,
                     // Se quita por emergencia a quien está autorizado y aún no ingresó; quien ya ingresó se despide con la salida de Vigilancia.
                     puedeQuitar = puedeCorregir && p.Aprobacion == "APROBADA" && p.Estado == "ESPERADA",
                     // D-215: corregir los datos (todo menos el número de documento). Mismas condiciones que quitar.
                     puedeCorregirDatos = puedeCorregir && p.Aprobacion == "APROBADA" && p.Estado == "ESPERADA",
-                    tipoDocId = p.ID_Catalogo_Tipo_Documento, apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres,
+                    tipoDocId = p.ID_Catalogo_Tipo_Documento,
+                    apellidoPaterno = p.Apellido_Paterno,
+                    apellidoMaterno = p.Apellido_Materno,
+                    nombres = p.Nombres,
                     // D-215: quitar a la única persona vigente rechaza la solicitud (la web avisa antes; la rutina exige la confirmación)
                     esUnica = tIds.Count > 0 ? tIds.Contains(p.ID_Solicitud_Persona) && tVivos == 1 : per.Data!.Count(q => q.Aprobacion != "RETIRADA") == 1,
                     esTransportista = tIds.Contains(p.ID_Solicitud_Persona),
-                    subtipoId = p.ID_Tipo_Acceso_Subtipo, subtipo = p.Subtipo,   // D-234: rol de la persona
+                    subtipoId = p.ID_Tipo_Acceso_Subtipo,
+                    subtipo = p.Subtipo,   // D-234: rol de la persona
                 }),
                 historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
             }
@@ -153,7 +224,10 @@ public sealed class CoordinacionController : Controller
                 if (g.Key <= 0) return Falla("No se encontró el paso que le corresponde decidir.");
                 var r = await _decision.DecidirAsync(new Dto_Solicitud_Decidir
                 {
-                    ID_Solicitud = m.SolicitudId, ID_Tipo_Acceso_Paso_Aprobacion = g.Key, Decision = decision, Mensaje = Vacio(mensaje),
+                    ID_Solicitud = m.SolicitudId,
+                    ID_Tipo_Acceso_Paso_Aprobacion = g.Key,
+                    Decision = decision,
+                    Mensaje = Vacio(mensaje),
                     IDs_Solicitud_Persona = g.Select(p => p.ID_Solicitud_Persona).ToList(),
                 }, u, ct);
                 if (!r.Success)
@@ -237,8 +311,12 @@ public sealed class CoordinacionController : Controller
     {
         var dto = new Dto_Persona_Externa
         {
-            ID_Persona_Externa = m.Id, ID_Catalogo_Tipo_Documento = m.TipoDocId, Numero_Documento = (m.Doc ?? string.Empty).Trim(),
-            Apellido_Paterno = (m.ApellidoPaterno ?? string.Empty).Trim(), Apellido_Materno = Vacio(m.ApellidoMaterno), Nombres = (m.Nombres ?? string.Empty).Trim(),
+            ID_Persona_Externa = m.Id,
+            ID_Catalogo_Tipo_Documento = m.TipoDocId,
+            Numero_Documento = (m.Doc ?? string.Empty).Trim(),
+            Apellido_Paterno = (m.ApellidoPaterno ?? string.Empty).Trim(),
+            Apellido_Materno = Vacio(m.ApellidoMaterno),
+            Nombres = (m.Nombres ?? string.Empty).Trim(),
         };
         long id = m.Id;
         if (m.Id > 0)

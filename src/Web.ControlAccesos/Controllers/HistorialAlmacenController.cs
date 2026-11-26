@@ -45,14 +45,39 @@ public sealed class HistorialAlmacenController : Controller
             total = filas!.Count,
             data = filas.Select(x => new
             {
-                solicitud = x.ID_Solicitud, codigo = x.Codigo, fecha = x.Fecha_Entrega.ToString("yyyy-MM-dd"), proveedor = x.Proveedor, solicitante = x.Solicitante,
-                empresaCodigo = x.Empresa_Codigo, empresa = x.Empresa, estado = x.Estado, reservo = x.Reservo,
-                inicio = x.Fecha_Inicio?.ToString("yyyy-MM-dd HH:mm"), inicioPor = x.Inicio_Nombre, fin = x.Fecha_Fin?.ToString("yyyy-MM-dd HH:mm"), finPor = x.Fin_Nombre,
-                minutosActivos = x.Minutos_Activos, pausas = x.Pausas, minutosPausa = x.Minutos_Pausa, conVehiculo = x.Con_Vehiculo,
-                resultado = x.Resultado, motivoSin = x.Motivo_Sin_Atencion, observacion = x.Observacion,
-                oc = x.Numeros_OC, placa = x.Placa, conductor = x.Conductor, transportista = x.Empresa_Transportista, horaDesde = x.Fecha_Entrega.ToString("HH:mm"), horaHasta = x.Hora_Hasta,
-                estadoEntrega = x.Estado_Entrega, llegada = x.Fecha_Llegada?.ToString("yyyy-MM-dd HH:mm"), ingreso = x.Fecha_Ingreso?.ToString("yyyy-MM-dd HH:mm"),
-                disponibilidad = x.Fecha_Disponibilidad?.ToString("yyyy-MM-dd HH:mm"), salida = x.Fecha_Salida?.ToString("yyyy-MM-dd HH:mm"), desvio = x.Minutos_Desvio, fueraFranja = x.Fuera_Franja == "Y",
+                solicitud = x.ID_Solicitud,
+                codigo = x.Codigo,
+                fecha = x.Fecha_Entrega.ToString("yyyy-MM-dd"),
+                proveedor = x.Proveedor,
+                solicitante = x.Solicitante,
+                empresaCodigo = x.Empresa_Codigo,
+                empresa = x.Empresa,
+                estado = x.Estado,
+                reservo = x.Reservo,
+                inicio = x.Fecha_Inicio?.ToString("yyyy-MM-dd HH:mm"),
+                inicioPor = x.Inicio_Nombre,
+                fin = x.Fecha_Fin?.ToString("yyyy-MM-dd HH:mm"),
+                finPor = x.Fin_Nombre,
+                minutosActivos = x.Minutos_Activos,
+                pausas = x.Pausas,
+                minutosPausa = x.Minutos_Pausa,
+                conVehiculo = x.Con_Vehiculo,
+                resultado = x.Resultado,
+                motivoSin = x.Motivo_Sin_Atencion,
+                observacion = x.Observacion,
+                oc = x.Numeros_OC,
+                placa = x.Placa,
+                conductor = x.Conductor,
+                transportista = x.Empresa_Transportista,
+                horaDesde = x.Fecha_Entrega.ToString("HH:mm"),
+                horaHasta = x.Hora_Hasta,
+                estadoEntrega = x.Estado_Entrega,
+                llegada = x.Fecha_Llegada?.ToString("yyyy-MM-dd HH:mm"),
+                ingreso = x.Fecha_Ingreso?.ToString("yyyy-MM-dd HH:mm"),
+                disponibilidad = x.Fecha_Disponibilidad?.ToString("yyyy-MM-dd HH:mm"),
+                salida = x.Fecha_Salida?.ToString("yyyy-MM-dd HH:mm"),
+                desvio = x.Minutos_Desvio,
+                fueraFranja = x.Fuera_Franja == "Y",
             }),
         });
     }
@@ -101,13 +126,25 @@ public sealed class HistorialAlmacenController : Controller
 
     private static string Estado(string e) => e switch
     {
-        "PENDIENTE" => "Pendiente", "EN_ATENCION" => "En atención", "DETENIDA" => "Detenida", "ATENDIDA" => "Atendida", "CERRADA_SIN_ATENCION" => "Cerrada sin atención", _ => e,
+        "PENDIENTE" => "Pendiente",
+        "EN_ATENCION" => "En atención",
+        "DETENIDA" => "Detenida",
+        "ATENDIDA" => "Atendida",
+        "CERRADA_SIN_ATENCION" => "Cerrada sin atención",
+        _ => e,
     };
 
     private static string EstadoEntrega(string? e) => e switch
     {
-        "PROGRAMADO" => "Programado", "EN_ESPERA" => "En espera", "INGRESO" => "Ingresó", "EN_ATENCION" => "En atención", "RECEPCIONADO" => "Recepción culminada",
-        "SALIO" => "Salió", "CIERRE_FORZADO" => "Cierre forzado", "NO_SE_PRESENTO" => "No se presentó", _ => e ?? string.Empty,
+        "PROGRAMADO" => "Programado",
+        "EN_ESPERA" => "En espera",
+        "INGRESO" => "Ingresó",
+        "EN_ATENCION" => "En atención",
+        "RECEPCIONADO" => "Recepción culminada",
+        "SALIO" => "Salió",
+        "CIERRE_FORZADO" => "Cierre forzado",
+        "NO_SE_PRESENTO" => "No se presentó",
+        _ => e ?? string.Empty,
     };
 
     /// <summary>Celda CSV entre comillas. Si empieza con = + - @ se antepone un apóstrofo para que Excel no lo trate como fórmula.</summary>

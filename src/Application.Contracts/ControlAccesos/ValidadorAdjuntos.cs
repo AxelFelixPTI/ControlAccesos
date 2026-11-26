@@ -19,10 +19,10 @@ public static class ValidadorAdjuntos
 
     private static readonly Dictionary<string, string> Tipos = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["pdf"]  = "application/pdf",
-        ["doc"]  = "application/msword",
+        ["pdf"] = "application/pdf",
+        ["doc"] = "application/msword",
         ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ["xls"]  = "application/vnd.ms-excel",
+        ["xls"] = "application/vnd.ms-excel",
         ["xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     };
 

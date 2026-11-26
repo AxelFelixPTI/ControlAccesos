@@ -55,9 +55,15 @@ public sealed class Repo_Documento_Ingreso : RepoHelpers, IRepo_Documento_Ingres
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Catalogo_Sede", sedeId); AddDate(p, "HV_Fecha", fecha); },
                 rd => new Dto_Documento_Ingreso
                 {
-                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"), Tipo = RdStr(rd, "Tipo"), Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
-                    Extension = RdStr(rd, "Extension"), Tamano_Bytes = RdLong(rd, "Tamano_Bytes"), Fecha_Subida = RdDt(rd, "Fecha_Subida"),
-                    Subido_Por = RdStrN(rd, "Subido_Por"), Personas = RdStrN(rd, "Personas"), Puede_Modificar = RdBool(rd, "Puede_Modificar"),
+                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"),
+                    Tipo = RdStr(rd, "Tipo"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
+                    Fecha_Subida = RdDt(rd, "Fecha_Subida"),
+                    Subido_Por = RdStrN(rd, "Subido_Por"),
+                    Personas = RdStrN(rd, "Personas"),
+                    Puede_Modificar = RdBool(rd, "Puede_Modificar"),
                 }, ct);
             return Result<List<Dto_Documento_Ingreso>>.Ok(lista);
         }
@@ -80,9 +86,16 @@ public sealed class Repo_Documento_Ingreso : RepoHelpers, IRepo_Documento_Ingres
                 },
                 rd => new Dto_Documento_Ingreso_Busqueda
                 {
-                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"), Fecha_Registro = RdDt(rd, "Fecha_Registro"), Tipo = RdStr(rd, "Tipo"),
-                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"), Extension = RdStr(rd, "Extension"), Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
-                    Fecha_Subida = RdDt(rd, "Fecha_Subida"), Subido_Por = RdStrN(rd, "Subido_Por"), Personas = RdStrN(rd, "Personas"), Puede_Modificar = RdBool(rd, "Puede_Modificar"),
+                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"),
+                    Fecha_Registro = RdDt(rd, "Fecha_Registro"),
+                    Tipo = RdStr(rd, "Tipo"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
+                    Fecha_Subida = RdDt(rd, "Fecha_Subida"),
+                    Subido_Por = RdStrN(rd, "Subido_Por"),
+                    Personas = RdStrN(rd, "Personas"),
+                    Puede_Modificar = RdBool(rd, "Puede_Modificar"),
                 }, ct);
             return Result<List<Dto_Documento_Ingreso_Busqueda>>.Ok(lista);
         }
@@ -101,8 +114,11 @@ public sealed class Repo_Documento_Ingreso : RepoHelpers, IRepo_Documento_Ingres
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Documento_Ingreso", documentoId); },
                 rd => new Dto_Documento_Ingreso_Contenido
                 {
-                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"), Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
-                    Extension = RdStr(rd, "Extension"), Tamano_Bytes = RdLong(rd, "Tamano_Bytes"), Contenido = RdBytes(rd, "Contenido"),
+                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
+                    Contenido = RdBytes(rd, "Contenido"),
                 }, ct);
             return Result<Dto_Documento_Ingreso_Contenido?>.Ok(d);
         }
@@ -125,9 +141,14 @@ public sealed class Repo_Documento_Ingreso : RepoHelpers, IRepo_Documento_Ingres
                 },
                 rd => new Dto_Documento_Ingreso_Persona
                 {
-                    ID_Solicitud_Persona = RdLong(rd, "ID_Solicitud_Persona"), Nombre = RdStr(rd, "Nombre"), Documento = RdStr(rd, "Documento"),
-                    Solicitud = RdStr(rd, "Solicitud"), Empresa = RdStrN(rd, "Empresa"), Trae_Equipos = RdBool(rd, "Trae_Equipos"),
-                    Trae_Herramientas = RdBool(rd, "Trae_Herramientas"), Documentos = RdInt(rd, "Documentos"),
+                    ID_Solicitud_Persona = RdLong(rd, "ID_Solicitud_Persona"),
+                    Nombre = RdStr(rd, "Nombre"),
+                    Documento = RdStr(rd, "Documento"),
+                    Solicitud = RdStr(rd, "Solicitud"),
+                    Empresa = RdStrN(rd, "Empresa"),
+                    Trae_Equipos = RdBool(rd, "Trae_Equipos"),
+                    Trae_Herramientas = RdBool(rd, "Trae_Herramientas"),
+                    Documentos = RdInt(rd, "Documentos"),
                 }, ct);
             return Result<List<Dto_Documento_Ingreso_Persona>>.Ok(lista);
         }
@@ -146,8 +167,13 @@ public sealed class Repo_Documento_Ingreso : RepoHelpers, IRepo_Documento_Ingres
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Catalogo_Sede", sedeId); AddDate(p, "HV_Fecha", fecha); },
                 rd => new Dto_Documento_Ingreso_Resumen
                 {
-                    Ingresaron = RdInt(rd, "Ingresaron"), Con_Equipos = RdInt(rd, "Con_Equipos"), Sin_Documento = RdInt(rd, "Sin_Documento"),
-                    Documentos = RdInt(rd, "Documentos"), Obligatorio = RdBool(rd, "Obligatorio"), Max_MB = RdInt(rd, "Max_MB"), Puede_Subir = RdBool(rd, "Puede_Subir"),
+                    Ingresaron = RdInt(rd, "Ingresaron"),
+                    Con_Equipos = RdInt(rd, "Con_Equipos"),
+                    Sin_Documento = RdInt(rd, "Sin_Documento"),
+                    Documentos = RdInt(rd, "Documentos"),
+                    Obligatorio = RdBool(rd, "Obligatorio"),
+                    Max_MB = RdInt(rd, "Max_MB"),
+                    Puede_Subir = RdBool(rd, "Puede_Subir"),
                 }, ct);
             return Result<Dto_Documento_Ingreso_Resumen?>.Ok(d);
         }
@@ -166,9 +192,14 @@ public sealed class Repo_Documento_Ingreso : RepoHelpers, IRepo_Documento_Ingres
                 p => { AddLongReq(p, "HV_UsuarioID", usuarioId); AddLongReq(p, "HV_ID_Solicitud", solicitudId); },
                 rd => new Dto_Documento_Ingreso_Solicitud
                 {
-                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"), Tipo = RdStr(rd, "Tipo"), Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
-                    Extension = RdStr(rd, "Extension"), Tamano_Bytes = RdLong(rd, "Tamano_Bytes"), Fecha_Registro = RdDt(rd, "Fecha_Registro"),
-                    Subido_Por = RdStrN(rd, "Subido_Por"), Personas = RdStrN(rd, "Personas"),
+                    ID_Documento_Ingreso = RdLong(rd, "ID_Documento_Ingreso"),
+                    Tipo = RdStr(rd, "Tipo"),
+                    Nombre_Archivo = RdStr(rd, "Nombre_Archivo"),
+                    Extension = RdStr(rd, "Extension"),
+                    Tamano_Bytes = RdLong(rd, "Tamano_Bytes"),
+                    Fecha_Registro = RdDt(rd, "Fecha_Registro"),
+                    Subido_Por = RdStrN(rd, "Subido_Por"),
+                    Personas = RdStrN(rd, "Personas"),
                 }, ct);
             return Result<List<Dto_Documento_Ingreso_Solicitud>>.Ok(lista);
         }

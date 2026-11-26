@@ -58,13 +58,36 @@ public sealed class VigilanciaController : Controller
             success = true,
             data = r.Data!.Select(p => new
             {
-                id = p.ID_Solicitud_Persona, solicitudId = p.ID_Solicitud, codigo = p.Codigo, fecha = p.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
-                empresa = p.Empresa_Visitante, atiende = p.Responsable_Nombre, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
-                nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
-                restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
-                exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
-                esProveedor = p.Es_Proveedor, tipo = p.Tipo_Acceso, tipoCodigo = p.Tipo_Acceso_Codigo, empresaCodigo = p.Empresa_Destino_Codigo, estadoOp = p.Estado_Operativo, modoIngreso = p.Modo_Ingreso, almacenListo = p.Disponibilidad_Confirmada,
-                esTransportista = p.Es_Transportista, verificada = p.Verificada, franja = p.Franja_Estado,
+                id = p.ID_Solicitud_Persona,
+                solicitudId = p.ID_Solicitud,
+                codigo = p.Codigo,
+                fecha = p.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"),
+                hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
+                empresa = p.Empresa_Visitante,
+                atiende = p.Responsable_Nombre,
+                tipoDoc = p.Tipo_Documento,
+                doc = p.Numero_Documento,
+                nombre = p.Persona_Nombre,
+                estado = p.Estado,
+                grupo = p.Grupo,
+                ingreso = Hora(p.Fecha_Hora_Ingreso),
+                salida = Hora(p.Fecha_Hora_Salida),
+                restringido = p.Acceso_Restringido,
+                traeEquipos = p.Trae_Equipos,
+                traeHerramientas = p.Trae_Herramientas,
+                exigeSctr = p.Exige_SCTR,
+                exigeEpp = p.Exige_EPP,
+                zonas = p.Zonas_Nombres,
+                esProveedor = p.Es_Proveedor,
+                tipo = p.Tipo_Acceso,
+                tipoCodigo = p.Tipo_Acceso_Codigo,
+                empresaCodigo = p.Empresa_Destino_Codigo,
+                estadoOp = p.Estado_Operativo,
+                modoIngreso = p.Modo_Ingreso,
+                almacenListo = p.Disponibilidad_Confirmada,
+                esTransportista = p.Es_Transportista,
+                verificada = p.Verificada,
+                franja = p.Franja_Estado,
             })
         });
     }
@@ -75,7 +98,9 @@ public sealed class VigilanciaController : Controller
     {
         var r = await _vig.AprobadasListarAsync(User.UsuarioId(), new Dto_Filtro_Vigilancia_Aprobadas
         {
-            Texto = Vacio(texto), Fecha_Desde = Fecha(desde), Fecha_Hasta = Fecha(hasta),
+            Texto = Vacio(texto),
+            Fecha_Desde = Fecha(desde),
+            Fecha_Hasta = Fecha(hasta),
         }, ct);
         if (!r.Success) return Falla(r.Message);
         return Json(new
@@ -84,12 +109,29 @@ public sealed class VigilanciaController : Controller
             limite = r.Data!.Count >= 500,
             data = r.Data!.Select(p => new
             {
-                id = p.ID_Solicitud_Persona, solicitudId = p.ID_Solicitud, codigo = p.Codigo, fecha = p.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
-                empresa = p.Empresa_Visitante, atiende = p.Responsable_Nombre, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
-                nombre = p.Persona_Nombre, estado = p.Estado, grupo = p.Grupo, ingreso = Hora(p.Fecha_Hora_Ingreso), salida = Hora(p.Fecha_Hora_Salida),
-                restringido = p.Acceso_Restringido, traeEquipos = p.Trae_Equipos, traeHerramientas = p.Trae_Herramientas,
-                exigeSctr = p.Exige_SCTR, exigeEpp = p.Exige_EPP, zonas = p.Zonas_Nombres,
-                tipo = p.Tipo_Acceso, tipoCodigo = p.Tipo_Acceso_Codigo, empresaCodigo = p.Empresa_Destino_Codigo,
+                id = p.ID_Solicitud_Persona,
+                solicitudId = p.ID_Solicitud,
+                codigo = p.Codigo,
+                fecha = p.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"),
+                hora = p.Fecha_Hora_Prevista.ToString("HH:mm"),
+                empresa = p.Empresa_Visitante,
+                atiende = p.Responsable_Nombre,
+                tipoDoc = p.Tipo_Documento,
+                doc = p.Numero_Documento,
+                nombre = p.Persona_Nombre,
+                estado = p.Estado,
+                grupo = p.Grupo,
+                ingreso = Hora(p.Fecha_Hora_Ingreso),
+                salida = Hora(p.Fecha_Hora_Salida),
+                restringido = p.Acceso_Restringido,
+                traeEquipos = p.Trae_Equipos,
+                traeHerramientas = p.Trae_Herramientas,
+                exigeSctr = p.Exige_SCTR,
+                exigeEpp = p.Exige_EPP,
+                zonas = p.Zonas_Nombres,
+                tipo = p.Tipo_Acceso,
+                tipoCodigo = p.Tipo_Acceso_Codigo,
+                empresaCodigo = p.Empresa_Destino_Codigo,
             })
         });
     }
@@ -125,13 +167,31 @@ public sealed class VigilanciaController : Controller
             success = true,
             data = new
             {
-                id = x.ID_Solicitud_Persona, codigo = x.Codigo, hora = x.Fecha_Hora_Prevista.ToString("HH:mm"), empresa = x.Empresa_Visitante, atiende = x.Responsable_Nombre,
-                tipoDoc = x.Tipo_Documento, doc = x.Numero_Documento, nombre = x.Persona_Nombre, estado = x.Estado,
-                ingreso = Hora(x.Fecha_Hora_Ingreso), salida = Hora(x.Fecha_Hora_Salida), restringido = x.Acceso_Restringido,
-                traeEquipos = x.Trae_Equipos, traeHerramientas = x.Trae_Herramientas, exigeSctr = x.Exige_SCTR, exigeEpp = x.Exige_EPP, zonas = x.Zonas_Nombres,
-                respaldoEquipos = x.Tiene_Respaldo_Equipos, respaldoHerramientas = x.Tiene_Respaldo_Herramientas,
-                puedeIngreso = x.Puede_Registrar_Ingreso, motivoNoIngreso = x.Motivo_No_Ingreso, puedeIngresoTardio = x.Puede_Registrar_Ingreso_Tardio,
-                puedeSalida = x.Puede_Registrar_Salida, motivoNoSalida = x.Motivo_No_Salida, fueraFranja = x.Fuera_Franja,
+                id = x.ID_Solicitud_Persona,
+                codigo = x.Codigo,
+                hora = x.Fecha_Hora_Prevista.ToString("HH:mm"),
+                empresa = x.Empresa_Visitante,
+                atiende = x.Responsable_Nombre,
+                tipoDoc = x.Tipo_Documento,
+                doc = x.Numero_Documento,
+                nombre = x.Persona_Nombre,
+                estado = x.Estado,
+                ingreso = Hora(x.Fecha_Hora_Ingreso),
+                salida = Hora(x.Fecha_Hora_Salida),
+                restringido = x.Acceso_Restringido,
+                traeEquipos = x.Trae_Equipos,
+                traeHerramientas = x.Trae_Herramientas,
+                exigeSctr = x.Exige_SCTR,
+                exigeEpp = x.Exige_EPP,
+                zonas = x.Zonas_Nombres,
+                respaldoEquipos = x.Tiene_Respaldo_Equipos,
+                respaldoHerramientas = x.Tiene_Respaldo_Herramientas,
+                puedeIngreso = x.Puede_Registrar_Ingreso,
+                motivoNoIngreso = x.Motivo_No_Ingreso,
+                puedeIngresoTardio = x.Puede_Registrar_Ingreso_Tardio,
+                puedeSalida = x.Puede_Registrar_Salida,
+                motivoNoSalida = x.Motivo_No_Salida,
+                fueraFranja = x.Fuera_Franja,
                 respaldos = res.Data!.Select(r => new { id = r.ID_Respaldo, categoria = r.Categoria, tipo = r.Tipo_Respaldo, numero = r.Numero_Documento, hora = r.Fecha_Hora.ToString("HH:mm"), vigilante = r.Vigilante_Nombre, personas = r.Cantidad_Personas }),
             }
         });
@@ -182,7 +242,10 @@ public sealed class VigilanciaController : Controller
         var x = f.Data!;
         var mov = await _por.MovimientosListarAsync(u, new Dto_Filtro_Movimientos
         {
-            ID_Catalogo_Sede = x.ID_Catalogo_Sede, Fecha_Desde = x.Fecha_Hora_Prevista.Date, Fecha_Hasta = x.Fecha_Hora_Prevista.Date, Texto = x.Numero_Documento,
+            ID_Catalogo_Sede = x.ID_Catalogo_Sede,
+            Fecha_Desde = x.Fecha_Hora_Prevista.Date,
+            Fecha_Hasta = x.Fecha_Hora_Prevista.Date,
+            Texto = x.Numero_Documento,
         }, ct);
         if (!mov.Success) return Falla(mov.Message);
         var regs = new List<object>();
@@ -191,8 +254,14 @@ public sealed class VigilanciaController : Controller
             var it = await _por.RegistroChecklistListarAsync(u, m.ID_Registro_Acceso, ct);
             regs.Add(new
             {
-                id = m.ID_Registro_Acceso, tipo = m.Tipo_Movimiento, resultado = m.Resultado, hora = m.Fecha_Hora.ToString("HH:mm"), tardio = m.Es_Registro_Tardio,
-                vigilante = m.Vigilante_Nombre, observacion = m.Observacion, desviacion = m.Codigo_Desviacion,
+                id = m.ID_Registro_Acceso,
+                tipo = m.Tipo_Movimiento,
+                resultado = m.Resultado,
+                hora = m.Fecha_Hora.ToString("HH:mm"),
+                tardio = m.Es_Registro_Tardio,
+                vigilante = m.Vigilante_Nombre,
+                observacion = m.Observacion,
+                desviacion = m.Codigo_Desviacion,
                 items = it.Success ? it.Data!.Select(i => (object)new { texto = i.Descripcion, cumple = i.Cumple, critico = i.Es_Critico }).ToList() : new List<object>(),
             });
         }
@@ -205,8 +274,11 @@ public sealed class VigilanciaController : Controller
     {
         var r = await _res.RegistrarAsync(new Dto_Respaldo_Registrar
         {
-            Categoria = m.Categoria ?? string.Empty, Tipo_Respaldo = m.Tipo ?? string.Empty, Numero_Documento = Vacio(m.Numero),
-            IDs_Solicitud_Persona = m.PersonasIds, Observacion = Vacio(m.Observacion),
+            Categoria = m.Categoria ?? string.Empty,
+            Tipo_Respaldo = m.Tipo ?? string.Empty,
+            Numero_Documento = Vacio(m.Numero),
+            IDs_Solicitud_Persona = m.PersonasIds,
+            Observacion = Vacio(m.Observacion),
         }, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Success ? "Respaldo registrado." : r.Message, errors = Errores(r) });
     }
@@ -218,8 +290,13 @@ public sealed class VigilanciaController : Controller
         if (errFecha is not null) return Falla(errFecha);
         var r = await _por.IngresoRegistrarAsync(new Dto_Porteria_Ingreso
         {
-            ID_Solicitud_Persona = m.PersonaId, Items = Items(m), Trae_Equipos = m.TraeEquipos, Trae_Herramientas = m.TraeHerramientas,
-            Observacion = Vacio(m.Observacion), Desviacion = Desv(m), Fecha_Hora_Hecho = fh,
+            ID_Solicitud_Persona = m.PersonaId,
+            Items = Items(m),
+            Trae_Equipos = m.TraeEquipos,
+            Trae_Herramientas = m.TraeHerramientas,
+            Observacion = Vacio(m.Observacion),
+            Desviacion = Desv(m),
+            Fecha_Hora_Hecho = fh,
         }, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r), data = r.Success ? new { registroId = r.Data!.ID_Registro_Acceso, desviacionId = r.Data.ID_Desviacion, resultado = r.Data.Resultado } : null });
     }
@@ -279,7 +356,11 @@ public sealed class VigilanciaController : Controller
         if (errFecha is not null) return Falla(errFecha);
         var r = await _por.SalidaRegistrarAsync(new Dto_Porteria_Salida
         {
-            ID_Solicitud_Persona = m.PersonaId, Items = Items(m), Observacion = Vacio(m.Observacion), Desviacion = Desv(m), Fecha_Hora_Hecho = fh,
+            ID_Solicitud_Persona = m.PersonaId,
+            Items = Items(m),
+            Observacion = Vacio(m.Observacion),
+            Desviacion = Desv(m),
+            Fecha_Hora_Hecho = fh,
         }, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r), data = r.Success ? new { registroId = r.Data!.ID_Registro_Acceso, desviacionId = r.Data.ID_Desviacion, resultado = r.Data.Resultado } : null });
     }
@@ -287,14 +368,20 @@ public sealed class VigilanciaController : Controller
     // ── apoyo ──────────────────────────────────────────────────────────────────────────────────
     private static Dto_Proveedor_Grupo Grupo(ProveedorGrupoVM m) => new()
     {
-        ID_Solicitud = m.SolicitudId, IDs_Persona = m.PersonasIds,
+        ID_Solicitud = m.SolicitudId,
+        IDs_Persona = m.PersonasIds,
         Items = m.Items.Select(i => new Dto_Porteria_Respuesta { ID_Catalogo_Item_Checklist = i.Id, Cumple = i.Cumple }).ToList(),
-        Observacion = Vacio(m.Observacion), Motivo_Anticipada = Vacio(m.Motivo),
-        IDs_Con_Equipos = m.ConEquiposIds ?? new(), IDs_Con_Herramientas = m.ConHerramientasIds ?? new(),
+        Observacion = Vacio(m.Observacion),
+        Motivo_Anticipada = Vacio(m.Motivo),
+        IDs_Con_Equipos = m.ConEquiposIds ?? new(),
+        IDs_Con_Herramientas = m.ConHerramientasIds ?? new(),
         Desviacion = m.Desviacion is null ? null : new Dto_Porteria_Desviacion_Entrada
         {
-            Descripcion = Vacio(m.Desviacion.Descripcion), ID_Coordinador = m.Desviacion.CoordinadorId, ID_Tratamiento = m.Desviacion.TratamientoId,
-            Tratamiento_Detalle = Vacio(m.Desviacion.TratamientoDetalle), Resultado_Elegido = Vacio(m.Desviacion.ResultadoElegido),
+            Descripcion = Vacio(m.Desviacion.Descripcion),
+            ID_Coordinador = m.Desviacion.CoordinadorId,
+            ID_Tratamiento = m.Desviacion.TratamientoId,
+            Tratamiento_Detalle = Vacio(m.Desviacion.TratamientoDetalle),
+            Resultado_Elegido = Vacio(m.Desviacion.ResultadoElegido),
         },
     };
 
@@ -304,8 +391,11 @@ public sealed class VigilanciaController : Controller
     private static Dto_Porteria_Desviacion_Entrada? Desv(MovimientoVM m)
         => m.Desviacion is null ? null : new Dto_Porteria_Desviacion_Entrada
         {
-            Descripcion = Vacio(m.Desviacion.Descripcion), ID_Coordinador = m.Desviacion.CoordinadorId, ID_Tratamiento = m.Desviacion.TratamientoId,
-            Tratamiento_Detalle = Vacio(m.Desviacion.TratamientoDetalle), Resultado_Elegido = Vacio(m.Desviacion.ResultadoElegido),
+            Descripcion = Vacio(m.Desviacion.Descripcion),
+            ID_Coordinador = m.Desviacion.CoordinadorId,
+            ID_Tratamiento = m.Desviacion.TratamientoId,
+            Tratamiento_Detalle = Vacio(m.Desviacion.TratamientoDetalle),
+            Resultado_Elegido = Vacio(m.Desviacion.ResultadoElegido),
         };
 
     /// <summary>Registro tardío: la hora real viene como HH:mm del día de hoy; sin hora es un registro en vivo.</summary>

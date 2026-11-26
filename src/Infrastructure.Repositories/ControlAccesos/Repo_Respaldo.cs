@@ -74,13 +74,13 @@ public sealed class Repo_Respaldo : RepoHelpers, IRepo_Respaldo
 
     private static Dto_Respaldo MapRespaldo(DbDataReader rd) => new()
     {
-        ID_Respaldo       = RdLong(rd, "ID_Respaldo"),
-        Categoria         = RdStr(rd, "Categoria"),
-        Tipo_Respaldo     = RdStr(rd, "Tipo_Respaldo"),
-        Numero_Documento  = RdStrN(rd, "Numero_Documento"),
-        Fecha_Hora        = RdDt(rd, "Fecha_Hora"),
-        Vigilante_Nombre  = RdStrN(rd, "Vigilante_Nombre"),
-        Observacion       = RdStrN(rd, "Observacion"),
+        ID_Respaldo = RdLong(rd, "ID_Respaldo"),
+        Categoria = RdStr(rd, "Categoria"),
+        Tipo_Respaldo = RdStr(rd, "Tipo_Respaldo"),
+        Numero_Documento = RdStrN(rd, "Numero_Documento"),
+        Fecha_Hora = RdDt(rd, "Fecha_Hora"),
+        Vigilante_Nombre = RdStrN(rd, "Vigilante_Nombre"),
+        Observacion = RdStrN(rd, "Observacion"),
         Cantidad_Personas = RdLong(rd, "Cantidad_Personas"),
     };
 }

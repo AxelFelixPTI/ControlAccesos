@@ -152,42 +152,42 @@ public sealed class Repo_Catalogo_Empresa_Grupo : RepoHelpers, IRepo_Catalogo_Em
 
     private static Dto_Catalogo_Universal MapLista(DbDataReader rd) => new()
     {
-        ID_Catalogo      = RdLong(rd, "ID_Catalogo"),
-        Codigo           = RdStr(rd, "Codigo"),
-        Descripcion      = RdStr(rd, "Descripcion"),
-        Tipo_Entidad     = RdStrN(rd, "Tipo_Entidad"),
-        RUC              = RdStrN(rd, "RUC"),
-        Orden            = RdLong(rd, "Orden"),
-        Activo           = RdStrN(rd, "Activo"),
-        Eliminado        = RdStrN(rd, "Eliminado"),
+        ID_Catalogo = RdLong(rd, "ID_Catalogo"),
+        Codigo = RdStr(rd, "Codigo"),
+        Descripcion = RdStr(rd, "Descripcion"),
+        Tipo_Entidad = RdStrN(rd, "Tipo_Entidad"),
+        RUC = RdStrN(rd, "RUC"),
+        Orden = RdLong(rd, "Orden"),
+        Activo = RdStrN(rd, "Activo"),
+        Eliminado = RdStrN(rd, "Eliminado"),
         UsuarioID_Create = RdLongN(rd, "UsuarioID_Create"),
-        Nombre_Usuario   = RdStrN(rd, "Nombre_Usuario"),
+        Nombre_Usuario = RdStrN(rd, "Nombre_Usuario"),
         UsuarioID_Update = RdLongN(rd, "UsuarioID_Update"),
-        CreateDate       = RdDtN(rd, "CreateDate"),
-        UpdateDate       = RdDtN(rd, "UpdateDate"),
+        CreateDate = RdDtN(rd, "CreateDate"),
+        UpdateDate = RdDtN(rd, "UpdateDate"),
     };
 
     private static Dto_Catalogo_Universal MapDetalle(DbDataReader rd) => new()
     {
-        ID_Catalogo      = RdLong(rd, "ID_Catalogo"),
-        Codigo           = RdStr(rd, "Codigo"),
-        Descripcion      = RdStr(rd, "Descripcion"),
-        Tipo_Entidad     = RdStrN(rd, "Tipo_Entidad"),
-        RUC              = RdStrN(rd, "RUC"),
-        Orden            = RdLong(rd, "Orden"),
-        Activo           = RdStrN(rd, "Activo"),
-        Eliminado        = RdStrN(rd, "Eliminado"),
+        ID_Catalogo = RdLong(rd, "ID_Catalogo"),
+        Codigo = RdStr(rd, "Codigo"),
+        Descripcion = RdStr(rd, "Descripcion"),
+        Tipo_Entidad = RdStrN(rd, "Tipo_Entidad"),
+        RUC = RdStrN(rd, "RUC"),
+        Orden = RdLong(rd, "Orden"),
+        Activo = RdStrN(rd, "Activo"),
+        Eliminado = RdStrN(rd, "Eliminado"),
         UsuarioID_Create = RdLongN(rd, "UsuarioID_Create"),
-        Nombre_Usuario   = RdStrN(rd, "Nombre_Usuario"),
+        Nombre_Usuario = RdStrN(rd, "Nombre_Usuario"),
         UsuarioID_Update = RdLongN(rd, "UsuarioID_Update"),
-        CreateDate       = RdDtN(rd, "CreateDate"),
-        UpdateDate       = RdDtN(rd, "UpdateDate"),
+        CreateDate = RdDtN(rd, "CreateDate"),
+        UpdateDate = RdDtN(rd, "UpdateDate"),
     };
 
     private static Dto_Catalogo_Universal MapDropdown(DbDataReader rd) => new()
     {
         ID_Catalogo = RdLong(rd, "ID_Catalogo"),
-        Codigo      = RdStr(rd, "Codigo"),
+        Codigo = RdStr(rd, "Codigo"),
         Descripcion = RdStr(rd, "Descripcion"),
     };
 }

@@ -47,11 +47,22 @@ public sealed class UsuariosController : Controller
         if (!r.Success) return Json(new { success = false, message = r.Message });
         var filas = r.Data!.Select(u => new
         {
-            id = u.ID_Usuario, nombreCompleto = u.Nombre_Completo, correo = u.Correo,
-            apellidoPaterno = u.Apellido_Paterno, apellidoMaterno = u.Apellido_Materno, nombres = u.Nombres,
-            tipoDocId = u.ID_Catalogo_Tipo_Documento, tipoDoc = u.Tipo_Documento, doc = u.Numero_Documento,
-            personalId = u.ID_Personal, area = u.Area, empresaExterna = u.Empresa_Externa,
-            roles = RolesEnSede(u.Licencias), activo = u.Activo, tienePassword = u.Tiene_Password, bloqueado = u.Bloqueado,
+            id = u.ID_Usuario,
+            nombreCompleto = u.Nombre_Completo,
+            correo = u.Correo,
+            apellidoPaterno = u.Apellido_Paterno,
+            apellidoMaterno = u.Apellido_Materno,
+            nombres = u.Nombres,
+            tipoDocId = u.ID_Catalogo_Tipo_Documento,
+            tipoDoc = u.Tipo_Documento,
+            doc = u.Numero_Documento,
+            personalId = u.ID_Personal,
+            area = u.Area,
+            empresaExterna = u.Empresa_Externa,
+            roles = RolesEnSede(u.Licencias),
+            activo = u.Activo,
+            tienePassword = u.Tiene_Password,
+            bloqueado = u.Bloqueado,
         });
         return Json(new { success = true, data = filas });
     }
@@ -112,8 +123,14 @@ public sealed class UsuariosController : Controller
         {
             var c = await _usuarios.CrearAsync(new Dto_Usuario_Crear
             {
-                Correo = correo, ID_Catalogo_Tipo_Documento = tipoDoc, Numero_Documento = doc, Apellido_Paterno = apPat,
-                Apellido_Materno = apMat, Nombres = nombres, ID_Personal = m.PersonalId is > 0 ? m.PersonalId : null, Empresa_Externa = empresa,
+                Correo = correo,
+                ID_Catalogo_Tipo_Documento = tipoDoc,
+                Numero_Documento = doc,
+                Apellido_Paterno = apPat,
+                Apellido_Materno = apMat,
+                Nombres = nombres,
+                ID_Personal = m.PersonalId is > 0 ? m.PersonalId : null,
+                Empresa_Externa = empresa,
             }, admin, ct);
             if (!c.Success) return Json(new { success = false, message = c.Message, errors = Errores(c) });
             idUsuario = c.Data;
@@ -166,8 +183,16 @@ public sealed class UsuariosController : Controller
 
     private static Dto_Usuario_Actualizar Actualizar(long id, string correo, long tipoDoc, string doc, string apPat, string? apMat, string nombres, long? personalId, string? empresa, bool activo) => new()
     {
-        ID_Usuario = id, Correo = correo, ID_Catalogo_Tipo_Documento = tipoDoc, Numero_Documento = doc, Apellido_Paterno = apPat,
-        Apellido_Materno = apMat, Nombres = nombres, ID_Personal = personalId is > 0 ? personalId : null, Empresa_Externa = empresa, Activo = activo,
+        ID_Usuario = id,
+        Correo = correo,
+        ID_Catalogo_Tipo_Documento = tipoDoc,
+        Numero_Documento = doc,
+        Apellido_Paterno = apPat,
+        Apellido_Materno = apMat,
+        Nombres = nombres,
+        ID_Personal = personalId is > 0 ? personalId : null,
+        Empresa_Externa = empresa,
+        Activo = activo,
     };
 
     private static IEnumerable<Dto_Catalogo_Universal> RolesGestionados(IEnumerable<Dto_Catalogo_Universal> licencias)

@@ -66,9 +66,18 @@ public sealed class IncidenciasController : Controller
             registradas = c.Success ? c.Data!.Registradas : 0,
             data = r.Data!.Select(i => new
             {
-                id = i.ID_Incidencia, codigo = i.Codigo, fecha = i.Fecha_Hora_Hecho.ToString("yyyy-MM-dd"), hora = i.Fecha_Hora_Hecho.ToString("HH:mm"),
-                tipo = i.Tipo_Descripcion, zona = i.Zona_Descripcion, lugar = i.Lugar_Detalle, descripcion = i.Descripcion, origen = i.Origen,
-                registrador = i.Registrador_Nombre, estado = i.Estado, personas = i.Cantidad_Personas,
+                id = i.ID_Incidencia,
+                codigo = i.Codigo,
+                fecha = i.Fecha_Hora_Hecho.ToString("yyyy-MM-dd"),
+                hora = i.Fecha_Hora_Hecho.ToString("HH:mm"),
+                tipo = i.Tipo_Descripcion,
+                zona = i.Zona_Descripcion,
+                lugar = i.Lugar_Detalle,
+                descripcion = i.Descripcion,
+                origen = i.Origen,
+                registrador = i.Registrador_Nombre,
+                estado = i.Estado,
+                personas = i.Cantidad_Personas,
             })
         });
     }
@@ -87,10 +96,22 @@ public sealed class IncidenciasController : Controller
             success = true,
             data = new
             {
-                id = d.ID_Incidencia, codigo = d.Codigo, fecha = d.Fecha_Hora_Hecho.ToString("yyyy-MM-dd"), hora = d.Fecha_Hora_Hecho.ToString("HH:mm"),
-                tipo = d.Tipo_Descripcion, tipoDetalle = d.Tipo_Detalle, zona = d.Zona_Descripcion, lugar = d.Lugar_Detalle, descripcion = d.Descripcion,
-                origen = d.Origen, registrador = d.Registrador_Nombre, estado = d.Estado, decisor = d.Decisor_Nombre,
-                fechaDecision = d.Fecha_Decision?.ToString("yyyy-MM-dd HH:mm"), sustento = d.Sustento_Decision, puedeDecidir = d.Puede_Decidir,
+                id = d.ID_Incidencia,
+                codigo = d.Codigo,
+                fecha = d.Fecha_Hora_Hecho.ToString("yyyy-MM-dd"),
+                hora = d.Fecha_Hora_Hecho.ToString("HH:mm"),
+                tipo = d.Tipo_Descripcion,
+                tipoDetalle = d.Tipo_Detalle,
+                zona = d.Zona_Descripcion,
+                lugar = d.Lugar_Detalle,
+                descripcion = d.Descripcion,
+                origen = d.Origen,
+                registrador = d.Registrador_Nombre,
+                estado = d.Estado,
+                decisor = d.Decisor_Nombre,
+                fechaDecision = d.Fecha_Decision?.ToString("yyyy-MM-dd HH:mm"),
+                sustento = d.Sustento_Decision,
+                puedeDecidir = d.Puede_Decidir,
                 personas = p.Data!.Select(x => new { id = x.ID_Solicitud_Persona, nombre = x.Persona_Nombre, doc = x.Numero_Documento, empresa = x.Empresa_Visitante, solicitud = x.Codigo_Solicitud, estado = x.Estado_Persona }),
             }
         });
@@ -124,7 +145,10 @@ public sealed class IncidenciasController : Controller
         if (sede is null) return Falla("No se encontró la sede " + SedeCodigo + ".");
         var r = await _inc.PersonasBuscarAsync(User.UsuarioId(), new Dto_Filtro_Incidencia_Personas
         {
-            ID_Catalogo_Sede = sede.Value, Fecha_Desde = DateTime.Today, Fecha_Hasta = DateTime.Today, Texto = Vacio(texto),
+            ID_Catalogo_Sede = sede.Value,
+            Fecha_Desde = DateTime.Today,
+            Fecha_Hasta = DateTime.Today,
+            Texto = Vacio(texto),
         }, ct);
         if (!r.Success) return Falla(r.Message);
         return Json(new
@@ -144,9 +168,14 @@ public sealed class IncidenciasController : Controller
         if (!TimeSpan.TryParseExact((m.Hora ?? string.Empty).Trim(), "hh\\:mm", CultureInfo.InvariantCulture, out var h)) return Falla("Indique la hora aproximada.");
         var r = await _inc.RegistrarAsync(new Dto_Incidencia_Registrar
         {
-            ID_Catalogo_Sede = sede.Value, ID_Catalogo_Tipo_Incidencia = m.TipoId, Tipo_Detalle = Vacio(m.TipoDetalle),
-            Fecha_Hora_Hecho = DateTime.Today.Add(h), ID_Catalogo_Zona_Acceso = m.ZonaId, Lugar_Detalle = Vacio(m.LugarDetalle),
-            Descripcion = (m.Descripcion ?? string.Empty).Trim(), IDs_Solicitud_Persona = m.PersonasIds ?? new(),
+            ID_Catalogo_Sede = sede.Value,
+            ID_Catalogo_Tipo_Incidencia = m.TipoId,
+            Tipo_Detalle = Vacio(m.TipoDetalle),
+            Fecha_Hora_Hecho = DateTime.Today.Add(h),
+            ID_Catalogo_Zona_Acceso = m.ZonaId,
+            Lugar_Detalle = Vacio(m.LugarDetalle),
+            Descripcion = (m.Descripcion ?? string.Empty).Trim(),
+            IDs_Solicitud_Persona = m.PersonasIds ?? new(),
         }, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r), data = r.Success ? new { id = r.Data!.ID_Incidencia, codigo = r.Data.Codigo } : null });
     }
@@ -156,7 +185,9 @@ public sealed class IncidenciasController : Controller
     {
         var r = await _inc.DecidirAsync(new Dto_Incidencia_Decision
         {
-            ID_Incidencia = m.Id, Decision = m.Decision == "CONFIRMAR" ? "CONFIRMAR" : "DESESTIMAR", Sustento = (m.Sustento ?? string.Empty).Trim(),
+            ID_Incidencia = m.Id,
+            Decision = m.Decision == "CONFIRMAR" ? "CONFIRMAR" : "DESESTIMAR",
+            Sustento = (m.Sustento ?? string.Empty).Trim(),
         }, User.UsuarioId(), ct);
         return Json(new { success = r.Success, message = r.Message, errors = Errores(r) });
     }

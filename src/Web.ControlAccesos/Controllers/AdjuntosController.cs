@@ -32,10 +32,15 @@ public sealed class AdjuntosController : Controller
             success = true,
             data = r.Data!.Select(a => new
             {
-                id = a.ID_Solicitud_Adjunto, nombre = a.Nombre_Archivo, extension = a.Extension, tamano = a.Tamano_Bytes,
-                fecha = a.Fecha.ToString("yyyy-MM-dd HH:mm"), puedeQuitar = a.Puede_Quitar,
+                id = a.ID_Solicitud_Adjunto,
+                nombre = a.Nombre_Archivo,
+                extension = a.Extension,
+                tamano = a.Tamano_Bytes,
+                fecha = a.Fecha.ToString("yyyy-MM-dd HH:mm"),
+                puedeQuitar = a.Puede_Quitar,
             }),
-            max = ValidadorAdjuntos.MaxPorSolicitud, maxBytes = ValidadorAdjuntos.MaxBytes,
+            max = ValidadorAdjuntos.MaxPorSolicitud,
+            maxBytes = ValidadorAdjuntos.MaxBytes,
         });
     }
 

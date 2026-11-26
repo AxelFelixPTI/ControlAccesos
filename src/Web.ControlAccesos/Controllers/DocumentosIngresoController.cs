@@ -51,8 +51,14 @@ public sealed class DocumentosIngresoController : Controller
             resumen = res.Data,
             documentos = lis.Data!.Select(d => new
             {
-                id = d.ID_Documento_Ingreso, tipo = d.Tipo, nombre = d.Nombre_Archivo, extension = d.Extension, bytes = d.Tamano_Bytes,
-                subido = d.Fecha_Subida.ToString("yyyy-MM-dd HH:mm"), por = d.Subido_Por, puedeModificar = d.Puede_Modificar,
+                id = d.ID_Documento_Ingreso,
+                tipo = d.Tipo,
+                nombre = d.Nombre_Archivo,
+                extension = d.Extension,
+                bytes = d.Tamano_Bytes,
+                subido = d.Fecha_Subida.ToString("yyyy-MM-dd HH:mm"),
+                por = d.Subido_Por,
+                puedeModificar = d.Puede_Modificar,
                 personas = ParsePersonas(d.Personas),
             }),
         });
@@ -73,8 +79,15 @@ public sealed class DocumentosIngresoController : Controller
             success = true,
             data = r.Data!.Select(x => new
             {
-                id = x.ID_Documento_Ingreso, fecha = x.Fecha_Registro.ToString("yyyy-MM-dd"), tipo = x.Tipo, nombre = x.Nombre_Archivo, extension = x.Extension, bytes = x.Tamano_Bytes,
-                subido = x.Fecha_Subida.ToString("yyyy-MM-dd HH:mm"), por = x.Subido_Por, personas = ParsePersonas(x.Personas),
+                id = x.ID_Documento_Ingreso,
+                fecha = x.Fecha_Registro.ToString("yyyy-MM-dd"),
+                tipo = x.Tipo,
+                nombre = x.Nombre_Archivo,
+                extension = x.Extension,
+                bytes = x.Tamano_Bytes,
+                subido = x.Fecha_Subida.ToString("yyyy-MM-dd HH:mm"),
+                por = x.Subido_Por,
+                personas = ParsePersonas(x.Personas),
             }),
         });
     }
@@ -92,8 +105,14 @@ public sealed class DocumentosIngresoController : Controller
             success = true,
             data = r.Data!.Select(p => new
             {
-                id = p.ID_Solicitud_Persona, nombre = p.Nombre, documento = p.Documento, solicitud = p.Solicitud, empresa = p.Empresa,
-                equipos = p.Trae_Equipos, herramientas = p.Trae_Herramientas, documentos = p.Documentos,
+                id = p.ID_Solicitud_Persona,
+                nombre = p.Nombre,
+                documento = p.Documento,
+                solicitud = p.Solicitud,
+                empresa = p.Empresa,
+                equipos = p.Trae_Equipos,
+                herramientas = p.Trae_Herramientas,
+                documentos = p.Documentos,
             }),
         });
     }
@@ -153,8 +172,13 @@ public sealed class DocumentosIngresoController : Controller
             success = true,
             data = r.Data!.Select(d => new
             {
-                id = d.ID_Documento_Ingreso, tipo = d.Tipo, nombre = d.Nombre_Archivo, extension = d.Extension, bytes = d.Tamano_Bytes,
-                fecha = d.Fecha_Registro.ToString("yyyy-MM-dd"), por = d.Subido_Por,
+                id = d.ID_Documento_Ingreso,
+                tipo = d.Tipo,
+                nombre = d.Nombre_Archivo,
+                extension = d.Extension,
+                bytes = d.Tamano_Bytes,
+                fecha = d.Fecha_Registro.ToString("yyyy-MM-dd"),
+                por = d.Subido_Por,
                 personas = (d.Personas ?? string.Empty).Split('|', StringSplitOptions.RemoveEmptyEntries),
             }),
         });

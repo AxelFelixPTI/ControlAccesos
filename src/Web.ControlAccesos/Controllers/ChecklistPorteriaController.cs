@@ -49,8 +49,15 @@ public sealed class ChecklistPorteriaController : Controller
 
         var filas = r.Data!.Select(x => new
         {
-            id = x.ID_Catalogo_Item_Checklist, codigo = x.Codigo, descripcion = x.Descripcion, ayuda = x.Ayuda,
-            etapa = x.Etapa, condicion = x.Condicion, esCritico = x.Es_Critico == "Y", orden = x.Orden, activo = x.Activo == "Y",
+            id = x.ID_Catalogo_Item_Checklist,
+            codigo = x.Codigo,
+            descripcion = x.Descripcion,
+            ayuda = x.Ayuda,
+            etapa = x.Etapa,
+            condicion = x.Condicion,
+            esCritico = x.Es_Critico == "Y",
+            orden = x.Orden,
+            activo = x.Activo == "Y",
             usos = x.Usos,
             tipos = (x.Tipos_IDs ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Par).ToList(),
         }).ToList();

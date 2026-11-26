@@ -18,8 +18,8 @@ namespace Shared.Results;
 public static class ResultCodes
 {
     public const string Validation = "VALIDATION";
-    public const string NotFound   = "NOT_FOUND";
-    public const string Fail       = "FAIL";
+    public const string NotFound = "NOT_FOUND";
+    public const string Fail = "FAIL";
 }
 
 public sealed record ResultError(string Field, string Message);

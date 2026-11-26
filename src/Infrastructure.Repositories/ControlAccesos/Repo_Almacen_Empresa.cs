@@ -23,11 +23,11 @@ public sealed class Repo_Almacen_Empresa : RepoHelpers, IRepo_Almacen_Empresa
                 bind: _ => { },
                 map: rd => new Dto_Almacen_Empresa
                 {
-                    ID_Usuario  = RdLong(rd, "ID_Usuario"),
-                    Nombre      = RdStr(rd, "Nombre"),
-                    Cargo       = RdStrN(rd, "Cargo"),
+                    ID_Usuario = RdLong(rd, "ID_Usuario"),
+                    Nombre = RdStr(rd, "Nombre"),
+                    Cargo = RdStrN(rd, "Cargo"),
                     IDs_Empresa = RdStr(rd, "IDs_Empresa"),
-                    Empresas    = RdStr(rd, "Empresas"),
+                    Empresas = RdStr(rd, "Empresas"),
                 },
                 ct: ct);
             return Result<List<Dto_Almacen_Empresa>>.Ok(lista);

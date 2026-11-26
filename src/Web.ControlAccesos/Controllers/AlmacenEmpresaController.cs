@@ -34,8 +34,11 @@ public sealed class AlmacenEmpresaController : Controller
                 empresas = (emp.Data ?? new()).Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion }),
                 usuarios = r.Data!.Select(u => new
                 {
-                    id = u.ID_Usuario, nombre = u.Nombre, cargo = u.Cargo,
-                    empresasIds = u.IDs_Empresa.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToList(), empresas = u.Empresas,
+                    id = u.ID_Usuario,
+                    nombre = u.Nombre,
+                    cargo = u.Cargo,
+                    empresasIds = u.IDs_Empresa.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToList(),
+                    empresas = u.Empresas,
                 }),
             }
         });

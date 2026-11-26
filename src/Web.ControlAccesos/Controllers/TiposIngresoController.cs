@@ -36,9 +36,18 @@ public sealed class TiposIngresoController : Controller
         if (!r.Success) return Json(new { success = false, message = r.Message });
         var filas = r.Data!.Select(x => new
         {
-            id = x.ID_Catalogo_Tipo_Acceso, codigo = x.Codigo, descripcion = x.Descripcion, requiereAprobacion = x.Requiere_Aprobacion == "Y",
-            disponible = x.Disponible == "Y", orden = x.Orden, activo = x.Activo == "Y", subtipos = x.Subtipos, pasos = x.Pasos, items = x.Items,
-            solicitudes = x.Solicitudes, propio = Propios.Contains(x.Codigo),
+            id = x.ID_Catalogo_Tipo_Acceso,
+            codigo = x.Codigo,
+            descripcion = x.Descripcion,
+            requiereAprobacion = x.Requiere_Aprobacion == "Y",
+            disponible = x.Disponible == "Y",
+            orden = x.Orden,
+            activo = x.Activo == "Y",
+            subtipos = x.Subtipos,
+            pasos = x.Pasos,
+            items = x.Items,
+            solicitudes = x.Solicitudes,
+            propio = Propios.Contains(x.Codigo),
         }).ToList();
         return Json(new { success = true, message = "", data = filas });
     }
@@ -51,8 +60,14 @@ public sealed class TiposIngresoController : Controller
         if (!r.Success) return Falla(r.Message);
         var filas = r.Data!.Where(x => x.ID_Catalogo_Tipo_Acceso == tipoId).Select(x => new
         {
-            id = x.ID_Tipo_Acceso_Subtipo, codigo = x.Codigo, descripcion = x.Descripcion, orden = x.Orden, activo = x.Activo == "Y",
-            predeterminado = x.Es_Predeterminado == "Y", sistema = x.Es_Sistema == "Y", personas = x.Personas,
+            id = x.ID_Tipo_Acceso_Subtipo,
+            codigo = x.Codigo,
+            descripcion = x.Descripcion,
+            orden = x.Orden,
+            activo = x.Activo == "Y",
+            predeterminado = x.Es_Predeterminado == "Y",
+            sistema = x.Es_Sistema == "Y",
+            personas = x.Personas,
         }).ToList();
         return Json(new { success = true, message = "", data = filas });
     }

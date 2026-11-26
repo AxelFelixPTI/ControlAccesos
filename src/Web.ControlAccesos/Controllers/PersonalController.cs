@@ -43,10 +43,24 @@ public sealed class PersonalController : Controller
         if (!r.Success) return Json(new { success = false, message = r.Message });
         var filas = r.Data!.Select(p => new
         {
-            id = p.ID_Personal, apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres,
-            nombreCompleto = p.Nombre_Completo, tipoDocId = p.ID_Catalogo_Tipo_Documento, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
-            areaId = p.ID_Catalogo_Area, area = p.Area, cargoId = p.ID_Catalogo_Cargo, cargo = p.Cargo, empresaId = p.ID_Catalogo_Empresa_Grupo,
-            empresa = p.Empresa, correo = p.Correo, anexo = p.Anexo, tieneUsuario = p.Tiene_Usuario == "Y", activo = p.Activo == "Y",
+            id = p.ID_Personal,
+            apellidoPaterno = p.Apellido_Paterno,
+            apellidoMaterno = p.Apellido_Materno,
+            nombres = p.Nombres,
+            nombreCompleto = p.Nombre_Completo,
+            tipoDocId = p.ID_Catalogo_Tipo_Documento,
+            tipoDoc = p.Tipo_Documento,
+            doc = p.Numero_Documento,
+            areaId = p.ID_Catalogo_Area,
+            area = p.Area,
+            cargoId = p.ID_Catalogo_Cargo,
+            cargo = p.Cargo,
+            empresaId = p.ID_Catalogo_Empresa_Grupo,
+            empresa = p.Empresa,
+            correo = p.Correo,
+            anexo = p.Anexo,
+            tieneUsuario = p.Tiene_Usuario == "Y",
+            activo = p.Activo == "Y",
         });
         return Json(new { success = true, data = filas });
     }
@@ -82,10 +96,17 @@ public sealed class PersonalController : Controller
 
         var dto = new Dto_Personal
         {
-            ID_Catalogo_Tipo_Documento = m.TipoDocId, Numero_Documento = (m.Doc ?? string.Empty).Trim(),
-            Apellido_Paterno = (m.ApellidoPaterno ?? string.Empty).Trim(), Apellido_Materno = Vacio(m.ApellidoMaterno),
-            Nombres = (m.Nombres ?? string.Empty).Trim(), ID_Catalogo_Area = m.AreaId, ID_Catalogo_Cargo = m.CargoId is > 0 ? m.CargoId : null,
-            ID_Catalogo_Empresa_Grupo = m.EmpresaId, ID_Catalogo_Sede = sede.Value, Correo = Vacio(m.Correo), Anexo = Vacio(m.Anexo),
+            ID_Catalogo_Tipo_Documento = m.TipoDocId,
+            Numero_Documento = (m.Doc ?? string.Empty).Trim(),
+            Apellido_Paterno = (m.ApellidoPaterno ?? string.Empty).Trim(),
+            Apellido_Materno = Vacio(m.ApellidoMaterno),
+            Nombres = (m.Nombres ?? string.Empty).Trim(),
+            ID_Catalogo_Area = m.AreaId,
+            ID_Catalogo_Cargo = m.CargoId is > 0 ? m.CargoId : null,
+            ID_Catalogo_Empresa_Grupo = m.EmpresaId,
+            ID_Catalogo_Sede = sede.Value,
+            Correo = Vacio(m.Correo),
+            Anexo = Vacio(m.Anexo),
             Activo = m.Activo ? "Y" : "N",
         };
 
@@ -109,9 +130,16 @@ public sealed class PersonalController : Controller
         {
             var u = await _usuarios.ActualizarAsync(new Dto_Usuario_Actualizar
             {
-                ID_Usuario = vinculado.ID_Usuario, Correo = dto.Correo ?? vinculado.Correo, ID_Catalogo_Tipo_Documento = dto.ID_Catalogo_Tipo_Documento,
-                Numero_Documento = dto.Numero_Documento, Apellido_Paterno = dto.Apellido_Paterno, Apellido_Materno = dto.Apellido_Materno,
-                Nombres = dto.Nombres, ID_Personal = m.Id, Empresa_Externa = null, Activo = vinculado.Activo,
+                ID_Usuario = vinculado.ID_Usuario,
+                Correo = dto.Correo ?? vinculado.Correo,
+                ID_Catalogo_Tipo_Documento = dto.ID_Catalogo_Tipo_Documento,
+                Numero_Documento = dto.Numero_Documento,
+                Apellido_Paterno = dto.Apellido_Paterno,
+                Apellido_Materno = dto.Apellido_Materno,
+                Nombres = dto.Nombres,
+                ID_Personal = m.Id,
+                Empresa_Externa = null,
+                Activo = vinculado.Activo,
             }, usuario, ct);
             if (!u.Success)
                 return Json(new { success = true, message = "Personal guardado, pero no se pudo actualizar su cuenta de usuario: " + u.Message });

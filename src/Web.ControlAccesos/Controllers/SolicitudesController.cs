@@ -56,18 +56,40 @@ public sealed class SolicitudesController : Controller
     {
         var r = await _sol.MisListarAsync(User.UsuarioId(), new Dto_Filtro_Mis_Solicitudes
         {
-            Texto = Vacio(texto), Estado = Vacio(estado), Fecha_Desde = Fecha(desde), Fecha_Hasta = Fecha(hasta),
+            Texto = Vacio(texto),
+            Estado = Vacio(estado),
+            Fecha_Desde = Fecha(desde),
+            Fecha_Hasta = Fecha(hasta),
         }, ct);
         if (!r.Success) return Falla(r.Message);
         var filas = r.Data!.Select(s => new
         {
-            id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
-            empresa = s.Empresa_Visitante, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, personasResumen = s.Personas_Resumen,
-            estado = s.Estado, responsable = s.Responsable_Nombre, codigoOrigen = s.Codigo_Origen,
-            total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
-            puedeEditar = s.Puede_Editar_Datos, motivoNoEditar = s.Motivo_No_Editar_Datos,
-            puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar, puedeReutilizar = s.Puede_Reutilizar,
-            diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
+            id = s.ID_Solicitud,
+            codigo = s.Codigo,
+            fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"),
+            hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
+            empresa = s.Empresa_Visitante,
+            tipo = s.Tipo_Acceso,
+            tipoCodigo = s.Tipo_Acceso_Codigo,
+            empresaCodigo = s.Empresa_Destino_Codigo,
+            personasResumen = s.Personas_Resumen,
+            estado = s.Estado,
+            responsable = s.Responsable_Nombre,
+            codigoOrigen = s.Codigo_Origen,
+            total = s.Total_Personas,
+            autorizadas = s.Autorizadas,
+            observadas = s.Observadas,
+            pendientes = s.Pendientes,
+            rechazadas = s.Rechazadas,
+            retiradas = s.Retiradas,
+            puedeEditar = s.Puede_Editar_Datos,
+            motivoNoEditar = s.Motivo_No_Editar_Datos,
+            puedeCancelar = s.Puede_Cancelar,
+            motivoNoCancelar = s.Motivo_No_Cancelar,
+            puedeReutilizar = s.Puede_Reutilizar,
+            diasAtraso = s.Dias_Atraso,
+            franjaSinAprobar = s.Franja_Sin_Aprobar,
+            correoEstado = s.Correo_Estado,   // D-251
         });
         return Json(new { success = true, data = filas });
     }
@@ -96,7 +118,11 @@ public sealed class SolicitudesController : Controller
             if (!z.Success) return Falla(z.Message);
             sedesJson.Add(new
             {
-                id = s.ID_Catalogo_Sede, codigo = s.Codigo, texto = s.Descripcion, cochera = s.Aplica_Cochera, proveedor = s.Aplica_Proveedor,
+                id = s.ID_Catalogo_Sede,
+                codigo = s.Codigo,
+                texto = s.Descripcion,
+                cochera = s.Aplica_Cochera,
+                proveedor = s.Aplica_Proveedor,
                 zonas = z.Data!.Where(x => x.Activo == "Y").OrderBy(x => x.Orden).Select(x => new { id = x.ID_Catalogo, texto = x.Descripcion, sctr = x.Exige_SCTR == "Y", epp = x.Exige_EPP == "Y" }),
             });
         }
@@ -178,8 +204,12 @@ public sealed class SolicitudesController : Controller
     {
         var dto = new Dto_Persona_Externa
         {
-            ID_Persona_Externa = m.Id, ID_Catalogo_Tipo_Documento = m.TipoDocId, Numero_Documento = (m.Doc ?? string.Empty).Trim(),
-            Apellido_Paterno = (m.ApellidoPaterno ?? string.Empty).Trim(), Apellido_Materno = Vacio(m.ApellidoMaterno), Nombres = (m.Nombres ?? string.Empty).Trim(),
+            ID_Persona_Externa = m.Id,
+            ID_Catalogo_Tipo_Documento = m.TipoDocId,
+            Numero_Documento = (m.Doc ?? string.Empty).Trim(),
+            Apellido_Paterno = (m.ApellidoPaterno ?? string.Empty).Trim(),
+            Apellido_Materno = Vacio(m.ApellidoMaterno),
+            Nombres = (m.Nombres ?? string.Empty).Trim(),
         };
         var usuario = User.UsuarioId();
         long id = m.Id;
@@ -211,19 +241,39 @@ public sealed class SolicitudesController : Controller
 
         var r = await _sol.CrearAsync(new Dto_Solicitud_Crear
         {
-            ID_Catalogo_Sede = m.SedeId, ID_Catalogo_Tipo_Acceso = m.TipoId, ID_Personal_Responsable = m.ResponsableId > 0 ? m.ResponsableId : null,
-            Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null,
-            Motivo_Detalle = Vacio(m.MotivoDetalle), Observaciones = Vacio(m.Observaciones), IDs_Zona = m.ZonasIds ?? new(),
-            IDs_Persona_Externa = m.PersonasIds ?? new(), Copias = Vacio(m.Copias), ID_Solicitud_Origen = m.OrigenId is > 0 ? m.OrigenId : null,
-            Requiere_Cochera = m.Cochera, Placa_Vehiculo = Vacio(m.Placa), Area_Detalle = Vacio(m.AreaDetalle),
-            Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
+            ID_Catalogo_Sede = m.SedeId,
+            ID_Catalogo_Tipo_Acceso = m.TipoId,
+            ID_Personal_Responsable = m.ResponsableId > 0 ? m.ResponsableId : null,
+            Fecha_Hora_Prevista = fh.Value,
+            Empresa_Visitante = Vacio(m.Empresa),
+            ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null,
+            Motivo_Detalle = Vacio(m.MotivoDetalle),
+            Observaciones = Vacio(m.Observaciones),
+            IDs_Zona = m.ZonasIds ?? new(),
+            IDs_Persona_Externa = m.PersonasIds ?? new(),
+            Copias = Vacio(m.Copias),
+            ID_Solicitud_Origen = m.OrigenId is > 0 ? m.OrigenId : null,
+            Requiere_Cochera = m.Cochera,
+            Placa_Vehiculo = Vacio(m.Placa),
+            Area_Detalle = Vacio(m.AreaDetalle),
+            Contacto_Nombre = Vacio(m.ContactoNombre),
+            Contacto_Telefonos = Vacio(m.ContactoTelefonos),
+            Contacto_Correos = Vacio(m.ContactoCorreos),
             ID_Catalogo_Empresa_Destino = m.EmpresaDestinoId is > 0 ? m.EmpresaDestinoId : null,
-            Dias = dias, Hora_Desde = Vacio(m.HoraDesde), Hora_Hasta = Vacio(m.HoraHasta),
-            Numeros_OC = OcTexto(m), Empresa_Transportista = Vacio(m.EmpresaTransportista),   // D-237
+            Dias = dias,
+            Hora_Desde = Vacio(m.HoraDesde),
+            Hora_Hasta = Vacio(m.HoraHasta),
+            Numeros_OC = OcTexto(m),
+            Empresa_Transportista = Vacio(m.EmpresaTransportista),   // D-237
             Transportistas = (m.Transportistas ?? new()).Select(t => new Dto_Transportista_Entrada
             {
-                ID_Persona_Externa = t.PersonaId, Ruc = Vacio(t.Ruc), Nombre = Vacio(t.Nombre), Direccion = Vacio(t.Direccion),
-                Placa = Vacio(t.Placa), Marca = Vacio(t.Marca), Licencia = Vacio(t.Licencia),
+                ID_Persona_Externa = t.PersonaId,
+                Ruc = Vacio(t.Ruc),
+                Nombre = Vacio(t.Nombre),
+                Direccion = Vacio(t.Direccion),
+                Placa = Vacio(t.Placa),
+                Marca = Vacio(t.Marca),
+                Licencia = Vacio(t.Licencia),
             }).ToList(),
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
@@ -240,11 +290,20 @@ public sealed class SolicitudesController : Controller
         if (fh is null) return Falla("Indique la fecha y la hora de la visita.");
         var r = await _sol.EditarDatosAsync(id, new Dto_Solicitud_Editar
         {
-            Fecha_Hora_Prevista = fh.Value, Empresa_Visitante = Vacio(m.Empresa), ID_Personal_Responsable = m.ResponsableId > 0 ? m.ResponsableId : null,
-            ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null, Motivo_Detalle = Vacio(m.MotivoDetalle),
-            Observaciones = Vacio(m.Observaciones), IDs_Zona = m.ZonasIds ?? new(), Copias = Vacio(m.Copias),
-            Requiere_Cochera = m.Cochera, Placa_Vehiculo = Vacio(m.Placa), Area_Detalle = Vacio(m.AreaDetalle),
-            Contacto_Nombre = Vacio(m.ContactoNombre), Contacto_Telefonos = Vacio(m.ContactoTelefonos), Contacto_Correos = Vacio(m.ContactoCorreos),
+            Fecha_Hora_Prevista = fh.Value,
+            Empresa_Visitante = Vacio(m.Empresa),
+            ID_Personal_Responsable = m.ResponsableId > 0 ? m.ResponsableId : null,
+            ID_Catalogo_Motivo_Visita = m.MotivoId is > 0 ? m.MotivoId : null,
+            Motivo_Detalle = Vacio(m.MotivoDetalle),
+            Observaciones = Vacio(m.Observaciones),
+            IDs_Zona = m.ZonasIds ?? new(),
+            Copias = Vacio(m.Copias),
+            Requiere_Cochera = m.Cochera,
+            Placa_Vehiculo = Vacio(m.Placa),
+            Area_Detalle = Vacio(m.AreaDetalle),
+            Contacto_Nombre = Vacio(m.ContactoNombre),
+            Contacto_Telefonos = Vacio(m.ContactoTelefonos),
+            Contacto_Correos = Vacio(m.ContactoCorreos),
             ID_Catalogo_Empresa_Destino = m.EmpresaDestinoId is > 0 ? m.EmpresaDestinoId : null,
         }, User.UsuarioId(), ct);
         if (!r.Success) return Json(new { success = false, message = r.Message, errors = Errores(r) });
@@ -253,7 +312,10 @@ public sealed class SolicitudesController : Controller
         {
             var pd = await _sol.ProveedorDatosGuardarAsync(id, new Dto_Proveedor_Datos
             {
-                Numeros_OC = OcTexto(m), Empresa_Transportista = Vacio(m.EmpresaTransportista), Hora_Hasta = Vacio(m.HoraHasta), Contacto_Correos = Vacio(m.ContactoCorreos),
+                Numeros_OC = OcTexto(m),
+                Empresa_Transportista = Vacio(m.EmpresaTransportista),
+                Hora_Hasta = Vacio(m.HoraHasta),
+                Contacto_Correos = Vacio(m.ContactoCorreos),
             }, User.UsuarioId(), ct);
             if (!pd.Success) return Json(new { success = false, message = pd.Message, errors = Errores(pd) });
         }
@@ -293,41 +355,104 @@ public sealed class SolicitudesController : Controller
         var s = d.Data!;
         var franjaAprobada = dia.Data!.Count > 0 && (s.Estado == "APROBADA" || s.Estado == "APROBADA_PARCIAL");   // D-227
         return (null, new
+        {
+            id = s.ID_Solicitud,
+            codigo = s.Codigo,
+            sede = s.Sede,
+            sedeId = s.ID_Catalogo_Sede,
+            tipo = s.Tipo_Acceso,
+            tipoId = s.ID_Catalogo_Tipo_Acceso,
+            tipoCodigo = s.Tipo_Acceso_Codigo,
+            empresaCodigo = s.Empresa_Destino_Codigo,
+            cochera = s.Requiere_Cochera,
+            placa = s.Placa_Vehiculo,
+            areaDetalle = s.Area_Detalle,
+            contactoNombre = s.Contacto_Nombre,
+            contactoTelefonos = s.Contacto_Telefonos,
+            contactoCorreos = s.Contacto_Correos,
+            estado = s.Estado,
+            avance = s.Avance,
+            fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"),
+            hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
+            empresa = s.Empresa_Visitante,
+            responsableId = s.ID_Personal_Responsable,
+            responsable = s.Responsable_Nombre,
+            responsableArea = s.Responsable_Area,
+            motivoId = s.ID_Catalogo_Motivo_Visita,
+            motivo = s.Motivo,
+            motivoDetalle = s.Motivo_Detalle,
+            observaciones = s.Observaciones,
+            exigeSctr = s.Exige_SCTR,
+            exigeEpp = s.Exige_EPP,
+            zonasIds = ListaIds(s.Zonas_IDs),
+            zonas = s.Zonas_Nombres,
+            copias = s.Copias,
+            observacionCoordinador = s.Observacion_Coordinador,
+            motivoCancelacion = s.Motivo_Cancelacion,
+            codigoOrigen = s.Codigo_Origen,
+            total = s.Total_Personas,
+            autorizadas = s.Autorizadas,
+            observadas = s.Observadas,
+            pendientes = s.Pendientes,
+            rechazadas = s.Rechazadas,
+            retiradas = s.Retiradas,
+            puedeEditar = s.Puede_Editar_Datos && !franjaAprobada,
+            motivoNoEditar = franjaAprobada ? "Una solicitud de contratista aprobada no se modifica. Para ampliar el plazo cree una solicitud nueva (el Coordinador también puede agregar días)." : s.Motivo_No_Editar_Datos,
+            puedeModificar = s.Puede_Modificar_Personal,
+            motivoNoModificar = s.Motivo_No_Modificar_Personal,
+            puedeCancelar = s.Puede_Cancelar,
+            motivoNoCancelar = s.Motivo_No_Cancelar,
+            puedeReutilizar = s.Puede_Reutilizar,
+            esPropia = s.Es_Propia,
+            diasAtraso = s.Dias_Atraso,
+            franjaSinAprobar = s.Franja_Sin_Aprobar,
+            correoEstado = s.Correo_Estado,   // D-251
+            empresaDestinoId = s.ID_Empresa_Destino,
+            empresaDestino = s.Empresa_Destino,
+            numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),   // D-237
+            empresaTransportista = s.Empresa_Transportista,
+            horaHasta = s.Hora_Hasta_Prevista,
+            empresasIds = (s.IDs_Empresa_Destino ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => long.Parse(x)).ToList(),   // D-236
+            dias = dia.Data!.Select(x => new { fecha = x.Fecha.ToString("yyyy-MM-dd"), desde = x.Hora_Desde, hasta = x.Hora_Hasta, origen = x.Origen }),
+            transportistas = tra.Data!.Select(t => new
             {
-                id = s.ID_Solicitud, codigo = s.Codigo, sede = s.Sede, sedeId = s.ID_Catalogo_Sede, tipo = s.Tipo_Acceso, tipoId = s.ID_Catalogo_Tipo_Acceso,
-                tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, cochera = s.Requiere_Cochera, placa = s.Placa_Vehiculo, areaDetalle = s.Area_Detalle,
-                contactoNombre = s.Contacto_Nombre, contactoTelefonos = s.Contacto_Telefonos, contactoCorreos = s.Contacto_Correos, estado = s.Estado, avance = s.Avance,
-                fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"), empresa = s.Empresa_Visitante,
-                responsableId = s.ID_Personal_Responsable, responsable = s.Responsable_Nombre, responsableArea = s.Responsable_Area,
-                motivoId = s.ID_Catalogo_Motivo_Visita, motivo = s.Motivo, motivoDetalle = s.Motivo_Detalle, observaciones = s.Observaciones,
-                exigeSctr = s.Exige_SCTR, exigeEpp = s.Exige_EPP, zonasIds = ListaIds(s.Zonas_IDs), zonas = s.Zonas_Nombres, copias = s.Copias,
-                observacionCoordinador = s.Observacion_Coordinador, motivoCancelacion = s.Motivo_Cancelacion, codigoOrigen = s.Codigo_Origen,
-                total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
-                puedeEditar = s.Puede_Editar_Datos && !franjaAprobada,
-                motivoNoEditar = franjaAprobada ? "Una solicitud de contratista aprobada no se modifica. Para ampliar el plazo cree una solicitud nueva (el Coordinador también puede agregar días)." : s.Motivo_No_Editar_Datos, puedeModificar = s.Puede_Modificar_Personal,
-                motivoNoModificar = s.Motivo_No_Modificar_Personal, puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar,
-                puedeReutilizar = s.Puede_Reutilizar, esPropia = s.Es_Propia, diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
-                empresaDestinoId = s.ID_Empresa_Destino, empresaDestino = s.Empresa_Destino,
-                numerosOc = (s.Numeros_OC ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),   // D-237
-                empresaTransportista = s.Empresa_Transportista, horaHasta = s.Hora_Hasta_Prevista,
-                empresasIds = (s.IDs_Empresa_Destino ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => long.Parse(x)).ToList(),   // D-236
-                dias = dia.Data!.Select(x => new { fecha = x.Fecha.ToString("yyyy-MM-dd"), desde = x.Hora_Desde, hasta = x.Hora_Hasta, origen = x.Origen }),
-                transportistas = tra.Data!.Select(t => new
-                {
-                    personaId = t.ID_Persona_Externa, principal = t.Es_Principal, tipoDoc = t.Tipo_Documento, doc = t.Numero_Documento, nombrePersona = t.Nombre_Completo,
-                    ruc = t.Ruc, nombre = t.Nombre, direccion = t.Direccion, placa = t.Placa, marca = t.Marca, licencia = t.Licencia, completos = t.Datos_Completos,
-                }),
-                personas = per.Data!.Select(p => new
-                {
-                    id = p.ID_Solicitud_Persona, personaId = p.ID_Persona_Externa, tipoDocId = p.ID_Catalogo_Tipo_Documento, tipoDoc = p.Tipo_Documento, doc = p.Numero_Documento,
-                    apellidoPaterno = p.Apellido_Paterno, apellidoMaterno = p.Apellido_Materno, nombres = p.Nombres, nombre = p.Nombre_Completo,
-                    aprobacion = p.Aprobacion, mensaje = p.Aprobacion_Mensaje, aprobadoPor = p.Aprobado_Por_Nombre, estado = p.Estado,
-                    puedeRetirar = p.Puede_Retirar, puedeCorregir = p.Puede_Corregir, puedeReactivar = p.Puede_Reactivar,
-                    esTransportista = tra.Data!.Any(t => t.ID_Solicitud_Persona == p.ID_Solicitud_Persona),
-                    subtipoId = p.ID_Tipo_Acceso_Subtipo, subtipo = p.Subtipo,   // D-234: rol de la persona
-                }),
-                historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
-            });
+                personaId = t.ID_Persona_Externa,
+                principal = t.Es_Principal,
+                tipoDoc = t.Tipo_Documento,
+                doc = t.Numero_Documento,
+                nombrePersona = t.Nombre_Completo,
+                ruc = t.Ruc,
+                nombre = t.Nombre,
+                direccion = t.Direccion,
+                placa = t.Placa,
+                marca = t.Marca,
+                licencia = t.Licencia,
+                completos = t.Datos_Completos,
+            }),
+            personas = per.Data!.Select(p => new
+            {
+                id = p.ID_Solicitud_Persona,
+                personaId = p.ID_Persona_Externa,
+                tipoDocId = p.ID_Catalogo_Tipo_Documento,
+                tipoDoc = p.Tipo_Documento,
+                doc = p.Numero_Documento,
+                apellidoPaterno = p.Apellido_Paterno,
+                apellidoMaterno = p.Apellido_Materno,
+                nombres = p.Nombres,
+                nombre = p.Nombre_Completo,
+                aprobacion = p.Aprobacion,
+                mensaje = p.Aprobacion_Mensaje,
+                aprobadoPor = p.Aprobado_Por_Nombre,
+                estado = p.Estado,
+                puedeRetirar = p.Puede_Retirar,
+                puedeCorregir = p.Puede_Corregir,
+                puedeReactivar = p.Puede_Reactivar,
+                esTransportista = tra.Data!.Any(t => t.ID_Solicitud_Persona == p.ID_Solicitud_Persona),
+                subtipoId = p.ID_Tipo_Acceso_Subtipo,
+                subtipo = p.Subtipo,   // D-234: rol de la persona
+            }),
+            historial = his.Data!.Select(h => new { fecha = h.Fecha_Evento.ToString("yyyy-MM-dd HH:mm"), texto = h.Accion_Texto, detalle = h.Detalle, usuario = h.Usuario_Nombre }),
+        });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

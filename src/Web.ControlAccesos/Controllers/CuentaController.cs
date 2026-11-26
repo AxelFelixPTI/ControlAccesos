@@ -94,7 +94,11 @@ public sealed class CuentaController : Controller
         if (!string.IsNullOrEmpty(rol) && _menu.Roles(User).Contains(rol))
             Response.Cookies.Append(MenuCaf.CookieRol, rol, new CookieOptions
             {
-                HttpOnly = true, SameSite = SameSiteMode.Lax, Secure = Request.IsHttps, IsEssential = true, Expires = DateTimeOffset.UtcNow.AddYears(1),
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Secure = Request.IsHttps,
+                IsEssential = true,
+                Expires = DateTimeOffset.UtcNow.AddYears(1),
             });
         else
             Response.Cookies.Delete(MenuCaf.CookieRol);

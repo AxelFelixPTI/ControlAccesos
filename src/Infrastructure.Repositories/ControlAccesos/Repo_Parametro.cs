@@ -23,8 +23,8 @@ public sealed class Repo_Parametro : RepoHelpers, IRepo_Parametro
                 bind: _ => { },
                 map: rd => new Dto_Parametro
                 {
-                    Clave       = RdStr(rd, "Clave"),
-                    Valor       = RdStr(rd, "Valor"),
+                    Clave = RdStr(rd, "Clave"),
+                    Valor = RdStr(rd, "Valor"),
                     Descripcion = RdStr(rd, "Descripcion"),
                 },
                 ct: ct);

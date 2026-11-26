@@ -40,9 +40,18 @@ public sealed class CorreosSolicitudController : Controller
             success = true,
             data = r.Data!.Select(c => new
             {
-                id = c.ID_Correo_Pendiente, tipo = c.Tipo, destinatarios = c.Destinatarios, copia = c.Copia, asunto = c.Asunto,
-                estado = c.Estado, intentos = c.Intentos, error = c.Ultimo_Error, creado = c.CreateDate.ToString("yyyy-MM-dd HH:mm"),
-                enviado = c.Fecha_Envio?.ToString("yyyy-MM-dd HH:mm"), esReenvio = c.Es_Reenvio, enviadoPor = c.Enviado_Por,
+                id = c.ID_Correo_Pendiente,
+                tipo = c.Tipo,
+                destinatarios = c.Destinatarios,
+                copia = c.Copia,
+                asunto = c.Asunto,
+                estado = c.Estado,
+                intentos = c.Intentos,
+                error = c.Ultimo_Error,
+                creado = c.CreateDate.ToString("yyyy-MM-dd HH:mm"),
+                enviado = c.Fecha_Envio?.ToString("yyyy-MM-dd HH:mm"),
+                esReenvio = c.Es_Reenvio,
+                enviadoPor = c.Enviado_Por,
             }),
         });
     }

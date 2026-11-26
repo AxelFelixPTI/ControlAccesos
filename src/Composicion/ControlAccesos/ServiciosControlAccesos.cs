@@ -30,7 +30,7 @@ public static class ServiciosControlAccesos
         var cadenas = new Dictionary<string, string>
         {
             [ConexionesCaf.Gobierno] = Cadena(config, ConexionesCaf.Gobierno),
-            [ConexionesCaf.Modulo]   = Cadena(config, ConexionesCaf.Modulo),
+            [ConexionesCaf.Modulo] = Cadena(config, ConexionesCaf.Modulo),
         };
         s.AddSingleton<IConexionFactory>(new ConexionPostgres(cadenas));
         s.AddSingleton<EjecutorSp>();

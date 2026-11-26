@@ -42,13 +42,28 @@ if (comando == "vista-previa-correos")
     Directory.CreateDirectory(carpeta);
     var d = new Dto_Correo_Solicitud
     {
-        ID_Solicitud = 123, Codigo = "SOL-2026-000123", Estado = "PENDIENTE", Fecha_Hora_Prevista = new DateTime(2026, 11, 3, 9, 30, 0),
-        Sede = "Villa El Salvador", Tipo_Acceso = "Visitante externo", Empresa_Visitante = "Ferretería Andina S.A.C.",
-        Responsable_Nombre = "Quispe Rojas, Marta", Responsable_Correo = "marta@grupotrianon.com", Responsable_Area = "Almacén",
-        Motivo = "Entrega de materiales", Motivo_Detalle = "Descarga de 3 pallets", Zonas_Nombres = "Almacén, Patio de maniobras",
+        ID_Solicitud = 123,
+        Codigo = "SOL-2026-000123",
+        Estado = "PENDIENTE",
+        Fecha_Hora_Prevista = new DateTime(2026, 11, 3, 9, 30, 0),
+        Sede = "Villa El Salvador",
+        Tipo_Acceso = "Visitante externo",
+        Empresa_Visitante = "Ferretería Andina S.A.C.",
+        Responsable_Nombre = "Quispe Rojas, Marta",
+        Responsable_Correo = "marta@grupotrianon.com",
+        Responsable_Area = "Almacén",
+        Motivo = "Entrega de materiales",
+        Motivo_Detalle = "Descarga de 3 pallets",
+        Zonas_Nombres = "Almacén, Patio de maniobras",
         Observaciones = "Llegarán en un camión de 8 toneladas.\nPor favor habilitar el portón lateral.",
-        Solicitante_Nombre = "Pérez Díaz, Carlos", Solicitante_Correo = "carlos@grupotrianon.com",
-        Exige_SCTR = true, Exige_EPP = true, Total_Personas = 3, Pendientes = 3, Version = 1, Fecha_Envio = DateTime.Now
+        Solicitante_Nombre = "Pérez Díaz, Carlos",
+        Solicitante_Correo = "carlos@grupotrianon.com",
+        Exige_SCTR = true,
+        Exige_EPP = true,
+        Total_Personas = 3,
+        Pendientes = 3,
+        Version = 1,
+        Fecha_Envio = DateTime.Now
     };
     var pers = new List<Dto_Correo_Solicitud_Persona>
     {
@@ -59,8 +74,15 @@ if (comando == "vista-previa-correos")
     void Guardar(string tipo, string archivo, string msg, string estado, bool resp, Action<List<Dto_Correo_Solicitud_Persona>>? ajusta = null)
     {
         d.Estado = estado;
-        var lista = pers.Select(p => new Dto_Correo_Solicitud_Persona { Tipo_Documento = p.Tipo_Documento, Numero_Documento = p.Numero_Documento,
-            Nombre_Completo = p.Nombre_Completo, Aprobacion = p.Aprobacion, Trae_Equipos = p.Trae_Equipos, Trae_Herramientas = p.Trae_Herramientas }).ToList();
+        var lista = pers.Select(p => new Dto_Correo_Solicitud_Persona
+        {
+            Tipo_Documento = p.Tipo_Documento,
+            Numero_Documento = p.Numero_Documento,
+            Nombre_Completo = p.Nombre_Completo,
+            Aprobacion = p.Aprobacion,
+            Trae_Equipos = p.Trae_Equipos,
+            Trae_Herramientas = p.Trae_Herramientas
+        }).ToList();
         ajusta?.Invoke(lista);
         d.Autorizadas = lista.Count(p => p.Aprobacion == "APROBADA"); d.Pendientes = lista.Count(p => p.Aprobacion == "PENDIENTE");
         d.Rechazadas = lista.Count(p => p.Aprobacion == "RECHAZADA"); d.Observadas = lista.Count(p => p.Aprobacion == "OBSERVADA");

@@ -44,11 +44,22 @@ public sealed class ReportesController : Controller
             resumen = b.Resumen,
             data = filas.Take(MaxFilasPantalla).Select(a => new
             {
-                id = a.ID_Registro_Acceso, fecha = a.Fecha_Hora.ToString("yyyy-MM-dd"), hora = a.Fecha_Hora.ToString("HH:mm"),
-                tipo = a.Tipo_Movimiento, resultado = a.Resultado, tardio = a.Es_Registro_Tardio,
-                solicitud = a.Codigo_Solicitud, persona = a.Persona_Nombre, doc = a.Numero_Documento, empresa = a.Empresa_Visitante,
-                zonas = a.Zonas, vigilante = a.Vigilante_Nombre, incumplidos = a.Items_Incumplidos,
-                desviacion = a.Codigo_Desviacion, estadoDesviacion = a.Estado_Desviacion, observacion = a.Observacion,
+                id = a.ID_Registro_Acceso,
+                fecha = a.Fecha_Hora.ToString("yyyy-MM-dd"),
+                hora = a.Fecha_Hora.ToString("HH:mm"),
+                tipo = a.Tipo_Movimiento,
+                resultado = a.Resultado,
+                tardio = a.Es_Registro_Tardio,
+                solicitud = a.Codigo_Solicitud,
+                persona = a.Persona_Nombre,
+                doc = a.Numero_Documento,
+                empresa = a.Empresa_Visitante,
+                zonas = a.Zonas,
+                vigilante = a.Vigilante_Nombre,
+                incumplidos = a.Items_Incumplidos,
+                desviacion = a.Codigo_Desviacion,
+                estadoDesviacion = a.Estado_Desviacion,
+                observacion = a.Observacion,
             })
         });
     }
@@ -97,8 +108,12 @@ public sealed class ReportesController : Controller
         object resumen = res.Success
             ? new
             {
-                ingresos = res.Data!.Sum(x => x.Ingresos), restringidos = res.Data!.Sum(x => x.Ingresos_Restringidos), denegados = res.Data!.Sum(x => x.Ingresos_Denegados),
-                salidas = res.Data!.Sum(x => x.Salidas), desviaciones = res.Data!.Sum(x => x.Desviaciones), incidencias = res.Data!.Sum(x => x.Incidencias),
+                ingresos = res.Data!.Sum(x => x.Ingresos),
+                restringidos = res.Data!.Sum(x => x.Ingresos_Restringidos),
+                denegados = res.Data!.Sum(x => x.Ingresos_Denegados),
+                salidas = res.Data!.Sum(x => x.Salidas),
+                desviaciones = res.Data!.Sum(x => x.Desviaciones),
+                incidencias = res.Data!.Sum(x => x.Incidencias),
             }
             : new { ingresos = 0L, restringidos = 0L, denegados = 0L, salidas = 0L, desviaciones = 0L, incidencias = 0L };
         return new(null, filas, resumen, d, h);
@@ -118,8 +133,12 @@ public sealed class ReportesController : Controller
 
     private static string Resultado(string r) => r switch
     {
-        "INGRESA" => "Ingresa", "INGRESA_RESTRINGIDO" => "Ingresa restringido a la zona administrativa", "NO_INGRESA" => "No ingresa",
-        "SALE" => "Salió", "SALE_RETIENE_ELEMENTO" => "Salió y se retuvo el elemento", _ => r,
+        "INGRESA" => "Ingresa",
+        "INGRESA_RESTRINGIDO" => "Ingresa restringido a la zona administrativa",
+        "NO_INGRESA" => "No ingresa",
+        "SALE" => "Salió",
+        "SALE_RETIENE_ELEMENTO" => "Salió y se retuvo el elemento",
+        _ => r,
     };
 
     private static string? EstadoDesv(string? e) => e switch { "POR_REVISAR" => "Por revisar", "REVISADA" => "Revisada", _ => e };
