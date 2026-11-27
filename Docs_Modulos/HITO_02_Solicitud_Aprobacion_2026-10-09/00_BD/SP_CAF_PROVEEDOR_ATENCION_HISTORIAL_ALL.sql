@@ -37,7 +37,7 @@ DECLARE lv_sede BIGINT;
 BEGIN
     -- V1.0 2026-11-22 (D-264)
     SELECT S."ID_Catalogo_Sede" INTO lv_sede FROM "CAF_Solicitud" S
-      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
      WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
     IF lv_sede IS NULL OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_HIST_ALMACEN', lv_sede) <> 'Y' THEN RETURN; END IF;
     RETURN QUERY
@@ -63,7 +63,7 @@ DECLARE lv_sede BIGINT;
 BEGIN
     -- V1.0 2026-11-22 (D-264): lo más antiguo primero (es una línea de tiempo)
     SELECT S."ID_Catalogo_Sede" INTO lv_sede FROM "CAF_Solicitud" S
-      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
      WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
     IF lv_sede IS NULL OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_HIST_ALMACEN', lv_sede) <> 'Y' THEN RETURN; END IF;
     RETURN QUERY
@@ -120,7 +120,7 @@ BEGIN
                CAST(PE."Apellido_Paterno" || COALESCE(' ' || PE."Apellido_Materno", '') || ', ' || PE."Nombres" AS VARCHAR) AS cond,
                O."Estado_Operativo" AS eo, O."Fecha_Llegada" AS fll, O."Fecha_Ingreso" AS fin_, O."Fecha_Disponibilidad" AS fdi, O."Fecha_Salida" AS fsa
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
           JOIN "CAF_Solicitud_Empresa" E ON E."ID_Solicitud" = S."ID_Solicitud" AND E."Eliminado" = 'N'
           JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = E."ID_Catalogo_Empresa_Grupo"
           LEFT JOIN "CAF_Solicitud_Operacion" O ON O."ID_Solicitud" = S."ID_Solicitud" AND O."Eliminado" = 'N'

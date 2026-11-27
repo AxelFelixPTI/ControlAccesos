@@ -112,7 +112,8 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Usuario no válido.'; RETURN;
         END IF;
         IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', "HV_ID_Catalogo_Sede") <> 'Y'
-           AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', "HV_ID_Catalogo_Sede") <> 'Y' THEN
+           AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', "HV_ID_Catalogo_Sede") <> 'Y'
+           AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_DESPACHO_SOLICITAR', "HV_ID_Catalogo_Sede") <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para crear solicitudes en esta sede.'; RETURN;
         END IF;
 
@@ -128,9 +129,10 @@ BEGIN
         IF "ERP_CAF_FN_PERMISO_TIPO"("HV_UsuarioID", lv_tcod, "HV_ID_Catalogo_Sede") <> 'Y' THEN
             "HV_Codigo_Resp" := 101;
             "HV_Mensaje" := CASE WHEN lv_tcod = 'PROVEEDOR' THEN 'No tiene permiso para solicitar el ingreso de proveedores en esta sede.'
+                                 WHEN lv_tcod = 'DESPACHO' THEN 'No tiene permiso para solicitar despachos en esta sede.'
                                  ELSE 'No tiene permiso para crear solicitudes en esta sede.' END; RETURN;
         END IF;
-        lv_prov := CASE WHEN lv_tcod = 'PROVEEDOR' THEN 'Y' ELSE 'N' END;
+        lv_prov := CASE WHEN lv_tcod IN ('PROVEEDOR','DESPACHO') THEN 'Y' ELSE 'N' END;   -- D-276: el despacho comparte el camino de la entrega de proveedor
         IF lv_req = 'Y' THEN
             SELECT COUNT(*) INTO lv_n FROM "Tipo_Acceso_Paso_Aprobacion"
              WHERE "ID_Catalogo_Tipo_Acceso" = "HV_ID_Catalogo_Tipo_Acceso" AND "Eliminado" = 'N' AND "Activo" = 'Y' AND "Obligatorio" = 'Y';
@@ -167,7 +169,7 @@ BEGIN
              WHERE "Codigo" = 'SERVICIO_CONTRATISTA' AND "Eliminado" = 'N' AND "Activo" = 'Y';
         ELSIF lv_prov = 'Y' THEN
             SELECT MAX("ID_Catalogo_Motivo_Visita") INTO lv_motid FROM "Catalogo_Motivo_Visita"
-             WHERE "Codigo" = 'ENTREGA_PROVEEDOR' AND "Eliminado" = 'N' AND "Activo" = 'Y';
+             WHERE "Codigo" = CASE WHEN lv_tcod = 'DESPACHO' THEN 'DESPACHO_PRODUCTOS' ELSE 'ENTREGA_PROVEEDOR' END AND "Eliminado" = 'N' AND "Activo" = 'Y';
         END IF;
         SELECT COUNT(*), MAX("Es_Otro"), MAX("Codigo") INTO lv_n, lv_otro, lv_motcod FROM "Catalogo_Motivo_Visita"
          WHERE "ID_Catalogo_Motivo_Visita" = lv_motid AND "Eliminado" = 'N' AND "Activo" = 'Y';
@@ -177,7 +179,7 @@ BEGIN
         IF lv_tcod <> 'CONTRATISTA' AND lv_motcod = 'SERVICIO_CONTRATISTA' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Ese motivo es solo para contratistas.'; RETURN;
         END IF;
-        IF lv_prov <> 'Y' AND lv_motcod = 'ENTREGA_PROVEEDOR' THEN
+        IF lv_prov <> 'Y' AND lv_motcod IN ('ENTREGA_PROVEEDOR','DESPACHO_PRODUCTOS') THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Ese motivo es solo para proveedores.'; RETURN;
         END IF;
         IF lv_tcod = 'CONTRATISTA' THEN
@@ -332,7 +334,8 @@ BEGIN
                  -- Asunto del hilo (D-179): queda guardado y se usa en todos los correos de la solicitud aunque luego cambie la empresa
                  'Solicitud ' || lv_codsol || ' · ' || TRIM("HV_Empresa_Visitante"),
                  CASE WHEN lv_prov = 'Y'
-                      THEN 'Se registró una solicitud de ingreso de proveedor de abastecimiento y está por aprobar: ' || lv_cntP || ' persona(s) de '
+                      THEN CASE WHEN lv_tcod = 'DESPACHO' THEN 'Se registró una solicitud de despacho (salida de productos) y está por aprobar: '
+                                ELSE 'Se registró una solicitud de ingreso de proveedor de abastecimiento y está por aprobar: ' END || lv_cntP || ' persona(s) de '
                            || TRIM("HV_Empresa_Visitante") || ', entrega prevista el ' || TO_CHAR("HV_Fecha_Hora_Prevista", 'DD/MM/YYYY HH24:MI')
                            || CASE WHEN lv_placa IS NULL THEN '.' ELSE ' (placa ' || lv_placa || ').' END
                       WHEN lv_tcod = 'CONTRATISTA'
@@ -473,7 +476,7 @@ BEGIN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud no existe.'; RETURN;
         END IF;
         SELECT "Codigo" INTO lv_tcod FROM "Catalogo_Tipo_Acceso" WHERE "ID_Catalogo_Tipo_Acceso" = lv_tipo;
-        lv_prov := CASE WHEN lv_tcod = 'PROVEEDOR' THEN 'Y' ELSE 'N' END;
+        lv_prov := CASE WHEN lv_tcod IN ('PROVEEDOR','DESPACHO') THEN 'Y' ELSE 'N' END;   -- D-276: el despacho comparte el camino de la entrega de proveedor
         IF lv_owner <> "HV_UsuarioID" OR "ERP_CAF_FN_PERMISO_TIPO"("HV_UsuarioID", lv_tcod, lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'La solicitud no es suya o no tiene permiso para modificarla.'; RETURN;
         END IF;
@@ -813,7 +816,7 @@ BEGIN
         IF lv_n > 0 THEN
             "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'Ya ingresó una persona: no se puede cancelar. Retire a quienes faltan.'; RETURN;
         END IF;
-        IF lv_tcod = 'PROVEEDOR' THEN
+        IF lv_tcod IN ('PROVEEDOR','DESPACHO') THEN
             SELECT MAX("Estado_Operativo") INTO lv_eop FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
             IF lv_eop IS NOT NULL AND lv_eop <> 'PROGRAMADO' THEN
                 "HV_Codigo_Resp" := 409; "HV_Mensaje" := 'La entrega ya está en curso o terminó: no se puede cancelar.'; RETURN;

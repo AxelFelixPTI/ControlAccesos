@@ -52,6 +52,32 @@ var SOL = (function () {
     }
 
     function hoy() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    /* Horario de ingreso programado (lista): un día, «a – b» si los días son consecutivos, «a … b» si hay huecos (el detalle sale al pasar el mouse) */
+    function diasDe(s) { return s.diasFechas ? String(s.diasFechas).split(',').filter(Boolean) : []; }
+    function consecutivos(ds) {
+        for (var k = 1; k < ds.length; k++) {
+            var a = new Date(ds[k - 1] + 'T00:00:00'), b = new Date(ds[k] + 'T00:00:00');
+            if (Math.round((b - a) / 86400000) !== 1) return false;
+        }
+        return true;
+    }
+    function fechaVisita(s) {
+        var ds = diasDe(s);
+        if (ds.length < 2) return fechaLarga(s.fecha);
+        return fechaLarga(ds[0]) + (consecutivos(ds) ? ' – ' : ' … ') + fechaLarga(ds[ds.length - 1]);
+    }
+    function tituloDias(s) {
+        var ds = diasDe(s);
+        return ds.length < 2 ? '' : ds.length + ' días de trabajo: ' + ds.map(fechaLarga).join(', ');
+    }
+    /* Celda «Horario de ingreso programado»: fecha(s) + hora, y si hay varios días la nota «Revisar detalle» que abre el detalle */
+    function celdaHorario(s, abrir, extra) {
+        var multi = diasDe(s).length > 1;
+        var nodos = [el('span', { text: fechaVisita(s) + ' · ' + s.hora, title: tituloDias(s) })];
+        if (extra) nodos.push(extra);
+        if (multi) nodos.push(el('div', {}, [el('button', { type: 'button', class: 'nota-correo nc-detalle', text: 'Revisar detalle', title: tituloDias(s), onclick: abrir })]));
+        return el('td', {}, nodos);
+    }
     function fechaLarga(f) { var p = String(f).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; }
     function campo(etiqueta, control, ayuda) { return el('label', { class: 'field' }, [el('span', { class: 'field-l', text: etiqueta }), control, ayuda ? el('span', { class: 'field-h', text: ayuda }) : null]); }
     // D-237: filas compactas. Cada campo se dimensiona según su dato: f-xs 120 px (placa), f-s 170 (fecha, hora), f-m 280 (listas), f-l ocupa lo que quede (textos).
@@ -807,6 +833,6 @@ var SOL = (function () {
         return { nodo: nodo, recargar: cargar };
     }
 
-    return { panelCorreos: panelCorreos, reenviarCorreo: reenviarCorreo, notaCorreo: notaCorreo, chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipAtraso: chipAtraso, chipFranja: chipFranja, estadoNodo: estadoNodo, avisoPlazo: avisoPlazo, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo, fila: fila, w: w, opcional: opcional,
+    return { fechaVisita: fechaVisita, celdaHorario: celdaHorario, panelCorreos: panelCorreos, reenviarCorreo: reenviarCorreo, notaCorreo: notaCorreo, chipTipo: chipTipo, chipEmpresa: chipEmpresa, personasLista: personasLista, textoHoras: textoHoras, selectorDias: selectorDias, nombreDia: nombreDia, transportistasNodo: transportistasNodo, filtroTipos: filtroTipos, el: el, chipEstado: chipEstado, chipAtraso: chipAtraso, chipFranja: chipFranja, estadoNodo: estadoNodo, avisoPlazo: avisoPlazo, chipPersona: chipPersona, textoIngreso: textoIngreso, hoy: hoy, fechaLarga: fechaLarga, campo: campo, fila: fila, w: w, opcional: opcional,
              errores: errores, cargarOpciones: cargarOpciones, placaObligatoria: function () { return placaObl; }, formDatos: formDatos, formPersona: formPersona };
 })();

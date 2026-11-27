@@ -65,6 +65,30 @@ public sealed class Srv_Solicitud : ISrv_Solicitud
         }
     }
 
+    public async Task<Result<List<Dto_Solicitud_Vencible>>> VencimientoSimularAsync(int horas, string? corte, CancellationToken ct = default)
+    {
+        try { return await _repo.VencimientoSimularAsync(horas, corte, ct).ConfigureAwait(false); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "VENCIMIENTO_SIMULAR ERROR");
+            return Result<List<Dto_Solicitud_Vencible>>.Fail(ex.Message);
+        }
+    }
+
+    public async Task<Result<string>> ReabrirAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        try
+        {
+            var sp = await _repo.ReabrirAsync(solicitudId, motivo, usuarioId, ct).ConfigureAwait(false);
+            return sp.Ok ? Result<string>.Ok(sp.Data ?? string.Empty, sp.Mensaje) : Result<string>.Fail(sp.Mensaje, MapeoSp.Codigo(sp.Codigo));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "REABRIR Solicitud ID={ID} ERROR", solicitudId);
+            return Result<string>.Fail(ex.Message);
+        }
+    }
+
     /// <summary>Red de seguridad: antes de listar se vencen las solicitudes fuera de plazo (si falla, se lista igual).</summary>
     private async Task VencerSilencioAsync(CancellationToken ct)
     {

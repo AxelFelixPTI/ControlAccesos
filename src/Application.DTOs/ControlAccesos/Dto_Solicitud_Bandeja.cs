@@ -42,5 +42,7 @@ public sealed class Dto_Solicitud_Bandeja
     public int Dias_Atraso { get; set; }                   // D-251
     /// <summary>D-254: cómo le fue al último correo: ENVIADO|ERROR|PENDIENTE + «:A» (automático) o «:M» (reenvío manual). Nulo si no hay correos.</summary>
     public string? Correo_Estado { get; set; }
+    /// <summary>Fechas de los días de trabajo («2026-11-23,2026-11-25»), solo si la solicitud tiene varios; nulo si es uno solo.</summary>
+    public string? Dias_Fechas { get; set; }
     public int Franja_Sin_Aprobar { get; set; }            // D-251
 }

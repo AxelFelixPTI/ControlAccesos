@@ -4,6 +4,8 @@ Actualizado: 2026-11-20
 
 ## Dónde estamos
 
+- **2026-11-27 · D-276: flujo DESPACHO, capa de base de datos lista** (script 46, SP nuevos y ajustados, 92 pruebas propias; todas las suites en verde). Falta .NET/web. Ver D-276.
+
 - **2026-11-24 · D-275: equipos y herramientas en la verificación por grupo** (casillas por persona en el modal, respaldo para las marcadas, regla RN-14 intacta: sin respaldo se rechaza todo el grupo). `ERP_CAF_PROVEEDOR_VERIFICAR_GRUPO` V1.1 (2 parámetros nuevos), .NET y `vigilancia.js`. Hito 2 escritura 1037/1037; C# sin compilar; pantalla sin ver en navegador. Ver D-275.
 - **2026-11-24 · D-274: Historial de Almacén ampliado** (OC, placa, conductor, franja programada vs. atención real con desvío, estado de la entrega con llegada/ingreso/salida, búsqueda por OC, sin celdas vacías; CSV de 31 columnas). Solo cambia la función SQL (V2.0), DTO/repo/controlador, pantalla, manual y tecnica.js; sin tablas nuevas. Hito 2 escritura 1035/1035; C# sin compilar; pantalla sin ver en navegador. Ver D-274.
 - **2026-11-24 · D-273: pantalla «Historial de Almacén»** (menú Proveedores, licencia «Historial de Almacén»): listado por entrega y empresa con quién atendió, tiempo activo, pausas, con/sin ingreso vehicular y resultado; filtros, CSV e impresión. `ERP_CAF_PROVEEDOR_HISTORIAL_ALMACEN`. Hito 2 escritura 1034/1034.

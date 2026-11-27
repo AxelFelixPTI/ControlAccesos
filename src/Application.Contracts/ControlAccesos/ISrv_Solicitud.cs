@@ -26,6 +26,10 @@ public interface ISrv_Solicitud
     Task<Result<List<Dto_Solicitud_Sede_Opcion>>> SedesOpcionesAsync(long usuarioId, CancellationToken ct = default);
     /// <summary>D-251: vence las solicitudes que nadie decidió a tiempo (la llama el servicio de fondo y, de red de seguridad, los listados).</summary>
     Task<Result<long>> VencerAsync(long usuarioId, CancellationToken ct = default);
+    /// <summary>D-259: solicitudes pendientes u observadas que pasarían a VENCIDA con estos valores (para avisar antes de guardar el parámetro).</summary>
+    Task<Result<List<Dto_Solicitud_Vencible>>> VencimientoSimularAsync(int horas, string? corte, CancellationToken ct = default);
+    /// <summary>D-259: reabre una solicitud vencida (vuelve a PENDIENTE u OBSERVADA). Motivo obligatorio. Devuelve el estado nuevo.</summary>
+    Task<Result<string>> ReabrirAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Bandeja>>> BandejaListarAsync(long usuarioId, Dto_Filtro_Bandeja? f = null, CancellationToken ct = default);
     Task<Result<Dto_Solicitud_Contadores>> ContadoresAsync(long usuarioId, long? sedeId = null, CancellationToken ct = default);

@@ -261,7 +261,7 @@ BEGIN
                       JOIN "CAF_GOVERNANCE"."Licencia_Permiso" LP ON LP."ID_Catalogo_Licencia" = UL."ID_Catalogo_Licencia" AND LP."Eliminado" = 'N'
                       JOIN "CAF_GOVERNANCE"."Catalogo_Permiso" P ON P."ID_Catalogo_Permiso" = LP."ID_Catalogo_Permiso"
                        AND P."Codigo" = CASE WHEN EXISTS (SELECT 1 FROM "Catalogo_Tipo_Acceso" TA
-                                                           WHERE TA."ID_Catalogo_Tipo_Acceso" = lv_tipo AND TA."Codigo" = 'PROVEEDOR')
+                                                           WHERE TA."ID_Catalogo_Tipo_Acceso" = lv_tipo AND TA."Codigo" IN ('PROVEEDOR','DESPACHO'))
                                              THEN 'PER_CAF_PROVEEDOR_VIGILANCIA' ELSE 'PER_CAF_PORTERIA_REGISTRAR' END
                      WHERE UL."Eliminado" = 'N' AND UL."ID_Catalogo_Sede" = lv_sede) X;
 
@@ -710,7 +710,7 @@ BEGIN
     END IF;
     -- Proveedor: Almacén va en copia desde el registro hasta la salida (o hasta que figure como «no se presentó»)
     IF EXISTS (SELECT 1 FROM "CAF_Solicitud" S JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso"
-                WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND T."Codigo" = 'PROVEEDOR')
+                WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND T."Codigo" IN ('PROVEEDOR','DESPACHO'))
        AND NOT EXISTS (SELECT 1 FROM "CAF_Solicitud_Operacion" O
                         WHERE O."ID_Solicitud" = "HV_ID_Solicitud" AND O."Estado_Operativo" IN ('SALIO','NO_SE_PRESENTO')) THEN
         CALL "ERP_CAF_SOLICITUD_DESTINATARIOS"("HV_ID_Solicitud", 'ALMACEN', NULL, lv_x, lv_c, lv_m);

@@ -202,7 +202,8 @@ BEGIN
     IF "ERP_CAF_FN_ADJUNTO_VISIBLE"("HV_UsuarioID", "HV_ID_Solicitud") <> 'Y' THEN
         IF NOT EXISTS (SELECT 1 FROM "CAF_Solicitud" S
                         WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N' AND S."ID_Usuario_Solicitante" = "HV_UsuarioID"
-                          AND "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', S."ID_Catalogo_Sede") = 'Y') THEN
+                          AND ("ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', S."ID_Catalogo_Sede") = 'Y'
+                               OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_DESPACHO_SOLICITAR', S."ID_Catalogo_Sede") = 'Y')) THEN
             RETURN;
         END IF;
     END IF;

@@ -48,7 +48,7 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique al menos una empresa que recibe.'; RETURN;
         END IF;
         SELECT COUNT(*) INTO lv_prov FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_prov = 0 THEN "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN; END IF;
         lv_arr := CAST(STRING_TO_ARRAY(REPLACE("HV_IDs_Empresa", ' ', ''), ',') AS BIGINT[]);

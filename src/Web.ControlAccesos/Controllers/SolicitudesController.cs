@@ -67,7 +67,7 @@ public sealed class SolicitudesController : Controller
             total = s.Total_Personas, autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, retiradas = s.Retiradas,
             puedeEditar = s.Puede_Editar_Datos, motivoNoEditar = s.Motivo_No_Editar_Datos,
             puedeCancelar = s.Puede_Cancelar, motivoNoCancelar = s.Motivo_No_Cancelar, puedeReutilizar = s.Puede_Reutilizar,
-            diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
+            diasAtraso = s.Dias_Atraso, diasFechas = s.Dias_Fechas, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
         });
         return Json(new { success = true, data = filas });
     }

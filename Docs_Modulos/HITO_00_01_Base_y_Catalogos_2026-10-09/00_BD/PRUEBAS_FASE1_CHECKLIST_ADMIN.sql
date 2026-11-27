@@ -19,13 +19,13 @@ CREATE FUNCTION pg_temp.tt(p_cod TEXT) RETURNS BIGINT LANGUAGE sql AS $$ SELECT 
 
 DO $$
 DECLARE
-    v_cod INT; v_msg VARCHAR(250); v_id BIGINT; v_id2 BIGINT; v_t1 BIGINT := pg_temp.tt('VISITA_EXTERNA'); v_t2 BIGINT := pg_temp.tt('CONTRATISTA'); v_t3 BIGINT := pg_temp.tt('PROVEEDOR');
+    v_cod INT; v_msg VARCHAR(250); v_id BIGINT; v_id2 BIGINT; v_t1 BIGINT := pg_temp.tt('VISITA_EXTERNA'); v_t2 BIGINT := pg_temp.tt('CONTRATISTA'); v_t3 BIGINT := pg_temp.tt('PROVEEDOR'); v_t5 BIGINT := pg_temp.tt('DESPACHO');
     v_n0 BIGINT; v_tr BIGINT; v_ay BIGINT; v_tn BIGINT; v_base BIGINT;
 BEGIN
     -- ---------- LISTAR
     SELECT COUNT(*) INTO v_n0 FROM "Catalogo_Item_Checklist" WHERE "Eliminado" = 'N';
     PERFORM pg_temp.chk('Listar: trae todos los ítems no eliminados', v_n0::TEXT, pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"()'));
-    PERFORM pg_temp.chk('Listar: la identidad aplica a los 3 tipos y es de ingreso', 'INGRESO|3',
+    PERFORM pg_temp.chk('Listar: la identidad aplica a los 4 tipos (D-276 suma el despacho) y es de ingreso', 'INGRESO|4',
         pg_temp.q('SELECT "Etapa" || ''|'' || (SELECT COUNT(DISTINCT SPLIT_PART(x, '':'', 1)) FROM UNNEST(STRING_TO_ARRAY("Tipos_IDs", '','')) x) FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''ING_IDENTIDAD'''));
     PERFORM pg_temp.chk('Listar: el ítem de salida de proveedor es solo del transportista (siempre + subtipo)', 'SALIDA|SIEMPRE|' || v_t3 || ':' || pg_temp.q('SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "Codigo" = ''TRANSPORTISTA'''),
         pg_temp.q('SELECT "Etapa" || ''|'' || "Condicion" || ''|'' || "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''SAL_PROVEEDOR_DOCUMENTOS'''));
@@ -80,10 +80,11 @@ BEGIN
     SELECT "ID_Tipo_Acceso_Subtipo" INTO v_tr FROM "Tipo_Acceso_Subtipo" WHERE "ID_Catalogo_Tipo_Acceso" = v_t3 AND "Codigo" = 'TRANSPORTISTA';
     SELECT "ID_Tipo_Acceso_Subtipo" INTO v_ay FROM "Tipo_Acceso_Subtipo" WHERE "ID_Catalogo_Tipo_Acceso" = v_t3 AND "Codigo" = 'AYUDANTE_DESCARGA';
     PERFORM pg_temp.chk('Subtipos: el proveedor tiene transportista y ayudante', '2', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SUBTIPO_LISTAR"() WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t3));
-    PERFORM pg_temp.chk('Subtipos: los otros tipos no tienen', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SUBTIPO_LISTAR"() WHERE "ID_Catalogo_Tipo_Acceso" <> ' || v_t3));
+    PERFORM pg_temp.chk('Subtipos: los otros tipos no tienen (salvo el despacho, que tiene solo conductor)', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SUBTIPO_LISTAR"() WHERE "ID_Catalogo_Tipo_Acceso" NOT IN (' || v_t3 || ',' || v_t5 || ')'));
+    PERFORM pg_temp.chk('Subtipos: el despacho tiene solo el conductor (D-276)', '1', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SUBTIPO_LISTAR"() WHERE "ID_Catalogo_Tipo_Acceso" = ' || v_t5));
     PERFORM pg_temp.chk('Migración: documentos de salida quedó Siempre + transportista', 'SIEMPRE|' || v_t3 || ':' || v_tr,
         pg_temp.q('SELECT "Condicion" || ''|'' || "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''SAL_PROVEEDOR_DOCUMENTOS'''));
-    PERFORM pg_temp.chk('Migración: la placa quedó Siempre + transportista', 'SIEMPRE|' || v_t3 || ':' || v_tr,
+    PERFORM pg_temp.chk('Migración: la placa quedó Siempre + transportista (y el conductor del despacho, D-276)', 'SIEMPRE|' || v_t3 || ':' || v_tr || ',' || v_t5 || ':' || (SELECT "ID_Tipo_Acceso_Subtipo" FROM "Tipo_Acceso_Subtipo" WHERE "ID_Catalogo_Tipo_Acceso" = v_t5 AND "Codigo" = 'TRANSPORTISTA'),
         pg_temp.q('SELECT "Condicion" || ''|'' || "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''ING_PLACA'''));
     PERFORM pg_temp.chk('Migración: la salida del ayudante quedó Siempre + ayudante', 'SIEMPRE|' || v_t3 || ':' || v_ay,
         pg_temp.q('SELECT "Condicion" || ''|'' || "Tipos_IDs" FROM "ERP_CAF_ITEM_CHECKLIST_ADMIN_LISTAR"() WHERE "Codigo" = ''SAL_AYUDANTE_VERIFICADO'''));

@@ -124,6 +124,38 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         return ResultSp<long>.Success(Convert.ToInt64(r.Data["HV_Vencidas"] ?? 0L), r.Mensaje);
     }
 
+    public async Task<Result<List<Dto_Solicitud_Vencible>>> VencimientoSimularAsync(int horas, string? corte, CancellationToken ct = default)
+    {
+        try
+        {
+            var lista = await _exec.EjecutarLecturaAsync(
+                clave: Conn,
+                funcion: "ERP_CAF_SOLICITUD_VENCIMIENTO_SIMULAR",
+                bind: p => { AddInt(p, "HV_Horas", horas); AddStr(p, "HV_Corte", corte); },
+                map: rd => new Dto_Solicitud_Vencible
+                {
+                    ID_Solicitud = RdLong(rd, "ID_Solicitud"), Codigo = RdStr(rd, "Codigo"),
+                    Fecha_Hora_Prevista = RdDt(rd, "Fecha_Hora_Prevista"), Estado = RdStr(rd, "Estado"),
+                    Empresa_Visitante = RdStrN(rd, "Empresa_Visitante"),
+                },
+                ct: ct);
+            return Result<List<Dto_Solicitud_Vencible>>.Ok(lista);
+        }
+        catch (Exception ex)
+        {
+            return Result<List<Dto_Solicitud_Vencible>>.Fail(ex.InnerException?.Message ?? ex.Message);
+        }
+    }
+
+    public async Task<ResultSp<string>> ReabrirAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default)
+    {
+        var r = await _exec.EjecutarEscrituraConSalidasAsync(
+            clave: Conn, procedimiento: "ERP_CAF_SOLICITUD_REABRIR", columnasSalida: new[] { "HV_Estado" },
+            bind: p => { AddLongReq(p, "HV_ID_Solicitud", solicitudId); AddStr(p, "HV_Motivo", motivo); AddLongReq(p, "HV_UsuarioID", usuarioId); }, ct: ct);
+        if (!r.Ok || r.Data is null) return ResultSp<string>.Fail(r.Codigo, r.Mensaje);
+        return ResultSp<string>.Success(Convert.ToString(r.Data["HV_Estado"]) ?? string.Empty, r.Mensaje);
+    }
+
     public async Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default)
     {
         try
@@ -642,6 +674,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Empresa_Destino_Codigo       = RdStrN(rd, "Empresa_Destino_Codigo"),
         Personas_Resumen             = RdStrN(rd, "Personas_Resumen"),
         Dias_Atraso                  = RdInt(rd, "Dias_Atraso"),
+        Dias_Fechas                  = RdStrN(rd, "Dias_Fechas"),
         Franja_Sin_Aprobar           = RdInt(rd, "Franja_Sin_Aprobar"),
         Correo_Estado           = RdStrN(rd, "Correo_Estado"),
     };
@@ -672,6 +705,7 @@ public sealed class Repo_Solicitud : RepoHelpers, IRepo_Solicitud
         Tipo_Acceso_Codigo     = RdStrN(rd, "Tipo_Acceso_Codigo"),
         Empresa_Destino_Codigo = RdStrN(rd, "Empresa_Destino_Codigo"),
         Dias_Atraso            = RdInt(rd, "Dias_Atraso"),
+        Dias_Fechas            = RdStrN(rd, "Dias_Fechas"),
         Franja_Sin_Aprobar     = RdInt(rd, "Franja_Sin_Aprobar"),
         Correo_Estado     = RdStrN(rd, "Correo_Estado"),
     };

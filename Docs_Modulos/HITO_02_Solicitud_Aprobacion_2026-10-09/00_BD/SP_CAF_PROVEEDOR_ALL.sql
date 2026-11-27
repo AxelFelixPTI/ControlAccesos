@@ -43,8 +43,10 @@ RETURNS CHAR(1)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 BEGIN
     -- V1.0 2026-11-09
+    -- V1.1 2026-11-27 (D-276): también quien tiene PER_CAF_DESPACHO_SOLICITAR (Ventas / Almacén)
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', "HV_ID_Catalogo_Sede") = 'Y'
-       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', "HV_ID_Catalogo_Sede") = 'Y' THEN
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', "HV_ID_Catalogo_Sede") = 'Y'
+       OR "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_DESPACHO_SOLICITAR', "HV_ID_Catalogo_Sede") = 'Y' THEN
         RETURN 'Y';
     END IF;
     RETURN 'N';
@@ -59,6 +61,9 @@ BEGIN
     -- V1.0 2026-11-02
     IF "HV_Tipo_Codigo" = 'PROVEEDOR' THEN
         RETURN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_SOLICITAR', "HV_ID_Catalogo_Sede");
+    END IF;
+    IF "HV_Tipo_Codigo" = 'DESPACHO' THEN       -- V1.1 2026-11-27 (D-276)
+        RETURN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_DESPACHO_SOLICITAR', "HV_ID_Catalogo_Sede");
     END IF;
     RETURN "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_SOLICITUD_PROPIA', "HV_ID_Catalogo_Sede");
 END;
@@ -77,7 +82,7 @@ BEGIN
     SELECT COUNT(*) INTO lv_n
       FROM "CAF_Solicitud_Persona" P
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
-      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
      WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
     RETURN CASE WHEN lv_n > 0 THEN 'Y' ELSE 'N' END;
 END;
@@ -187,7 +192,7 @@ DECLARE
     lv_tel   VARCHAR(250);
 BEGIN
     -- V1.0 2026-11-02
-    IF "HV_Tipo_Codigo" <> 'PROVEEDOR' THEN
+    IF "HV_Tipo_Codigo" NOT IN ('PROVEEDOR','DESPACHO') THEN
         IF "HV_ID_Empresa_Destino" IS NOT NULL
            OR NULLIF(TRIM(COALESCE("HV_Proveedor_RUC", '')), '') IS NOT NULL
            OR NULLIF(TRIM(COALESCE("HV_Proveedor_Direccion", '')), '') IS NOT NULL
@@ -198,11 +203,12 @@ BEGIN
         RETURN '';
     END IF;
 
-    SELECT COUNT(*), MAX("Aplica_Proveedor") INTO lv_n, lv_aplica
+    -- V1.3 2026-11-27 (D-276): el despacho usa Aplica_Despacho; el resto de reglas (placa, teléfono, empresa) es común
+    SELECT COUNT(*), MAX(CASE WHEN "HV_Tipo_Codigo" = 'DESPACHO' THEN "Aplica_Despacho" ELSE "Aplica_Proveedor" END) INTO lv_n, lv_aplica
       FROM "CAF_GOVERNANCE"."Catalogo_Sede"
      WHERE "ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede" AND "Eliminado" = 'N' AND "Activo" = 'Y';
     IF lv_n = 0 THEN RETURN 'La sede no existe o está inactiva.'; END IF;
-    IF lv_aplica <> 'Y' THEN RETURN 'Esa sede no recibe proveedores de abastecimiento.'; END IF;
+    IF lv_aplica <> 'Y' THEN RETURN CASE WHEN "HV_Tipo_Codigo" = 'DESPACHO' THEN 'Esa sede no realiza despachos.' ELSE 'Esa sede no recibe proveedores de abastecimiento.' END; END IF;
 
     -- V1.1 2026-11-06 (D-223): RUC, dirección, marca, placa y licencia son OPCIONALES (pueden ir en los adjuntos);
     -- si se escriben, se validan el RUC (11 dígitos) y la placa (5 a 8 letras o números).
@@ -297,7 +303,7 @@ BEGIN
     BEGIN
         SELECT COUNT(*), MAX(S."Estado") INTO lv_n, lv_estado
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 100; "HV_Mensaje" := 'No aplica.'; RETURN;
@@ -389,7 +395,7 @@ BEGIN
     SELECT COUNT(*), MAX(S."Fecha_Hora_Prevista"), MAX(P."Fecha_Verificacion"), MAX(P."ID_Solicitud") INTO lv_n, lv_prev, lv_ver, lv_sol
       FROM "CAF_Solicitud_Persona" P
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = P."ID_Solicitud"
-      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
      WHERE P."ID_Solicitud_Persona" = "HV_ID_Solicitud_Persona";
     IF lv_n > 0 THEN
         SELECT COUNT(*), MAX(O."Activa"), MAX(O."Estado_Operativo") INTO lv_op, lv_act, lv_eop
@@ -673,7 +679,7 @@ BEGIN
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         SELECT COUNT(*), MAX(S."ID_Catalogo_Sede"), MAX(S."Fecha_Hora_Prevista") INTO lv_n, lv_sede, lv_fecha
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;
@@ -764,7 +770,7 @@ BEGIN
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         SELECT COUNT(*), MAX(S."ID_Catalogo_Sede") INTO lv_n, lv_sede
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;
@@ -874,9 +880,27 @@ BEGIN
             SELECT "HV_Clave", "HV_Valor", 'Cupo de atención individual de la empresa.', "HV_UsuarioID"
              WHERE NOT EXISTS (SELECT 1 FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N');
         END IF;
+        -- D-276: modo del dashboard por sede (DASHBOARD_ENTREGAS_MODO:<código de sede>); la fila se crea al guardar
+        IF "HV_Clave" LIKE 'DASHBOARD_ENTREGAS_MODO:%' THEN
+            SELECT COUNT(*) INTO lv_n FROM "CAF_GOVERNANCE"."Catalogo_Sede" X
+             WHERE X."Codigo" = SUBSTRING("HV_Clave" FROM 25) AND X."Eliminado" = 'N' AND X."Activo" = 'Y';
+            IF lv_n = 0 THEN "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La sede no existe o está inactiva.'; RETURN; END IF;
+            IF COALESCE("HV_Valor", '') NOT IN ('PROVEEDORES','DESPACHOS','AMBOS') THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El modo del dashboard debe ser PROVEEDORES, DESPACHOS o AMBOS.'; RETURN;
+            END IF;
+            INSERT INTO "CAF_Parametro" ("Clave","Valor","Descripcion","UsuarioID_Create")
+            SELECT "HV_Clave", "HV_Valor", 'Modo del calendario de entregas para esa sede (PROVEEDORES, DESPACHOS o AMBOS).', "HV_UsuarioID"
+             WHERE NOT EXISTS (SELECT 1 FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N');
+        END IF;
         SELECT COUNT(*) INTO lv_n FROM "CAF_Parametro" WHERE "Clave" = "HV_Clave" AND "Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'El parámetro no existe.'; RETURN;
+        END IF;
+        IF "HV_Clave" = 'DASHBOARD_ENTREGAS_MODO' AND COALESCE("HV_Valor", '') NOT IN ('PROVEEDORES','DESPACHOS','AMBOS') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'El modo del dashboard debe ser PROVEEDORES, DESPACHOS o AMBOS.'; RETURN;
+        END IF;
+        IF "HV_Clave" IN ('PROVEEDOR_PERMITE_SIN_INGRESO_VEHICULAR','DESPACHO_PERMITE_SIN_INGRESO_VEHICULAR') AND COALESCE("HV_Valor", '') NOT IN ('Y','N') THEN
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Permitir «sin ingreso vehicular» debe ser Y o N.'; RETURN;
         END IF;
         IF "HV_Clave" = 'EXCLUSA_CAPACIDAD' AND COALESCE("HV_Valor", '') !~ '^([1-9][0-9]?|SIN_LIMITE)$' THEN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'La capacidad debe ser un número entero de 1 a 99 o SIN_LIMITE.'; RETURN;

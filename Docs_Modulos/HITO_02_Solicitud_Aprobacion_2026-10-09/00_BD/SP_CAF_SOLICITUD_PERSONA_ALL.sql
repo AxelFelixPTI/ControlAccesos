@@ -266,8 +266,8 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Indique si la persona es conductor (Y) o ayudante (N).'; RETURN;
         END IF;
         IF COALESCE("HV_Es_Transportista", 'N') = 'Y' THEN
-            IF lv_tcod IS DISTINCT FROM 'PROVEEDOR' THEN
-                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Solo una solicitud de proveedor tiene conductores.'; RETURN;
+            IF lv_tcod NOT IN ('PROVEEDOR','DESPACHO') THEN
+                "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Solo una solicitud de proveedor o de despacho tiene conductores.'; RETURN;
             END IF;
             lv_errt := "ERP_CAF_FN_TRANSPORTISTA_VALIDAR"("HV_Trans_Ruc", "HV_Trans_Nombre", "HV_Trans_Direccion",
                                                           "HV_Trans_Placa", "HV_Trans_Marca", "HV_Trans_Licencia");
@@ -275,10 +275,12 @@ BEGIN
                 "HV_Codigo_Resp" := 400; "HV_Mensaje" := lv_errt; RETURN;
             END IF;
             lv_rol := 'transportista';
+        ELSIF lv_tcod = 'DESPACHO' THEN         -- D-276: el despacho solo tiene conductores, no ayudantes de descarga
+            "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'En un despacho solo se agregan conductores (no hay ayudante de descarga).'; RETURN;
         ELSIF lv_tcod = 'PROVEEDOR' THEN
             lv_rol := 'ayudante';
         END IF;
-        IF lv_tcod = 'PROVEEDOR' THEN
+        IF lv_tcod IN ('PROVEEDOR','DESPACHO') THEN
             SELECT MAX("Estado_Operativo"), MAX("Activa") INTO lv_eop, lv_act
               FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
             IF COALESCE("HV_Es_Transportista", 'N') = 'Y' AND lv_eop IS NOT NULL

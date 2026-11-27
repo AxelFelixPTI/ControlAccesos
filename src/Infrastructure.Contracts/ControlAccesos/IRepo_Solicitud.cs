@@ -24,6 +24,10 @@ public interface IRepo_Solicitud
     Task<Result<List<Dto_Solicitud_Sede_Opcion>>> SedesOpcionesAsync(long usuarioId, CancellationToken ct = default);
     /// <summary>D-251: vence las solicitudes fuera de plazo; devuelve cuántas.</summary>
     Task<ResultSp<long>> VencerAsync(long usuarioId, CancellationToken ct = default);
+    /// <summary>D-259: qué solicitudes pasarían a VENCIDA con estas horas de anticipación / hora de corte (no cambia nada).</summary>
+    Task<Result<List<Dto_Solicitud_Vencible>>> VencimientoSimularAsync(int horas, string? corte, CancellationToken ct = default);
+    /// <summary>D-259: devuelve una VENCIDA al estado en que estaba. El dato devuelto es ese estado.</summary>
+    Task<ResultSp<string>> ReabrirAsync(long solicitudId, string? motivo, long usuarioId, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Lista>>> MisListarAsync(long usuarioId, Dto_Filtro_Mis_Solicitudes? f = null, CancellationToken ct = default);
     Task<Result<List<Dto_Solicitud_Bandeja>>> BandejaListarAsync(long usuarioId, Dto_Filtro_Bandeja? f = null, CancellationToken ct = default);
     Task<Result<Dto_Solicitud_Contadores?>> ContadoresAsync(long usuarioId, long? sedeId = null, CancellationToken ct = default);

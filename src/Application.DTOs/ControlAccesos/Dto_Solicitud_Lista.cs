@@ -48,6 +48,8 @@ public sealed class Dto_Solicitud_Lista
     public string? Personas_Resumen { get; set; }          // D-233: «Apellidos, Nombres · DNI 123 | ...»
     public int Dias_Atraso { get; set; }                   // D-251: días desde el último día de la visita (solo VENCIDA)
     /// <summary>D-254: cómo le fue al último correo: ENVIADO|ERROR|PENDIENTE + «:A» (automático) o «:M» (reenvío manual). Nulo si no hay correos.</summary>
+    /// <summary>Fechas de los días de trabajo («2026-11-23,2026-11-25»), solo si la solicitud tiene varios; nulo si es uno solo.</summary>
+    public string? Dias_Fechas { get; set; }
     public string? Correo_Estado { get; set; }
     public int Franja_Sin_Aprobar { get; set; }            // D-251: >0 = franja en curso aún sin aprobar (días desde que empezó)
 }

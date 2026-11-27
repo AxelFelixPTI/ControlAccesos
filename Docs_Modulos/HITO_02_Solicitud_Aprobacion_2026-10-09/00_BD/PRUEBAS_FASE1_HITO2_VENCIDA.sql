@@ -167,6 +167,35 @@ BEGIN
     PERFORM pg_temp.chk('Vencer: el historial lo explica con palabras', 'La solicitud venció: nadie la decidió a tiempo', pg_temp.q('SELECT "Accion_Texto" FROM "ERP_CAF_SOLICITUD_HISTORIAL_LISTAR"(' || v_u_coo || ',' || v_sa || ') WHERE "Accion" = ''VENCER'''), '');
     PERFORM pg_temp.chk('Vencer: la persona de A no queda aprobada', 'PENDIENTE', pg_temp.q('SELECT "Aprobacion" FROM "CAF_Solicitud_Persona" WHERE "ID_Solicitud" = ' || v_sa), '');
 
+    -- ===================================================== 4-bis. AVISO Y REABRIR (D-259)
+    PERFORM pg_temp.chk('Simular: con anticipación 72 h cuenta a C (en 2 días)', 'true', pg_temp.q('SELECT (COUNT(*) > 0)::TEXT FROM "ERP_CAF_SOLICITUD_VENCIMIENTO_SIMULAR"(72, NULL) WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Simular: con 0 horas no cuenta a C', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VENCIMIENTO_SIMULAR"(0, NULL) WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Simular: no cambia nada (C sigue PENDIENTE)', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Simular: no cuenta las que ya vencieron (A está VENCIDA)', '0', pg_temp.q('SELECT COUNT(*) FROM "ERP_CAF_SOLICITUD_VENCIMIENTO_SIMULAR"(72, NULL) WHERE "ID_Solicitud" = ' || v_sa), '');
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('SOLICITUD_HORAS_ANTICIPACION_APROBAR', '72', v_u_coo, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_VENCER"(0, v_cant_v, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: con la anticipación activa C vence', 'VENCIDA', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sc, 'Visita confirmada por teléfono', v_u_coo, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: con la anticipación activa volvería a vencer', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_PARAMETRO_GUARDAR"('SOLICITUD_HORAS_ANTICIPACION_APROBAR', '0', v_u_coo, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sc, '   ', v_u_coo, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: sin motivo no se reabre', '400', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sc, 'Visita confirmada por teléfono', v_u_sol2, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: un solicitante no puede', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sa, 'Quiero reabrir una pasada', v_u_coo, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: A (ya pasó su día) no se reabre, se reutiliza', '409', v_cod::TEXT, v_msg);
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sc, 'Visita confirmada por teléfono', v_u_coo, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: el Coordinador reabre C', '100', v_cod::TEXT, v_msg);
+    PERFORM pg_temp.chk('Reabrir: devuelve el estado anterior', 'PENDIENTE', v_cs, '');
+    PERFORM pg_temp.chk('Reabrir: C vuelve a PENDIENTE', 'PENDIENTE', pg_temp.q('SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = ' || v_sc), '');
+    PERFORM pg_temp.chk('Reabrir: queda el evento con el motivo', '1', pg_temp.q('SELECT COUNT(*) FROM "CAF_Evento" WHERE "ID_Solicitud" = ' || v_sc || ' AND "Accion" = ''REABRIR'' AND "Detalle" LIKE ''%Visita confirmada%'''), '');
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sc, 'otra vez', v_u_coo, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: una solicitud no vencida no se toca', '409', v_cod::TEXT, v_msg);
+    -- se devuelve todo a como estaba para las pruebas siguientes
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_sb, 'restaurar prueba', v_u_coo, v_cs, v_cod, v_msg);
+    CALL "ERP_CAF_SOLICITUD_REABRIR"(v_fc, 'restaurar prueba', v_u_coo, v_cs, v_cod, v_msg);
+    PERFORM pg_temp.chk('Reabrir: B (hoy) y la franja en curso también se reabren', 'PENDIENTE|PENDIENTE', (SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = v_sb) || '|' || (SELECT "Estado" FROM "CAF_Solicitud" WHERE "ID_Solicitud" = v_fc), '');
+
     -- ===================================================== 5. ACCIONES SOBRE UNA VENCIDA
     CALL "ERP_CAF_SOLICITUD_DECIDIR"(v_sa, v_paso_ext, 'APROBADA', NULL, pg_temp.sp(v_sa, v_e1)::TEXT, v_u_coo, v_n, v_cod, v_msg);
     PERFORM pg_temp.chk('Vencida: no se puede aprobar', '409', v_cod::TEXT, v_msg);

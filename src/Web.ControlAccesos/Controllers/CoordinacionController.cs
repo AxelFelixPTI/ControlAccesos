@@ -32,6 +32,14 @@ public sealed class CoordinacionController : Controller
 
     [HttpGet] public IActionResult Index() => View();
 
+    /// <summary>D-259: reabre una solicitud vencida del día. Las reglas (quién, motivo, plazo) las valida ERP_CAF_SOLICITUD_REABRIR.</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reabrir([FromBody] SolicitudCancelarVM m, CancellationToken ct)
+    {
+        var r = await _sol.ReabrirAsync(m.SolicitudId, (m.Motivo ?? string.Empty).Trim(), User.UsuarioId(), ct);
+        return Json(new { success = r.Success, message = r.Message, estado = r.Success ? r.Data : null });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Lista(string? pestana, string? empresa, string? solicitante, string? persona, string? fecha, string? estado, CancellationToken ct)
     {
@@ -54,7 +62,7 @@ public sealed class CoordinacionController : Controller
                 id = s.ID_Solicitud, codigo = s.Codigo, fecha = s.Fecha_Hora_Prevista.ToString("yyyy-MM-dd"), hora = s.Fecha_Hora_Prevista.ToString("HH:mm"),
                 esHoy = s.Es_Hoy, tipo = s.Tipo_Acceso, tipoCodigo = s.Tipo_Acceso_Codigo, empresaCodigo = s.Empresa_Destino_Codigo, empresa = s.Empresa_Visitante, solicitante = s.Solicitante_Nombre, estado = s.Estado, total = s.Total_Personas,
                 autorizadas = s.Autorizadas, observadas = s.Observadas, pendientes = s.Pendientes, rechazadas = s.Rechazadas, porDecidirMis = s.Por_Decidir_Mis,
-                personas = s.Personas_Nombres, diasAtraso = s.Dias_Atraso, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
+                personas = s.Personas_Nombres, diasAtraso = s.Dias_Atraso, diasFechas = s.Dias_Fechas, franjaSinAprobar = s.Franja_Sin_Aprobar, correoEstado = s.Correo_Estado,   // D-251
             })
         });
     }

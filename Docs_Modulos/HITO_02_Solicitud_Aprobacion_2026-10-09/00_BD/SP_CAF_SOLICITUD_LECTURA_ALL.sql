@@ -94,7 +94,7 @@ BEGIN
     -- dependiendo del dueño/aprobador, así que no obtiene ningún botón de escritura.
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_PROVEEDOR_ALMACEN', lv_sede) = 'Y' THEN
         SELECT COUNT(*) INTO lv_n FROM "Catalogo_Tipo_Acceso" T
-         WHERE T."ID_Catalogo_Tipo_Acceso" = lv_tipo AND T."Codigo" = 'PROVEEDOR';
+         WHERE T."ID_Catalogo_Tipo_Acceso" = lv_tipo AND T."Codigo" IN ('PROVEEDOR','DESPACHO');
         IF lv_n > 0 THEN RETURN 'Y'; END IF;
     END IF;
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_ID_Usuario", 'PER_CAF_SOLICITUD_APROBAR', lv_sede) = 'Y' THEN
@@ -266,6 +266,7 @@ $$;
 --    Fechas: sobre la fecha de la visita. Todos los filtros son opcionales (NULL).
 -- -----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_MIS_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, DATE, DATE);
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_MIS_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, DATE, DATE);   -- Dias_Fechas nueva al final
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_MIS_LISTAR"(
     "HV_UsuarioID"        BIGINT,
     "HV_ID_Catalogo_Sede" BIGINT  DEFAULT NULL,
@@ -283,12 +284,13 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Puede_Modificar_Personal" CHAR(1), "Motivo_No_Modificar_Personal" VARCHAR,
                "Puede_Cancelar" CHAR(1), "Motivo_No_Cancelar" VARCHAR, "Puede_Reutilizar" CHAR(1),
                "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR, "Personas_Resumen" VARCHAR,
-               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR)
+               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR, "Dias_Fechas" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
     lv_txt VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Texto", '')));
 BEGIN
+    -- V1.3 2026-11-27: + Dias_Fechas (fechas de los días separadas por coma si hay más de uno; nulo si es uno solo)
     -- V1.2 2026-11-19 (D-251): + Dias_Atraso y Franja_Sin_Aprobar
     -- V1.1 2026-11-11 (D-233): + Tipo_Acceso_Codigo, Empresa_Destino_Codigo (etiquetas) y Personas_Resumen (personas con su documento)
     -- V1.0 2026-10-17
@@ -302,7 +304,9 @@ BEGIN
            I."Editar_Datos", I."Motivo_Editar_Datos", I."Modificar_Personal", I."Motivo_Modificar_Personal",
            I."Cancelar", I."Motivo_Cancelar", CAST('Y' AS CHAR(1)),
            CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'), "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud"),
-           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud")
+           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud"),
+           CAST(CASE WHEN (SELECT COUNT(*) FROM "CAF_Solicitud_Dia" DD WHERE DD."ID_Solicitud" = S."ID_Solicitud" AND DD."Eliminado" = 'N') > 1
+                     THEN (SELECT STRING_AGG(TO_CHAR(DD."Fecha", 'YYYY-MM-DD'), ',' ORDER BY DD."Fecha") FROM "CAF_Solicitud_Dia" DD WHERE DD."ID_Solicitud" = S."ID_Solicitud" AND DD."Eliminado" = 'N') END AS VARCHAR)
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Sede" SE ON SE."ID_Catalogo_Sede" = S."ID_Catalogo_Sede"
@@ -343,6 +347,7 @@ $$;
 --    Por_Decidir_Mis = personas que este usuario puede decidir ahora en esa solicitud.
 -- -----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_BANDEJA_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, DATE, VARCHAR);
+DROP FUNCTION IF EXISTS "ERP_CAF_SOLICITUD_BANDEJA_LISTAR"(BIGINT, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, DATE, VARCHAR);   -- Dias_Fechas nueva al final
 CREATE OR REPLACE FUNCTION "ERP_CAF_SOLICITUD_BANDEJA_LISTAR"(
     "HV_UsuarioID"        BIGINT,
     "HV_ID_Catalogo_Sede" BIGINT  DEFAULT NULL,
@@ -360,7 +365,7 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "ID_Catalogo_Sede" BIGIN
                "Total_Personas" INT, "Autorizadas" INT, "Observadas" INT, "Pendientes" INT, "Rechazadas" INT, "Retiradas" INT,
                "Por_Decidir_Mis" INT, "Personas_Nombres" VARCHAR, "Fecha_Envio" TIMESTAMP,
                "Tipo_Acceso_Codigo" VARCHAR, "Empresa_Destino_Codigo" VARCHAR,
-               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR)
+               "Dias_Atraso" INT, "Franja_Sin_Aprobar" INT, "Correo_Estado" VARCHAR, "Dias_Fechas" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
@@ -369,6 +374,7 @@ DECLARE
     lv_sol  VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Solicitante", '')));
     lv_per  VARCHAR(300) := "ERP_CAF_FN_NORMALIZAR"(TRIM(COALESCE("HV_Persona", '')));
 BEGIN
+    -- V1.2 2026-11-27: + Dias_Fechas (fechas de los días si hay varios)
     -- V1.1 2026-11-11 (D-233): + Tipo_Acceso_Codigo y Empresa_Destino_Codigo (etiquetas); Personas_Nombres ahora trae el documento
     -- V1.0 2026-10-17
     IF lv_pest NOT IN ('POR_DECIDIR', 'TODAS', 'FUERA_DE_TIEMPO') THEN RETURN; END IF;
@@ -384,7 +390,9 @@ BEGIN
            CAST(COALESCE(D.n, 0) AS INT),
            "ERP_CAF_FN_PERSONAS_RESUMEN"(S."ID_Solicitud"),
            S."Fecha_Envio", CAST(TA."Codigo" AS VARCHAR), "ERP_CAF_FN_EMPRESAS_SOLICITUD"(S."ID_Solicitud", 'C'),
-           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud")
+           I."Dias_Atraso", I."Franja_Sin_Aprobar", "ERP_CAF_FN_SOLICITUD_CORREO_ESTADO"(S."ID_Solicitud"),
+           CAST(CASE WHEN (SELECT COUNT(*) FROM "CAF_Solicitud_Dia" DD WHERE DD."ID_Solicitud" = S."ID_Solicitud" AND DD."Eliminado" = 'N') > 1
+                     THEN (SELECT STRING_AGG(TO_CHAR(DD."Fecha", 'YYYY-MM-DD'), ',' ORDER BY DD."Fecha") FROM "CAF_Solicitud_Dia" DD WHERE DD."ID_Solicitud" = S."ID_Solicitud" AND DD."Eliminado" = 'N') END AS VARCHAR)
       FROM "CAF_Solicitud" S
       JOIN "ERP_CAF_SOLICITUD_INDICADORES"(NULL) I ON I."ID_Solicitud" = S."ID_Solicitud"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Empresa_Grupo" EG ON EG."ID_Catalogo_Empresa_Grupo" = S."ID_Catalogo_Empresa_Grupo_Destino"

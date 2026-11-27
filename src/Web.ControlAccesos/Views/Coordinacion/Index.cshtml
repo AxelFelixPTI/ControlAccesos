@@ -3,7 +3,7 @@
      data-url-decidir="@Url.Action("Decidir", "Coordinacion")" data-url-agregar="@Url.Action("AgregarEmergencia", "Coordinacion")" data-url-extender-dias="@Url.Action("ExtenderDias", "Coordinacion")" data-url-quitar="@Url.Action("RetirarEmergencia", "Coordinacion")" data-url-corregir="@Url.Action("CorregirEmergencia", "Coordinacion")"
      data-url-opciones="@Url.Action("Opciones", "Coordinacion")" data-url-buscar="@Url.Action("PersonaPorDocumento", "Coordinacion")"
      data-url-persona="@Url.Action("PersonaGuardar", "Coordinacion")" data-url-adj="@Url.Action("Listar", "Adjuntos")"
-     data-url-correos="@Url.Action("Listar", "CorreosSolicitud")" data-url-reenviar="@Url.Action("Reenviar", "CorreosSolicitud")" data-url-sugerir="@Url.Action("Sugerir", "CorreosSolicitud")">
+     data-url-correos="@Url.Action("Listar", "CorreosSolicitud")" data-url-reenviar="@Url.Action("Reenviar", "CorreosSolicitud")" data-url-reabrir="@Url.Action("Reabrir", "Coordinacion")" data-url-sugerir="@Url.Action("Sugerir", "CorreosSolicitud")">
     @Html.AntiForgeryToken()
     <p class="lead">Revise las solicitudes y decida persona por persona: aprobar, observar (pedir una corrección) o rechazar.</p>
     <div class="pills" id="c-tabs"></div>
@@ -23,7 +23,7 @@
     <section class="card">
         <div class="tw">
             <table class="tabla">
-                <thead><tr><th>Código</th><th>Visita</th><th>Empresa</th><th>Solicitante</th><th>Personas que ingresan</th><th>Estado</th><th></th></tr></thead>
+                <thead><tr><th>Código</th><th>Horario de ingreso programado</th><th>Empresa</th><th>Solicitante</th><th>Personas que ingresan</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="c-filas"><tr><td colspan="7" class="vacio">Cargando...</td></tr></tbody>
             </table>
         </div>

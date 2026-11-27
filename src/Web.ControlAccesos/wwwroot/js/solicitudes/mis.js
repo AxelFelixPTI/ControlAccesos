@@ -69,7 +69,7 @@
             if (s.puedeCancelar) acc.push(CAF.btn({ icono: 'cancelar', texto: 'Cancelar', titulo: 'Cancelar solicitud', modo: 'icono', clase: 'btn-sm btn-danger-o', onclick: function () { cancelar(s); } }));
             cuerpo.appendChild(el('tr', { class: (s.estado === 'CANCELADA' || s.estado === 'VENCIDA' ? 'off' : '') + '', 'data-id': String(s.id) }, [
                 el('td', {}, [el('a', { class: 'link', href: verUrl(s.id), text: s.codigo }), el('div', {}, [SOL.chipTipo(s.tipoCodigo, s.tipo)]), s.codigoOrigen ? el('div', { class: 'field-h', text: 'de ' + s.codigoOrigen }) : null]),
-                el('td', { text: SOL.fechaLarga(s.fecha) + ' · ' + s.hora }),
+                SOL.celdaHorario(s, function () { window.location.href = verUrl(s.id); }),
                 el('td', {}, [el('div', { text: s.empresa || '' }), SOL.chipEmpresa(s.empresaCodigo)]),
                 el('td', {}, [SOL.personasLista(s.personasResumen)]),
                 el('td', {}, [personas(s)]),

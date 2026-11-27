@@ -308,3 +308,7 @@ La columna **Registrado** es la fecha de la entrega en que apareció cada punto.
 | P-176 | **D-268:** ¿exigir también en la base de datos el «Responsable designado del área usuaria» del contratista? Hoy solo lo exige el formulario. Revisar con Sandra el rótulo y qué hacer con solicitudes de contratista antiguas sin responsable. |
 | P-177 | **D-270/D-272:** ¿quién consulta los documentos de ingreso? | 2026-11-23 | Resuelto (D-272): Vigilancia y quien tenga la licencia «Consultar documentos de ingreso» (por defecto los coordinadores); Almacén no. |
 | P-178 | **D-271:** en producción, ¿se activa `Correo:EnvioAutomatico=true` desde el inicio y se pone además un tope diario de envíos? (el proveedor corta al pasar su límite). | 2026-11-24 | Abierto |
+| P-179 | **D-276:** ¿es correcta mi interpretación del transporte por empresa (PT/TA solo servicio tipo Cabify; TE/TS cliente o contratado)? | 2026-11-27 | Abierto |
+| P-180 | **D-276:** los conductores de despacho no exigen SCTR/EPP; la guía se revisa en la SALIDA. ¿Confirmar con Almacén/Vigilancia? | 2026-11-27 | Abierto |
+| P-181 | **D-276:** plantillas de correo aún hablan de OC/proveedor para despachos; falta capa .NET/web. Al subir «Reabrir» (2C-3i) a la rama pueden aparecer conflictos en archivos comunes. | 2026-11-27 | Abierto |
+

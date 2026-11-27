@@ -27,8 +27,32 @@ public sealed class ParametrosController : Controller
     private bool PuedeClave(string? clave) => User.TienePermiso(Permiso) || ClavesConfig.Contains(clave ?? string.Empty);
 
     private readonly ISrv_Parametro _param;
+    private readonly ISrv_Solicitud _sol;
 
-    public ParametrosController(ISrv_Parametro param) => _param = param;
+    public ParametrosController(ISrv_Parametro param, ISrv_Solicitud sol) { _param = param; _sol = sol; }
+
+    /// <summary>D-259: cuántas solicitudes pendientes u observadas pasarían a Vencida si se guarda este valor (no cambia nada).
+    /// Aplica a las horas de anticipación y a la hora de corte; para cualquier otra clave responde cero.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Impacto(string clave, string? valor, CancellationToken ct)
+    {
+        if (!PuedeClave(clave)) return Json(new { success = false, message = "No tiene permiso para este parámetro." });
+        int horas = 0; string? corte = null;
+        if (clave == "SOLICITUD_HORAS_ANTICIPACION_APROBAR")
+        {
+            if (!int.TryParse((valor ?? "0").Trim(), out horas) || horas < 0 || horas > 999) return Json(new { success = true, total = 0, solicitudes = Array.Empty<object>() });
+        }
+        else if (clave == "SOLICITUD_HORA_CORTE_VENCIMIENTO") corte = (valor ?? string.Empty).Trim();
+        else return Json(new { success = true, total = 0, solicitudes = Array.Empty<object>() });
+        var r = await _sol.VencimientoSimularAsync(horas, corte, ct);
+        if (!r.Success) return Json(new { success = false, message = r.Message });
+        var lista = r.Data!;
+        return Json(new
+        {
+            success = true, total = lista.Count,
+            solicitudes = lista.Take(15).Select(x => new { codigo = x.Codigo, fecha = x.Fecha_Hora_Prevista.ToString("dd/MM HH:mm"), estado = x.Estado, empresa = x.Empresa_Visitante }),
+        });
+    }
 
     [HttpGet]
     public async Task<IActionResult> Listar(CancellationToken ct)

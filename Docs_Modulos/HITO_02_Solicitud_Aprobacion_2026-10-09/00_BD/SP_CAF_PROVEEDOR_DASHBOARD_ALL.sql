@@ -84,7 +84,7 @@ BEGIN
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         SELECT COUNT(*), MAX(S."ID_Catalogo_Sede"), MAX(S."Fecha_Hora_Prevista") INTO lv_n, lv_sede, lv_fecha
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;
@@ -227,6 +227,7 @@ $$;
 --    Motivo_Bloqueo: por que una entrega EN_ESPERA no puede recibir la confirmacion todavia.
 -- -----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS "ERP_CAF_PROVEEDOR_CALENDARIO"(BIGINT, BIGINT, DATE, DATE);
+DROP FUNCTION IF EXISTS "ERP_CAF_PROVEEDOR_CALENDARIO"(BIGINT, BIGINT, DATE, DATE);
 CREATE OR REPLACE FUNCTION "ERP_CAF_PROVEEDOR_CALENDARIO"(
     "HV_UsuarioID"        BIGINT,
     "HV_ID_Catalogo_Sede" BIGINT,
@@ -252,16 +253,19 @@ RETURNS TABLE ("ID_Solicitud" BIGINT, "Codigo" VARCHAR, "Fecha_Hora_Prevista" TI
                "Puede_Detener" CHAR, "Puede_Reanudar" CHAR, "Puede_Cerrar_Sin" CHAR,
                "Motivo_Iniciar" VARCHAR, "Motivo_Reanudar" VARCHAR,
                "Puede_Ceder" CHAR, "Puede_Tomar" CHAR, "Motivo_Tomar" VARCHAR, "Reserva_Nombre" VARCHAR, "Pausada" CHAR,
-               "Solicitante_Nombre" VARCHAR, "Atendido_Por" VARCHAR)
+               "Solicitante_Nombre" VARCHAR, "Atendido_Por" VARCHAR,
+               "Tipo_Codigo" VARCHAR, "Numeros_OF" VARCHAR, "Numeros_OV" VARCHAR, "Numeros_Orden" VARCHAR, "Despacho_Transporte" VARCHAR)
 LANGUAGE plpgsql STABLE SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 #variable_conflict use_column
 DECLARE
+    lv_modo   VARCHAR(20);
     lv_alm    CHAR(1);
     lv_titular BIGINT;
     lv_tcod   VARCHAR(20);
     lv_resv   INT;
     lv_capx   INT;
 BEGIN
+    -- V4.0 2026-11-27 (D-276): también los DESPACHOS (+ Tipo_Codigo, OF, OV, orden y transporte); el parámetro DASHBOARD_ENTREGAS_MODO decide qué tipos se ven
     -- V3.0 2026-11-16 (D-244): + Puede_Ceder / Puede_Tomar / Motivo_Tomar / Reserva_Nombre (quién confirmó) y Pausada (todas las empresas iniciadas están detenidas); Confirmar se bloquea con el cupo del almacenero ocupado
     -- V2.9 2026-11-16 (D-243): TODOS los botones de atención salen de ERP_CAF_ATENCION_LISTAR (la misma regla que valida la acción: nunca habilitado y luego error);
     --   Iniciar solo si hay una empresa PENDIENTE; + Motivo_Iniciar / Motivo_Reanudar para mostrar el botón bloqueado con su razón
@@ -277,6 +281,7 @@ BEGIN
     IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_DASHBOARD', "HV_ID_Catalogo_Sede") <> 'Y' THEN
         RETURN;
     END IF;
+    lv_modo := "ERP_CAF_FN_DASHBOARD_ENTREGAS_MODO"("HV_ID_Catalogo_Sede");
     lv_alm := "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', "HV_ID_Catalogo_Sede");
     -- Entrega a la que esta reservada u ocupada la esclusa ahora (una reserva huerfana no cuenta)
     SELECT MAX(O."ID_Solicitud"), MAX(S."Codigo") INTO lv_titular, lv_tcod
@@ -365,10 +370,11 @@ BEGIN
            CAST((SELECT US."Apellido_Paterno" || COALESCE(' ' || US."Apellido_Materno", '') || ', ' || US."Nombres" FROM "CAF_GOVERNANCE"."Usuario" US
                   WHERE US."ID_Usuario" = S."ID_Usuario_Solicitante") AS VARCHAR),
            -- V3.1 2026-11-22 (D-264): todos los almaceneros que atendieron (nombre:empresas|nombre:empresas), no solo el último
-           "ERP_CAF_FN_ATENDIDO_POR"(S."ID_Solicitud")
+           "ERP_CAF_FN_ATENDIDO_POR"(S."ID_Solicitud"),
+           CAST(T."Codigo" AS VARCHAR), S."Numeros_OF", S."Numeros_OV", S."Numeros_Orden", CAST(S."Despacho_Transporte" AS VARCHAR)
       FROM "CAF_Solicitud_Operacion" O
       JOIN "CAF_Solicitud" S ON S."ID_Solicitud" = O."ID_Solicitud" AND S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
-      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+      JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
       JOIN "CAF_Solicitud_Persona" PR ON PR."ID_Solicitud" = S."ID_Solicitud" AND PR."Eliminado" = 'N' AND PR."Es_Principal" = 'Y'
       JOIN "CAF_Persona_Externa" PE ON PE."ID_Persona_Externa" = PR."ID_Persona_Externa"
       LEFT JOIN "CAF_GOVERNANCE"."Catalogo_Tipo_Documento" TDC ON TDC."ID_Catalogo_Tipo_Documento" = PE."ID_Catalogo_Tipo_Documento"
@@ -378,6 +384,7 @@ BEGIN
       LEFT JOIN "CAF_GOVERNANCE"."Personal" PF ON PF."ID_Personal" = UF."ID_Personal"
      WHERE O."Eliminado" = 'N' AND O."Activa" = 'Y'
        AND S."ID_Catalogo_Sede" = "HV_ID_Catalogo_Sede"
+       AND (lv_modo = 'AMBOS' OR (lv_modo = 'PROVEEDORES' AND T."Codigo" = 'PROVEEDOR') OR (lv_modo = 'DESPACHOS' AND T."Codigo" = 'DESPACHO'))
        AND ("HV_Fecha_Desde" IS NULL OR CAST(S."Fecha_Hora_Prevista" AS DATE) >= "HV_Fecha_Desde")
        AND ("HV_Fecha_Hasta" IS NULL OR CAST(S."Fecha_Hora_Prevista" AS DATE) <= "HV_Fecha_Hasta")
      ORDER BY S."Fecha_Hora_Prevista", S."ID_Solicitud";
@@ -404,6 +411,7 @@ CREATE OR REPLACE PROCEDURE "ERP_CAF_PROVEEDOR_DISPONIBILIDAD_PLAZAS"(
 LANGUAGE plpgsql SET search_path TO "TRIANONSATELITAL_CAF_PRODD" AS $$
 DECLARE
     lv_n     INT := 0;
+    lv_tcod  VARCHAR(20);
     lv_sede  BIGINT;
     lv_fecha TIMESTAMP;
     lv_act   CHAR(1);
@@ -432,15 +440,24 @@ BEGIN
             "HV_Codigo_Resp" := 400; "HV_Mensaje" := 'Elija si la atención será con ingreso vehicular o sin ingreso vehicular.'; RETURN;
         END IF;
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
-        SELECT COUNT(*), MAX(S."ID_Catalogo_Sede"), MAX(S."Fecha_Hora_Prevista") INTO lv_n, lv_sede, lv_fecha
+        SELECT COUNT(*), MAX(S."ID_Catalogo_Sede"), MAX(S."Fecha_Hora_Prevista"), MAX(T."Codigo") INTO lv_n, lv_sede, lv_fecha, lv_tcod
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;
         END IF;
         IF "ERP_CAF_FN_USUARIO_TIENE_PERMISO"("HV_UsuarioID", 'PER_CAF_PROVEEDOR_ALMACEN', lv_sede) <> 'Y' THEN
             "HV_Codigo_Resp" := 101; "HV_Mensaje" := 'No tiene permiso para confirmar la disponibilidad de Almacén.'; RETURN;
+        END IF;
+        -- V2.3 2026-11-27 (D-276): «Sin ingreso vehicular» se puede activar o desactivar por tipo (despacho: apagado por defecto)
+        IF "HV_Con_Vehiculo" = 'N' AND COALESCE("ERP_CAF_PARAMETRO_VALOR"(CASE WHEN lv_tcod = 'DESPACHO' THEN 'DESPACHO_PERMITE_SIN_INGRESO_VEHICULAR'
+                                                                               ELSE 'PROVEEDOR_PERMITE_SIN_INGRESO_VEHICULAR' END),
+                                                      CASE WHEN lv_tcod = 'DESPACHO' THEN 'N' ELSE 'Y' END) <> 'Y' THEN
+            "HV_Codigo_Resp" := 409;
+            "HV_Mensaje" := CASE WHEN lv_tcod = 'DESPACHO' THEN 'Un despacho exige ingreso vehicular: no se puede confirmar sin ingreso vehicular.'
+                                 ELSE 'En este momento no se permite confirmar la atención sin ingreso vehicular.' END;
+            RETURN;
         END IF;
         SELECT COUNT(*), MAX("Activa"), MAX("Estado_Operativo") INTO lv_n, lv_act, lv_eop
           FROM "CAF_Solicitud_Operacion" WHERE "ID_Solicitud" = "HV_ID_Solicitud" AND "Eliminado" = 'N';
@@ -621,7 +638,7 @@ BEGIN
         UPDATE "CAF_Solicitud" SET "UpdateDate" = "UpdateDate" WHERE "ID_Solicitud" = "HV_ID_Solicitud";
         SELECT COUNT(*), MAX(S."ID_Catalogo_Sede") INTO lv_n, lv_sede
           FROM "CAF_Solicitud" S
-          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" = 'PROVEEDOR'
+          JOIN "Catalogo_Tipo_Acceso" T ON T."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND T."Codigo" IN ('PROVEEDOR','DESPACHO')
          WHERE S."ID_Solicitud" = "HV_ID_Solicitud" AND S."Eliminado" = 'N';
         IF lv_n = 0 THEN
             "HV_Codigo_Resp" := 404; "HV_Mensaje" := 'La solicitud de proveedor no existe.'; RETURN;

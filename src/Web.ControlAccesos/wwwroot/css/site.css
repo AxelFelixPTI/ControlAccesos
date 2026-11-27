@@ -317,6 +317,7 @@ hr.sep{border:0;border-top:1px solid var(--line2);margin:8px 0}
 
 /* D-254: nota con el resultado del último correo de la solicitud */
 .nota-correo{margin-top:4px;font-size:12px;font-weight:600;line-height:1.3}
+.nc-detalle{background:none;border:0;padding:0;cursor:pointer;color:var(--teal);text-decoration:underline;font-family:inherit}
 .nc-ok{color:var(--ok-ink)}.nc-err{color:var(--dang-ink)}.nc-cola{color:var(--muted)}
 
 /* Ficha de ayuda (D-255) */

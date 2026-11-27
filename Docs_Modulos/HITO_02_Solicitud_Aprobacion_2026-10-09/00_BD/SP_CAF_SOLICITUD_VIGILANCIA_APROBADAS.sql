@@ -53,7 +53,7 @@ BEGIN
       LEFT JOIN "CAF_GOVERNANCE"."Personal" R ON R."ID_Personal" = S."ID_Personal_Responsable"
      WHERE S."Eliminado" = 'N' AND S."Estado" <> 'CANCELADA'
        -- Las entregas de proveedores tienen su propio listado (Vigilancia de proveedores)
-       AND NOT EXISTS (SELECT 1 FROM "Catalogo_Tipo_Acceso" TA WHERE TA."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND TA."Codigo" = 'PROVEEDOR')
+       AND NOT EXISTS (SELECT 1 FROM "Catalogo_Tipo_Acceso" TA WHERE TA."ID_Catalogo_Tipo_Acceso" = S."ID_Catalogo_Tipo_Acceso" AND TA."Codigo" IN ('PROVEEDOR','DESPACHO'))
        AND (CASE WHEN "ERP_CAF_FN_ES_FRANJA"(S."ID_Solicitud") = 'Y'   -- D-227: contratista por franja: algún día autorizado dentro del rango
                  THEN EXISTS (SELECT 1 FROM "CAF_Solicitud_Dia" D WHERE D."ID_Solicitud" = S."ID_Solicitud" AND D."Eliminado" = 'N'
                                  AND ("HV_Fecha_Desde" IS NULL OR D."Fecha" >= "HV_Fecha_Desde") AND ("HV_Fecha_Hasta" IS NULL OR D."Fecha" <= "HV_Fecha_Hasta"))

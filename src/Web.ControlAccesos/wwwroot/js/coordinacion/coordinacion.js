@@ -35,16 +35,39 @@
             if (s.rechazadas) detalle.push(s.rechazadas + ' rechazada(s)');
             cuerpo.appendChild(el('tr', { class: s.esHoy ? 'hoy' : (s.estado === 'CANCELADA' || s.estado === 'VENCIDA' ? 'off' : '') }, [
                 el('td', {}, [el('button', { type: 'button', class: 'link', text: s.codigo, onclick: function () { revisar(s.id); } }), el('div', {}, [SOL.chipTipo(s.tipoCodigo, s.tipo)])]),
-                el('td', {}, [el('span', { text: SOL.fechaLarga(s.fecha) + ' · ' + s.hora }), s.esHoy ? el('span', { class: 'chip c-obs', text: 'Hoy' }) : null]),
+                SOL.celdaHorario(s, function () { revisar(s.id); }, s.esHoy ? el('span', { class: 'chip c-obs', text: 'Hoy' }) : null),
                 el('td', {}, [el('div', { text: s.empresa || '' }), SOL.chipEmpresa(s.empresaCodigo)]),
                 el('td', { text: s.solicitante || '' }),
                 el('td', {}, [SOL.personasLista(s.personas), el('div', { class: 'field-h', text: s.total + ' persona(s)' }), el('div', { class: 'field-h', text: detalle.join(' · ') }),
                               s.porDecidirMis ? el('div', { class: 'field-h', text: s.porDecidirMis + ' por decidir por usted' }) : null]),
                 el('td', { 'data-orden': s.estado }, [SOL.estadoNodo(s)]),
                 el('td', {}, [el('div', { class: 'acc' }, [CAF.btn({ icono: 'ver', texto: s.porDecidirMis ? 'Revisar' : 'Ver', titulo: s.porDecidirMis ? 'Revisar y decidir' : 'Ver detalle', modo: 'icono', clase: 'btn-sm' + (s.porDecidirMis ? ' btn-primary' : ''), onclick: function () { revisar(s.id); } }),
-                    CAF.btn({ icono: 'reenviar', texto: 'Reenviar correo', titulo: 'Reenviar correo con el estado actual', modo: 'icono', clase: 'btn-sm', onclick: function () { SOL.reenviarCorreo({ solicitudId: s.id, urlReenviar: d.urlReenviar, urlSugerir: d.urlSugerir }, cargar); } })])])
+                    CAF.btn({ icono: 'reenviar', texto: 'Reenviar correo', titulo: 'Reenviar correo con el estado actual', modo: 'icono', clase: 'btn-sm', onclick: function () { SOL.reenviarCorreo({ solicitudId: s.id, urlReenviar: d.urlReenviar, urlSugerir: d.urlSugerir }, cargar); } }),
+                    // D-259: solo las vencidas que aún están dentro de su día de visita; la regla definitiva la valida la base
+                    (s.estado === 'VENCIDA' && !s.diasAtraso) ? CAF.btn({ icono: 'refrescar', texto: 'Reabrir', titulo: 'Reabrir la solicitud vencida', modo: 'icono', clase: 'btn-sm', onclick: function () { reabrir(s); } }) : null])])
             ]));
         });
+    }
+
+    // D-259: reabrir una solicitud vencida (vuelve a Pendiente u Observada). El motivo es obligatorio y queda en el historial.
+    function reabrir(s) {
+        var area = el('textarea', { rows: '3', maxlength: '250', placeholder: 'Por qué se reabre (por ejemplo: la visita se confirmó por teléfono)' });
+        var err = el('p', { class: 'field-e' });
+        CAF.modal('Reabrir ' + s.codigo, el('div', { class: 'stack' }, [
+            el('div', { class: 'aviso a-info', text: 'La solicitud vuelve al estado en que estaba antes de vencer y se podrá decidir de nuevo. Queda constancia en el historial.' }),
+            el('label', { class: 'field' }, [el('span', { class: 'field-l', text: 'Motivo (obligatorio)' }), area]), err]), [
+            { texto: 'Cancelar', onclick: function (c) { c(); } },
+            {
+                texto: 'Reabrir', tipo: 'primary', icono: 'refrescar', onclick: function (c) {
+                    err.textContent = '';
+                    if (!area.value.trim()) { err.textContent = 'Escriba el motivo.'; return; }
+                    CAF.pedir(d.urlReabrir, { method: 'POST', body: { solicitudId: s.id, motivo: area.value.trim() } }).then(function (x) {
+                        if (!x.success) { err.textContent = x.message || 'No se pudo reabrir.'; return; }
+                        c(); CAF.aviso(x.message || 'Solicitud reabierta.'); cargar();
+                    });
+                }
+            }
+        ]);
     }
 
     function cargar() {
@@ -87,11 +110,11 @@
             var c = s.tipoCodigo === 'CONTRATISTA', pv = s.tipoCodigo === 'PROVEEDOR';
             var filas = [['Tipo de ingreso', s.tipo || '—'], (c && s.dias && s.dias.length) ? ['Días de trabajo (' + s.dias.length + ')', s.dias.map(function (x) { return SOL.fechaLarga(x.fecha) + (x.origen === 'EXTENSION' ? ' (ampliado)' : ''); }).join(', ') + ' · ' + SOL.textoHoras(s.dias[0].desde, s.dias[0].hasta) + ' · ' + s.sede] : [c ? 'Servicio' : pv ? 'Entrega' : 'Visita', SOL.fechaLarga(s.fecha) + ' · ' + s.hora + ' · ' + s.sede], [c ? 'Empresa contratista' : pv ? 'Empresa proveedora' : 'Empresa', s.empresa || '—']];
             if (pv) filas.push(['N.º de OC', (s.numerosOc || []).join(', ') || '—'], ['Transporte', s.empresaTransportista || 'El mismo proveedor'], ['Empresa(s) receptora(s)', s.empresaDestino || '—'],
-                ['Contacto responsable de la entrega', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
+                ['Contacto del responsable', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—').split(';').join(', ')]);
             else if (c) filas.push(['Actividad(es)', s.motivoDetalle || '—'], ['Área de trabajo', (s.zonas || '—') + (s.areaDetalle ? ' — ' + s.areaDetalle : '')],
                 ['Contacto', (s.contactoNombre || '—') + ' · ' + (s.contactoTelefonos || '—')], ['Correos de contacto', s.contactoCorreos || '—']);
             else filas.push(['Motivo', (s.motivo || '—') + (s.motivoDetalle ? ' — ' + s.motivoDetalle : '')], ['Zonas', s.zonas || '—']);
-            if (!pv) filas.push([s.tipoCodigo === 'CONTRATISTA' ? 'Responsable designado del área usuaria' : 'Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
+            if (!pv) filas.push(['Responsable de atención', (s.responsable || '—') + (s.responsableArea ? ' (' + s.responsableArea + ')' : '')]);
             if (s.cochera) filas.push(['Cochera', 'Sí · placa ' + (s.placa || '—')]);
             filas.push(['Solicitante', (s.solicitante || '—') + (s.solicitanteCorreo ? ' · ' + s.solicitanteCorreo : '')], ['Observaciones', s.observaciones || '—']);
             filas
